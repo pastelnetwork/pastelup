@@ -13,8 +13,6 @@ import (
 )
 
 func setupInitCommand(app *cli.App, config *configs.Config) {
-
-	app.CustomAppHelpTemplate = getColoredHeaders(cyan)
 	// define flags here
 	var workDirectoryFlag string
 

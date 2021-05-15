@@ -18,7 +18,7 @@ func setupStartCommand(app *cli.App, config *configs.Config) {
 	var startFlag string
 
 	startCommand := cli.NewCommand("start")
-	startCommand.Usage = "" // TODO write down usage description
+	startCommand.SetUsage("") // TODO write down usage description
 	startCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &startFlag),
 	}

@@ -18,7 +18,7 @@ func setupInstallCommand(app *cli.App, config *configs.Config) {
 	var installFlag string
 
 	installCommand := cli.NewCommand("install")
-	app.SetUsage("usage")
+	installCommand.SetUsage("usage")
 	installCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &installFlag),
 	}

@@ -18,7 +18,7 @@ func setupUpdateCommand(app *cli.App, config *configs.Config) {
 	var updateFlag string
 
 	updateCommand := cli.NewCommand("update")
-	updateCommand.Usage = "" // TODO write down usage description
+	updateCommand.SetUsage("") // TODO write down usage description
 	updateCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &updateFlag),
 	}

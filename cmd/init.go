@@ -14,11 +14,12 @@ import (
 
 func setupInitCommand(app *cli.App, config *configs.Config) {
 
+	app.CustomAppHelpTemplate = getColoredHeaders(cyan)
 	// define flags here
 	var workDirectoryFlag string
 
-	initCommand := cli.NewCommand()
-	initCommand.Name = "init"
+	initCommand := cli.NewCommand("init")
+	// initCommand.CustomAppHelpTemplate = getColoredHeaders(cyan)
 	initCommand.Usage = "Command that performs initialization of the system for both Wallet and SuperNodes"
 	initCommandFlags := []*cli.Flag{
 		cli.NewFlag("work-dir", &workDirectoryFlag),
@@ -27,12 +28,12 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 	addLogFlags(initCommand, config)
 
 	// create walletnode and supernode subcommands
-	walletnodeSubCommand := cli.NewCommand()
-	walletnodeSubCommand.Name = green.Sprint("walletnode")
+	walletnodeSubCommandName := green.Sprint("walletnode")
+	walletnodeSubCommand := cli.NewCommand(walletnodeSubCommandName)
 	walletnodeSubCommand.Usage = cyan.Sprint("Perform wallet specific initialization after common")
 
-	supernodeSubCommand := cli.NewCommand()
-	supernodeSubCommand.Name = green.Sprint("supernode")
+	supernodeSubCommandName := green.Sprint("supernode")
+	supernodeSubCommand := cli.NewCommand(supernodeSubCommandName)
 	supernodeSubCommand.Usage = cyan.Sprint("Perform Supernode/Masternode specific initialization after common")
 	initSubCommands := []*cli.Command{
 		walletnodeSubCommand,

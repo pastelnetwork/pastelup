@@ -39,13 +39,13 @@ var (
 	green = color.New(color.FgGreen)
 )
 
-func getColoredHeaders() string {
-	name := cyan.Sprint("NAME")
-	version := cyan.Sprint("VERSION")
-	description := cyan.Sprint("DESCRIPTION")
-	commands := cyan.Sprint("COMMANDS")
-	globalOptions := cyan.Sprint("GLOBAL OPTIONS")
-	copyright := cyan.Sprint("COPYRIGHT")
+func getColoredHeaders(diaplayColor *color.Color) string {
+	name := diaplayColor.Sprint("NAME")
+	version := diaplayColor.Sprint("VERSION")
+	description := diaplayColor.Sprint("DESCRIPTION")
+	commands := diaplayColor.Sprint("COMMANDS")
+	globalOptions := diaplayColor.Sprint("GLOBAL OPTIONS")
+	copyright := diaplayColor.Sprint("COPYRIGHT")
 
 	return fmt.Sprintf(AppHelpTemplate, name, version, description, commands,
 		globalOptions, copyright)

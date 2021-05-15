@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"github.com/fatih/color"
 	"io/ioutil"
 
 	"github.com/pastelnetwork/pastel-utility/configs"
@@ -14,9 +13,6 @@ import (
 )
 
 func setupInitCommand(app *cli.App, config *configs.Config) {
-	//define colors
-	cyan := color.New(color.FgCyan)
-	green := color.New(color.FgGreen)
 
 	// define flags here
 	var workDirectoryFlag string
@@ -43,7 +39,6 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 		supernodeSubCommand,
 	}
 	initCommand.AddSubcommands(initSubCommands...)
-
 
 	initCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx = log.ContextWithPrefix(ctx, "app")

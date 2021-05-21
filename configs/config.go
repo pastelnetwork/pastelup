@@ -2,21 +2,24 @@ package configs
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // Config contains configuration of all components of the WalletNode.
 type Config struct {
-	Main `mapstructure:",squash"`
+	Main `json:",squash"`
 }
 
-func (config *Config) String() (string, error) {
+func (config *Config) String() string {
 	// The main purpose of using a custom converting is to avoid unveiling credentials.
 	// All credentials fields must be tagged `json:"-"`.
 	data, err := json.Marshal(config)
+
 	if err != nil {
-		return "", err
+		return fmt.Sprintf("Error to marshal config %v", err)
 	}
-	return string(data), nil
+
+	return string(data)
 }
 
 // New returns a new Config instance

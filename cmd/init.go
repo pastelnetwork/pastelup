@@ -16,31 +16,34 @@ import (
 func setupInitCommand(app *cli.App, config *configs.Config) {
 	//define colors
 	cyan := color.New(color.FgCyan)
+	green := color.New(color.FgGreen)
+
 	// define flags here
-	var initFlag string
+	var workDirectoryFlag string
 
 	initCommand := cli.NewCommand()
 	initCommand.Name = "init"
 	initCommand.Usage = "Command that performs initialization of the system for both Wallet and SuperNodes"
 	initCommandFlags := []*cli.Flag{
-		cli.NewFlag("flag-name", &initFlag),
+		cli.NewFlag("work-dir", &workDirectoryFlag),
 	}
+	initCommand.AddFlags(initCommandFlags...)
+	addLogFlags(initCommand, config)
 
 	// create walletnode and supernode subcommands
 	walletnodeSubCommand := cli.NewCommand()
-	walletnodeSubCommand.Name = "walletnode"
+	walletnodeSubCommand.Name = green.Sprint("walletnode")
 	walletnodeSubCommand.Usage = cyan.Sprint("Perform wallet specific initialization after common")
 
 	supernodeSubCommand := cli.NewCommand()
-	supernodeSubCommand.Name = "supernode"
+	supernodeSubCommand.Name = green.Sprint("supernode")
 	supernodeSubCommand.Usage = cyan.Sprint("Perform Supernode/Masternode specific initialization after common")
 	initSubCommands := []*cli.Command{
 		walletnodeSubCommand,
 		supernodeSubCommand,
 	}
 	initCommand.AddSubcommands(initSubCommands...)
-	initCommand.AddFlags(initCommandFlags...)
-	addLogFlags(initCommand, config)
+
 
 	initCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx = log.ContextWithPrefix(ctx, "app")
@@ -60,7 +63,7 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
 		}
 
-		log.Info("flag-name: ", initFlag)
+		log.Info("flag-name: ", workDirectoryFlag)
 
 		return runInit(ctx, config)
 	})

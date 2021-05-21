@@ -19,7 +19,7 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 
 	initCommand := cli.NewCommand()
 	initCommand.Name = "init"
-	app.SetUsage("usage")
+	initCommand.Usage = "Command that performs initialization of the system for both Wallet and SuperNodes"
 	initCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &initFlag),
 	}
@@ -55,11 +55,7 @@ func runInit(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Init")
 	defer log.WithContext(ctx).Info("End")
 
-	configJson, err := config.String()
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Infof("Config: %s", configJson)
+	log.WithContext(ctx).Infof("Config: %s", config)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/fatih/color"
 	"os"
 
 	"github.com/pastelnetwork/pastel-utility/cmd"
@@ -18,6 +19,7 @@ var (
 )
 
 func main() {
+	color.Cyan("hello")
 	defer errors.Recover(log.FatalAndExit)
 
 	app := cmd.NewApp()

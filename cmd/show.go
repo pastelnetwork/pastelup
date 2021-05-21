@@ -19,7 +19,7 @@ func setupShowCommand(app *cli.App, config *configs.Config) {
 
 	showCommand := cli.NewCommand()
 	showCommand.Name = "show"
-	app.SetUsage("usage")
+	showCommand.Usage = "" // TODO write down usage description
 	showCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &showFlag),
 	}
@@ -55,11 +55,7 @@ func runShow(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Show")
 	defer log.WithContext(ctx).Info("End")
 
-	configJson, err := config.String()
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Infof("Config: %s", configJson)
+	log.WithContext(ctx).Infof("Config: %s", config)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

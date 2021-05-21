@@ -19,7 +19,7 @@ func setupStartCommand(app *cli.App, config *configs.Config) {
 
 	startCommand := cli.NewCommand()
 	startCommand.Name = "start"
-	app.SetUsage("usage")
+	startCommand.Usage = "" // TODO write down usage description
 	startCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &startFlag),
 	}
@@ -55,11 +55,7 @@ func runStart(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Start")
 	defer log.WithContext(ctx).Info("End")
 
-	configJson, err := config.String()
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Infof("Config: %s", configJson)
+	log.WithContext(ctx).Infof("Config: %s", config)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

@@ -19,7 +19,7 @@ func setupUpdateCommand(app *cli.App, config *configs.Config) {
 
 	updateCommand := cli.NewCommand()
 	updateCommand.Name = "update"
-	app.SetUsage("usage")
+	updateCommand.Usage = "" // TODO write down usage description
 	updateCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &updateFlag),
 	}
@@ -55,11 +55,7 @@ func runUpdate(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Update")
 	defer log.WithContext(ctx).Info("End")
 
-	configJson, err := config.String()
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Infof("Config: %s", configJson)
+	log.WithContext(ctx).Infof("Config: %s", config)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

@@ -6,20 +6,14 @@ import (
 
 // Config contains configuration of all components of the WalletNode.
 type Config struct {
-	Main `json:",squash"`
+	Main `mapstructure:",squash"`
 }
 
-// String : returns string from Config fields
-func (config *Config) String() (string, error) {
+func (config *Config) String() string {
 	// The main purpose of using a custom converting is to avoid unveiling credentials.
 	// All credentials fields must be tagged `json:"-"`.
-	data, err := json.Marshal(config)
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
+	data, _ := json.Marshal(config)
+	return string(data)
 }
 
 // New returns a new Config instance

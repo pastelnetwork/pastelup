@@ -19,7 +19,7 @@ func setupStopCommand(app *cli.App, config *configs.Config) {
 
 	stopCommand := cli.NewCommand()
 	stopCommand.Name = "stop"
-	app.SetUsage("usage")
+	stopCommand.Usage = "" // TODO write down usage description
 	stopCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &stopFlag),
 	}
@@ -55,11 +55,8 @@ func runStop(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Stop")
 	defer log.WithContext(ctx).Info("End")
 
-	configJson, err := config.String()
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Infof("Config: %s", configJson)
+	log.WithContext(ctx).Infof("Config: %s", config)
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

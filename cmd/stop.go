@@ -55,8 +55,11 @@ func runStop(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Stop")
 	defer log.WithContext(ctx).Info("End")
 
-	log.WithContext(ctx).Infof("Config: %s", config)
-
+	configJson, err := config.String()
+	if err != nil {
+		return err
+	}
+	log.WithContext(ctx).Infof("Config: %s", configJson)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

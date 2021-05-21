@@ -12,7 +12,10 @@ type Config struct {
 func (config *Config) String() string {
 	// The main purpose of using a custom converting is to avoid unveiling credentials.
 	// All credentials fields must be tagged `json:"-"`.
-	data, _ := json.Marshal(config)
+	data, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
 	return string(data)
 }
 

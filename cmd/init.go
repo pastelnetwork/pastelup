@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"github.com/fatih/color"
 	"io/ioutil"
 
 	"github.com/pastelnetwork/pastel-utility/configs"
@@ -13,7 +14,8 @@ import (
 )
 
 func setupInitCommand(app *cli.App, config *configs.Config) {
-
+	//define colors
+	cyan := color.New(color.FgCyan)
 	// define flags here
 	var initFlag string
 
@@ -23,6 +25,20 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 	initCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &initFlag),
 	}
+
+	// create walletnode and supernode subcommands
+	walletnodeSubCommand := cli.NewCommand()
+	walletnodeSubCommand.Name = "walletnode"
+	walletnodeSubCommand.Usage = cyan.Sprint("Perform wallet specific initialization after common")
+
+	supernodeSubCommand := cli.NewCommand()
+	supernodeSubCommand.Name = "supernode"
+	supernodeSubCommand.Usage = cyan.Sprint("Perform Supernode/Masternode specific initialization after common")
+	initSubCommands := []*cli.Command{
+		walletnodeSubCommand,
+		supernodeSubCommand,
+	}
+	initCommand.AddSubcommands(initSubCommands...)
 	initCommand.AddFlags(initCommandFlags...)
 	addLogFlags(initCommand, config)
 

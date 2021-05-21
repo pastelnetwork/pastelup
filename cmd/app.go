@@ -21,9 +21,6 @@ func NewApp() *cli.App {
 	app.SetUsage(appUsage)
 	app.SetVersion(version.Version())
 
-	//setup start command
-	//setup install command
-	//setup init command
 
 	setupInitCommand(app, config)
 	setupStartCommand(app, config)

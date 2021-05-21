@@ -8,6 +8,7 @@ import (
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/log/hooks"
+	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pkg/errors"
 )
 
@@ -23,6 +24,7 @@ func setupStartCommand(app *cli.App, config *configs.Config) {
 		cli.NewFlag("flag-name", &startFlag),
 	}
 	startCommand.AddFlags(startCommandFlags...)
+	addLogFlags(startCommand, config)
 
 	startCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx = log.ContextWithPrefix(ctx, "app")
@@ -44,7 +46,26 @@ func setupStartCommand(app *cli.App, config *configs.Config) {
 
 		log.Info("flag-name: ", startFlag)
 
-		return nil
+		return runStart(ctx, config)
 	})
 	app.AddCommands(startCommand)
+}
+
+func runStart(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Start")
+	defer log.WithContext(ctx).Info("End")
+
+	log.WithContext(ctx).Infof("Config: %s", config)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	sys.RegisterInterruptHandler(cancel, func() {
+		log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
+	})
+
+	// actions to run goes here
+
+	return nil
+
 }

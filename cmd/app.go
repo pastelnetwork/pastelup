@@ -26,6 +26,11 @@ func NewApp() *cli.App {
 	//setup init command
 
 	setupStartCommand(app, config)
+	setupInitCommand(app, config)
+	setupInstallCommand(app, config)
+	setupShowCommand(app, config)
+	setupStopCommand(app, config)
+	setupUpdateCommand(app, config)
 
 	return app
 }

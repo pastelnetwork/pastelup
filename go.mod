@@ -1,4 +1,4 @@
-module github.com/edentech88/pastel-utility
+module github.com/pastelnetwork/pastel-utility
 
 go 1.14
 

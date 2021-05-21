@@ -9,6 +9,7 @@ type Config struct {
 	Main `json:",squash"`
 }
 
+// String : returns string from Config fields
 func (config *Config) String() (string, error) {
 	// The main purpose of using a custom converting is to avoid unveiling credentials.
 	// All credentials fields must be tagged `json:"-"`.

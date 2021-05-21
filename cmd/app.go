@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/edentech88/pastel-utility/configs"
+	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/version"
 )

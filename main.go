@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/edentech88/pastel-utility/cmd"
+	"github.com/pastelnetwork/pastel-utility/cmd"
 	"github.com/pastelnetwork/gonode/common/errors"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"

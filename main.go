@@ -17,8 +17,6 @@ var (
 func main() {
 	defer errors.Recover(log.FatalAndExit)
 
-	log.FatalAndExit(err)
-
 }
 
 func init() {

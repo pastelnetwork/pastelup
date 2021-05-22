@@ -18,7 +18,7 @@ func setupStopCommand(app *cli.App, config *configs.Config) {
 	var stopFlag string
 
 	stopCommand := cli.NewCommand("stop")
-	stopCommand.Usage = "" // TODO write down usage description
+	stopCommand.SetUsage("") // TODO write down usage description
 	stopCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &stopFlag),
 	}

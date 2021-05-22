@@ -18,7 +18,7 @@ func setupShowCommand(app *cli.App, config *configs.Config) {
 	var showFlag string
 
 	showCommand := cli.NewCommand("show")
-	showCommand.Usage = "" // TODO write down usage description
+	showCommand.SetUsage("") // TODO write down usage description
 	showCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &showFlag),
 	}

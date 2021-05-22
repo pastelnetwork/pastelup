@@ -21,10 +21,9 @@ func NewApp() *cli.App {
 	app.SetUsage(appUsage)
 	app.SetVersion(version.Version())
 
-
 	setupInitCommand(app, config)
 	setupStartCommand(app, config)
-    setupStopCommand(app, config)
+	setupStopCommand(app, config)
 	setupShowCommand(app, config)
 	setupUpdateCommand(app, config)
 

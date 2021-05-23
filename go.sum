@@ -166,9 +166,6 @@ github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1y
 github.com/onsi/gomega v1.11.0 h1:+CqWgvj0OZycCaqclBD1pxKHAU+tOkHmQIWvDHq2aug=
 github.com/onsi/gomega v1.11.0/go.mod h1:azGKhqFUon9Vuj0YmTfLSmx0FUwqXYSTl5re8lQLTUg=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
-github.com/pastelnetwork/gonode v0.0.0-20210522143237-ab5a4a61b9ca h1:WpOli0dLJrRXailjijm1jmgssEm4c4XAUJJR8TykoLk=
-github.com/pastelnetwork/gonode/common v0.0.0-20210520225528-2d9b6238f77f h1:Jz/0cmg9mOuLdyy20UNsj4m1qgeRlZH/Za6aMbYW4cg=
-github.com/pastelnetwork/gonode/common v0.0.0-20210520225528-2d9b6238f77f/go.mod h1:zth03XxeRdvicac/bS9YBdWT2h0BteP66RvDqtMWGYI=
 github.com/pastelnetwork/gonode/common v0.0.0-20210522143237-ab5a4a61b9ca h1:TELjuAp/cvNvYdgzHcbbFNFfBTm0lWUVBTpO22cRJr0=
 github.com/pastelnetwork/gonode/common v0.0.0-20210522143237-ab5a4a61b9ca/go.mod h1:zth03XxeRdvicac/bS9YBdWT2h0BteP66RvDqtMWGYI=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=

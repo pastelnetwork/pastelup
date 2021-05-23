@@ -7,6 +7,7 @@ import (
 // Config contains configuration of all components of the WalletNode.
 type Config struct {
 	Main `json:",squash"`
+	Init `json:",squash"`
 }
 
 // String : returns string from Config fields

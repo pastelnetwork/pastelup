@@ -20,7 +20,7 @@ func NewApp() *cli.App {
 	app := cli.NewApp(appName)
 	app.SetUsage(appUsage)
 	app.SetVersion(version.Version())
-	app.SetCustomAppHelpTemplate(getColoredHeaders(cyan))
+	app.SetCustomAppHelpTemplate(GetColoredHeaders(cyan))
 
 	setupInitCommand(app, config)
 	setupStartCommand(app, config)

@@ -37,15 +37,16 @@ AUTHOR{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
 var (
 	cyan  = color.New(color.FgCyan)
 	green = color.New(color.FgGreen)
+	blue = color.New(color.FgBlue)
 )
 
-func getColoredHeaders(diaplayColor *color.Color) string {
-	name := diaplayColor.Sprint("NAME")
-	version := diaplayColor.Sprint("VERSION")
-	description := diaplayColor.Sprint("DESCRIPTION")
-	commands := diaplayColor.Sprint("COMMANDS")
-	globalOptions := diaplayColor.Sprint("GLOBAL OPTIONS")
-	copyright := diaplayColor.Sprint("COPYRIGHT")
+func GetColoredHeaders(displaycolor *color.Color) string {
+	name := displaycolor.Sprint("NAME")
+	version := displaycolor.Sprint("VERSION")
+	description := displaycolor.Sprint("DESCRIPTION")
+	commands := displaycolor.Sprint("COMMANDS")
+	globalOptions := displaycolor.Sprint("GLOBAL OPTIONS")
+	copyright := displaycolor.Sprint("COPYRIGHT")
 
 	return fmt.Sprintf(AppHelpTemplate, name, version, description, commands,
 		globalOptions, copyright)

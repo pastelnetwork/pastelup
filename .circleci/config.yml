@@ -1,0 +1,111 @@
+version: 2.1
+
+defaults: &defaults
+  parameters:
+    version:
+      type: string
+      default: "latest"
+  docker:
+    - image: "circleci/golang:<< parameters.version >>"
+  environment:
+    GO111MODULE: "on"
+
+commands:
+  release-os:
+    parameters:
+      package:
+        type: string
+        default: "pastel-utility"
+      goos:
+        type: enum
+        enum: ["darwin", "linux", "windows"]
+    steps:
+      - run:
+          name: "Build binary for << parameters.goos >>"
+          command: |
+            CGO_ENABLED=0 GOOS=<< parameters.goos >> GOARCH=amd64 go build -o bin/<< parameters.package >>-<< parameters.goos >>-amd64 -ldflags "-X github.com/pastelnetwork/gonode/common/version.version=$CIRCLE_TAG -extldflags '-static'" .
+      - run:
+          name: "Upload << parameters.package >>-<< parameters.goos >>-amd64 to GitHub"
+          command: |
+            github-release upload --user pastelnetwork --repo gonode --tag $CIRCLE_TAG --name << parameters.package >>-<< parameters.goos >>-amd64 --file bin/<< parameters.package >>-<< parameters.goos >>-amd64
+
+jobs:
+  # Run automated tests
+  test:
+    <<: *defaults
+    steps:
+      - checkout
+      - run:
+          name: Print the go version
+          command: |
+            go version
+      - run:
+          name: Install revive
+          command: |
+            GO111MODULE=off go get -u github.com/mgechev/revive
+      - run:
+          name: Install staticcheck
+          command: |
+            GO111MODULE=off go get -u honnef.co/go/tools/cmd/staticcheck
+      - run:
+          name: Fetch dependencies
+          command: |
+            go get -v ./...
+      - run:
+          name: Run gofmt
+          command: |
+            diff -u <(echo -n) <(gofmt -d -e .)
+      - run:
+          name: Run go vet
+          command: |
+            go vet -v ./...
+      - run:
+          name: Run revive
+          command: |
+            revive -config ~/project/.circleci/revive.toml ./...
+      - run:
+          name: Run staticcheck
+          command: |
+            staticcheck ./...
+      - run:
+          name: Run go test
+          command: |
+            go test -v -race ./...
+
+  # Whenever we create a GitHub release, build binaries for each OS, and upload them into the release
+  release:
+    <<: *defaults
+    steps:
+      - checkout
+      - run:
+          name: Install github-release
+          command: |
+            GO111MODULE=off go get github.com/github-release/github-release
+      - run:
+          name: Fetch dependencies
+          command: |
+            go get -v ./...
+      - release-os:
+          goos: "darwin"
+      - release-os:
+          goos: "linux"
+      - release-os:
+          goos: "windows"
+
+workflows:
+  build-and-test:
+    jobs:
+      - test:
+          filters:
+            tags:
+              only: /^v.*/
+      - release:
+          requires:
+            - test
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+          context:
+            - Release

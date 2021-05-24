@@ -68,7 +68,7 @@ jobs:
           command: |
             staticcheck ./...
       - run:
-          name: Run go test (+ race detector)
+          name: Run go test
           command: |
             go test -v -race ./...
 

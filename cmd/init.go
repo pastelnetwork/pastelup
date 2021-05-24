@@ -2,18 +2,19 @@ package cmd
 
 import (
 	"context"
-	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/gonode/common/cli"
-	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/log/hooks"
-	"github.com/pastelnetwork/gonode/common/sys"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/gonode/common/cli"
+	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/gonode/common/log/hooks"
+	"github.com/pastelnetwork/gonode/common/sys"
+	"github.com/pkg/errors"
 )
 
 func setupInitCommand(app *cli.App, config *configs.Config) {
@@ -246,6 +247,11 @@ func writeFile(ctx context.Context, fileName string, config *configs.Config) err
 		return err
 	}
 
+	_, err = file.WriteString("*listen=1* \n \n") // creates server line
+	if err != nil {
+		return err
+	}
+
 	rpcUser := generateRandomString(8)
 	_, err = file.WriteString("*rpcuser=" + rpcUser + "* \n \n") // creates  rpcuser line
 	if err != nil {
@@ -253,7 +259,7 @@ func writeFile(ctx context.Context, fileName string, config *configs.Config) err
 	}
 
 	rpcPassword := generateRandomString(15)
-	_, err = file.WriteString("*rpcuser=" + rpcPassword + "* \n \n") // creates rpcpassword line
+	_, err = file.WriteString("*rpcpassword=" + rpcPassword + "* \n \n") // creates rpcpassword line
 	if err != nil {
 		return err
 	}
@@ -271,7 +277,7 @@ func writeFile(ctx context.Context, fileName string, config *configs.Config) err
 	//      *addnode = ip:port*
 	// TODO: add logic for mutiple peers -> probably implement StringSliceFlag
 	if config.Peers != "" {
-		_, err = file.WriteString("*addnode="+ config.Peers +"* \n \n") // creates addnode line
+		_, err = file.WriteString("*addnode=" + config.Peers + "* \n \n") // creates addnode line
 		if err != nil {
 			return err
 		}

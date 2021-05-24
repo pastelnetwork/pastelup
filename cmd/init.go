@@ -52,8 +52,8 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 	addLogFlags(initCommand, config)
 
 	// create walletnode and supernode subcommands
-	walletnodeSubCommandName := green.Sprint("walletnode")
-	walletnodeSubCommand := cli.NewCommand(walletnodeSubCommandName)
+	// walletnodeSubCommandName := green.Sprint("walletnode")
+	walletnodeSubCommand := cli.NewCommand("walletnode")
 	walletnodeSubCommand.Usage = cyan.Sprint("Perform wallet specific initialization after common")
 
 	walletnodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
@@ -77,9 +77,30 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 		return runWalletSubCommand(ctx, config)
 	})
 
-	supernodeSubCommandName := green.Sprint("supernode")
-	supernodeSubCommand := cli.NewCommand(supernodeSubCommandName)
+	// supernodeSubCommandName := green.Sprint("supernode")
+	supernodeSubCommand := cli.NewCommand("supernode")
 	supernodeSubCommand.Usage = cyan.Sprint("Perform Supernode/Masternode specific initialization after common")
+
+	supernodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
+		ctx = log.ContextWithPrefix(ctx, "supernodeSubCommand")
+
+		if config.Quiet {
+			log.SetOutput(ioutil.Discard)
+		} else {
+			log.SetOutput(app.Writer)
+		}
+
+		if config.LogFile != "" {
+			fileHook := hooks.NewFileHook(config.LogFile)
+			log.AddHook(fileHook)
+		}
+
+		if err := log.SetLevelName(config.LogLevel); err != nil {
+			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
+		}
+
+		return runSuperNodeSubCommand(ctx, config)
+	})
 
 	initSubCommands := []*cli.Command{
 		walletnodeSubCommand,
@@ -125,13 +146,8 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	workDirPath := config.WorkingDir + "/.pastel/"
 
 	// get default OS location if path flag is not explicitly set
-	if config.WorkingDir == "default" {
+	if config.WorkingDir == "" {
 		workDirPath = getDefaultOsLocation(runtime.GOOS)
-	}
-
-	// create working dir path
-	if err := createFolder(ctx, workDirPath, forceSet); err != nil {
-		return err
 	}
 
 	// create walletnode default config
@@ -141,11 +157,57 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	defaultConfig := `
-	node:
-		api:
-			hostname: "localhost"
-			port: 8080
+	defaultConfig := `node:
+	api:
+		hostname: "localhost"
+		port: 8080
+	`
+
+	// write to file
+	file, err := os.OpenFile(fileName, os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Populate pastel.conf line-by-line to file.
+	_, err = file.WriteString(defaultConfig) // creates server line
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+// runSuperNodeSubCommand runs wallet subcommand
+func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Super Node")
+	defer log.WithContext(ctx).Info("End")
+
+	forceSet := config.Force
+	workDirPath := config.WorkingDir + "/.pastel/"
+
+	// get default OS location if path flag is not explicitly set
+	if config.WorkingDir == "" {
+		workDirPath = getDefaultOsLocation(runtime.GOOS)
+	}
+
+	// create walletnode default config
+	// create file
+	fileName, err := createFile(ctx, workDirPath+"/supernode.conf", forceSet)
+	if err != nil {
+		return err
+	}
+
+	defaultConfig := `node:
+	# `+`pastel_id`+` must match to active `+`PastelID`+` from masternode.
+	# To check it out first get the active outpoint from `+`masteronde status`+`, then filter the result of `+`tickets list id mine`+` by this outpoint.
+	pastel_id: some-value
+	server:
+		# `+`listen_address`+` and `+`port`+` must match to `+`extAddress`+` from masternode.conf
+		listen_addresses: "127.0.0.1"
+		port: 4444
 	`
 
 	// write to file

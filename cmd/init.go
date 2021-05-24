@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"io"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"os"
 	"runtime"
 	"strings"
@@ -16,6 +18,15 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pkg/errors"
 )
+
+var zksnarkParamsURL = "https://z.cash/downloads/"
+var zksnarkParamsNames = []string{
+	"sapling-spend.params",
+	"sapling-output.params",
+	"sprout-proving.key",
+	"sprout-verifying.key",
+	// "sprout-groth16.params",
+}
 
 func setupInitCommand(app *cli.App, config *configs.Config) {
 	// define flags here
@@ -142,20 +153,26 @@ func getDefaultOsLocation(system string) string {
 // Print success info log on successfully ran command, return error if fail
 func initCommandLogic(ctx context.Context, config *configs.Config) error {
 	forceSet := config.Force
-	path := config.WorkingDir + "/.pastel"
+	workDirPath := config.WorkingDir + "/.pastel/"
+	zksnarkPath := config.WorkingDir + "/.pastel-params/"
 
 	// get default OS location if path flag is not explicitly set
-	if path == "default" {
-		path = getDefaultOsLocation(runtime.GOOS)
+	if config.WorkingDir == "default" {
+		workDirPath = getDefaultOsLocation(runtime.GOOS)
 	}
 
-	err := createFolder(ctx, path, forceSet)
-	if err != nil {
+	// create working dir path
+	if err := createFolder(ctx, workDirPath, forceSet); err != nil {
+		return err
+	}
+
+	// create zksnark parameters path
+	if err := createFolder(ctx, zksnarkPath, forceSet); err != nil {
 		return err
 	}
 
 	// create file
-	f, err := createFile(ctx, path, forceSet)
+	f, err := createFile(ctx, workDirPath, forceSet)
 	if err != nil {
 		return err
 	}
@@ -166,7 +183,54 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
+	// download zksnark params
+	if err := downloadZksnarkParams(ctx, zksnarkPath, forceSet); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// downloadZksnarkParams downloads zksnark params to the specified forlder
+// Print success info log on successfully ran command, return error if fail
+func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
+	log.WithContext(ctx).Info("Downloading zksnark files:")
+	for _, zksnarkParamsName := range zksnarkParamsNames {
+		zksnarkParamsPath := path + zksnarkParamsName
+		log.WithContext(ctx).Infof("downloading: %s", zksnarkParamsPath)
+		_, err := os.Stat(zksnarkParamsPath)
+		// check if file exists and force is not set
+		if os.IsExist(err) && !force {
+			log.WithContext(ctx).WithError(err).Errorf("Error: file zksnark param already exists %s\n", zksnarkParamsPath)
+			return errors.Errorf("zksnarkParam exists:  %s \n", zksnarkParamsPath)
+		}
+
+		out, err := os.Create(zksnarkParamsPath)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
+			return errors.Errorf("Failed to create file: %v \n", err)
+		}
+		defer out.Close()
+
+		// download param
+		resp, err := http.Get(zksnarkParamsURL + zksnarkParamsName)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", zksnarkParamsURL+zksnarkParamsName)
+			return errors.Errorf("Failed to download: %v \n", err)
+		}
+		defer resp.Body.Close()
+
+		// write to file
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.WithContext(ctx).Info("Finhsed downloading zksnark params.")
+
+	return nil
+
 }
 
 // createFolder creates the folder in the specified `path`

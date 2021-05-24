@@ -19,7 +19,7 @@ var AppHelpTemplate = `
    {{.Version}}{{end}}{{end}}{{if .Description}}
 %s:
    {{.Description | nindent 3 | trim}}{{end}}{{if len .Authors}}
-AUTHOR{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
+%s{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
    {{range $index, $author := .Authors}}{{if $index}}
    {{end}}{{$author}}{{end}}{{end}}{{if .VisibleCommands}}
 %s:{{range .VisibleCategories}}{{if .Name}}
@@ -37,17 +37,18 @@ AUTHOR{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
 var (
 	cyan  = color.New(color.FgCyan)
 	green = color.New(color.FgGreen)
-	blue = color.New(color.FgBlue)
+	blue  = color.New(color.FgBlue)
 )
 
 func GetColoredHeaders(displaycolor *color.Color) string {
 	name := displaycolor.Sprint("NAME")
+	usage := displaycolor.Sprint("USAGE")
 	version := displaycolor.Sprint("VERSION")
 	description := displaycolor.Sprint("DESCRIPTION")
+	author := displaycolor.Sprint("AUTHOR")
 	commands := displaycolor.Sprint("COMMANDS")
 	globalOptions := displaycolor.Sprint("GLOBAL OPTIONS")
 	copyright := displaycolor.Sprint("COPYRIGHT")
 
-	return fmt.Sprintf(AppHelpTemplate, name, version, description, commands,
-		globalOptions, copyright)
+	return fmt.Sprintf(AppHelpTemplate, name, usage, version, description, author, commands, globalOptions, copyright)
 }

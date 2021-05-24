@@ -25,7 +25,7 @@ var zksnarkParamsNames = []string{
 	"sapling-output.params",
 	"sprout-proving.key",
 	"sprout-verifying.key",
-	// "sprout-groth16.params",
+	"sprout-groth16.params",
 }
 
 func setupInitCommand(app *cli.App, config *configs.Config) {
@@ -55,6 +55,27 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 	walletnodeSubCommandName := green.Sprint("walletnode")
 	walletnodeSubCommand := cli.NewCommand(walletnodeSubCommandName)
 	walletnodeSubCommand.Usage = cyan.Sprint("Perform wallet specific initialization after common")
+
+	walletnodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
+		ctx = log.ContextWithPrefix(ctx, "walletnodeSubCommand")
+
+		if config.Quiet {
+			log.SetOutput(ioutil.Discard)
+		} else {
+			log.SetOutput(app.Writer)
+		}
+
+		if config.LogFile != "" {
+			fileHook := hooks.NewFileHook(config.LogFile)
+			log.AddHook(fileHook)
+		}
+
+		if err := log.SetLevelName(config.LogLevel); err != nil {
+			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
+		}
+
+		return runWalletSubCommand(ctx, config)
+	})
 
 	supernodeSubCommandName := green.Sprint("supernode")
 	supernodeSubCommand := cli.NewCommand(supernodeSubCommandName)
@@ -93,6 +114,55 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 		return runInit(ctx, config)
 	})
 	app.AddCommands(initCommand)
+}
+
+// runWalletSubCommand runs wallet subcommand
+func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Wallet Node")
+	defer log.WithContext(ctx).Info("End")
+
+	forceSet := config.Force
+	workDirPath := config.WorkingDir + "/.pastel/"
+
+	// get default OS location if path flag is not explicitly set
+	if config.WorkingDir == "default" {
+		workDirPath = getDefaultOsLocation(runtime.GOOS)
+	}
+
+	// create working dir path
+	if err := createFolder(ctx, workDirPath, forceSet); err != nil {
+		return err
+	}
+
+	// create walletnode default config
+	// create file
+	fileName, err := createFile(ctx, workDirPath+"/wallet.conf", forceSet)
+	if err != nil {
+		return err
+	}
+
+	defaultConfig := `
+	node:
+		api:
+			hostname: "localhost"
+			port: 8080
+	`
+
+	// write to file
+	file, err := os.OpenFile(fileName, os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Populate pastel.conf line-by-line to file.
+	_, err = file.WriteString(defaultConfig) // creates server line
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }
 
 func runInit(ctx context.Context, config *configs.Config) error {
@@ -172,7 +242,7 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 	}
 
 	// create file
-	f, err := createFile(ctx, workDirPath, forceSet)
+	f, err := createFile(ctx, workDirPath+"/pastel.conf", forceSet)
 	if err != nil {
 		return err
 	}
@@ -227,7 +297,7 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 		}
 	}
 
-	log.WithContext(ctx).Info("Finhsed downloading zksnark params.")
+	log.WithContext(ctx).Info("ZkSnark params downloaded.\n")
 
 	return nil
 
@@ -262,8 +332,7 @@ func createFolder(ctx context.Context, path string, force bool) error {
 
 // createFile creates pastel.conf file
 // Print success info log on successfully ran command, return error if fail
-func createFile(ctx context.Context, path string, force bool) (string, error) {
-	fileName := path + "/pastel.conf"
+func createFile(ctx context.Context, fileName string, force bool) (string, error) {
 
 	if force {
 		var file, err = os.Create(fileName)

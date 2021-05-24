@@ -5,6 +5,7 @@ type Init struct {
 	WorkingDir string `json:"workdir,omitempty"`
 	Network    string `json:"network,omitempty"`
 	Force      bool   `json:"force,omitempty"`
+	Peers      string `json:"peers"`
 }
 
 // NewInit returns a new Init instance.

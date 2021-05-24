@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
@@ -10,8 +9,11 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"runtime"
+	"strings"
+	"time"
 )
 
 func setupInitCommand(app *cli.App, config *configs.Config) {
@@ -22,7 +24,6 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 	var peerFlag string
 
 	initCommand := cli.NewCommand("init")
-	// initCommand.CustomAppHelpTemplate = getColoredHeaders(cyan)
 	initCommand.CustomHelpTemplate = GetColoredHeaders(cyan)
 	initCommand.SetUsage("Command that performs initialization of the system for both Wallet and SuperNodes")
 	initCommandFlags := []*cli.Flag{
@@ -75,6 +76,7 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 		config.WorkingDir = dirFlag
 		config.Network = networkFlag
 		config.Force = forceFlag
+		config.Peers = peerFlag
 
 		return runInit(ctx, config)
 	})
@@ -100,8 +102,8 @@ func runInit(ctx context.Context, config *configs.Config) error {
 
 	// actions to run goes here
 
-	//create directory
-	err = createDirectory(config)
+	//run the init command logic flow
+	err = initCommandLogic(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -109,8 +111,11 @@ func runInit(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func getDetaultOsLocation(os string) string {
-	switch os {
+// getDefaultOsLocation returns the pre defined directory creation path
+// for the given Operating System
+// returns `path` string
+func getDefaultOsLocation(system string) string {
+	switch system {
 	case "windows":
 		// TODO: check the Windows major version (something like the w32 api library)
 		// if Vista or newer use C:\Users\Username\AppData\Roaming\Pastel
@@ -124,39 +129,179 @@ func getDetaultOsLocation(os string) string {
 	case "darwin":
 		return "~/Library/Application Support/Pastel"
 	case "linux":
-		return "~/.pastel"
+		homeDir, _ := os.UserHomeDir()
+		return homeDir + "/.pastel"
 	default:
 		return ""
 	}
 }
 
-func createDirectory(config *configs.Config) error {
+// initCommandLogic runs the init command logic flow
+// takes all provided arguments in the cli and does all the background tasks
+// Print success info log on successfully ran command, return error if fail
+func initCommandLogic(ctx context.Context, config *configs.Config) error {
 	forceSet := config.Force
-	path := config.WorkingDir
+	path := config.WorkingDir + "/.pastel"
 
 	// get default OS location if path flag is not explicitly set
 	if path == "default" {
-		path = getDetaultOsLocation(runtime.GOOS)
+		path = getDefaultOsLocation(runtime.GOOS)
 	}
 
-	fmt.Printf("PATH: %s", path)
+	err := createFolder(ctx, path, forceSet)
+	if err != nil {
+		return err
+	}
 
-	if forceSet {
-		err := os.Mkdir(path, os.ModePerm)
+	// create file
+	f, err := createFile(ctx, path, forceSet)
+	if err != nil {
+		return err
+	}
+
+	// write to file
+	err = writeFile(ctx, f, config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// createFolder creates the folder in the specified `path`
+// Print success info log on successfully ran command, return error if fail
+func createFolder(ctx context.Context, path string, force bool) error {
+	if force {
+		err := os.MkdirAll(path, 0755)
 		if err != nil {
-			return err
+			log.WithContext(ctx).WithError(err).Error("Error creating directory")
+			return errors.Errorf("Failed to create directory: %v \n", err)
 		}
+		log.WithContext(ctx).Infof("Directory created on %s \n", path)
 	} else {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			fmt.Printf("err %v", err)
-
-			err := os.Mkdir(path, os.ModePerm)
-			fmt.Printf("err %v", err)
+			err := os.MkdirAll(path, 0755)
 			if err != nil {
-				return err
+				log.WithContext(ctx).WithError(err).Error("Error creating directory")
+				return errors.Errorf("Failed to create directory: %v \n", err)
 			}
+			log.WithContext(ctx).Infof("Directory created on %s \n", path)
+		} else {
+			log.WithContext(ctx).WithError(err).Error("Directory already exists \n")
+			return errors.Errorf("Directory already exists \n")
 		}
 	}
 
 	return nil
+}
+
+// createFile creates pastel.conf file
+// Print success info log on successfully ran command, return error if fail
+func createFile(ctx context.Context, path string, force bool) (string, error) {
+	fileName := path + "/pastel.conf"
+
+	if force {
+		var file, err = os.Create(fileName)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Error creating file")
+			return "", errors.Errorf("Failed to create file: %v \n", err)
+		}
+		defer file.Close()
+	} else {
+		// check if file exists
+		var _, err = os.Stat(fileName)
+
+		// create file if not exists
+		if os.IsNotExist(err) {
+			var file, err = os.Create(fileName)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Error creating file")
+				return "", errors.Errorf("Failed to create file: %v \n", err)
+			}
+			defer file.Close()
+		} else {
+			log.WithContext(ctx).WithError(err).Error("File already exists \n")
+			return "", errors.Errorf("File already exists \n")
+		}
+	}
+
+	log.WithContext(ctx).Infof("File created: %s \n", fileName)
+
+	return fileName, nil
+}
+
+// writeFile populates the pastel.conf file with the corresponding logic
+// Print success info log on successfully ran command, return error if fail
+func writeFile(ctx context.Context, fileName string, config *configs.Config) error {
+	// Open file using READ & WRITE permission.
+	var file, err = os.OpenFile(fileName, os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Populate pastel.conf line-by-line to file.
+	_, err = file.WriteString("*server=1* \n \n") // creates server line
+	if err != nil {
+		return err
+	}
+
+	rpcUser := generateRandomString(8)
+	_, err = file.WriteString("*rpcuser=" + rpcUser + "* \n \n") // creates  rpcuser line
+	if err != nil {
+		return err
+	}
+
+	rpcPassword := generateRandomString(15)
+	_, err = file.WriteString("*rpcuser=" + rpcPassword + "* \n \n") // creates rpcpassword line
+	if err != nil {
+		return err
+	}
+
+	if config.Network == "testnet" {
+		_, err = file.WriteString("*testnet=1* \n \n") // creates testnet line
+		if err != nil {
+			return err
+		}
+	}
+
+	//- If --peers are provided, add `addnode` for each peer
+	//      *addnode = ip*
+	//or/and
+	//      *addnode = ip:port*
+	// TODO: add logic for mutiple peers -> probably implement StringSliceFlag
+	if config.Peers != "" {
+		_, err = file.WriteString("*addnode="+ config.Peers +"* \n \n") // creates addnode line
+		if err != nil {
+			return err
+		}
+	}
+
+	// Save file changes.
+	err = file.Sync()
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Error saving file")
+		return errors.Errorf("Failed to save file changes: %v \n", err)
+	}
+
+	log.WithContext(ctx).Info("File updated successfully: \n")
+
+	return nil
+}
+
+// generateRandomString is a helper func for generating
+// random string of the given input length
+// returns the generated string
+func generateRandomString(length int) string {
+	rand.Seed(time.Now().UnixNano())
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+		"abcdefghijklmnopqrstuvwxyz" +
+		"0123456789")
+	var b strings.Builder
+	for i := 0; i < length; i++ {
+		b.WriteRune(chars[rand.Intn(len(chars))])
+	}
+	str := b.String()
+
+	return str
 }

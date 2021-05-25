@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/pastel-utility/utils"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/configurer"
 	"github.com/pastelnetwork/gonode/common/log"
@@ -112,13 +113,13 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	}
 
 	// create working dir path
-	if err := createFolder(ctx, workDirPath, forceSet); err != nil {
+	if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {
 		return err
 	}
 
 	// create walletnode default config
 	// create file
-	fileName, err := createFile(ctx, workDirPath+"/wallet.conf", forceSet)
+	fileName, err := utils.CreateFile(ctx, workDirPath+"/wallet.conf", forceSet)
 	if err != nil {
 		return err
 	}
@@ -168,13 +169,13 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	}
 
 	// create working dir path
-	if err := createFolder(ctx, workDirPath, forceSet); err != nil {
+	if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {
 		return err
 	}
 
 	// create walletnode default config
 	// create file
-	fileName, err := createFile(ctx, workDirPath+"/supernode.conf", forceSet)
+	fileName, err := utils.CreateFile(ctx, workDirPath+"/supernode.conf", forceSet)
 	if err != nil {
 		return err
 	}
@@ -265,17 +266,17 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 	}
 
 	// create working dir path
-	if err := createFolder(ctx, workDirPath, forceSet); err != nil {
+	if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {
 		return err
 	}
 
 	// create zksnark parameters path
-	if err := createFolder(ctx, zksnarkPath, forceSet); err != nil {
+	if err := utils.CreateFolder(ctx, zksnarkPath, forceSet); err != nil {
 		return err
 	}
 
 	// create file
-	f, err := createFile(ctx, workDirPath+"/pastel.conf", forceSet)
+	f, err := utils.CreateFile(ctx, workDirPath+"/pastel.conf", forceSet)
 	if err != nil {
 		return err
 	}
@@ -334,67 +335,6 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 
 	return nil
 
-}
-
-// createFolder creates the folder in the specified `path`
-// Print success info log on successfully ran command, return error if fail
-func createFolder(ctx context.Context, path string, force bool) error {
-	if force {
-		err := os.MkdirAll(path, 0755)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Error creating directory")
-			return errors.Errorf("Failed to create directory: %v \n", err)
-		}
-		log.WithContext(ctx).Infof("Directory created on %s \n", path)
-	} else {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			err := os.MkdirAll(path, 0755)
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Error creating directory")
-				return errors.Errorf("Failed to create directory: %v \n", err)
-			}
-			log.WithContext(ctx).Infof("Directory created on %s \n", path)
-		} else {
-			log.WithContext(ctx).WithError(err).Error("Directory already exists \n")
-			return errors.Errorf("Directory already exists \n")
-		}
-	}
-
-	return nil
-}
-
-// createFile creates pastel.conf file
-// Print success info log on successfully ran command, return error if fail
-func createFile(ctx context.Context, fileName string, force bool) (string, error) {
-
-	if force {
-		var file, err = os.Create(fileName)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Error creating file")
-			return "", errors.Errorf("Failed to create file: %v \n", err)
-		}
-		defer file.Close()
-	} else {
-		// check if file exists
-		var _, err = os.Stat(fileName)
-
-		// create file if not exists
-		if os.IsNotExist(err) {
-			var file, err = os.Create(fileName)
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Error creating file")
-				return "", errors.Errorf("Failed to create file: %v \n", err)
-			}
-			defer file.Close()
-		} else {
-			log.WithContext(ctx).WithError(err).Error("File already exists \n")
-			return "", errors.Errorf("File already exists \n")
-		}
-	}
-
-	log.WithContext(ctx).Infof("File created: %s \n", fileName)
-
-	return fileName, nil
 }
 
 // writeFile populates the pastel.conf file with the corresponding logic

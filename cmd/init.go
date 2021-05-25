@@ -31,22 +31,18 @@ var zksnarkParamsNames = []string{
 func setupInitCommand() *cli.Command {
 	config := configs.New()
 	// define flags here
-	var dirFlag string
-	var networkFlag string
-	var forceFlag bool
-	var peerFlag string
 
 	initCommand := cli.NewCommand("init")
 	initCommand.CustomHelpTemplate = GetColoredHeaders(cyan)
 	initCommand.SetUsage("Command that performs initialization of the system for both Wallet and SuperNodes")
 	initCommandFlags := []*cli.Flag{
-		cli.NewFlag("work-dir", &dirFlag).SetAliases("d").
+		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("d").
 			SetUsage("Location where to create working directory").SetValue("default"),
-		cli.NewFlag("network", &networkFlag).SetAliases("n").
+		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage("Network type, can be - \"mainnet\" or \"testnet\"").SetValue("mainnet"),
-		cli.NewFlag("force", &forceFlag).SetAliases("f").
+		cli.NewFlag("force", &config.Force).SetAliases("f").
 			SetUsage("Force to overwrite config files and re-download ZKSnark parameters"),
-		cli.NewFlag("peers", &peerFlag).SetAliases("p").
+		cli.NewFlag("peers", &config.Peers).SetAliases("p").
 			SetUsage("List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\""),
 	}
 	initCommand.AddFlags(initCommandFlags...)
@@ -126,11 +122,6 @@ func setupInitCommand() *cli.Command {
 		if err := log.SetLevelName(config.LogLevel); err != nil {
 			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
 		}
-
-		config.WorkingDir = dirFlag
-		config.Network = networkFlag
-		config.Force = forceFlag
-		config.Peers = peerFlag
 
 		return runInit(ctx, config)
 	})

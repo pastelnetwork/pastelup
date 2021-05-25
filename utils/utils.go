@@ -2,7 +2,10 @@ package utils
 
 import (
 	"context"
+	"math/rand"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pkg/errors"
@@ -67,4 +70,21 @@ func CreateFile(ctx context.Context, fileName string, force bool) (string, error
 	log.WithContext(ctx).Infof("File created: %s \n", fileName)
 
 	return fileName, nil
+}
+
+// enerateRandomString is a helper func for generating
+// random string of the given input length
+// returns the generated string
+func GenerateRandomString(length int) string {
+	rand.Seed(time.Now().UnixNano())
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+		"abcdefghijklmnopqrstuvwxyz" +
+		"0123456789")
+	var b strings.Builder
+	for i := 0; i < length; i++ {
+		b.WriteRune(chars[rand.Intn(len(chars))])
+	}
+	str := b.String()
+
+	return str
 }

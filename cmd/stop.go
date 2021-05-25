@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"context"
 	"io/ioutil"
 
@@ -64,6 +65,7 @@ func runStop(ctx context.Context, config *configs.Config) error {
 
 	sys.RegisterInterruptHandler(cancel, func() {
 		log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
+		os.Exit(0)
 	})
 
 	// actions to run goes here

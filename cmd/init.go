@@ -28,7 +28,6 @@ var zksnarkParamsNames = []string{
 
 func setupInitCommand() *cli.Command {
 	config := configs.New()
-	// define flags here
 
 	initCommand := cli.NewCommand("init")
 	initCommand.CustomHelpTemplate = GetColoredHeaders(cyan)
@@ -50,28 +49,22 @@ func setupInitCommand() *cli.Command {
 	// walletnodeSubCommandName := green.Sprint("walletnode")
 	walletnodeSubCommand := cli.NewCommand("walletnode")
 	walletnodeSubCommand.Usage = cyan.Sprint("Perform wallet specific initialization after common")
-
 	walletnodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-
 		ctx, err := configureLogging("walletnodeSubCommand", config, ctx)
 		if err != nil {
 			return err
 		}
-
 		return runWalletSubCommand(ctx, config)
 	})
 
 	// supernodeSubCommandName := green.Sprint("supernode")
 	supernodeSubCommand := cli.NewCommand("supernode")
 	supernodeSubCommand.Usage = cyan.Sprint("Perform Supernode/Masternode specific initialization after common")
-
 	supernodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-
 		ctx, err := configureLogging("supernodeSubCommand", config, ctx)
 		if err != nil {
 			return err
 		}
-
 		return runSuperNodeSubCommand(ctx, config)
 	})
 
@@ -82,12 +75,10 @@ func setupInitCommand() *cli.Command {
 	initCommand.AddSubcommands(initSubCommands...)
 
 	initCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-
 		ctx, err := configureLogging("initcommand", config, ctx)
 		if err != nil {
 			return err
 		}
-
 		return runInit(ctx, config)
 	})
 	return initCommand
@@ -97,6 +88,20 @@ func setupInitCommand() *cli.Command {
 func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Wallet Node")
 	defer log.WithContext(ctx).Info("End")
+
+	configJson, err := config.String()
+	if err != nil {
+		return err
+	}
+	log.WithContext(ctx).Infof("Config: %s", configJson)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	sys.RegisterInterruptHandler(cancel, func() {
+		log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
+		os.Exit(0)
+	})
 
 	forceSet := config.Force
 	workDirPath := config.WorkingDir + "/.pastel/"
@@ -108,16 +113,10 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 
 	// create walletnode default config
 	// create file
-	fileName, err := createFile(ctx, workDirPath+"/wallet.conf", forceSet)
+	fileName, err := createFile(ctx, workDirPath+"wallet.conf", forceSet)
 	if err != nil {
 		return err
 	}
-
-	defaultConfig := `node:
-	api:
-		hostname: "localhost"
-		port: 8080
-	`
 
 	// write to file
 	file, err := os.OpenFile(fileName, os.O_RDWR, 0644)
@@ -127,7 +126,7 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	defer file.Close()
 
 	// Populate pastel.conf line-by-line to file.
-	_, err = file.WriteString(defaultConfig) // creates server line
+	_, err = file.WriteString(configs.WalletDefaultConfig) // creates server line
 	if err != nil {
 		return err
 	}
@@ -141,6 +140,20 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Super Node")
 	defer log.WithContext(ctx).Info("End")
 
+	configJson, err := config.String()
+	if err != nil {
+		return err
+	}
+	log.WithContext(ctx).Infof("Config: %s", configJson)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	sys.RegisterInterruptHandler(cancel, func() {
+		log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
+		os.Exit(0)
+	})
+
 	forceSet := config.Force
 	workDirPath := config.WorkingDir + "/.pastel/"
 
@@ -151,20 +164,10 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 
 	// create walletnode default config
 	// create file
-	fileName, err := createFile(ctx, workDirPath+"/supernode.conf", forceSet)
+	fileName, err := createFile(ctx, workDirPath+"supernode.conf", forceSet)
 	if err != nil {
 		return err
 	}
-
-	defaultConfig := `node:
-	# ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode.
-	# To check it out first get the active outpoint from ` + `masteronde status` + `, then filter the result of ` + `tickets list id mine` + ` by this outpoint.
-	pastel_id: some-value
-	server:
-		# ` + `listen_address` + ` and ` + `port` + ` must match to ` + `extAddress` + ` from masternode.conf
-		listen_addresses: "127.0.0.1"
-		port: 4444
-	`
 
 	// write to file
 	file, err := os.OpenFile(fileName, os.O_RDWR, 0644)
@@ -174,7 +177,7 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	defer file.Close()
 
 	// Populate pastel.conf line-by-line to file.
-	_, err = file.WriteString(defaultConfig) // creates server line
+	_, err = file.WriteString(configs.SupernodeDefaultConfig) // creates server line
 	if err != nil {
 		return err
 	}

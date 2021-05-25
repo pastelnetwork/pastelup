@@ -72,7 +72,7 @@ func CreateFile(ctx context.Context, fileName string, force bool) (string, error
 	return fileName, nil
 }
 
-// enerateRandomString is a helper func for generating
+// GenerateRandomString is a helper func for generating
 // random string of the given input length
 // returns the generated string
 func GenerateRandomString(length int) string {

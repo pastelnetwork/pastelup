@@ -28,7 +28,7 @@ var zksnarkParamsNames = []string{
 	"sprout-groth16.params",
 }
 
-func setupInitCommand(appWriter io.Writer) *cli.Command {
+func setupInitCommand() *cli.Command {
 	config := configs.New()
 	// define flags here
 	var dirFlag string
@@ -63,7 +63,7 @@ func setupInitCommand(appWriter io.Writer) *cli.Command {
 		if config.Quiet {
 			log.SetOutput(ioutil.Discard)
 		} else {
-			log.SetOutput(appWriter)
+			log.SetOutput(AppWriter)
 		}
 
 		if config.LogFile != "" {
@@ -88,7 +88,7 @@ func setupInitCommand(appWriter io.Writer) *cli.Command {
 		if config.Quiet {
 			log.SetOutput(ioutil.Discard)
 		} else {
-			log.SetOutput(appWriter)
+			log.SetOutput(AppWriter)
 		}
 
 		if config.LogFile != "" {
@@ -115,7 +115,7 @@ func setupInitCommand(appWriter io.Writer) *cli.Command {
 		if config.Quiet {
 			log.SetOutput(ioutil.Discard)
 		} else {
-			log.SetOutput(appWriter)
+			log.SetOutput(AppWriter)
 		}
 
 		if config.LogFile != "" {

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"io"
+
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/version"
@@ -13,11 +15,15 @@ const (
 	// defaultConfigFile = ""
 )
 
+// writer for logging
+var AppWriter io.Writer
+
 // NewApp inits a new command line interface.
 func NewApp() *cli.App {
 	config := configs.New()
 
 	app := cli.NewApp(appName)
+	AppWriter = app.Writer
 	app.SetUsage(appUsage)
 	app.SetVersion(version.Version())
 	app.SetCustomAppHelpTemplate(GetColoredHeaders(cyan))
@@ -29,7 +35,7 @@ func NewApp() *cli.App {
 	setupUpdateCommand(app, config)
 
 	app.AddCommands(
-		setupInitCommand(app.Writer),
+		setupInitCommand(),
 	)
 
 	return app

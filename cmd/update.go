@@ -1,25 +1,23 @@
 package cmd
 
 import (
-	"os"
 	"context"
-	"io/ioutil"
+	"os"
 
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/gonode/common/sys"
-	"github.com/pkg/errors"
 )
 
-func setupUpdateCommand(app *cli.App, config *configs.Config) {
+func setupUpdateCommand() *cli.Command {
+	config := configs.New()
 
 	// define flags here
 	var updateFlag string
 
 	updateCommand := cli.NewCommand("update")
-	updateCommand.SetUsage("") // TODO write down usage description
+	updateCommand.SetUsage("usage")
 	updateCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &updateFlag),
 	}
@@ -27,28 +25,16 @@ func setupUpdateCommand(app *cli.App, config *configs.Config) {
 	addLogFlags(updateCommand, config)
 
 	updateCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx = log.ContextWithPrefix(ctx, "app")
-
-		if config.Quiet {
-			log.SetOutput(ioutil.Discard)
-		} else {
-			log.SetOutput(app.Writer)
-		}
-
-		if config.LogFile != "" {
-			fileHook := hooks.NewFileHook(config.LogFile)
-			log.AddHook(fileHook)
-		}
-
-		if err := log.SetLevelName(config.LogLevel); err != nil {
-			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
+		ctx, err := configureLogging("updatecommand", config, ctx)
+		if err != nil {
+			return err
 		}
 
 		log.Info("flag-name: ", updateFlag)
 
 		return runUpdate(ctx, config)
 	})
-	app.AddCommands(updateCommand)
+	return updateCommand
 }
 
 func runUpdate(ctx context.Context, config *configs.Config) error {

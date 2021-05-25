@@ -1,19 +1,17 @@
 package cmd
 
 import (
-	"os"
 	"context"
-	"io/ioutil"
+	"os"
 
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/gonode/common/sys"
-	"github.com/pkg/errors"
 )
 
-func setupInstallCommand(app *cli.App, config *configs.Config) {
+func setupInstallCommand() *cli.Command {
+	config := configs.New()
 
 	// define flags here
 	var installFlag string
@@ -27,28 +25,16 @@ func setupInstallCommand(app *cli.App, config *configs.Config) {
 	addLogFlags(installCommand, config)
 
 	installCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx = log.ContextWithPrefix(ctx, "app")
-
-		if config.Quiet {
-			log.SetOutput(ioutil.Discard)
-		} else {
-			log.SetOutput(app.Writer)
-		}
-
-		if config.LogFile != "" {
-			fileHook := hooks.NewFileHook(config.LogFile)
-			log.AddHook(fileHook)
-		}
-
-		if err := log.SetLevelName(config.LogLevel); err != nil {
-			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
+		ctx, err := configureLogging("installcommand", config, ctx)
+		if err != nil {
+			return err
 		}
 
 		log.Info("flag-name: ", installFlag)
 
 		return runInstall(ctx, config)
 	})
-	app.AddCommands(installCommand)
+	return installCommand
 }
 
 func runInstall(ctx context.Context, config *configs.Config) error {

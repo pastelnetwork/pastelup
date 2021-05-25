@@ -1,25 +1,23 @@
 package cmd
 
 import (
-	"os"
 	"context"
-	"io/ioutil"
+	"os"
 
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/gonode/common/sys"
-	"github.com/pkg/errors"
 )
 
-func setupStopCommand(app *cli.App, config *configs.Config) {
+func setupStopCommand() *cli.Command {
+	config := configs.New()
 
 	// define flags here
 	var stopFlag string
 
 	stopCommand := cli.NewCommand("stop")
-	stopCommand.SetUsage("") // TODO write down usage description
+	stopCommand.SetUsage("usage")
 	stopCommandFlags := []*cli.Flag{
 		cli.NewFlag("flag-name", &stopFlag),
 	}
@@ -27,28 +25,16 @@ func setupStopCommand(app *cli.App, config *configs.Config) {
 	addLogFlags(stopCommand, config)
 
 	stopCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx = log.ContextWithPrefix(ctx, "app")
-
-		if config.Quiet {
-			log.SetOutput(ioutil.Discard)
-		} else {
-			log.SetOutput(app.Writer)
-		}
-
-		if config.LogFile != "" {
-			fileHook := hooks.NewFileHook(config.LogFile)
-			log.AddHook(fileHook)
-		}
-
-		if err := log.SetLevelName(config.LogLevel); err != nil {
-			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
+		ctx, err := configureLogging("stopcommand", config, ctx)
+		if err != nil {
+			return err
 		}
 
 		log.Info("flag-name: ", stopFlag)
 
 		return runStop(ctx, config)
 	})
-	app.AddCommands(stopCommand)
+	return stopCommand
 }
 
 func runStop(ctx context.Context, config *configs.Config) error {
@@ -60,6 +46,7 @@ func runStop(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 	log.WithContext(ctx).Infof("Config: %s", configJson)
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

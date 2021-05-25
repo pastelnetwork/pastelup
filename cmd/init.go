@@ -28,7 +28,8 @@ var zksnarkParamsNames = []string{
 	"sprout-groth16.params",
 }
 
-func setupInitCommand(app *cli.App, config *configs.Config) {
+func setupInitCommand(appWriter io.Writer) *cli.Command {
+	config := configs.New()
 	// define flags here
 	var dirFlag string
 	var networkFlag string
@@ -62,7 +63,7 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 		if config.Quiet {
 			log.SetOutput(ioutil.Discard)
 		} else {
-			log.SetOutput(app.Writer)
+			log.SetOutput(appWriter)
 		}
 
 		if config.LogFile != "" {
@@ -87,7 +88,7 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 		if config.Quiet {
 			log.SetOutput(ioutil.Discard)
 		} else {
-			log.SetOutput(app.Writer)
+			log.SetOutput(appWriter)
 		}
 
 		if config.LogFile != "" {
@@ -114,7 +115,7 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 		if config.Quiet {
 			log.SetOutput(ioutil.Discard)
 		} else {
-			log.SetOutput(app.Writer)
+			log.SetOutput(appWriter)
 		}
 
 		if config.LogFile != "" {
@@ -133,7 +134,7 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 
 		return runInit(ctx, config)
 	})
-	app.AddCommands(initCommand)
+	return initCommand
 }
 
 // runWalletSubCommand runs wallet subcommand

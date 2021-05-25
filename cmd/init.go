@@ -29,22 +29,21 @@ func setupInitCommand() *cli.Command {
 
 	initCommand := cli.NewCommand("init")
 	initCommand.CustomHelpTemplate = GetColoredHeaders(cyan)
-	initCommand.SetUsage("Command that performs initialization of the system for both Wallet and SuperNodes")
+	initCommand.SetUsage(blue.Sprint("Command that performs initialization of the system for both Wallet and SuperNodes"))
 	initCommandFlags := []*cli.Flag{
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("d").
-			SetUsage("Location where to create working directory").SetValue("default"),
+			SetUsage(green.Sprint("Location where to create working directory")).SetValue("default"),
 		cli.NewFlag("network", &config.Network).SetAliases("n").
-			SetUsage("Network type, can be - \"mainnet\" or \"testnet\"").SetValue("mainnet"),
+			SetUsage(green.Sprint("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
-			SetUsage("Force to overwrite config files and re-download ZKSnark parameters"),
+			SetUsage(green.Sprint("Force to overwrite config files and re-download ZKSnark parameters")),
 		cli.NewFlag("peers", &config.Peers).SetAliases("p").
-			SetUsage("List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\""),
+			SetUsage(green.Sprint("List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 	}
 	initCommand.AddFlags(initCommandFlags...)
 	addLogFlags(initCommand, config)
 
 	// create walletnode and supernode subcommands
-	// walletnodeSubCommandName := green.Sprint("walletnode")
 	walletnodeSubCommand := cli.NewCommand("walletnode")
 	walletnodeSubCommand.Usage = cyan.Sprint("Perform wallet specific initialization after common")
 	walletnodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
@@ -55,7 +54,6 @@ func setupInitCommand() *cli.Command {
 		return runWalletSubCommand(ctx, config)
 	})
 
-	// supernodeSubCommandName := green.Sprint("supernode")
 	supernodeSubCommand := cli.NewCommand("supernode")
 	supernodeSubCommand.Usage = cyan.Sprint("Perform Supernode/Masternode specific initialization after common")
 	supernodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {

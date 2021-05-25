@@ -23,11 +23,14 @@ func NewApp() *cli.App {
 	app.SetCustomAppHelpTemplate(GetColoredHeaders(cyan))
 
 	setupInstallCommand(app, config)
-	setupInitCommand(app, config)
 	setupStartCommand(app, config)
 	setupStopCommand(app, config)
 	setupShowCommand(app, config)
 	setupUpdateCommand(app, config)
+
+	app.AddCommands(
+		setupInitCommand(app.Writer),
+	)
 
 	return app
 }

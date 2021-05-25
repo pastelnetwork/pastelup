@@ -10,7 +10,7 @@ const (
 	appName  = "Pastel-Utility"
 	appUsage = `Set up usage here` // TODO: Write a clear description.
 
-	defaultConfigFile = ""
+	// defaultConfigFile = ""
 )
 
 // NewApp inits a new command line interface.
@@ -22,6 +22,7 @@ func NewApp() *cli.App {
 	app.SetVersion(version.Version())
 	app.SetCustomAppHelpTemplate(GetColoredHeaders(cyan))
 
+	setupInstallCommand(app, config)
 	setupInitCommand(app, config)
 	setupStartCommand(app, config)
 	setupStopCommand(app, config)

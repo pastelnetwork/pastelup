@@ -25,7 +25,6 @@ var AppWriter io.Writer
 
 // NewApp inits a new command line interface.
 func NewApp() *cli.App {
-	config := configs.New()
 
 	app := cli.NewApp(appName)
 	AppWriter = app.Writer
@@ -33,14 +32,13 @@ func NewApp() *cli.App {
 	app.SetVersion(version.Version())
 	app.SetCustomAppHelpTemplate(GetColoredHeaders(cyan))
 
-	setupInstallCommand(app, config)
-	setupStartCommand(app, config)
-	setupStopCommand(app, config)
-	setupShowCommand(app, config)
-	setupUpdateCommand(app, config)
-
 	app.AddCommands(
 		setupInitCommand(),
+		setupInstallCommand(),
+		setupStartCommand(),
+		setupStopCommand(),
+		setupShowCommand(),
+		setupUpdateCommand(),
 	)
 
 	return app

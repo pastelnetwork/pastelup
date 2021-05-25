@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pkg/errors"
 )
@@ -54,21 +52,10 @@ func setupInitCommand() *cli.Command {
 	walletnodeSubCommand.Usage = cyan.Sprint("Perform wallet specific initialization after common")
 
 	walletnodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx = log.ContextWithPrefix(ctx, "walletnodeSubCommand")
 
-		if config.Quiet {
-			log.SetOutput(ioutil.Discard)
-		} else {
-			log.SetOutput(AppWriter)
-		}
-
-		if config.LogFile != "" {
-			fileHook := hooks.NewFileHook(config.LogFile)
-			log.AddHook(fileHook)
-		}
-
-		if err := log.SetLevelName(config.LogLevel); err != nil {
-			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
+		ctx, err := configureLogging("walletnodeSubCommand", config, ctx)
+		if err != nil {
+			return err
 		}
 
 		return runWalletSubCommand(ctx, config)
@@ -79,21 +66,10 @@ func setupInitCommand() *cli.Command {
 	supernodeSubCommand.Usage = cyan.Sprint("Perform Supernode/Masternode specific initialization after common")
 
 	supernodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx = log.ContextWithPrefix(ctx, "supernodeSubCommand")
 
-		if config.Quiet {
-			log.SetOutput(ioutil.Discard)
-		} else {
-			log.SetOutput(AppWriter)
-		}
-
-		if config.LogFile != "" {
-			fileHook := hooks.NewFileHook(config.LogFile)
-			log.AddHook(fileHook)
-		}
-
-		if err := log.SetLevelName(config.LogLevel); err != nil {
-			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
+		ctx, err := configureLogging("supernodeSubCommand", config, ctx)
+		if err != nil {
+			return err
 		}
 
 		return runSuperNodeSubCommand(ctx, config)
@@ -106,21 +82,10 @@ func setupInitCommand() *cli.Command {
 	initCommand.AddSubcommands(initSubCommands...)
 
 	initCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx = log.ContextWithPrefix(ctx, "app")
 
-		if config.Quiet {
-			log.SetOutput(ioutil.Discard)
-		} else {
-			log.SetOutput(AppWriter)
-		}
-
-		if config.LogFile != "" {
-			fileHook := hooks.NewFileHook(config.LogFile)
-			log.AddHook(fileHook)
-		}
-
-		if err := log.SetLevelName(config.LogLevel); err != nil {
-			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
+		ctx, err := configureLogging("initcommand", config, ctx)
+		if err != nil {
+			return err
 		}
 
 		return runInit(ctx, config)

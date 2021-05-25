@@ -3,11 +3,8 @@ package cmd
 import (
 	"context"
 	"io"
-	"math/rand"
 	"net/http"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/utils"
@@ -333,13 +330,13 @@ func writeFile(ctx context.Context, fileName string, config *configs.Config) err
 		return err
 	}
 
-	rpcUser := generateRandomString(8)
+	rpcUser := utils.GenerateRandomString(8)
 	_, err = file.WriteString("*rpcuser=" + rpcUser + "* \n \n") // creates  rpcuser line
 	if err != nil {
 		return err
 	}
 
-	rpcPassword := generateRandomString(15)
+	rpcPassword := utils.GenerateRandomString(15)
 	_, err = file.WriteString("*rpcpassword=" + rpcPassword + "* \n \n") // creates rpcpassword line
 	if err != nil {
 		return err
@@ -374,21 +371,4 @@ func writeFile(ctx context.Context, fileName string, config *configs.Config) err
 	log.WithContext(ctx).Info("File updated successfully: \n")
 
 	return nil
-}
-
-// generateRandomString is a helper func for generating
-// random string of the given input length
-// returns the generated string
-func generateRandomString(length int) string {
-	rand.Seed(time.Now().UnixNano())
-	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-		"abcdefghijklmnopqrstuvwxyz" +
-		"0123456789")
-	var b strings.Builder
-	for i := 0; i < length; i++ {
-		b.WriteRune(chars[rand.Intn(len(chars))])
-	}
-	str := b.String()
-
-	return str
 }

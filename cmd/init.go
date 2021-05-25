@@ -6,12 +6,12 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/gonode/common/cli"
+	"github.com/pastelnetwork/gonode/common/configurer"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pkg/errors"
@@ -104,16 +104,21 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	})
 
 	forceSet := config.Force
-	workDirPath := config.WorkingDir + "/.pastel/"
+	workDirPath := config.WorkingDir + "/walletnode/"
 
 	// get default OS location if path flag is not explicitly set
 	if config.WorkingDir == "default" {
-		workDirPath = getDefaultOsLocation(runtime.GOOS)
+		workDirPath = configurer.DefaultConfigPath("walletnode")
+	}
+
+	// create working dir path
+	if err := createFolder(ctx, workDirPath, forceSet); err != nil {
+		return err
 	}
 
 	// create walletnode default config
 	// create file
-	fileName, err := createFile(ctx, workDirPath+"wallet.conf", forceSet)
+	fileName, err := createFile(ctx, workDirPath+"/wallet.conf", forceSet)
 	if err != nil {
 		return err
 	}
@@ -155,16 +160,21 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	})
 
 	forceSet := config.Force
-	workDirPath := config.WorkingDir + "/.pastel/"
+	workDirPath := config.WorkingDir + "/supernode/"
 
 	// get default OS location if path flag is not explicitly set
 	if config.WorkingDir == "default" {
-		workDirPath = getDefaultOsLocation(runtime.GOOS)
+		workDirPath = configurer.DefaultConfigPath("supernode")
+	}
+
+	// create working dir path
+	if err := createFolder(ctx, workDirPath, forceSet); err != nil {
+		return err
 	}
 
 	// create walletnode default config
 	// create file
-	fileName, err := createFile(ctx, workDirPath+"supernode.conf", forceSet)
+	fileName, err := createFile(ctx, workDirPath+"/supernode.conf", forceSet)
 	if err != nil {
 		return err
 	}
@@ -250,7 +260,8 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 
 	// get default OS location if path flag is not explicitly set
 	if config.WorkingDir == "default" {
-		workDirPath = getDefaultOsLocation(runtime.GOOS)
+		workDirPath = configurer.DefaultConfigPath("/.pastel")
+		zksnarkPath = configurer.DefaultConfigPath("/.pastel-params/")
 	}
 
 	// create working dir path
@@ -288,7 +299,7 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 	log.WithContext(ctx).Info("Downloading zksnark files:")
 	for _, zksnarkParamsName := range zksnarkParamsNames {
-		zksnarkParamsPath := path + zksnarkParamsName
+		zksnarkParamsPath := path + "/" + zksnarkParamsName
 		log.WithContext(ctx).Infof("downloading: %s", zksnarkParamsPath)
 		_, err := os.Stat(zksnarkParamsPath)
 		// check if file exists and force is not set

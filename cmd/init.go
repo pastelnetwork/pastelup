@@ -102,7 +102,7 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	workDirPath := config.WorkingDir + "/.pastel/"
 
 	// get default OS location if path flag is not explicitly set
-	if config.WorkingDir == "" {
+	if config.WorkingDir == "default" {
 		workDirPath = getDefaultOsLocation(runtime.GOOS)
 	}
 
@@ -145,7 +145,7 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	workDirPath := config.WorkingDir + "/.pastel/"
 
 	// get default OS location if path flag is not explicitly set
-	if config.WorkingDir == "" {
+	if config.WorkingDir == "default" {
 		workDirPath = getDefaultOsLocation(runtime.GOOS)
 	}
 

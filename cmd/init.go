@@ -226,31 +226,6 @@ func runInit(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-// getDefaultOsLocation returns the pre defined directory creation path
-// for the given Operating System
-// returns `path` string
-func getDefaultOsLocation(system string) string {
-	switch system {
-	case "windows":
-		// TODO: check the Windows major version (something like the w32 api library)
-		// if Vista or newer use C:\Users\Username\AppData\Roaming\Pastel
-		// for older versions use C:\Documents and Settings\Username\Application Data\Pastel
-		winVer := 10
-		path := "C:\\Documents and Settings\\Username\\Application Data\\Pastel"
-		if winVer >= 6 {
-			path = "C:\\Users\\Username\\AppData\\Roaming\\Pastel"
-		}
-		return path
-	case "darwin":
-		return "~/Library/Application Support/Pastel"
-	case "linux":
-		homeDir, _ := os.UserHomeDir()
-		return homeDir + "/.pastel"
-	default:
-		return ""
-	}
-}
-
 // initCommandLogic runs the init command logic flow
 // takes all provided arguments in the cli and does all the background tasks
 // Print success info log on successfully ran command, return error if fail

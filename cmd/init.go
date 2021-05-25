@@ -126,7 +126,6 @@ func setupInitCommand(app *cli.App, config *configs.Config) {
 			return errors.Errorf("--log-level %q, %v", config.LogLevel, err)
 		}
 
-		log.Info("flag-name: ", dirFlag)
 		config.WorkingDir = dirFlag
 		config.Network = networkFlag
 		config.Force = forceFlag
@@ -201,11 +200,11 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	}
 
 	defaultConfig := `node:
-	# `+`pastel_id`+` must match to active `+`PastelID`+` from masternode.
-	# To check it out first get the active outpoint from `+`masteronde status`+`, then filter the result of `+`tickets list id mine`+` by this outpoint.
+	# ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode.
+	# To check it out first get the active outpoint from ` + `masteronde status` + `, then filter the result of ` + `tickets list id mine` + ` by this outpoint.
 	pastel_id: some-value
 	server:
-		# `+`listen_address`+` and `+`port`+` must match to `+`extAddress`+` from masternode.conf
+		# ` + `listen_address` + ` and ` + `port` + ` must match to ` + `extAddress` + ` from masternode.conf
 		listen_addresses: "127.0.0.1"
 		port: 4444
 	`

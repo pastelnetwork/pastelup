@@ -8,7 +8,7 @@ import (
 
 // List of colors
 var (
-	blue   = color.New(color.FgBlue).SprintFunc()
+	blue   = color.New(color.FgHiBlue).SprintFunc()
 	cyan   = color.New(color.FgCyan).SprintFunc()
 	green  = color.New(color.FgGreen).SprintFunc()
 	red    = color.New(color.FgRed).SprintFunc()

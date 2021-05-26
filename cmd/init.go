@@ -375,6 +375,7 @@ func writeFile(ctx context.Context, fileName string, config *configs.Config) err
 	return nil
 }
 
+// checkLocalAndRouterFirewalls checks local and router firewalls and suggest what to open
 func checkLocalAndRouterFirewalls(required_ports []string, ctx context.Context) error {
 	baseURL := "http://portchecker.com?q=" + strings.Join(required_ports[:], ",")
 	// resp, err := http.Get(baseURL)

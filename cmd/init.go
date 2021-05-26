@@ -45,7 +45,7 @@ func setupInitCommand() *cli.Command {
 
 	// create walletnode and supernode subcommands
 	walletnodeSubCommand := cli.NewCommand("walletnode")
-	walletnodeSubCommand.Usage = cyan.Sprint("Perform wallet specific initialization after common")
+	walletnodeSubCommand.SetUsage(cyan.Sprint("Perform wallet specific initialization after common"))
 	walletnodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging("walletnodeSubCommand", config, ctx)
 		if err != nil {
@@ -55,7 +55,7 @@ func setupInitCommand() *cli.Command {
 	})
 
 	supernodeSubCommand := cli.NewCommand("supernode")
-	supernodeSubCommand.Usage = cyan.Sprint("Perform Supernode/Masternode specific initialization after common")
+	supernodeSubCommand.SetUsage(cyan.Sprint("Perform Supernode/Masternode specific initialization after common"))
 	supernodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging("supernodeSubCommand", config, ctx)
 		if err != nil {

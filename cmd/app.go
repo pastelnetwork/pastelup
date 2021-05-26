@@ -30,7 +30,7 @@ func NewApp() *cli.App {
 	AppWriter = app.Writer
 	app.SetUsage(appUsage)
 	app.SetVersion(version.Version())
-	app.SetCustomAppHelpTemplate(GetColoredHeaders)
+	app.SetCustomAppHelpTemplate(GetColoredHeaders())
 
 	app.AddCommands(
 		setupInitCommand(),

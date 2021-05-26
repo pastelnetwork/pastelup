@@ -28,7 +28,7 @@ func setupInitCommand() *cli.Command {
 	config := configs.New()
 
 	initCommand := cli.NewCommand("init")
-	initCommand.CustomHelpTemplate = GetColoredHeaders(cyan)
+	initCommand.CustomHelpTemplate = GetColoredCommandHeaders()
 	initCommand.SetUsage(blue.Sprint("Command that performs initialization of the system for both Wallet and SuperNodes"))
 	initCommandFlags := []*cli.Flag{
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("d").

@@ -8,110 +8,90 @@ import (
 
 // List of colors
 var (
-	cyan  = color.New(color.FgCyan)
-	green = color.New(color.FgGreen)
-	blue  = color.New(color.FgBlue)
+	cyan   = color.New(color.FgCyan)
+	green  = color.New(color.FgGreen)
+	blue   = color.New(color.FgBlue)
+	blue1  = color.New(color.FgBlue).SprintFunc()
+	cyan1  = color.New(color.FgCyan).SprintFunc()
+	green1 = color.New(color.FgGreen).SprintFunc()
+	red    = color.New(color.FgRed).SprintFunc()
+	yellow = color.New(color.FgYellow).SprintFunc()
 )
 
 /**
-* AppHelpTemplate is a app formating string for:
-* NAME, VERSION, USAGE, DESCRIPTION, COMMANDS, GLOBAL OPTIONS, COPYRIGHT
+* GetColoredHeaders returns the app help formatting
 **/
-var AppHelpTemplate = `
-%s:
-   {{.Name}}{{if .Usage}} - {{.Usage}}{{end}}
-%s:
-   {{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Version}}{{if not .HideVersion}}
-%s:
-   {{.Version}}{{end}}{{end}}{{if .Description}}
-%s:
-   {{.Description | nindent 3 | trim}}{{end}}{{if len .Authors}}
-%s{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
-   {{range $index, $author := .Authors}}{{if $index}}
-   {{end}}{{$author}}{{end}}{{end}}{{if .VisibleCommands}}
-%s:{{range .VisibleCategories}}{{if .Name}}
-   {{.Name}}:{{range .VisibleCommands}}
-     {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{else}}{{range .VisibleCommands}}
-   {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
-%s:
-   {{range $index, $option := .VisibleFlags}}{{if $index}}
-   {{end}}{{$option}}{{end}}{{end}}{{if .Copyright}}
-%s:
-   {{.Copyright}}{{end}}
-`
-
-func GetColoredHeaders(displaycolor *color.Color) string {
-	name := displaycolor.Sprint("NAME")
-	usage := displaycolor.Sprint("USAGE")
-	version := displaycolor.Sprint("VERSION")
-	description := displaycolor.Sprint("DESCRIPTION")
-	author := displaycolor.Sprint("AUTHOR")
-	commands := displaycolor.Sprint("COMMANDS")
-	globalOptions := displaycolor.Sprint("GLOBAL OPTIONS")
-	copyright := displaycolor.Sprint("COPYRIGHT")
-
-	return fmt.Sprintf(AppHelpTemplate, name, usage, version, description, author, commands, globalOptions, copyright)
+func GetColoredHeaders() string {
+	return fmt.Sprintf(`%s {{if .Version}}{{if not .HideVersion}}{{.Version}}{{end}}{{end}}
+	{{if .Usage}}{{.Usage}}{{end}}
+	%s
+		%s {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Description}}
+	%s
+		{{.Description}}{{end}}{{if len .Authors}}
+	%s{{with $length := len .Authors}}{{if ne 1 $length}}%s{{end}}{{end}}%s
+		{{range $index, $author := .Authors}}{{if $index}}
+		{{end}}%s{{end}}{{end}}{{if .VisibleCommands}}
+	%s{{range .VisibleCategories}}{{if .Name}}
+		{{.Name}}:{{end}}{{range .VisibleCommands}}
+		%s{{"\t"}}{{.Usage}}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
+	%s
+		{{range $index, $option := .VisibleFlags}}{{if $index}}
+		{{end}}{{$option}}{{end}}{{end}}{{if .Copyright}}
+	%s{{end}}
+	`, green1("{{.Name}}"),
+		yellow("USAGE:"),
+		cyan1("{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}}"),
+		yellow("DESCRIPTION:"),
+		yellow("AUTHOR"),
+		yellow("S"),
+		yellow(":"),
+		blue1("{{$author}}"),
+		yellow("COMMANDS:"),
+		green1(`{{join .Names ", "}}`),
+		yellow("GLOBAL OPTIONS:"),
+		red("{{.Copyright}}"))
 }
 
 /**
-* CommandHelpTemplate is a command formating string for:
+* CommandHelpTemplate returns colored command formating
 * NAME, USAGE, CATEGORY, DESCRIPTION, OPTIONS
 **/
-var CommandHelpTemplate = `
-%s:
-   {{.HelpName}} - {{.Usage}}
-%s:
-   {{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Category}}
-%s:
-   {{.Category}}{{end}}{{if .Description}}
-%s:
-   {{.Description | nindent 3 | trim}}{{end}}{{if .VisibleFlags}}
-%s:{{range .VisibleCategories}}{{if .Name}}
-   {{.Name}}:{{range .VisibleCommands}}
-     {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{else}}{{range .VisibleCommands}}
-   {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
-%s:
-   {{range .VisibleFlags}}{{.}}
-   {{end}}{{end}}
-`
-
-func GetColoredCommandHeaders(displaycolor *color.Color) string {
-	name := displaycolor.Sprint("NAME")
-	usage := displaycolor.Sprint("USAGE")
-	category := displaycolor.Sprint("CATEGORY")
-	description := displaycolor.Sprint("DESCRIPTION")
-	commands := displaycolor.Sprint("COMMANDS")
-	options := displaycolor.Sprint("OPTIONS")
-
-	return fmt.Sprintf(CommandHelpTemplate, name, usage, category, description, commands, options)
+func GetColoredCommandHeaders() string {
+	return fmt.Sprintf(`%s
+    {{.HelpName}} - {{.Usage}}
+%s
+    {{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{if .Category}}
+%s
+    {{.Category}}{{end}}{{if .Description}}
+%s
+    {{.Description}}{{end}}{{if .VisibleFlags}}
+%s
+    {{range .VisibleFlags}}{{.}}
+    {{end}}{{end}}
+`, yellow("NAME:"),
+		yellow("USAGE:"),
+		yellow("CATEGORY:"),
+		yellow("DESCRIPTION:"),
+		yellow("OPTIONS:"))
 }
 
 /**
-* SubCommandHelpTemplate is a formating string for:
-* NAME, USAGE, DESCRIPTION, COMMANDS, OPTIONS
+* SubCommandHelpTemplate returns colored formatting for subcommands
 **/
-var SubCommandHelpTemplate = `
-%s:
-   {{.HelpName}} - {{.Usage}}
-%s:
-   {{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} command{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Description}}
-%s:
-   {{.Description | nindent 3 | trim}}{{end}}
-%s:{{range .VisibleCategories}}{{if .Name}}
-   {{.Name}}:{{range .VisibleCommands}}
-     {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{else}}{{range .VisibleCommands}}
-   {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
-%s:
-   {{range .VisibleFlags}}{{.}}
-   {{end}}{{end}}
-`
-
-func GetColoredSubCommandHeaders(displaycolor *color.Color) string {
-	name := displaycolor.Sprint("NAME")
-	usage := displaycolor.Sprint("USAGE")
-	description := displaycolor.Sprint("DESCRIPTION")
-	commands := displaycolor.Sprint("COMMANDS")
-	options := displaycolor.Sprint("OPTIONS")
-
-	return fmt.Sprintf(SubCommandHelpTemplate, name, usage, description, commands, options)
+func GetColoredSubCommandHeaders() string {
+	return fmt.Sprintf(`%s
+    {{.HelpName}} - {{if .Description}}{{.Description}}{{else}}{{.Usage}}{{end}}
+%s
+    {{.HelpName}} command{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}
+%s{{range .VisibleCategories}}{{if .Name}}
+    {{.Name}}:{{end}}{{range .VisibleCommands}}
+    {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}
+{{end}}{{if .VisibleFlags}}
+%s
+    {{range .VisibleFlags}}{{.}}
+    {{end}}{{end}}
+`, yellow("NAME:"),
+		yellow("USAGE:"),
+		yellow("COMMANDS:"),
+		yellow("OPTIONS:"))
 }

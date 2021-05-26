@@ -50,7 +50,7 @@ func GetColoredHeaders() string {
 }
 
 /**
-* CommandHelpTemplate returns colored command formating
+* GetColoredCommandHeaders returns colored command formating
 * NAME, USAGE, CATEGORY, DESCRIPTION, OPTIONS
 **/
 func GetColoredCommandHeaders() string {
@@ -73,7 +73,7 @@ func GetColoredCommandHeaders() string {
 }
 
 /**
-* SubCommandHelpTemplate returns colored formatting for subcommands
+* GetColoredSubCommandHeaders returns colored formatting for subcommands
 **/
 func GetColoredSubCommandHeaders() string {
 	return fmt.Sprintf(`%s

@@ -8,12 +8,9 @@ import (
 
 // List of colors
 var (
-	cyan   = color.New(color.FgCyan)
-	green  = color.New(color.FgGreen)
-	blue   = color.New(color.FgBlue)
-	blue1  = color.New(color.FgBlue).SprintFunc()
-	cyan1  = color.New(color.FgCyan).SprintFunc()
-	green1 = color.New(color.FgGreen).SprintFunc()
+	blue   = color.New(color.FgBlue).SprintFunc()
+	cyan   = color.New(color.FgCyan).SprintFunc()
+	green  = color.New(color.FgGreen).SprintFunc()
 	red    = color.New(color.FgRed).SprintFunc()
 	yellow = color.New(color.FgYellow).SprintFunc()
 )
@@ -38,16 +35,16 @@ func GetColoredHeaders() string {
 		{{range $index, $option := .VisibleFlags}}{{if $index}}
 		{{end}}{{$option}}{{end}}{{end}}{{if .Copyright}}
 	%s{{end}}
-	`, green1("{{.Name}}"),
+	`, green("{{.Name}}"),
 		yellow("USAGE:"),
-		cyan1("{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}}"),
+		cyan("{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}}"),
 		yellow("DESCRIPTION:"),
 		yellow("AUTHOR"),
 		yellow("S"),
 		yellow(":"),
-		blue1("{{$author}}"),
+		blue("{{$author}}"),
 		yellow("COMMANDS:"),
-		green1(`{{join .Names ", "}}`),
+		green(`{{join .Names ", "}}`),
 		yellow("GLOBAL OPTIONS:"),
 		red("{{.Copyright}}"))
 }

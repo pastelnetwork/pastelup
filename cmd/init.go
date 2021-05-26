@@ -358,10 +358,14 @@ func writeFile(ctx context.Context, fileName string, config *configs.Config) err
 	//      *addnode = ip:port*
 	// TODO: add logic for mutiple peers -> probably implement StringSliceFlag
 	if config.Peers != "" {
-		_, err = file.WriteString("*addnode=" + config.Peers + "* \n \n") // creates addnode line
-		if err != nil {
-			return err
+		nodes := strings.Split(config.Peers, ",")
+		for _, node := range nodes {
+			_, err = file.WriteString("*addnode=" + node + "* \n \n") // creates addnode line
+			if err != nil {
+				return err
+			}
 		}
+
 	}
 
 	// Save file changes.

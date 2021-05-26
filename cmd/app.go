@@ -15,7 +15,7 @@ import (
 
 const (
 	appName  = "Pastel-Utility"
-	appUsage = `Set up usage here` // TODO: Write a clear description.
+	appUsage = `This is a cli utility for Pastel Network.` // TODO: Write a clear description.
 
 	// defaultConfigFile = ""
 )
@@ -47,9 +47,9 @@ func NewApp() *cli.App {
 func addLogFlags(command *cli.Command, config *configs.Config) {
 	command.AddFlags(
 		// Main
-		cli.NewFlag("log-level", &config.LogLevel).SetUsage(green.Sprint("Set the log `level`.")).SetValue(config.LogLevel),
-		cli.NewFlag("log-file", &config.LogFile).SetUsage(green.Sprint("The log `file` to write to.")),
-		cli.NewFlag("quiet", &config.Quiet).SetUsage(green.Sprint("Disallows log output to stdout.")).SetAliases("q"),
+		cli.NewFlag("log-level", &config.LogLevel).SetUsage(green("Set the log `level`.")).SetValue(config.LogLevel),
+		cli.NewFlag("log-file", &config.LogFile).SetUsage(green("The log `file` to write to.")),
+		cli.NewFlag("quiet", &config.Quiet).SetUsage(green("Disallows log output to stdout.")).SetAliases("q"),
 	)
 }
 

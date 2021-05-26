@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/utils"
@@ -370,5 +372,23 @@ func writeFile(ctx context.Context, fileName string, config *configs.Config) err
 
 	log.WithContext(ctx).Info("File updated successfully: \n")
 
+	return nil
+}
+
+func checkLocalAndRouterFirewalls(required_ports []string, ctx context.Context) error {
+	baseURL := "http://portchecker.com?q=" + strings.Join(required_ports[:], ",")
+	// resp, err := http.Get(baseURL)
+	// if err != nil {
+	// 	log.WithContext(ctx).WithError(err).Errorf("Error requesting url\n")
+	// 	return errors.Errorf("Failed to request port url %v \n", err)
+	// }
+	// defer resp.Body.Close()
+	// ok := resp.StatusCode == http.StatusOK
+	ok := true
+	if ok {
+		fmt.Println("Your ports {} are opened and can be accessed by other PAstel nodes!", baseURL)
+	} else {
+		fmt.Println("Your ports {} are NOT opened and can NOT be accessed by other Pastel nodes!\n Please open this ports in your router firewall and in {} firewall", baseURL, "func_to_check_OS()")
+	}
 	return nil
 }

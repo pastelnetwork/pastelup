@@ -265,6 +265,7 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 	if err := downloadZksnarkParams(ctx, zksnarkPath, forceSet); err != nil {
 		return err
 	}
+	checkLocalAndRouterFirewalls([]string{"80", "21"}, ctx)
 
 	return nil
 }

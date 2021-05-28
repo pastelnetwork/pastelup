@@ -78,11 +78,11 @@ func runInit(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Init")
 	defer log.WithContext(ctx).Info("End")
 
-	configJson, err := config.String()
+	configJSON, err := config.String()
 	if err != nil {
 		return err
 	}
-	log.WithContext(ctx).Infof("Config: %s", configJson)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -275,11 +275,11 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Wallet Node")
 	defer log.WithContext(ctx).Info("End")
 
-	configJson, err := config.String()
+	configJSON, err := config.String()
 	if err != nil {
 		return err
 	}
-	log.WithContext(ctx).Infof("Config: %s", configJson)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -331,11 +331,11 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Super Node")
 	defer log.WithContext(ctx).Info("End")
 
-	configJson, err := config.String()
+	configJSON, err := config.String()
 	if err != nil {
 		return err
 	}
-	log.WithContext(ctx).Infof("Config: %s", configJson)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

@@ -17,15 +17,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var zksnarkParamsURL = "https://z.cash/downloads/"
-var zksnarkParamsNames = []string{
-	"sapling-spend.params",
-	"sapling-output.params",
-	"sprout-proving.key",
-	"sprout-verifying.key",
-	"sprout-groth16.params",
-}
-
 func setupInitCommand() *cli.Command {
 	config := configs.New()
 
@@ -274,7 +265,7 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 // Print success info log on successfully ran command, return error if fail
 func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 	log.WithContext(ctx).Info("Downloading zksnark files:")
-	for _, zksnarkParamsName := range zksnarkParamsNames {
+	for _, zksnarkParamsName := range configs.ZksnarkParamsNames {
 		zksnarkParamsPath := path + "/" + zksnarkParamsName
 		log.WithContext(ctx).Infof("downloading: %s", zksnarkParamsPath)
 		_, err := os.Stat(zksnarkParamsPath)
@@ -292,9 +283,9 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 		defer out.Close()
 
 		// download param
-		resp, err := http.Get(zksnarkParamsURL + zksnarkParamsName)
+		resp, err := http.Get(configs.ZksnarkParamsURL + zksnarkParamsName)
 		if err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", zksnarkParamsURL+zksnarkParamsName)
+			log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL+zksnarkParamsName)
 			return errors.Errorf("Failed to download: %v \n", err)
 		}
 		defer resp.Body.Close()

@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 )
 
-var WalletDefaultConfig = `node:
+const (
+	WalletDefaultConfig = `node:
 	api:
 		hostname: "localhost"
 		port: 8080
 `
-
-var SupernodeDefaultConfig = `node:
+	SupernodeDefaultConfig = `node:
 	# ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode.
 	# To check it out first get the active outpoint from ` + `masteronde status` + `, then filter the result of ` + `tickets list id mine` + ` by this outpoint.
 	pastel_id: some-value
@@ -19,6 +19,16 @@ var SupernodeDefaultConfig = `node:
 		listen_addresses: "127.0.0.1"
 		port: 4444
 `
+	ZksnarkParamsURL = "https://z.cash/downloads/"
+)
+
+var ZksnarkParamsNames = []string{
+	"sapling-spend.params",
+	"sapling-output.params",
+	"sprout-proving.key",
+	"sprout-verifying.key",
+	"sprout-groth16.params",
+}
 
 // Config contains configuration of all components of the WalletNode.
 type Config struct {

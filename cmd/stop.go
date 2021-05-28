@@ -4,10 +4,10 @@ import (
 	"context"
 	"os"
 
-	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
+	"github.com/pastelnetwork/pastel-utility/configs"
 )
 
 func setupStopCommand() *cli.Command {

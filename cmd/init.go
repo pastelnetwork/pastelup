@@ -7,12 +7,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/utils"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/configurer"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
+	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/pastel-utility/utils"
 	"github.com/pkg/errors"
 )
 

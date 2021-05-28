@@ -38,7 +38,7 @@ func setupInitCommand() *cli.Command {
 
 	// create walletnode and supernode subcommands
 	walletnodeSubCommand := cli.NewCommand("walletnode")
-	walletnodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
+	walletnodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders() // TODO: this is not working
 	walletnodeSubCommand.SetUsage(cyan("Perform wallet specific initialization after common"))
 	walletnodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging("walletnodeSubCommand", config, ctx)
@@ -49,7 +49,7 @@ func setupInitCommand() *cli.Command {
 	})
 
 	supernodeSubCommand := cli.NewCommand("supernode")
-	supernodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
+	supernodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders() // TODO: this is not working
 	supernodeSubCommand.SetUsage(cyan("Perform Supernode/Masternode specific initialization after common"))
 	supernodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging("supernodeSubCommand", config, ctx)
@@ -59,11 +59,10 @@ func setupInitCommand() *cli.Command {
 		return runSuperNodeSubCommand(ctx, config)
 	})
 
-	initSubCommands := []*cli.Command{
+	initCommand.AddSubcommands(
 		walletnodeSubCommand,
 		supernodeSubCommand,
-	}
-	initCommand.AddSubcommands(initSubCommands...)
+	)
 
 	initCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging("initcommand", config, ctx)

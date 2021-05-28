@@ -15,9 +15,7 @@ var (
 	yellow = color.New(color.FgYellow).SprintFunc()
 )
 
-/**
-* GetColoredHeaders returns the app help formatting
-**/
+// GetColoredHeaders returns the app help formatting
 func GetColoredHeaders() string {
 	return fmt.Sprintf(`%s {{if .Version}}{{if not .HideVersion}}{{.Version}}{{end}}{{end}}
 	{{if .Usage}}{{.Usage}}{{end}}
@@ -49,10 +47,8 @@ func GetColoredHeaders() string {
 		red("{{.Copyright}}"))
 }
 
-/**
-* GetColoredCommandHeaders returns colored command formating
-* NAME, USAGE, CATEGORY, DESCRIPTION, OPTIONS
-**/
+// GetColoredCommandHeaders returns colored command formating
+// NAME, USAGE, CATEGORY, DESCRIPTION, OPTIONS
 func GetColoredCommandHeaders() string {
 	return fmt.Sprintf(`%s
     {{.HelpName}} - {{.Usage}}
@@ -72,9 +68,7 @@ func GetColoredCommandHeaders() string {
 		yellow("OPTIONS:"))
 }
 
-/**
-* GetColoredSubCommandHeaders returns colored formatting for subcommands
-**/
+// GetColoredSubCommandHeaders returns colored formatting for subcommands
 func GetColoredSubCommandHeaders() string {
 	return fmt.Sprintf(`%s
     {{.HelpName}} - {{if .Description}}{{.Description}}{{else}}{{.Usage}}{{end}}

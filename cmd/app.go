@@ -20,7 +20,7 @@ const (
 	// defaultConfigFile = ""
 )
 
-// writer for logging
+// AppWriter writer for logging
 var AppWriter io.Writer
 
 // NewApp inits a new command line interface.
@@ -53,7 +53,7 @@ func addLogFlags(command *cli.Command, config *configs.Config) {
 	)
 }
 
-func configureLogging(logPrefix string, config *configs.Config, ctx context.Context) (context.Context, error) {
+func configureLogging(ctx context.Context, logPrefix string, config *configs.Config) (context.Context, error) {
 	ctx = log.ContextWithPrefix(ctx, "walletnodeSubCommand")
 
 	if config.Quiet {

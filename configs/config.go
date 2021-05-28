@@ -5,11 +5,13 @@ import (
 )
 
 const (
+	// WalletDefaultConfig - default config for walletnode
 	WalletDefaultConfig = `node:
 	api:
 		hostname: "localhost"
 		port: 8080
 `
+	// SupernodeDefaultConfig - default config for supernode
 	SupernodeDefaultConfig = `node:
 	# ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode.
 	# To check it out first get the active outpoint from ` + `masteronde status` + `, then filter the result of ` + `tickets list id mine` + ` by this outpoint.
@@ -19,9 +21,11 @@ const (
 		listen_addresses: "127.0.0.1"
 		port: 4444
 `
+	// ZksnarkParamsURL - url for zksnark params
 	ZksnarkParamsURL = "https://z.cash/downloads/"
 )
 
+// ZksnarkParamsNames - slice of zksnark parameters
 var ZksnarkParamsNames = []string{
 	"sapling-spend.params",
 	"sapling-output.params",

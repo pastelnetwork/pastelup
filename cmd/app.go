@@ -54,7 +54,7 @@ func addLogFlags(command *cli.Command, config *configs.Config) {
 }
 
 func configureLogging(ctx context.Context, logPrefix string, config *configs.Config) (context.Context, error) {
-	ctx = log.ContextWithPrefix(ctx, "walletnodeSubCommand")
+	ctx = log.ContextWithPrefix(ctx, logPrefix)
 
 	if config.Quiet {
 		log.SetOutput(ioutil.Discard)

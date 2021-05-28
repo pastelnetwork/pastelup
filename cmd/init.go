@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -141,7 +140,7 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 	if err := downloadZksnarkParams(ctx, zksnarkPath, forceSet); err != nil {
 		return err
 	}
-	checkLocalAndRouterFirewalls([]string{"80", "21"}, ctx)
+	checkLocalAndRouterFirewalls(ctx, []string{"80", "21"})
 
 	return nil
 }
@@ -252,8 +251,8 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 }
 
 // checkLocalAndRouterFirewalls checks local and router firewalls and suggest what to open
-func checkLocalAndRouterFirewalls(required_ports []string, ctx context.Context) error {
-	baseURL := "http://portchecker.com?q=" + strings.Join(required_ports[:], ",")
+func checkLocalAndRouterFirewalls(ctx context.Context, requiredPorts []string) error {
+	baseURL := "http://portchecker.com?q=" + strings.Join(requiredPorts[:], ",")
 	// resp, err := http.Get(baseURL)
 	// if err != nil {
 	// 	log.WithContext(ctx).WithError(err).Errorf("Error requesting url\n")
@@ -263,9 +262,9 @@ func checkLocalAndRouterFirewalls(required_ports []string, ctx context.Context) 
 	// ok := resp.StatusCode == http.StatusOK
 	ok := true
 	if ok {
-		fmt.Println("Your ports {} are opened and can be accessed by other PAstel nodes!", baseURL)
+		log.WithContext(ctx).Info("Your ports {} are opened and can be accessed by other PAstel nodes! ", baseURL)
 	} else {
-		fmt.Println("Your ports {} are NOT opened and can NOT be accessed by other Pastel nodes!\n Please open this ports in your router firewall and in {} firewall", baseURL, "func_to_check_OS()")
+		log.WithContext(ctx).Info("Your ports {} are NOT opened and can NOT be accessed by other Pastel nodes!\n Please open this ports in your router firewall and in {} firewall", baseURL, "func_to_check_OS()")
 	}
 	return nil
 }

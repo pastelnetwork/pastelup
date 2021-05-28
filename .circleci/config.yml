@@ -23,11 +23,11 @@ commands:
       - run:
           name: "Build binary for << parameters.goos >>"
           command: |
-            CGO_ENABLED=0 GOOS=<< parameters.goos >> GOARCH=amd64 go build -o bin/<< parameters.package >>-<< parameters.goos >>-amd64 -ldflags "-X github.com/pastelnetwork/gonode/common/version.version=$CIRCLE_TAG -extldflags '-static'" .
+            CGO_ENABLED=0 GOOS=<< parameters.goos >> GOARCH=amd64 go build -o bin/<< parameters.package >>-<< parameters.goos >>-amd64 -ldflags "-X github.com/pastelnetwork/pastel-utility/common/version.version=$CIRCLE_TAG -extldflags '-static'" .
       - run:
           name: "Upload << parameters.package >>-<< parameters.goos >>-amd64 to GitHub"
           command: |
-            github-release upload --user pastelnetwork --repo gonode --tag $CIRCLE_TAG --name << parameters.package >>-<< parameters.goos >>-amd64 --file bin/<< parameters.package >>-<< parameters.goos >>-amd64
+            github-release upload --user pastelnetwork --repo pastel-utility --tag $CIRCLE_TAG --name << parameters.package >>-<< parameters.goos >>-amd64 --file bin/<< parameters.package >>-<< parameters.goos >>-amd64
 
 jobs:
   # Run automated tests

@@ -25,7 +25,7 @@ func setupInstallCommand() *cli.Command {
 	addLogFlags(installCommand, config)
 
 	installCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx, err := configureLogging("installcommand", config, ctx)
+		ctx, err := configureLogging(ctx, "installcommand", config)
 		if err != nil {
 			return err
 		}

@@ -25,7 +25,7 @@ func setupUpdateCommand() *cli.Command {
 	addLogFlags(updateCommand, config)
 
 	updateCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx, err := configureLogging("updatecommand", config, ctx)
+		ctx, err := configureLogging(ctx, "updatecommand", config)
 		if err != nil {
 			return err
 		}

@@ -25,7 +25,7 @@ func setupStopCommand() *cli.Command {
 	addLogFlags(stopCommand, config)
 
 	stopCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx, err := configureLogging("stopcommand", config, ctx)
+		ctx, err := configureLogging(ctx, "stopcommand", config)
 		if err != nil {
 			return err
 		}

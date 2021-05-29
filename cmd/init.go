@@ -110,8 +110,8 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 
 	// get default OS location if path flag is not explicitly set
 	if config.WorkingDir == "default" {
-		workDirPath = configurer.DefaultConfigPath("/.pastel")
-		zksnarkPath = configurer.DefaultConfigPath("/.pastel-params/")
+		workDirPath = configurer.DefaultPath()
+		zksnarkPath = configurer.DefaultPath()
 	}
 
 	// create working dir path
@@ -293,7 +293,7 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 
 	// get default OS location if path flag is not explicitly set
 	if config.WorkingDir == "default" {
-		workDirPath = configurer.DefaultConfigPath("walletnode")
+		workDirPath = configurer.DefaultPath()
 	}
 
 	// create working dir path
@@ -349,7 +349,7 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 
 	// get default OS location if path flag is not explicitly set
 	if config.WorkingDir == "default" {
-		workDirPath = configurer.DefaultConfigPath("supernode")
+		workDirPath = configurer.DefaultPath()
 	}
 
 	// create working dir path

@@ -3,8 +3,9 @@ module github.com/pastelnetwork/pastel-utility
 go 1.14
 
 require (
+	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/fatih/color v1.11.0
-	github.com/pastelnetwork/gonode/common v0.0.0-20210522143237-ab5a4a61b9ca
+	github.com/pastelnetwork/gonode/common v0.0.0-20210529142050-969dea320bf5
 	github.com/pkg/errors v0.8.1
-	github.com/spf13/cobra v1.1.3
+	github.com/spf13/pflag v1.0.5 // indirect
 )

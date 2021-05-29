@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pastelnetwork/gonode/common/cli"
@@ -18,13 +19,14 @@ import (
 
 func setupInitCommand() *cli.Command {
 	config := configs.New()
+	defaultWorkDir := configurer.DefaultPath()
 
 	initCommand := cli.NewCommand("init")
 	initCommand.CustomHelpTemplate = GetColoredCommandHeaders()
 	initCommand.SetUsage(blue("Command that performs initialization of the system for both Wallet and SuperNodes"))
 	initCommandFlags := []*cli.Flag{
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("d").
-			SetUsage(green("Location where to create working directory")).SetValue("default"),
+			SetUsage(green("Location where to create working directory")).SetValue(defaultWorkDir),
 		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
@@ -105,14 +107,8 @@ func runInit(ctx context.Context, config *configs.Config) error {
 // Print success info log on successfully ran command, return error if fail
 func initCommandLogic(ctx context.Context, config *configs.Config) error {
 	forceSet := config.Force
-	workDirPath := config.WorkingDir + "/.pastel/"
-	zksnarkPath := config.WorkingDir + "/.pastel-params/"
-
-	// get default OS location if path flag is not explicitly set
-	if config.WorkingDir == "default" {
-		workDirPath = configurer.DefaultPath()
-		zksnarkPath = configurer.DefaultPath()
-	}
+	workDirPath := filepath.Join(config.WorkingDir, "/.pastel/")
+	zksnarkPath := filepath.Join(config.WorkingDir, "/.pastel-params/")
 
 	// create working dir path
 	if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {
@@ -289,7 +285,7 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	})
 
 	forceSet := config.Force
-	workDirPath := config.WorkingDir + "/walletnode/"
+	workDirPath := filepath.Join(config.WorkingDir, "walletnode")
 
 	// get default OS location if path flag is not explicitly set
 	if config.WorkingDir == "default" {
@@ -345,12 +341,7 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	})
 
 	forceSet := config.Force
-	workDirPath := config.WorkingDir + "/supernode/"
-
-	// get default OS location if path flag is not explicitly set
-	if config.WorkingDir == "default" {
-		workDirPath = configurer.DefaultPath()
-	}
+	workDirPath := filepath.Join(config.WorkingDir, "supernode")
 
 	// create working dir path
 	if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {

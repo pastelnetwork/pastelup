@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -368,6 +369,46 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
+	// pip install gdown
+	// ~/.local/bin/gdown https://drive.google.com/uc?id=1U6tpIpZBxqxIyFej2EeQ-SbLcO_lVNfu
+	// unzip ./SavedMLModels.zip -d <paslel-dir>/supernode/tfmodels
+
+	_, err = RunCMD("pip3", "install", "gdown")
+	if err != nil {
+		return err
+	}
+
+	savedModelURL := "https://drive.google.com/uc?id=1U6tpIpZBxqxIyFej2EeQ-SbLcO_lVNfu"
+
+	log.WithContext(ctx).Info("Downloading: ", savedModelURL)
+
+	_, err = RunCMD("gdown", savedModelURL)
+	if err != nil {
+		return err
+	}
+
+	tfmodelsPath := filepath.Join(workDirPath, "tfmodels")
+	// create working dir path
+	if err := utils.CreateFolder(ctx, tfmodelsPath, forceSet); err != nil {
+		return err
+	}
+
+	_, err = RunCMD("unzip", "./SavedMLModels.zip", "-d", tfmodelsPath)
+	if err != nil {
+		return err
+	}
+
 	return nil
 
+}
+
+func RunCMD(command string, args ...string) (string, error) {
+	cmd := exec.Command(command, args...)
+
+	stdout, err := cmd.Output()
+
+	if err != nil {
+		return "", err
+	}
+	return string(stdout), nil
 }

@@ -380,7 +380,7 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 
 	savedModelURL := "https://drive.google.com/uc?id=1U6tpIpZBxqxIyFej2EeQ-SbLcO_lVNfu"
 
-	log.WithContext(ctx).Info("Downloading: ", savedModelURL)
+	log.WithContext(ctx).Infof("Downloading: %s ...\n", savedModelURL)
 
 	_, err = RunCMD("gdown", savedModelURL)
 	if err != nil {
@@ -402,6 +402,7 @@ func runSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 
 }
 
+// RunCMD runs shell command and returns output and error
 func RunCMD(command string, args ...string) (string, error) {
 	cmd := exec.Command(command, args...)
 

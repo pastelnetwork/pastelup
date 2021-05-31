@@ -8,6 +8,11 @@ import (
 	"syscall"
 )
 
+const (
+	beforeVistaAppDir = "Application Data"
+	sinceVistaAppDir  = "AppData/Roaming"
+)
+
 // DefaultWorkingDir returns the default config path for Windows OS.
 func DefaultWorkingDir() string {
 	homeDir, _ := os.UserHomeDir()

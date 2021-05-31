@@ -10,17 +10,17 @@ import (
 	"strings"
 
 	"github.com/pastelnetwork/gonode/common/cli"
-	"github.com/pastelnetwork/gonode/common/configurer"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/utils"
 	"github.com/pkg/errors"
 )
 
 func setupInitCommand() *cli.Command {
 	config := configs.New()
-	defaultWorkDir := configurer.DefaultPath()
+	defaultWorkDir := configurer.DefaultWorkingDir()
 
 	initCommand := cli.NewCommand("init")
 	initCommand.CustomHelpTemplate = GetColoredCommandHeaders()
@@ -108,8 +108,14 @@ func runInit(ctx context.Context, config *configs.Config) error {
 // Print success info log on successfully ran command, return error if fail
 func initCommandLogic(ctx context.Context, config *configs.Config) error {
 	forceSet := config.Force
-	workDirPath := filepath.Join(config.WorkingDir, "/.pastel/")
-	zksnarkPath := filepath.Join(config.WorkingDir, "/.pastel-params/")
+	var workDirPath, zksnarkPath string
+	if config.WorkingDir == configurer.DefaultWorkingDir() {
+		zksnarkPath = configurer.DefaultZksnarkDir()
+		workDirPath = config.WorkingDir
+	} else {
+		workDirPath = filepath.Join(config.WorkingDir, "/.pastel/")
+		zksnarkPath = filepath.Join(config.WorkingDir, "/.pastel-params/")
+	}
 
 	// create working dir path
 	if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {
@@ -287,11 +293,6 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 
 	forceSet := config.Force
 	workDirPath := filepath.Join(config.WorkingDir, "walletnode")
-
-	// get default OS location if path flag is not explicitly set
-	if config.WorkingDir == "default" {
-		workDirPath = configurer.DefaultPath()
-	}
 
 	// create working dir path
 	if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {

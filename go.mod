@@ -7,5 +7,4 @@ require (
 	github.com/fatih/color v1.11.0
 	github.com/pastelnetwork/gonode/common v0.0.0-20210529142050-969dea320bf5
 	github.com/pkg/errors v0.8.1
-	github.com/spf13/pflag v1.0.5 // indirect
 )

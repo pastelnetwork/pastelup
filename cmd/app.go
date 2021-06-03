@@ -32,6 +32,8 @@ func NewApp() *cli.App {
 	app.SetVersion(version.Version())
 	app.SetCustomAppHelpTemplate(GetColoredHeaders())
 
+	app.HideHelp = true
+	app.HideHelpCommand = true
 	app.AddCommands(
 		setupInitCommand(),
 		setupInstallCommand(),

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -71,6 +72,11 @@ func setupInitCommand() *cli.Command {
 		if err != nil {
 			return err
 		}
+
+		if len(args) == 0 {
+			return fmt.Errorf("command is required")
+		}
+
 		return runInit(ctx, config)
 	})
 	return initCommand

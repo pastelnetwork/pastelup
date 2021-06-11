@@ -47,8 +47,8 @@ var (
 	flagMasterNodePrivateKey string
 	flagMasterNodePastelID   string
 	flagMasterNodePassPhrase string
-	flagMasterNodeRpcIP      string
-	flagMasterNodeRpcPort    int
+	flagMasterNodeRPCIP      string
+	flagMasterNodeRPCPort    int
 	flagMasterNodeP2PIP      string
 	flagMasterNodeP2PPort    int
 )
@@ -100,8 +100,8 @@ func setupStartCommand() *cli.Command {
 		cli.NewFlag("pkey", &flagMasterNodePrivateKey),
 		cli.NewFlag("pastelid", &flagMasterNodePastelID),
 		cli.NewFlag("passphrase", &flagMasterNodePassPhrase),
-		cli.NewFlag("rpc-ip", &flagMasterNodeRpcIP),
-		cli.NewFlag("rpc-port", &flagMasterNodeRpcPort),
+		cli.NewFlag("rpc-ip", &flagMasterNodeRPCIP),
+		cli.NewFlag("rpc-port", &flagMasterNodeRPCPort),
 		cli.NewFlag("node-ip", &flagMasterNodeP2PIP),
 		cli.NewFlag("node-port", &flagMasterNodeP2PPort),
 	}
@@ -182,12 +182,12 @@ func runStart(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
+func runStartNodeSubCommand(_ context.Context, _ *configs.Config) error {
 	// TODO: Implement start node command
 	panic("")
 }
 
-func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
+func runStartSuperNodeSubCommand(_ context.Context, _ *configs.Config) error {
 	// TODO: Implement start supper node command
 	panic("")
 }
@@ -237,7 +237,7 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 
 			if len(flagMasterNodePastelID) == 0 && len(flagMasterNodePassPhrase) != 0 {
 				// Check masternode status
-				var mnstatus structure.RPC_PastelMSStatus
+				var mnstatus structure.RPCPastelMSStatus
 				if output, err = runPastelCLI("mnsync", "status"); err != nil {
 					return err
 				} // Master Node Output
@@ -248,11 +248,11 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 				if output, err = runPastelCLI("pastelid", "newkey", flagMasterNodePassPhrase); err != nil {
 					return err
 				} // generate a PastelID
-				var pastelid_st structure.RPC_PastelID
-				if err = json.Unmarshal([]byte(output), &pastelid_st); err != nil {
+				var pastelidSt structure.RPCPastelID
+				if err = json.Unmarshal([]byte(output), &pastelidSt); err != nil {
 					return err
 				}
-				pastelid = pastelid_st.Pastelid
+				pastelid = pastelidSt.Pastelid
 			} else {
 				pastelid = flagMasterNodePastelID
 			}
@@ -272,7 +272,7 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 					"mnPrivKey":  masternodePrivKey,
 					"txid":       flagMasterNodeTxID,
 					"outIndex":   flagMasterNodeIND,
-					"extAddress": flagMasterNodeIP + ":" + fmt.Sprintf("%d", flagMasterNodeRpcPort),
+					"extAddress": flagMasterNodeIP + ":" + fmt.Sprintf("%d", flagMasterNodeRPCPort),
 					"p2pAddress": flagMasterNodeP2PIP + ":" + fmt.Sprintf("%d", flagMasterNodeP2PPort),
 					"extCfg":     "",
 					"extKey":     pastelid,
@@ -299,7 +299,7 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 					"mnPrivKey":  masternodePrivKey,
 					"txid":       flagMasterNodeTxID,
 					"outIndex":   flagMasterNodeIND,
-					"extAddress": flagMasterNodeIP + ":" + fmt.Sprintf("%d", flagMasterNodeRpcPort),
+					"extAddress": flagMasterNodeIP + ":" + fmt.Sprintf("%d", flagMasterNodeRPCPort),
 					"p2pAddress": flagMasterNodeP2PIP + ":" + fmt.Sprintf("%d", flagMasterNodeP2PPort),
 					"extCfg":     "",
 					"extKey":     pastelid,
@@ -333,12 +333,12 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 	return nil
 }
 
-func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error {
+func runStartWalletSubCommand(_ context.Context, _ *configs.Config) error {
 	// TODO: Implement wallet command
 	panic("")
 }
 
-func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) error {
+func checkStartMasterNodeParams(_ context.Context, _ *configs.Config) error {
 	if len(flagMasterNodeName) == 0 {
 		return errMasterNodeNameRequired
 	}
@@ -353,12 +353,12 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) err
 		}
 
 		if len(flagMasterNodeIP) == 0 {
-			externalIp, err := GetExternalIPAddress()
+			externalIP, err := GetExternalIPAddress()
 
 			if err != nil {
 				return err
 			}
-			flagMasterNodeIP = externalIp
+			flagMasterNodeIP = externalIP
 		}
 
 		if len(flagMasterNodePastelID) == 0 {
@@ -368,75 +368,67 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) err
 		}
 	}
 
-	flagMasterNodeRpcIP = func() string {
-		if len(flagMasterNodeRpcIP) == 0 {
+	flagMasterNodeRPCIP = func() string {
+		if len(flagMasterNodeRPCIP) == 0 {
 			return flagMasterNodeIP
-		} else {
-			return flagMasterNodeRpcIP
-		}
+		} 
+		return flagMasterNodeRPCIP
 	}()
 	flagMasterNodeP2PIP = func() string {
 		if len(flagMasterNodeP2PIP) == 0 {
 			return flagMasterNodeIP
-		} else {
-			return flagMasterNodeP2PIP
 		}
+		return flagMasterNodeP2PIP
 	}()
 
 	if flagMasterNodeIsTestNet {
 		flagMasterNodePort = func() int {
 			if flagMasterNodePort == 0 {
 				return 19933
-			} else {
-				return flagMasterNodePort
-			}
+			} 
+			return flagMasterNodePort
 		}()
-		flagMasterNodeRpcPort = func() int {
-			if flagMasterNodeRpcPort == 0 {
+		flagMasterNodeRPCPort = func() int {
+			if flagMasterNodeRPCPort == 0 {
 				return 14444
-			} else {
-				return flagMasterNodeRpcPort
-			}
+			} 
+			return flagMasterNodeRPCPort
 		}()
 		flagMasterNodeP2PPort = func() int {
 			if flagMasterNodeP2PPort == 0 {
 				return 14445
-			} else {
-				return flagMasterNodeP2PPort
-			}
+			} 
+			return flagMasterNodeP2PPort
 		}()
 	} else {
 		flagMasterNodePort = func() int {
 			if flagMasterNodePort == 0 {
 				return 9933
-			} else {
-				return flagMasterNodePort
-			}
+			} 
+			return flagMasterNodePort
 		}()
-		flagMasterNodeRpcPort = func() int {
-			if flagMasterNodeRpcPort == 0 {
+		flagMasterNodeRPCPort = func() int {
+			if flagMasterNodeRPCPort == 0 {
 				return 4444
-			} else {
-				return flagMasterNodeRpcPort
 			}
+			return flagMasterNodeRPCPort
 		}()
 		flagMasterNodeP2PPort = func() int {
 			if flagMasterNodeP2PPort == 0 {
 				return 4445
-			} else {
-				return flagMasterNodeP2PPort
-			}
+			} 
+			return flagMasterNodeP2PPort
 		}()
 	}
 	return nil
 }
 
-// Get external IP address
+// GetExternalIPAddress
 func GetExternalIPAddress() (externalIP string, err error) {
 	return RunCMD("curl", "ipinfo.io/ip")
 }
 
-// Run pasteld
+// RunPasteld
 func RunPasteld(args ...string) (output string, err error) {
 	if flagMasterNodeIsTestNet {
 		args = append(args, "--testnet")
@@ -560,8 +552,8 @@ func getStartInfo() (nodeName string, privKey string, extIP string) {
 
 }
 
-// Pastel.conf setting
-func CheckPastelConf(config *configs.Config) (err error) {
+// CheckPastelConf
+func CheckPastelConf(_ *configs.Config) (err error) {
 	workDirPath := configurer.DefaultWorkingDir()
 
 	if _, err := os.Stat(workDirPath); os.IsNotExist(err) {

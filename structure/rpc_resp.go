@@ -1,11 +1,12 @@
 package structure
 
-// declaring a struct
-type RPC_PastelID struct {
+// RPC_PastelID RPC result from pastelid newkey 
+type RPCPastelID struct {
 	Pastelid string
 }
 
-type RPC_PastelMSStatus struct {
+// RPC_PastelMSStatus RPC result from masternode status 
+type RPCPastelMSStatus struct {
 	AssetID                int
 	AssetName              string
 	AssetStartTime         uint64

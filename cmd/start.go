@@ -2,17 +2,34 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/pastel-utility/configurer"
+	"github.com/pastelnetwork/pastel-utility/structure"
 )
 
 var (
-	errSubCommandRequired = fmt.Errorf("subcommand is required")
+	errSubCommandRequired     = fmt.Errorf("subcommand is required")
+	errMasterNodeNameRequired = fmt.Errorf("Required --name, name of the Masternode to start and create in the masternode.conf if `--create` or `--update` are specified")
+	errMasterNodeTxIDRequired = fmt.Errorf("Required --txid, transaction id of 5M collateral MN payment")
+	errMasterNodeINDRequired  = fmt.Errorf("Required --ind, output index in the transaction of 5M collateral MN payment")
+	errMasterNodeIPRequired   = fmt.Errorf("Required --ip, WAN address of host")
+	errMasterNodePwdRequired  = fmt.Errorf("Required --passphrase <passphrase to pastelid private key>, if --pastelid is omitted")
+	errGetIPAddress           = fmt.Errorf("Get IP Address failed")
+	errGenNewAddress          = fmt.Errorf("Generate New Address failed")
+	errMasterNodeStart        = fmt.Errorf("Master Node Start failed")
+	errGenNewKey              = fmt.Errorf("Generate New Key failed")
+	errSetTestnet             = fmt.Errorf("Please initialize pastel.conf as testnet mode")
+	errSetMainnet             = fmt.Errorf("Please initialize pastel.conf as mainnet mode")
 )
 
 var (
@@ -73,7 +90,7 @@ func setupStartCommand() *cli.Command {
 		cli.NewFlag("i", &flagInteractiveMode),
 		cli.NewFlag("r", &flagRestart),
 		cli.NewFlag("name", &flagMasterNodeName).SetUsage("name of the Master node").SetRequired(),
-		cli.NewFlag("test-net", &flagMasterNodeIsTestNet),
+		cli.NewFlag("testnet", &flagMasterNodeIsTestNet),
 		cli.NewFlag("create", &flagMasterNodeIsCreate),
 		cli.NewFlag("update", &flagMasterNodeIsUpdate),
 		cli.NewFlag("txid", &flagMasterNodeTxID),
@@ -176,10 +193,410 @@ func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 }
 
 func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) error {
+	// check master node name
+
+	var masternodePrivKey, pastelid, output string
+	var err error
+
+	if err := checkStartMasterNodeParams(ctx, config); err != nil {
+		return err
+	}
+
+	if err := CheckPastelConf(config); err != nil {
+		return err
+	}
+	// If create master node using HOT/HOT wallet
+	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
+
+		if flagMasterNodeIsCreate {
+			go RunPasteld(fmt.Sprintf("--externalip=%s", flagMasterNodeIP), "--reindex", "--daemon")
+			time.Sleep(5000 * time.Millisecond)
+
+			if output, err = runPastelCLI("getnewaddress"); err != nil {
+				return err
+			}
+
+			fmt.Printf("Hot wallet address = %s\n", output)
+
+			if len(flagMasterNodePrivateKey) == 0 {
+				if masternodePrivKey, err = runPastelCLI("masternode", "genkey"); err != nil {
+					return err
+				}
+			} else {
+				masternodePrivKey = flagMasterNodePrivateKey
+			}
+			fmt.Printf("masternode private key = %s\n", masternodePrivKey)
+			if _, err = runPastelCLI("stop"); err != nil {
+				return err
+			}
+			time.Sleep(2000 * time.Millisecond)
+
+			// Restart pasteld as a masternode
+			go RunPasteld("-masternode", "-txindex=1", "-reindex", fmt.Sprintf("-masternodeprivkey=%s", masternodePrivKey), fmt.Sprintf("--externalip=%s", flagMasterNodeIP))
+			time.Sleep(5000 * time.Millisecond)
+
+			if len(flagMasterNodePastelID) == 0 && len(flagMasterNodePassPhrase) != 0 {
+				// Check masternode status
+				var mnstatus structure.RPC_PastelMSStatus
+				if output, err = runPastelCLI("mnsync", "status"); err != nil {
+					return err
+				} // Master Node Output
+				if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
+					return err
+				}
+
+				if output, err = runPastelCLI("pastelid", "newkey", flagMasterNodePassPhrase); err != nil {
+					return err
+				} // generate a PastelID
+				var pastelid_st structure.RPC_PastelID
+				if err = json.Unmarshal([]byte(output), &pastelid_st); err != nil {
+					return err
+				}
+				pastelid = pastelid_st.Pastelid
+			} else {
+				pastelid = flagMasterNodePastelID
+			}
+
+			fmt.Printf(pastelid)
+
+			if output, err = runPastelCLI("masternode", "outputs"); err != nil {
+				return err
+			} // Master Node Output
+
+			fmt.Printf(output)
+
+			// Make masternode conf data
+			confData := map[string]interface{}{
+				flagMasterNodeName: map[string]string{
+					"mnAddress":  flagMasterNodeIP + ":" + fmt.Sprintf("%d", flagMasterNodePort),
+					"mnPrivKey":  masternodePrivKey,
+					"txid":       flagMasterNodeTxID,
+					"outIndex":   flagMasterNodeIND,
+					"extAddress": flagMasterNodeIP + ":" + fmt.Sprintf("%d", flagMasterNodeRpcPort),
+					"p2pAddress": flagMasterNodeP2PIP + ":" + fmt.Sprintf("%d", flagMasterNodeP2PPort),
+					"extCfg":     "",
+					"extKey":     pastelid,
+				},
+			}
+			data, _ := json.Marshal(confData)
+
+			// Create masternode.conf file
+			if err = createConfFile(data); err != nil {
+				return err
+			}
+			fmt.Println(string(data))
+
+			if _, err = runPastelCLI("stop"); err != nil {
+				return err
+			}
+		}
+
+		if flagMasterNodeIsUpdate {
+			// Make masternode conf data
+			confData := map[string]interface{}{
+				flagMasterNodeName: map[string]string{
+					"mnAddress":  flagMasterNodeIP + ":" + fmt.Sprintf("%d", flagMasterNodePort),
+					"mnPrivKey":  masternodePrivKey,
+					"txid":       flagMasterNodeTxID,
+					"outIndex":   flagMasterNodeIND,
+					"extAddress": flagMasterNodeIP + ":" + fmt.Sprintf("%d", flagMasterNodeRpcPort),
+					"p2pAddress": flagMasterNodeP2PIP + ":" + fmt.Sprintf("%d", flagMasterNodeP2PPort),
+					"extCfg":     "",
+					"extKey":     pastelid,
+				},
+			}
+
+			// Create masternode.conf file
+			if _, err = updateMasternodeConfFile(confData); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Get conf data from masternode.conf File
+	var nodeName, privKey, extIP = getStartInfo()
+
+	// Start Node as Masternode
+	go RunPasteld("-masternode", "-txindex=1", "-reindex", fmt.Sprintf("-masternodeprivkey=%s", privKey), fmt.Sprintf("--externalip=%s", extIP))
+	time.Sleep(5000 * time.Millisecond)
+
+	// Enable Masternode
+	if output, err = runPastelCLI("masternode", "start-alias", nodeName); err != nil {
+		return err
+	} // Master Node Output
+	fmt.Printf(output)
+
+	if _, err = runPastelCLI("stop"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	// TODO: Implement wallet command
 	panic("")
+}
+
+func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) error {
+	if len(flagMasterNodeName) == 0 {
+		return errMasterNodeNameRequired
+	}
+
+	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
+		if len(flagMasterNodeTxID) == 0 {
+			return errMasterNodeTxIDRequired
+		}
+
+		if len(flagMasterNodeIND) == 0 {
+			return errMasterNodeINDRequired
+		}
+
+		if len(flagMasterNodeIP) == 0 {
+			externalIp, err := GetExternalIPAddress()
+
+			if err != nil {
+				return err
+			}
+			flagMasterNodeIP = externalIp
+		}
+
+		if len(flagMasterNodePastelID) == 0 {
+			if len(flagMasterNodePassPhrase) == 0 {
+				return errMasterNodePwdRequired
+			}
+		}
+	}
+
+	flagMasterNodeRpcIP = func() string {
+		if len(flagMasterNodeRpcIP) == 0 {
+			return flagMasterNodeIP
+		} else {
+			return flagMasterNodeRpcIP
+		}
+	}()
+	flagMasterNodeP2PIP = func() string {
+		if len(flagMasterNodeP2PIP) == 0 {
+			return flagMasterNodeIP
+		} else {
+			return flagMasterNodeP2PIP
+		}
+	}()
+
+	if flagMasterNodeIsTestNet {
+		flagMasterNodePort = func() int {
+			if flagMasterNodePort == 0 {
+				return 19933
+			} else {
+				return flagMasterNodePort
+			}
+		}()
+		flagMasterNodeRpcPort = func() int {
+			if flagMasterNodeRpcPort == 0 {
+				return 14444
+			} else {
+				return flagMasterNodeRpcPort
+			}
+		}()
+		flagMasterNodeP2PPort = func() int {
+			if flagMasterNodeP2PPort == 0 {
+				return 14445
+			} else {
+				return flagMasterNodeP2PPort
+			}
+		}()
+	} else {
+		flagMasterNodePort = func() int {
+			if flagMasterNodePort == 0 {
+				return 9933
+			} else {
+				return flagMasterNodePort
+			}
+		}()
+		flagMasterNodeRpcPort = func() int {
+			if flagMasterNodeRpcPort == 0 {
+				return 4444
+			} else {
+				return flagMasterNodeRpcPort
+			}
+		}()
+		flagMasterNodeP2PPort = func() int {
+			if flagMasterNodeP2PPort == 0 {
+				return 4445
+			} else {
+				return flagMasterNodeP2PPort
+			}
+		}()
+	}
+	return nil
+}
+
+// Get external IP address
+func GetExternalIPAddress() (externalIP string, err error) {
+	return RunCMD("curl", "ipinfo.io/ip")
+}
+
+// Run pasteld
+func RunPasteld(args ...string) (output string, err error) {
+	if flagMasterNodeIsTestNet {
+		args = append(args, "--testnet")
+		output, err = RunCMD("./pasteld", args...)
+	} else {
+		output, err = RunCMD("./pasteld", args...)
+	}
+	return output, err
+}
+
+// Run pastel-cli
+func runPastelCLI(args ...string) (output string, err error) {
+	return RunCMD("./pastel-cli", args...)
+}
+
+// Create or Update masternode.conf File
+func createConfFile(confData []byte) (err error) {
+	workDirPath := configurer.DefaultWorkingDir()
+	var masternodeConfPath, masternodeConfPathBackup string
+
+	if flagMasterNodeIsTestNet {
+		masternodeConfPath = workDirPath + "/testnet3/masternode.conf"
+		masternodeConfPathBackup = workDirPath + "/testnet3/masternode_%s.conf"
+	} else {
+		masternodeConfPath = workDirPath + "/masternode.conf"
+		masternodeConfPathBackup = workDirPath + "/masternode_%s.conf"
+	}
+	if _, err := os.Stat(masternodeConfPath); err == nil { // if masternode.conf File exists , backup
+		oldFileName := masternodeConfPath
+		currentTime := time.Now()
+		backupFileName := fmt.Sprintf(masternodeConfPathBackup, currentTime.Format("2006-01-02"))
+		err := os.Rename(oldFileName, backupFileName)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	confFile, err := os.Create(masternodeConfPath)
+	confFile.Write(confData)
+	if err != nil {
+		return err
+	}
+	defer confFile.Close()
+
+	return nil
+}
+
+func updateMasternodeConfFile(confData map[string]interface{}) (result bool, err error) {
+	workDirPath := configurer.DefaultWorkingDir()
+	var masternodeConfPath string
+
+	if flagMasterNodeIsTestNet {
+		masternodeConfPath = workDirPath + "/testnet3/masternode.conf"
+	} else {
+		masternodeConfPath = workDirPath + "/masternode.conf"
+	}
+
+	// Read ConfData from masternode.conf
+	confFile, err := ioutil.ReadFile(masternodeConfPath)
+	if err != nil {
+		return false, err
+	}
+
+	var conf map[string]interface{}
+	json.Unmarshal([]byte(confFile), &conf)
+
+	keys := make([]string, 0, len(confData))
+	for k := range confData {
+		keys = append(keys, k)
+
+		if conf[k] != nil {
+			confDataValue := confData[k].(map[string]string)
+			confValue := conf[k].(map[string]interface{})
+			for itemKey := range confDataValue {
+				if len(confDataValue[itemKey]) != 0 {
+					confValue[itemKey] = confDataValue[itemKey]
+				}
+			}
+		}
+	}
+	var updatedConf []byte
+	if updatedConf, err = json.Marshal(conf); err != nil {
+		fmt.Printf("updated conf = %s", updatedConf)
+		return false, err
+	}
+
+	if ioutil.WriteFile(masternodeConfPath, updatedConf, 0644) != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func getStartInfo() (nodeName string, privKey string, extIP string) {
+	workDirPath := configurer.DefaultWorkingDir()
+	var masternodeConfPath string
+
+	if flagMasterNodeIsTestNet {
+		masternodeConfPath = workDirPath + "/testnet3/masternode.conf"
+	} else {
+		masternodeConfPath = workDirPath + "/masternode.conf"
+	}
+
+	// Read ConfData from masternode.conf
+	confFile, err := ioutil.ReadFile(masternodeConfPath)
+	if err != nil {
+		return "", "", ""
+	}
+
+	var conf map[string]interface{}
+	json.Unmarshal([]byte(confFile), &conf)
+
+	for key := range conf {
+		nodeName = key // get Node Name
+		fmt.Println(key)
+	}
+	confData := conf[nodeName].(map[string]interface{})
+	extAddr := strings.Split(confData["mnAddress"].(string), ":") // get Ext IP
+	fmt.Println(extAddr[0])
+	return nodeName, confData["mnPrivKey"].(string), extAddr[0]
+
+}
+
+// Pastel.conf setting
+func CheckPastelConf(config *configs.Config) (err error) {
+	workDirPath := configurer.DefaultWorkingDir()
+
+	if _, err := os.Stat(workDirPath); os.IsNotExist(err) {
+		return err
+	}
+
+	if _, err := os.Stat(workDirPath + "/pastel.conf"); os.IsNotExist(err) {
+		return err
+	}
+
+	if flagMasterNodeIsTestNet {
+		var file, err = os.OpenFile(workDirPath+"/pastel.conf", os.O_RDWR, 0644)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		configure, err := ioutil.ReadAll(file)
+
+		if !strings.Contains(string(configure), "testnet=1") {
+			return errSetTestnet
+		}
+	} else {
+		var file, err = os.OpenFile(workDirPath+"/pastel.conf", os.O_RDWR, 0644)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		configure, err := ioutil.ReadAll(file)
+
+		if strings.Contains(string(configure), "testnet=1") {
+			return errSetMainnet
+		}
+	}
+
+	return nil
 }

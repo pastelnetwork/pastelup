@@ -371,7 +371,7 @@ func checkStartMasterNodeParams(_ context.Context, _ *configs.Config) error {
 	flagMasterNodeRPCIP = func() string {
 		if len(flagMasterNodeRPCIP) == 0 {
 			return flagMasterNodeIP
-		} 
+		}
 		return flagMasterNodeRPCIP
 	}()
 	flagMasterNodeP2PIP = func() string {
@@ -385,26 +385,26 @@ func checkStartMasterNodeParams(_ context.Context, _ *configs.Config) error {
 		flagMasterNodePort = func() int {
 			if flagMasterNodePort == 0 {
 				return 19933
-			} 
+			}
 			return flagMasterNodePort
 		}()
 		flagMasterNodeRPCPort = func() int {
 			if flagMasterNodeRPCPort == 0 {
 				return 14444
-			} 
+			}
 			return flagMasterNodeRPCPort
 		}()
 		flagMasterNodeP2PPort = func() int {
 			if flagMasterNodeP2PPort == 0 {
 				return 14445
-			} 
+			}
 			return flagMasterNodeP2PPort
 		}()
 	} else {
 		flagMasterNodePort = func() int {
 			if flagMasterNodePort == 0 {
 				return 9933
-			} 
+			}
 			return flagMasterNodePort
 		}()
 		flagMasterNodeRPCPort = func() int {
@@ -416,7 +416,7 @@ func checkStartMasterNodeParams(_ context.Context, _ *configs.Config) error {
 		flagMasterNodeP2PPort = func() int {
 			if flagMasterNodeP2PPort == 0 {
 				return 4445
-			} 
+			}
 			return flagMasterNodeP2PPort
 		}()
 	}

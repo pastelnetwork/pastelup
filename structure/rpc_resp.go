@@ -1,11 +1,11 @@
 package structure
 
-// RPC_PastelID RPC result from pastelid newkey
+// RPCPastelID RPC result structure from pastelid newkey
 type RPCPastelID struct {
 	Pastelid string
 }
 
-// RPC_PastelMSStatus RPC result from masternode status
+// RPCPastelMSStatus RPC result structure from masternode status
 type RPCPastelMSStatus struct {
 	AssetID                int
 	AssetName              string

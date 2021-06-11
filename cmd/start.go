@@ -423,12 +423,12 @@ func checkStartMasterNodeParams(_ context.Context, _ *configs.Config) error {
 	return nil
 }
 
-// GetExternalIPAddress
+// GetExternalIPAddress runs shell command and returns external IP address
 func GetExternalIPAddress() (externalIP string, err error) {
 	return RunCMD("curl", "ipinfo.io/ip")
 }
 
-// RunPasteld
+// RunPasteld runs pasteld
 func RunPasteld(args ...string) (output string, err error) {
 	if flagMasterNodeIsTestNet {
 		args = append(args, "--testnet")
@@ -552,7 +552,7 @@ func getStartInfo() (nodeName string, privKey string, extIP string) {
 
 }
 
-// CheckPastelConf
+// CheckPastelConf check configuration of pastel settings.
 func CheckPastelConf(_ *configs.Config) (err error) {
 	workDirPath := configurer.DefaultWorkingDir()
 

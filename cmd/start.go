@@ -19,17 +19,16 @@ import (
 
 var (
 	errSubCommandRequired     = fmt.Errorf("subcommand is required")
-	errMasterNodeNameRequired = fmt.Errorf("Required --name, name of the Masternode to start and create in the masternode.conf if `--create` or `--update` are specified")
-	errMasterNodeTxIDRequired = fmt.Errorf("Required --txid, transaction id of 5M collateral MN payment")
-	errMasterNodeINDRequired  = fmt.Errorf("Required --ind, output index in the transaction of 5M collateral MN payment")
-	errMasterNodeIPRequired   = fmt.Errorf("Required --ip, WAN address of host")
-	errMasterNodePwdRequired  = fmt.Errorf("Required --passphrase <passphrase to pastelid private key>, if --pastelid is omitted")
-	errGetIPAddress           = fmt.Errorf("Get IP Address failed")
-	errGenNewAddress          = fmt.Errorf("Generate New Address failed")
-	errMasterNodeStart        = fmt.Errorf("Master Node Start failed")
-	errGenNewKey              = fmt.Errorf("Generate New Key failed")
-	errSetTestnet             = fmt.Errorf("Please initialize pastel.conf as testnet mode")
-	errSetMainnet             = fmt.Errorf("Please initialize pastel.conf as mainnet mode")
+	errMasterNodeNameRequired = fmt.Errorf("required --name, name of the Masternode to start and create in the masternode.conf if `--create` or `--update` are specified")
+	errMasterNodeTxIDRequired = fmt.Errorf("required --txid, transaction id of 5M collateral MN payment")
+	errMasterNodeINDRequired  = fmt.Errorf("required --ind, output index in the transaction of 5M collateral MN payment")
+	errMasterNodeIPRequired   = fmt.Errorf("required --ip, WAN address of host")
+	errMasterNodePwdRequired  = fmt.Errorf("required --passphrase <passphrase to pastelid private key>, if --pastelid is omitted")
+	errGetIPAddress           = fmt.Errorf("get IP address failed")
+	errGenNewAddress          = fmt.Errorf("generate new address failed")
+	errMasterNodeStart        = fmt.Errorf("master node start failed")
+	errSetTestnet             = fmt.Errorf("please initialize pastel.conf as testnet mode")
+	errSetMainnet             = fmt.Errorf("please initialize pastel.conf as mainnet mode")
 )
 
 var (
@@ -257,13 +256,13 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 				pastelid = flagMasterNodePastelID
 			}
 
-			fmt.Printf(pastelid)
+			fmt.Printf("pastelid = %s\n", pastelid)
 
 			if output, err = runPastelCLI("masternode", "outputs"); err != nil {
 				return err
 			} // Master Node Output
 
-			fmt.Printf(output)
+			fmt.Printf("masternode outputs = %s\n", output)
 
 			// Make masternode conf data
 			confData := map[string]interface{}{
@@ -324,7 +323,7 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 	if output, err = runPastelCLI("masternode", "start-alias", nodeName); err != nil {
 		return err
 	} // Master Node Output
-	fmt.Printf(output)
+	fmt.Printf("masternode alias status = %s\n", output)
 
 	if _, err = runPastelCLI("stop"); err != nil {
 		return err
@@ -496,10 +495,7 @@ func updateMasternodeConfFile(confData map[string]interface{}) (result bool, err
 	var conf map[string]interface{}
 	json.Unmarshal([]byte(confFile), &conf)
 
-	keys := make([]string, 0, len(confData))
 	for k := range confData {
-		keys = append(keys, k)
-
 		if conf[k] != nil {
 			confDataValue := confData[k].(map[string]string)
 			confValue := conf[k].(map[string]interface{})
@@ -573,6 +569,10 @@ func CheckPastelConf(_ *configs.Config) (err error) {
 
 		configure, err := ioutil.ReadAll(file)
 
+		if err != nil {
+			return err
+		}
+
 		if !strings.Contains(string(configure), "testnet=1") {
 			return errSetTestnet
 		}
@@ -584,6 +584,9 @@ func CheckPastelConf(_ *configs.Config) (err error) {
 		defer file.Close()
 
 		configure, err := ioutil.ReadAll(file)
+		if err != nil {
+			return err
+		}
 
 		if strings.Contains(string(configure), "testnet=1") {
 			return errSetMainnet

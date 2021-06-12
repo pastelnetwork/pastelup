@@ -25,6 +25,7 @@ var (
 	errMasterNodePwdRequired  = fmt.Errorf("required --passphrase <passphrase to pastelid private key>, if --pastelid is omitted")
 	errSetTestnet             = fmt.Errorf("please initialize pastel.conf as testnet mode")
 	errSetMainnet             = fmt.Errorf("please initialize pastel.conf as mainnet mode")
+	errGetExternalIP          = fmt.Errorf("cannot get external ip address")
 )
 
 var (
@@ -97,8 +98,8 @@ func setupStartCommand() *cli.Command {
 		cli.NewFlag("passphrase", &flagMasterNodePassPhrase),
 		cli.NewFlag("rpc-ip", &flagMasterNodeRPCIP),
 		cli.NewFlag("rpc-port", &flagMasterNodeRPCPort),
-		cli.NewFlag("node-ip", &flagMasterNodeP2PIP),
-		cli.NewFlag("node-port", &flagMasterNodeP2PPort),
+		cli.NewFlag("p2p-ip", &flagMasterNodeP2PIP),
+		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort),
 	}
 	masterNodeSubCommand.AddFlags(masterNodeFlags...)
 
@@ -204,14 +205,27 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
 
 		if flagMasterNodeIsCreate {
-			go RunPasteld(fmt.Sprintf("--externalip=%s", flagMasterNodeIP), "--reindex", "--daemon")
-			time.Sleep(5000 * time.Millisecond)
-
-			if output, err = runPastelCLI("getnewaddress"); err != nil {
+			if err = backupConfFile(); err != nil { // delete conf file
 				return err
 			}
 
-			fmt.Printf("Hot wallet address = %s\n", output)
+			go RunPasteld(fmt.Sprintf("--externalip=%s", flagMasterNodeIP), "--reindex", "--daemon")
+
+			var failCnt = 0
+			for {
+				if output, err = runPastelCLI("getnewaddress"); err != nil {
+					fmt.Printf("Waiting the pasteld to be started ...\n")
+					time.Sleep(10000 * time.Millisecond)
+					failCnt++
+					if failCnt == 10 {
+						fmt.Printf("Can not start with pasteld\n")
+						return err
+					}
+				} else {
+					fmt.Printf("Hot wallet address = %s\n", output)
+					break
+				}
+			}
 
 			if len(flagMasterNodePrivateKey) == 0 {
 				if masternodePrivKey, err = runPastelCLI("masternode", "genkey"); err != nil {
@@ -228,14 +242,28 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 
 			// Restart pasteld as a masternode
 			go RunPasteld("-masternode", "-txindex=1", "-reindex", fmt.Sprintf("-masternodeprivkey=%s", masternodePrivKey), fmt.Sprintf("--externalip=%s", flagMasterNodeIP))
-			time.Sleep(5000 * time.Millisecond)
 
 			if len(flagMasterNodePastelID) == 0 && len(flagMasterNodePassPhrase) != 0 {
 				// Check masternode status
 				var mnstatus structure.RPCPastelMSStatus
-				if output, err = runPastelCLI("mnsync", "status"); err != nil {
-					return err
-				} // Master Node Output
+				failCnt = 0
+				for {
+					if output, err = runPastelCLI("mnsync", "status"); err != nil {
+						fmt.Printf("Waiting the pasteld to be started ...\n")
+						time.Sleep(10000 * time.Millisecond)
+						failCnt++
+						if failCnt == 10 {
+							fmt.Printf("Can not start with pasteld\n")
+							return err
+						}
+					} else {
+						fmt.Printf("masternode sysc status = %s\n", output)
+						break
+					}
+
+				}
+
+				// Master Node Output
 				if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
 					return err
 				}
@@ -254,11 +282,44 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 
 			fmt.Printf("pastelid = %s\n", pastelid)
 
-			if output, err = runPastelCLI("masternode", "outputs"); err != nil {
-				return err
-			} // Master Node Output
+			failCnt = 0
+			for {
+				if output, err = runPastelCLI("masternode", "outputs"); err != nil {
+					fmt.Printf("Waiting the pasteld to be started ...\n")
+					time.Sleep(10000 * time.Millisecond)
+					failCnt++
+					if failCnt == 10 {
+						fmt.Printf("Can not start with pasteld\n")
+						return err
+					}
+				} else {
+					break
+				}
 
-			fmt.Printf("masternode outputs = %s\n", output)
+			}
+
+			// if Masternode output is empty wait until Masternode outputs
+			var recMasterNode map[string]interface{}
+			json.Unmarshal([]byte(output), &recMasterNode)
+			if len(recMasterNode) == 0 {
+				//Wait until Masternode outputs
+				fmt.Printf("Waiting for receiving 5 000 000 PSL ...")
+				for {
+					if output, err = runPastelCLI("masternode", "outputs"); err != nil {
+						return err
+					}
+					var recMasterNode map[string]interface{}
+					json.Unmarshal([]byte(output), &recMasterNode)
+					if len(recMasterNode) != 0 {
+						// if receives PSL go to next step
+						fmt.Printf("masternode outputs = %s%d\n", output, len(output))
+						break
+					}
+				}
+			} else {
+				// Master Node Output
+				fmt.Printf("masternode outputs = %s\n", output)
+			}
 
 			// Make masternode conf data
 			confData := map[string]interface{}{
@@ -313,13 +374,24 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 
 	// Start Node as Masternode
 	go RunPasteld("-masternode", "-txindex=1", "-reindex", fmt.Sprintf("-masternodeprivkey=%s", privKey), fmt.Sprintf("--externalip=%s", extIP))
-	time.Sleep(5000 * time.Millisecond)
 
 	// Enable Masternode
-	if output, err = runPastelCLI("masternode", "start-alias", nodeName); err != nil {
-		return err
-	} // Master Node Output
-	fmt.Printf("masternode alias status = %s\n", output)
+	var failCnt = 0
+	for {
+		if output, err = runPastelCLI("masternode", "start-alias", nodeName); err != nil {
+			fmt.Printf("Waiting the pasteld to be started ...\n")
+			time.Sleep(10000 * time.Millisecond)
+			failCnt++
+			if failCnt == 10 {
+				return err
+			}
+		} else {
+			fmt.Printf("The pasteld was started successfully...\n")
+			fmt.Printf("masternode alias status = %s\n", output)
+			break
+		}
+
+	}
 
 	if _, err = runPastelCLI("stop"); err != nil {
 		return err
@@ -351,7 +423,7 @@ func checkStartMasterNodeParams(_ context.Context, _ *configs.Config) error {
 			externalIP, err := GetExternalIPAddress()
 
 			if err != nil {
-				return err
+				return errGetExternalIP
 			}
 			flagMasterNodeIP = externalIP
 		}
@@ -454,7 +526,7 @@ func createConfFile(confData []byte) (err error) {
 	if _, err := os.Stat(masternodeConfPath); err == nil { // if masternode.conf File exists , backup
 		oldFileName := masternodeConfPath
 		currentTime := time.Now()
-		backupFileName := fmt.Sprintf(masternodeConfPathBackup, currentTime.Format("2006-01-02"))
+		backupFileName := fmt.Sprintf(masternodeConfPathBackup, currentTime.Format("2021-01-01 23:59:59"))
 		err := os.Rename(oldFileName, backupFileName)
 		if err != nil {
 			return err
@@ -489,6 +561,7 @@ func updateMasternodeConfFile(confData map[string]interface{}) (result bool, err
 	}
 
 	var conf map[string]interface{}
+
 	json.Unmarshal([]byte(confFile), &conf)
 
 	for k := range confData {
@@ -498,10 +571,12 @@ func updateMasternodeConfFile(confData map[string]interface{}) (result bool, err
 			for itemKey := range confDataValue {
 				if len(confDataValue[itemKey]) != 0 {
 					confValue[itemKey] = confDataValue[itemKey]
+
 				}
 			}
 		}
 	}
+
 	var updatedConf []byte
 	if updatedConf, err = json.Marshal(conf); err != nil {
 		fmt.Printf("updated conf = %s", updatedConf)
@@ -511,7 +586,38 @@ func updateMasternodeConfFile(confData map[string]interface{}) (result bool, err
 	if ioutil.WriteFile(masternodeConfPath, updatedConf, 0644) != nil {
 		return false, err
 	}
+
 	return true, nil
+}
+
+func backupConfFile() (err error) {
+	workDirPath := configurer.DefaultWorkingDir()
+	var masternodeConfPath, masternodeConfPathBackup string
+
+	if flagMasterNodeIsTestNet {
+		masternodeConfPath = workDirPath + "/testnet3/masternode.conf"
+		masternodeConfPathBackup = workDirPath + "/testnet3/masternode_%s.conf"
+	} else {
+		masternodeConfPath = workDirPath + "/masternode.conf"
+		masternodeConfPathBackup = workDirPath + "/masternode_%s.conf"
+	}
+	if _, err := os.Stat(masternodeConfPath); err == nil { // if masternode.conf File exists , backup
+		oldFileName := masternodeConfPath
+		currentTime := time.Now()
+		backupFileName := fmt.Sprintf(masternodeConfPathBackup, currentTime.Format("2021-01-01 23:59:59"))
+		if err := os.Rename(oldFileName, backupFileName); err != nil {
+			return err
+		}
+
+	}
+	if _, err := os.Stat(masternodeConfPath); err == nil { // if masternode.conf File exists , backup
+		if err = os.Remove(masternodeConfPath); err != nil {
+			return err
+		}
+
+	}
+
+	return nil
 }
 
 func getStartInfo() (nodeName string, privKey string, extIP string) {

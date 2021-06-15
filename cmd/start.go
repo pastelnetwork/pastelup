@@ -262,13 +262,13 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 							return err
 						}
 						if mnstatus.AssetName == "Initial" {
-							if output, err = runPastelCLI("mnsync", "reset"); err != nil {
+							if _, err = runPastelCLI("mnsync", "reset"); err != nil {
 								fmt.Printf("master node reset was failed\n")
 								return err
 							}
 							time.Sleep(10000 * time.Millisecond)
 						} else {
-							if mnstatus.IsSynced == true {
+							if mnstatus.IsSynced {
 								fmt.Printf("master node was synced!\n")
 								break
 							}
@@ -401,13 +401,13 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 			}
 
 			if mnstatus.AssetName == "Initial" {
-				if output, err = runPastelCLI("mnsync", "reset"); err != nil {
+				if _, err = runPastelCLI("mnsync", "reset"); err != nil {
 					fmt.Printf("master node reset was failed\n")
 					return err
 				}
 				time.Sleep(10000 * time.Millisecond)
 			}
-			if mnstatus.IsSynced == true {
+			if mnstatus.IsSynced {
 				fmt.Printf("master node was synced!\n")
 				break
 			}

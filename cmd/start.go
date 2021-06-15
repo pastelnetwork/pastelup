@@ -213,7 +213,7 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 
 			var failCnt = 0
 			for {
-				if output, err = runPastelCLI("getnewaddress"); err != nil {
+				if output, err = runPastelCLI("getaccountaddress", ""); err != nil {
 					fmt.Printf("Waiting the pasteld to be started ...\n")
 					time.Sleep(10000 * time.Millisecond)
 					failCnt++
@@ -246,26 +246,38 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 			if len(flagMasterNodePastelID) == 0 && len(flagMasterNodePassPhrase) != 0 {
 				// Check masternode status
 				var mnstatus structure.RPCPastelMSStatus
-				failCnt = 0
+
 				for {
 					if output, err = runPastelCLI("mnsync", "status"); err != nil {
 						fmt.Printf("Waiting the pasteld to be started ...\n")
 						time.Sleep(10000 * time.Millisecond)
 						failCnt++
-						if failCnt == 10 {
+						if failCnt >= 10 {
 							fmt.Printf("Can not start with pasteld\n")
 							return err
 						}
 					} else {
-						fmt.Printf("masternode sysc status = %s\n", output)
-						break
+						// Master Node Output
+						if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
+							return err
+						} else {
+							if mnstatus.AssetName == "Initial" {
+								if output, err = runPastelCLI("mnsync", "reset"); err != nil {
+									fmt.Printf("master node reset was failed\n")
+									return err
+								}
+								time.Sleep(10000 * time.Millisecond)
+							} else {
+								if mnstatus.IsSynced == true {
+									fmt.Printf("master node was synced!\n")
+									break
+								} else {
+									fmt.Printf("master node was not synced!!!\nWaiting for sync...")
+									time.Sleep(10000 * time.Millisecond)
+								}
+							}
+						}
 					}
-
-				}
-
-				// Master Node Output
-				if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
-					return err
 				}
 
 				if output, err = runPastelCLI("pastelid", "newkey", flagMasterNodePassPhrase); err != nil {
@@ -283,8 +295,9 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 			fmt.Printf("pastelid = %s\n", pastelid)
 
 			failCnt = 0
+
 			for {
-				if output, err = runPastelCLI("masternode", "outputs"); err != nil {
+				if output, err = runPastelCLI("getaccountaddress", ""); err != nil {
 					fmt.Printf("Waiting the pasteld to be started ...\n")
 					time.Sleep(10000 * time.Millisecond)
 					failCnt++
@@ -293,32 +306,29 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 						return err
 					}
 				} else {
+					fmt.Printf("master node address = %s\n", output)
 					break
 				}
-
 			}
 
-			// if Masternode output is empty wait until Masternode outputs
-			var recMasterNode map[string]interface{}
-			json.Unmarshal([]byte(output), &recMasterNode)
-			if len(recMasterNode) == 0 {
-				//Wait until Masternode outputs
-				fmt.Printf("Waiting for receiving 5 000 000 PSL ...")
-				for {
-					if output, err = runPastelCLI("masternode", "outputs"); err != nil {
-						return err
-					}
+			for {
+				if output, err = runPastelCLI("masternode", "outputs"); err != nil {
+					fmt.Printf("masternode outputs\n")
+					return err
+				} else {
 					var recMasterNode map[string]interface{}
 					json.Unmarshal([]byte(output), &recMasterNode)
+
 					if len(recMasterNode) != 0 {
-						// if receives PSL go to next step
-						fmt.Printf("masternode outputs = %s%d\n", output, len(output))
-						break
+						if recMasterNode[flagMasterNodeTxID] != nil && recMasterNode[flagMasterNodeTxID] == flagMasterNodeIND {
+							// if receives PSL go to next step
+							fmt.Printf("masternode outputs = %s, %s\n", flagMasterNodeTxID, flagMasterNodeIND)
+							break
+						}
 					}
+
+					time.Sleep(10000 * time.Millisecond)
 				}
-			} else {
-				// Master Node Output
-				fmt.Printf("masternode outputs = %s\n", output)
 			}
 
 			// Make masternode conf data
@@ -375,8 +385,44 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 	// Start Node as Masternode
 	go RunPasteld("-masternode", "-txindex=1", "-reindex", fmt.Sprintf("-masternodeprivkey=%s", privKey), fmt.Sprintf("--externalip=%s", extIP))
 
-	// Enable Masternode
+	var mnstatus structure.RPCPastelMSStatus
 	var failCnt = 0
+
+	for {
+		if output, err = runPastelCLI("mnsync", "status"); err != nil {
+			fmt.Printf("Waiting the pasteld to be started ...\n")
+			time.Sleep(10000 * time.Millisecond)
+			failCnt++
+			if failCnt >= 10 {
+				fmt.Printf("Can not start with pasteld\n")
+				return err
+			}
+		} else {
+			// Master Node Output
+			if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
+				return err
+			} else {
+				if mnstatus.AssetName == "Initial" {
+					if output, err = runPastelCLI("mnsync", "reset"); err != nil {
+						fmt.Printf("master node reset was failed\n")
+						return err
+					}
+					time.Sleep(10000 * time.Millisecond)
+				} else {
+					if mnstatus.IsSynced == true {
+						fmt.Printf("master node was synced!\n")
+						break
+					} else {
+						fmt.Printf("master node was not synced!!!\nWaiting for sync...")
+						time.Sleep(10000 * time.Millisecond)
+					}
+				}
+			}
+		}
+	}
+
+	// Enable Masternode
+	failCnt = 0
 	for {
 		if output, err = runPastelCLI("masternode", "start-alias", nodeName); err != nil {
 			fmt.Printf("Waiting the pasteld to be started ...\n")
@@ -391,10 +437,6 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 			break
 		}
 
-	}
-
-	if _, err = runPastelCLI("stop"); err != nil {
-		return err
 	}
 
 	return nil

@@ -260,21 +260,20 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 						// Master Node Output
 						if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
 							return err
+						}
+						if mnstatus.AssetName == "Initial" {
+							if output, err = runPastelCLI("mnsync", "reset"); err != nil {
+								fmt.Printf("master node reset was failed\n")
+								return err
+							}
+							time.Sleep(10000 * time.Millisecond)
 						} else {
-							if mnstatus.AssetName == "Initial" {
-								if output, err = runPastelCLI("mnsync", "reset"); err != nil {
-									fmt.Printf("master node reset was failed\n")
-									return err
-								}
-								time.Sleep(10000 * time.Millisecond)
+							if mnstatus.IsSynced == true {
+								fmt.Printf("master node was synced!\n")
+								break
 							} else {
-								if mnstatus.IsSynced == true {
-									fmt.Printf("master node was synced!\n")
-									break
-								} else {
-									fmt.Printf("master node was not synced!!!\nWaiting for sync...")
-									time.Sleep(10000 * time.Millisecond)
-								}
+								fmt.Printf("master node was not synced!!!\nWaiting for sync...")
+								time.Sleep(10000 * time.Millisecond)
 							}
 						}
 					}
@@ -315,20 +314,19 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 				if output, err = runPastelCLI("masternode", "outputs"); err != nil {
 					fmt.Printf("masternode outputs\n")
 					return err
-				} else {
-					var recMasterNode map[string]interface{}
-					json.Unmarshal([]byte(output), &recMasterNode)
-
-					if len(recMasterNode) != 0 {
-						if recMasterNode[flagMasterNodeTxID] != nil && recMasterNode[flagMasterNodeTxID] == flagMasterNodeIND {
-							// if receives PSL go to next step
-							fmt.Printf("masternode outputs = %s, %s\n", flagMasterNodeTxID, flagMasterNodeIND)
-							break
-						}
-					}
-
-					time.Sleep(10000 * time.Millisecond)
 				}
+				var recMasterNode map[string]interface{}
+				json.Unmarshal([]byte(output), &recMasterNode)
+
+				if len(recMasterNode) != 0 {
+					if recMasterNode[flagMasterNodeTxID] != nil && recMasterNode[flagMasterNodeTxID] == flagMasterNodeIND {
+						// if receives PSL go to next step
+						fmt.Printf("masternode outputs = %s, %s\n", flagMasterNodeTxID, flagMasterNodeIND)
+						break
+					}
+				}
+
+				time.Sleep(10000 * time.Millisecond)
 			}
 
 			// Make masternode conf data
@@ -401,23 +399,21 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 			// Master Node Output
 			if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
 				return err
-			} else {
-				if mnstatus.AssetName == "Initial" {
-					if output, err = runPastelCLI("mnsync", "reset"); err != nil {
-						fmt.Printf("master node reset was failed\n")
-						return err
-					}
-					time.Sleep(10000 * time.Millisecond)
-				} else {
-					if mnstatus.IsSynced == true {
-						fmt.Printf("master node was synced!\n")
-						break
-					} else {
-						fmt.Printf("master node was not synced!!!\nWaiting for sync...")
-						time.Sleep(10000 * time.Millisecond)
-					}
-				}
 			}
+
+			if mnstatus.AssetName == "Initial" {
+				if output, err = runPastelCLI("mnsync", "reset"); err != nil {
+					fmt.Printf("master node reset was failed\n")
+					return err
+				}
+				time.Sleep(10000 * time.Millisecond)
+			}
+			if mnstatus.IsSynced == true {
+				fmt.Printf("master node was synced!\n")
+				break
+			}
+			fmt.Printf("master node was not synced!!!\nWaiting for sync...")
+			time.Sleep(10000 * time.Millisecond)
 		}
 	}
 

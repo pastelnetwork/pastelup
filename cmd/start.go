@@ -271,10 +271,9 @@ func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) e
 							if mnstatus.IsSynced == true {
 								fmt.Printf("master node was synced!\n")
 								break
-							} else {
-								fmt.Printf("master node was not synced!!!\nWaiting for sync...")
-								time.Sleep(10000 * time.Millisecond)
 							}
+							fmt.Printf("master node was not synced!!!\nWaiting for sync...")
+							time.Sleep(10000 * time.Millisecond)
 						}
 					}
 				}

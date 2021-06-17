@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -20,7 +19,6 @@ import (
 	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/structure"
 	"github.com/pastelnetwork/pastel-utility/utils"
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 )
 
@@ -30,8 +28,8 @@ var (
 	errMasterNodeTxIDRequired       = fmt.Errorf("required --txid, transaction id of 5M collateral MN payment")
 	errMasterNodeINDRequired        = fmt.Errorf("required --ind, output index in the transaction of 5M collateral MN payment")
 	errMasterNodePwdRequired        = fmt.Errorf("required --passphrase <passphrase to pastelid private key>, if --pastelid is omitted")
-	errMasterNodeSSHIPRequired      = fmt.Errorf("Required if --coldhot is specified, SSH address of the remote HOT node")
-	errMasterNodeColdNodeIPRequired = fmt.Errorf("Required, WAN address of the host")
+	errMasterNodeSSHIPRequired      = fmt.Errorf("required if --coldhot is specified, SSH address of the remote HOT node")
+	errMasterNodeColdNodeIPRequired = fmt.Errorf("required, WAN address of the host")
 	errSetTestnet                   = fmt.Errorf("please initialize pastel.conf as testnet mode")
 	errSetMainnet                   = fmt.Errorf("please initialize pastel.conf as mainnet mode")
 	errGetExternalIP                = fmt.Errorf("cannot get external ip address")
@@ -474,7 +472,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 
 	fmt.Printf("Checking parameters...\n")
 	if err := checkStartMasterNodeParams(ctx, config); err != nil {
-		fmt.Printf(fmt.Sprintf("Checking parameters occurs error -> %s\n", err))
+		fmt.Printf("Checking parameters occurs error -> %s\n", err)
 		return err
 	}
 	fmt.Printf("Finished checking parameters!\n")
@@ -491,7 +489,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 				return err
 			}
 
-			fmt.Printf(fmt.Sprintf("Start pasteld\n./pasteld --externalip=%s --reindex --daemon\n", flagMasterNodeColdNodeIP))
+			fmt.Printf("Start pasteld\n./pasteld --externalip=%s --reindex --daemon\n", flagMasterNodeColdNodeIP)
 			go RunPasteld(fmt.Sprintf("--externalip=%s", flagMasterNodeColdNodeIP), "--reindex", "--daemon")
 
 			var failCnt = 0
@@ -644,9 +642,8 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// ***************  4. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
-	//username, password, _ := credentials()
-	username := "tsimafei"
-	password := "a"
+	username, password, _ := credentials()
+
 	if err = remoteHotNodeCtrl(username, password); err != nil {
 		fmt.Printf("%s\n", err)
 		return err
@@ -709,7 +706,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 func remoteHotNodeCtrl(username string, password string) error {
 	var output []byte
 	var pastelCliPath string
-	fmt.Printf(fmt.Sprintf("Connecting to SSH Hot node wallet -> %s:%d...\n", flagMasterNodeSSHIP, flagMasterNodeSSHPort))
+	fmt.Printf("Connecting to SSH Hot node wallet -> %s:%d...\n", flagMasterNodeSSHIP, flagMasterNodeSSHPort)
 	client, err := utils.DialWithPasswd(fmt.Sprintf("%s:%d", flagMasterNodeSSHIP, flagMasterNodeSSHPort), username, password)
 	if err != nil {
 		return err
@@ -772,7 +769,7 @@ func remoteHotNodeCtrl(username string, password string) error {
 
 	pastelCliPath = pastelCliPaths[0]
 
-	fmt.Printf(fmt.Sprintf("Found pastel-cli path on %s\n", pastelCliPath))
+	fmt.Printf("Found pastel-cli path on %s\n", pastelCliPath)
 
 	go client.Cmd(fmt.Sprintf("%s --reindex --externalip=%s --daemon", flagMasterNodePastelPath, flagMasterNodeIP)).Run()
 
@@ -890,39 +887,6 @@ func credentials() (string, string, error) {
 
 	password := string(bytePassword)
 	return strings.TrimSpace(username), strings.TrimSpace(password), nil
-}
-
-func getHostKey(ctx context.Context, host string) ssh.PublicKey {
-	// parse OpenSSH known_hosts file
-	// ssh or use ssh-keyscan to get initial key
-	file, err := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	var hostKey ssh.PublicKey
-	for scanner.Scan() {
-		fields := strings.Split(scanner.Text(), " ")
-		if len(fields) != 3 {
-			continue
-		}
-		if strings.Contains(fields[0], host) {
-			var err error
-			hostKey, _, _, _, err = ssh.ParseAuthorizedKey(scanner.Bytes())
-			if err != nil {
-				log.WithContext(ctx).Fatalf("error parsing %q: %v", fields[2], err)
-			}
-			break
-		}
-	}
-
-	if hostKey == nil {
-		log.WithContext(ctx).Fatalf("no hostkey found for %s", host)
-	}
-
-	return hostKey
 }
 
 func checkStartMasterNodeParams(_ context.Context, _ *configs.Config) error {

@@ -13,15 +13,11 @@ import (
 )
 
 type remoteScriptType byte
-type remoteShellType byte
 
 const (
 	cmdLine remoteScriptType = iota
 	rawScript
 	scriptFile
-
-	interactiveShell remoteShellType = iota
-	nonInteractiveShell
 )
 
 // A Client implements an SSH client that supports running commands and scripts remotely.
@@ -181,14 +177,14 @@ func (rs *RemoteScript) Run() error {
 	} else if rs._type == scriptFile {
 		return rs.runScriptFile()
 	} else {
-		return errors.New("Not supported RemoteScript type")
+		return errors.New("not supported RemoteScript type")
 	}
 }
 
 // Output runs the script on the client and returns its standard output.
 func (rs *RemoteScript) Output() ([]byte, error) {
 	if rs.stdout != nil {
-		return nil, errors.New("Stdout already set")
+		return nil, errors.New("stdout already set")
 	}
 	var out bytes.Buffer
 	rs.stdout = &out
@@ -199,10 +195,10 @@ func (rs *RemoteScript) Output() ([]byte, error) {
 // SmartOutput runs the script on the client. On success, its standard ouput is returned. On error, its standard error is returned.
 func (rs *RemoteScript) SmartOutput() ([]byte, error) {
 	if rs.stdout != nil {
-		return nil, errors.New("Stdout already set")
+		return nil, errors.New("stdout already set")
 	}
 	if rs.stderr != nil {
-		return nil, errors.New("Stderr already set")
+		return nil, errors.New("stderr already set")
 	}
 
 	var (

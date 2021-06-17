@@ -211,16 +211,9 @@ func runStartSuperNodeSubCommand(_ context.Context, _ *configs.Config) error {
 
 func runStartMasterNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	if flagMasterNodeColdHot {
-		if err := runMasterNodOnColdHot(ctx, config); err != nil {
-			return err
-		}
-		return nil
-
+		return runMasterNodOnColdHot(ctx, config)
 	}
-	if err := runMasterNodOnHotHot(ctx, config); err != nil {
-		return err
-	}
-	return nil
+	return runMasterNodOnHotHot(ctx, config)
 }
 
 func runStartWalletSubCommand(_ context.Context, _ *configs.Config) error {
@@ -702,9 +695,9 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 
 	if output, err = runPastelCLI("masternode", "start-alias", flagMasterNodeName); err != nil {
 		return err
-	} else {
-		fmt.Printf("masternode alias status = %s\n", output)
 	}
+
+	fmt.Printf("masternode alias status = %s\n", output)
 
 	// ***************  6. Stop Cold Node  ***************
 	if _, err = runPastelCLI("stop"); err != nil {
@@ -775,9 +768,10 @@ func remoteHotNodeCtrl(username string, password string) error {
 
 	if len(pastelCliPaths) == 0 {
 		return errNotFoundPastelCli
-	} else {
-		pastelCliPath = pastelCliPaths[0]
 	}
+
+	pastelCliPath = pastelCliPaths[0]
+
 	fmt.Printf(fmt.Sprintf("Found pastel-cli path on %s\n", pastelCliPath))
 
 	go client.Cmd(fmt.Sprintf("%s --reindex --externalip=%s --daemon", flagMasterNodePastelPath, flagMasterNodeIP)).Run()
@@ -898,7 +892,7 @@ func credentials() (string, string, error) {
 	return strings.TrimSpace(username), strings.TrimSpace(password), nil
 }
 
-func getHostKey(host string, ctx context.Context) ssh.PublicKey {
+func getHostKey(ctx context.Context, host string) ssh.PublicKey {
 	// parse OpenSSH known_hosts file
 	// ssh or use ssh-keyscan to get initial key
 	file, err := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))

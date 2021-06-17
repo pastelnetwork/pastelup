@@ -244,10 +244,7 @@ func (rs *RemoteScript) runCmd(cmd string) error {
 	session.Stdout = rs.stdout
 	session.Stderr = rs.stderr
 
-	if err := session.Run(cmd); err != nil {
-		return err
-	}
-	return nil
+	return session.Run(cmd)
 }
 
 func (rs *RemoteScript) runCmds() error {
@@ -281,11 +278,7 @@ func (rs *RemoteScript) runScript() error {
 	if err := session.Shell(); err != nil {
 		return err
 	}
-	if err := session.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return session.Wait()
 }
 
 func (rs *RemoteScript) runScriptFile() error {
@@ -390,9 +383,5 @@ func (rs *RemoteShell) Start() error {
 		return err
 	}
 
-	if err := session.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return session.Wait()
 }

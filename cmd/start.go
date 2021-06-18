@@ -246,7 +246,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 			}
 			fmt.Printf("Backup masternode.conf was finished successfully.\n")
 			// *************  2.1 Start the Pastel Network Node  *************
-			fmt.Printf(fmt.Sprintf("Starting pasteld...\npasteld --externalip=%s --reindex --daemon\n", flagMasterNodeIP))
+			fmt.Printf("Starting pasteld...\npasteld --externalip=%s --reindex --daemon\n", flagMasterNodeIP)
 			go RunPasteld(fmt.Sprintf("--externalip=%s", flagMasterNodeIP), "--reindex", "--daemon")
 
 			var failCnt = 0
@@ -346,7 +346,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 			if err = createConfFile(data); err != nil {
 				return err
 			}
-			fmt.Println(fmt.Sprintf("masternode.conf = %s\n", string(data)))
+			fmt.Printf("masternode.conf = %s\n", string(data))
 
 			fmt.Printf("Stopping pasteld...\n")
 			if _, err = runPastelCLI("stop"); err != nil {
@@ -375,7 +375,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 			}
 
 			data, _ := json.Marshal(confData)
-			fmt.Println(fmt.Sprintf("masternode.conf = %s\n", string(data)))
+			fmt.Printf("masternode.conf = %s\n", string(data))
 		}
 	}
 

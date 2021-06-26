@@ -13,11 +13,11 @@ const (
 	// Unknown - Current OS is unknown
 	Unknown OSType = "Unknown"
 
-	// PASTEL_CONF_NAME - pastel config file name
-	PASTEL_CONF_NAME string = "pastel.conf"
+	// PastelConfName - pastel config file name
+	PastelConfName string = "pastel.conf"
 
-	// PASTEL_UTILITY_CONFIG_FILE_PATH - The path of the config of pastel-utility
-	PASTEL_UTILITY_CONFIG_FILE_PATH string = "./pastel-utility.conf"
+	// PastelUtilityConfigFilePath - The path of the config of pastel-utility
+	PastelUtilityConfigFilePath string = "./pastel-utility.conf"
 )
 
 // PasteldName - The name of the pasteld

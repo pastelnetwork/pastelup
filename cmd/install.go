@@ -147,9 +147,9 @@ func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) error
 	log.WithContext(ctx).Debug("Copy config file")
 
 	if err = copyFile(ctx,
-		fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PASTEL_CONF_NAME),
+		fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PastelConfName),
 		configurer.DefaultWorkingDir(),
-		constants.PASTEL_CONF_NAME); err != nil {
+		constants.PastelConfName); err != nil {
 		log.WithContext(ctx).Error("Failed to copy pastel.conf file")
 		return err
 	}

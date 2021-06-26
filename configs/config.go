@@ -89,7 +89,7 @@ func (config *Config) SaveConfig() error {
 		return err
 	}
 
-	if ioutil.WriteFile(constants.PASTEL_UTILITY_CONFIG_FILE_PATH, []byte(data), 0644) != nil {
+	if ioutil.WriteFile(constants.PastelUtilityConfigFilePath, []byte(data), 0644) != nil {
 		return err
 	}
 	return nil
@@ -97,7 +97,7 @@ func (config *Config) SaveConfig() error {
 
 // LoadConfig : load the config from config file
 func LoadConfig() (cofig *Config, err error) {
-	data, err := ioutil.ReadFile(constants.PASTEL_UTILITY_CONFIG_FILE_PATH)
+	data, err := ioutil.ReadFile(constants.PastelUtilityConfigFilePath)
 
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func New() *Config {
 func GetConfig() *Config {
 	var config *Config
 	var err error
-	if utils.CheckFileExist(constants.PASTEL_UTILITY_CONFIG_FILE_PATH) {
+	if utils.CheckFileExist(constants.PastelUtilityConfigFilePath) {
 		config, err = LoadConfig()
 		if err != nil {
 			log.Error("The pastel-utility.conf file is not correct\n")

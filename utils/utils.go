@@ -36,7 +36,7 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 			err := os.MkdirAll(path, 0755)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Error creating directory")
-				return errors.Errorf("Failed to create directory: %v \n", err)
+				return errors.Errorf("failed to create directory: %v", err)
 			}
 			log.WithContext(ctx).Infof("Directory created on %s \n", path)
 		} else {
@@ -172,10 +172,7 @@ func DownloadFile(ctx context.Context, filepath string, url string) error {
 	// Close the file without defer so it can happen before Rename()
 	out.Close()
 
-	if err = os.Rename(filepath+".tmp", filepath); err != nil {
-		return err
-	}
-	return nil
+	return os.Rename(filepath+".tmp", filepath)
 }
 
 // GetOS gets current OS.
@@ -183,13 +180,13 @@ func GetOS() constants.OSType {
 	os := runtime.GOOS
 	switch os {
 	case "windows":
-		return constants.OS_WINDOWS
+		return constants.Windows
 	case "darwin":
-		return constants.OS_MAC
+		return constants.Mac
 	case "linux":
-		return constants.OS_LINUX
+		return constants.Linux
 	default:
-		return constants.OS_UNKNOWN
+		return constants.Unknown
 	}
 }
 

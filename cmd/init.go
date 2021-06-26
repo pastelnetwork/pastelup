@@ -433,7 +433,7 @@ func RunCMD(command string, args ...string) (string, error) {
 	return string(stdout), nil
 }
 
-//
+// RunCMDWithInteractive runs shell command with interactive
 func RunCMDWithInteractive(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
 

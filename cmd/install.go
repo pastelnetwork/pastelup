@@ -125,7 +125,7 @@ func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) error
 		return err
 	}
 
-	err = utils.DownloadFile(ctx, fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PASTEL_EXEC_ARCHIVE_NAME[utils.GetOS()]), constants.PASTEL_DOWNLOAD_URL[utils.GetOS()])
+	err = utils.DownloadFile(ctx, fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PastelExecArchiveName[utils.GetOS()]), constants.PastelDownloadURL[utils.GetOS()])
 	if err != nil {
 		log.WithContext(ctx).Error("Failed to download pastel executables.")
 		return err
@@ -135,12 +135,12 @@ func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) error
 	log.WithContext(ctx).Info("Installing...")
 
 	log.WithContext(ctx).Debug("Extract archive files")
-	if err = uncompressNodeArchive(ctx, config.PastelNodeDir, fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PASTEL_EXEC_ARCHIVE_NAME[utils.GetOS()])); err != nil {
+	if err = uncompressNodeArchive(ctx, config.PastelNodeDir, fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PastelExecArchiveName[utils.GetOS()])); err != nil {
 		log.WithContext(ctx).Error("Failed to extract archive files")
 		return err
 	}
 	log.WithContext(ctx).Debug("Delete archive files")
-	if err = utils.DeleteFile(fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PASTEL_EXEC_ARCHIVE_NAME[utils.GetOS()])); err != nil {
+	if err = utils.DeleteFile(fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PastelExecArchiveName[utils.GetOS()])); err != nil {
 		log.WithContext(ctx).Error("Failed to delete archive files")
 		return err
 	}
@@ -187,8 +187,8 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) err
 	}
 
 	err = utils.DownloadFile(ctx,
-		fmt.Sprintf("%s/%s", config.PastelWalletDir, constants.PASTEL_WALLET_EXEC_NAME[utils.GetOS()]),
-		constants.PASTEL_WALLET_DOWNLOAD_URL[utils.GetOS()])
+		fmt.Sprintf("%s/%s", config.PastelWalletDir, constants.PastelWalletExecName[utils.GetOS()]),
+		constants.PastelWalletDownloadURL[utils.GetOS()])
 
 	if err != nil {
 		log.WithContext(ctx).Error("Failed to download pastel executables.")
@@ -199,9 +199,9 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) err
 
 	log.WithContext(ctx).Info("Installing...")
 
-	log.WithContext(ctx).Info(fmt.Sprintf("Wallet dir path -> %s/%s", config.PastelWalletDir, constants.PASTEL_WALLET_EXEC_NAME[utils.GetOS()]))
+	log.WithContext(ctx).Info(fmt.Sprintf("Wallet dir path -> %s/%s", config.PastelWalletDir, constants.PastelWalletExecName[utils.GetOS()]))
 	if _, err = RunCMD("chmod", "777",
-		fmt.Sprintf("%s/%s", config.PastelWalletDir, constants.PASTEL_WALLET_EXEC_NAME[utils.GetOS()])); err != nil {
+		fmt.Sprintf("%s/%s", config.PastelWalletDir, constants.PastelWalletExecName[utils.GetOS()])); err != nil {
 		log.WithContext(ctx).Error("Failed to make wallet node as executable")
 		return err
 	}
@@ -210,7 +210,7 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) err
 	return nil
 }
 
-func initNodeDownloadPath(ctx context.Context, config *configs.Config, nodeInstallPath string) (nodePath string, err error) {
+func initNodeDownloadPath(ctx context.Context, _ *configs.Config, nodeInstallPath string) (nodePath string, err error) {
 	log.WithContext(ctx).Info("Check install node path")
 	defer log.WithContext(ctx).Info("Initialized install node path")
 
@@ -237,17 +237,17 @@ func uncompressNodeArchive(ctx context.Context, dstFolder string, archiveFile st
 	var fileReader io.ReadCloser = file
 
 	switch osType {
-	case constants.OS_LINUX:
+	case constants.Linux:
 		return utils.Untar(dstFolder, fileReader)
-	case constants.OS_MAC:
+	case constants.Mac:
 		return utils.Untar(dstFolder, fileReader)
-	case constants.OS_WINDOWS:
+	case constants.Windows:
 		_, err = utils.Unzip(archiveFile, dstFolder)
 		return err
 	default:
 		log.WithContext(ctx).Error("Not supported OS!!!")
 	}
-	return fmt.Errorf("Not supported OS!!!")
+	return fmt.Errorf("not supported OS!!!")
 }
 
 func copyFile(ctx context.Context, src string, dstFolder string, dstFileName string) error {

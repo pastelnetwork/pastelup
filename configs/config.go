@@ -11,12 +11,13 @@ import (
 )
 
 const (
-	// WalletDefaultConfig - default config for walletnode
+	// WalletMainNetConfig - mainnet config for walletnode
 	WalletMainNetConfig = `node:
   api:
     hostname: "localhost"
     port: 8080
 `
+	// WalletTestNetConfig - testnet config for walletnode
 	WalletTestNetConfig = `pastel-api:
   port: 19932
   
@@ -25,6 +26,7 @@ node:
     hostname: "localhost"
     port: 8080
 `
+	// WalletLocalNetConfig - localnet config for walletnode
 	WalletLocalNetConfig = `pastel-api:
   hostname: "127.0.0.1"
   port: 29932

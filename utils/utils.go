@@ -27,9 +27,9 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 		err := os.MkdirAll(path, 0755)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Error creating directory")
-			return fmt.Errorf("Failed to create directory: %v \n", err)
+			return fmt.Errorf("failed to create directory: %v", err)
 		}
-		log.WithContext(ctx).Infof("Directory created on %s \n", path)
+		log.WithContext(ctx).Infof("directory created on %s", path)
 	} else {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			err := os.MkdirAll(path, 0755)
@@ -40,7 +40,7 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 			log.WithContext(ctx).Infof("Directory created on %s \n", path)
 		} else {
 			log.WithContext(ctx).WithError(err).Error("Directory already exists \n")
-			return fmt.Errorf("Directory already exists \n")
+			return fmt.Errorf("directory already exists")
 		}
 	}
 
@@ -55,7 +55,7 @@ func CreateFile(ctx context.Context, fileName string, force bool) (string, error
 		var file, err = os.Create(fileName)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Error creating file")
-			return "", fmt.Errorf("Failed to create file: %v \n", err)
+			return "", fmt.Errorf("failed to create file: %v", err)
 		}
 		defer file.Close()
 	} else {
@@ -67,12 +67,12 @@ func CreateFile(ctx context.Context, fileName string, force bool) (string, error
 			var file, err = os.Create(fileName)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Error creating file")
-				return "", fmt.Errorf("Failed to create file: %v \n", err)
+				return "", fmt.Errorf("failed to create file: %v", err)
 			}
 			defer file.Close()
 		} else {
 			log.WithContext(ctx).WithError(err).Error("File already exists \n")
-			return "", fmt.Errorf("File already exists \n")
+			return "", fmt.Errorf("file already exists")
 		}
 	}
 
@@ -147,7 +147,7 @@ func DownloadFile(ctx context.Context, filepath string, url string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("File not found!")
+		return fmt.Errorf("file not found")
 	}
 
 	// Create the file, but give it a tmp file extension, this means we won't overwrite a

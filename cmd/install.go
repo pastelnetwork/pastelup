@@ -247,7 +247,7 @@ func uncompressNodeArchive(ctx context.Context, dstFolder string, archiveFile st
 	default:
 		log.WithContext(ctx).Error("Not supported OS!!!")
 	}
-	return fmt.Errorf("not supported OS!!!")
+	return fmt.Errorf("not supported OS")
 }
 
 func copyFile(ctx context.Context, src string, dstFolder string, dstFileName string) error {

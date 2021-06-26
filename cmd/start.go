@@ -1389,26 +1389,26 @@ func CheckPastelConf(config *configs.Config) (err error) {
 func checkPastelInstallPath(ctx context.Context, config *configs.Config) (pastelDirPath string, pasteldPath string, pastelCliPath string, pastelWalletNodePath string, err error) {
 
 	if _, err = os.Stat(config.PastelNodeDir); os.IsNotExist(err) {
-		log.WithContext(ctx).Error("could not find pastel node path!")
-		return "", "", "", "", fmt.Errorf("could not find pastel node path!")
+		log.WithContext(ctx).Error("could not find pastel node path")
+		return "", "", "", "", fmt.Errorf("could not find pastel node path")
 	}
 	pastelDirPath = config.PastelNodeDir
 
 	if _, err = os.Stat(config.PastelNodeDir + "/" + constants.PasteldName[utils.GetOS()]); os.IsNotExist(err) {
-		log.WithContext(ctx).Error("could not find pasteld path!")
-		return "", "", "", "", fmt.Errorf("could not find pasteld path!")
+		log.WithContext(ctx).Error("could not find pasteld path")
+		return "", "", "", "", fmt.Errorf("could not find pasteld path")
 	}
 	pasteldPath = fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PasteldName[utils.GetOS()])
 
 	if _, err = os.Stat(config.PastelNodeDir + "/" + constants.PastelCliName[utils.GetOS()]); os.IsNotExist(err) {
-		log.WithContext(ctx).Error("could not find pastel-cli path!")
-		return "", "", "", "", fmt.Errorf("could not find pastel-cli path!")
+		log.WithContext(ctx).Error("could not find pastel-cli path")
+		return "", "", "", "", fmt.Errorf("could not find pastel-cli path")
 	}
 	pastelCliPath = fmt.Sprintf("%s/%s", config.PastelNodeDir, constants.PastelCliName[utils.GetOS()])
 
 	if _, err = os.Stat(config.PastelWalletDir + "/" + constants.PastelWalletExecName[utils.GetOS()]); os.IsNotExist(err) {
-		log.WithContext(ctx).Error("could not find wallet node path!")
-		return "", "", "", "", fmt.Errorf("could not find wallet node path!")
+		log.WithContext(ctx).Error("could not find wallet node path")
+		return "", "", "", "", fmt.Errorf("could not find wallet node path")
 	}
 	pastelWalletNodePath = fmt.Sprintf("%s/%s", config.PastelWalletDir, constants.PastelWalletExecName[utils.GetOS()])
 

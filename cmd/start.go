@@ -264,7 +264,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 		var failCnt = 0
 		for {
 			if _, err = runPastelCLI(ctx, config, "getaccountaddress", ""); err != nil {
-				log.WithContext(ctx).Info(fmt.Sprintf("Waiting the pasteld to be started ..."))
+				log.WithContext(ctx).Info("Waiting the pasteld to be started ...")
 				time.Sleep(10000 * time.Millisecond)
 				failCnt++
 				if failCnt == 10 {
@@ -273,7 +273,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 				}
 			} else {
 
-				log.WithContext(ctx).Info(fmt.Sprintf("Started pasteld successfully!"))
+				log.WithContext(ctx).Info("Started pasteld successfully!")
 				break
 			}
 		}
@@ -335,7 +335,7 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 	var failCnt = 0
 	for {
 		if _, err = runPastelCLI(ctx, config, "getaccountaddress", ""); err != nil {
-			log.WithContext(ctx).Info(fmt.Sprintf("Waiting the pasteld to be started ..."))
+			log.WithContext(ctx).Info("Waiting the pasteld to be started ...")
 			time.Sleep(10000 * time.Millisecond)
 			failCnt++
 			if failCnt == 10 {
@@ -1179,7 +1179,7 @@ func runPastelCLI(ctx context.Context, config *configs.Config, args ...string) (
 
 	args = append([]string{fmt.Sprintf("--datadir=%s", config.WorkingDir)}, args...)
 
-	return RunCMD(fmt.Sprintf("%s", pastelCliPath), args...)
+	return RunCMD(pastelCliPath, args...)
 }
 
 func runPastelWalletNode(ctx context.Context, config *configs.Config, args ...string) (output string, err error) {
@@ -1189,7 +1189,7 @@ func runPastelWalletNode(ctx context.Context, config *configs.Config, args ...st
 		return pastelWalletNodePath, errNotFoundPastelPath
 	}
 
-	return RunCMD(fmt.Sprintf(pastelWalletNodePath), args...)
+	return RunCMD(pastelWalletNodePath, args...)
 }
 
 func runPastelWalletNodeWithInteractive(ctx context.Context, config *configs.Config, args ...string) (err error) {
@@ -1199,7 +1199,7 @@ func runPastelWalletNodeWithInteractive(ctx context.Context, config *configs.Con
 		return errNotFoundPastelPath
 	}
 
-	return RunCMDWithInteractive(fmt.Sprintf(pastelWalletNodePath), args...)
+	return RunCMDWithInteractive(pastelWalletNodePath, args...)
 }
 
 // Create or Update masternode.conf File

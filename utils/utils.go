@@ -18,7 +18,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pkg/errors"
 )
 
 // CreateFolder creates the folder in the specified `path`
@@ -28,7 +27,7 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 		err := os.MkdirAll(path, 0755)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Error creating directory")
-			return errors.Errorf("Failed to create directory: %v \n", err)
+			return fmt.Errorf("Failed to create directory: %v \n", err)
 		}
 		log.WithContext(ctx).Infof("Directory created on %s \n", path)
 	} else {
@@ -36,12 +35,12 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 			err := os.MkdirAll(path, 0755)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Error creating directory")
-				return errors.Errorf("failed to create directory: %v", err)
+				return fmt.Errorf("failed to create directory: %v", err)
 			}
 			log.WithContext(ctx).Infof("Directory created on %s \n", path)
 		} else {
 			log.WithContext(ctx).WithError(err).Error("Directory already exists \n")
-			return errors.Errorf("Directory already exists \n")
+			return fmt.Errorf("Directory already exists \n")
 		}
 	}
 
@@ -56,7 +55,7 @@ func CreateFile(ctx context.Context, fileName string, force bool) (string, error
 		var file, err = os.Create(fileName)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Error creating file")
-			return "", errors.Errorf("Failed to create file: %v \n", err)
+			return "", fmt.Errorf("Failed to create file: %v \n", err)
 		}
 		defer file.Close()
 	} else {
@@ -68,12 +67,12 @@ func CreateFile(ctx context.Context, fileName string, force bool) (string, error
 			var file, err = os.Create(fileName)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Error creating file")
-				return "", errors.Errorf("Failed to create file: %v \n", err)
+				return "", fmt.Errorf("Failed to create file: %v \n", err)
 			}
 			defer file.Close()
 		} else {
 			log.WithContext(ctx).WithError(err).Error("File already exists \n")
-			return "", errors.Errorf("File already exists \n")
+			return "", fmt.Errorf("File already exists \n")
 		}
 	}
 
@@ -148,7 +147,7 @@ func DownloadFile(ctx context.Context, filepath string, url string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return errors.Errorf("File not found!")
+		return fmt.Errorf("File not found!")
 	}
 
 	// Create the file, but give it a tmp file extension, this means we won't overwrite a

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/gonode/common/version"
 	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -70,7 +70,7 @@ func configureLogging(ctx context.Context, logPrefix string, config *configs.Con
 	}
 
 	if err := log.SetLevelName(config.LogLevel); err != nil {
-		return nil, errors.Errorf("--log-level %q, %v", config.LogLevel, err)
+		return nil, fmt.Errorf("--log-level %q, %v", config.LogLevel, err)
 	}
 	return ctx, nil
 }

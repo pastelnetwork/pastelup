@@ -19,15 +19,18 @@ import (
 )
 
 func setupInitCommand() *cli.Command {
-	config := configs.New()
-	defaultWorkDir := configurer.DefaultWorkingDir()
+	config := configs.GetConfig()
+
+	if len(config.WorkingDir) == 0 {
+		config.WorkingDir = configurer.DefaultWorkingDir()
+	}
 
 	initCommand := cli.NewCommand("init")
 	initCommand.CustomHelpTemplate = GetColoredCommandHeaders()
 	initCommand.SetUsage(blue("Command that performs initialization of the system for both Wallet and SuperNodes"))
 	initCommandFlags := []*cli.Flag{
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("d").
-			SetUsage(green("Location where to create working directory")).SetValue(defaultWorkDir),
+			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
 		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
@@ -86,6 +89,12 @@ func runInit(ctx context.Context, config *configs.Config) error {
 	}
 	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
+	err = config.SaveConfig()
+	if err != nil {
+		log.WithContext(ctx).Error("Cannot save pastel-utility.conf!")
+		return err
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -113,7 +122,7 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 		zksnarkPath = configurer.DefaultZksnarkDir()
 		workDirPath = config.WorkingDir
 	} else {
-		workDirPath = filepath.Join(config.WorkingDir, "/.pastel/")
+		workDirPath = filepath.Join(config.WorkingDir)
 		zksnarkPath = filepath.Join(config.WorkingDir, "/.pastel-params/")
 	}
 
@@ -124,12 +133,14 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 
 	// create zksnark parameters path
 	if err := utils.CreateFolder(ctx, zksnarkPath, forceSet); err != nil {
-		return err
+		if !(os.IsExist(err) && forceSet == false) {
+			return err
+		}
 	}
 
 	// create pastel.conf file
 	f, err := utils.CreateFile(ctx, workDirPath+"/pastel.conf", forceSet)
-	if err != nil {
+	if err != nil && !(os.IsExist(err) && forceSet == false) {
 		return err
 	}
 
@@ -301,7 +312,7 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 
 	// create walletnode default config
 	// create file
-	fileName, err := utils.CreateFile(ctx, workDirPath+"/wallet.conf", forceSet)
+	fileName, err := utils.CreateFile(ctx, workDirPath+"/wallet.yml", forceSet)
 	if err != nil {
 		return err
 	}
@@ -314,7 +325,14 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	defer file.Close()
 
 	// Populate pastel.conf line-by-line to file.
-	_, err = file.WriteString(configs.WalletDefaultConfig) // creates server line
+	if config.Network == "mainnet" {
+		_, err = file.WriteString(configs.WalletMainNetConfig) // creates server line
+	} else if config.Network == "testnet" {
+		_, err = file.WriteString(configs.WalletTestNetConfig) // creates server line
+	} else {
+		_, err = file.WriteString(configs.WalletLocalNetConfig) // creates server line
+	}
+
 	if err != nil {
 		return err
 	}
@@ -413,4 +431,14 @@ func RunCMD(command string, args ...string) (string, error) {
 		return "", err
 	}
 	return string(stdout), nil
+}
+
+//
+func RunCMDWithInteractive(command string, args ...string) error {
+	cmd := exec.Command(command, args...)
+
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	return cmd.Run()
 }

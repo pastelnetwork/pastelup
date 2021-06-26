@@ -36,3 +36,15 @@ func DefaultZksnarkDir() string {
 	}
 	return filepath.Join(homeDir, filepath.FromSlash(appDir), "PastelParams")
 }
+
+// DefaultPastelExecutableDir returns the default pastel executable path for Linux OS.
+func DefaultPastelExecutableDir() string {
+	homeDir, _ := os.UserHomeDir()
+	appDir := beforeVistaAppDir
+
+	v, _ := syscall.GetVersion()
+	if v&0xff > 5 {
+		appDir = sinceVistaAppDir
+	}
+	return filepath.Join(homeDir, filepath.FromSlash(appDir), "PastelNode")
+}

@@ -2,15 +2,41 @@ package configs
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
+
+	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 const (
 	// WalletDefaultConfig - default config for walletnode
-	WalletDefaultConfig = `node:
-	api:
-		hostname: "localhost"
-		port: 8080
+	WalletMainNetConfig = `node:
+  api:
+    hostname: "localhost"
+    port: 8080
 `
+	WalletTestNetConfig = `pastel-api:
+  port: 19932
+  
+node:
+  api:
+    hostname: "localhost"
+    port: 8080
+`
+	WalletLocalNetConfig = `pastel-api:
+  hostname: "127.0.0.1"
+  port: 29932
+  username: ""
+  password: ""
+  
+node:
+  api:
+    hostname: "localhost"
+    port: 8080
+`
+
 	// SupernodeDefaultConfig - default config for supernode
 	SupernodeDefaultConfig = `node:
 	# ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode.
@@ -53,9 +79,53 @@ func (config *Config) String() (string, error) {
 	return string(data), nil
 }
 
+// SaveConfig : save pastel-utility config
+func (config *Config) SaveConfig() error {
+	data, err := config.String()
+
+	if err != nil {
+		return err
+	}
+
+	if ioutil.WriteFile(constants.PASTEL_UTILITY_CONFIG_FILE_PATH, []byte(data), 0644) != nil {
+		return err
+	}
+	return nil
+}
+
+// LoadConfig : load the config from config file
+func LoadConfig() (cofig *Config, err error) {
+	data, err := ioutil.ReadFile(constants.PASTEL_UTILITY_CONFIG_FILE_PATH)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var dataConf Config
+	err = json.Unmarshal(data, &dataConf)
+
+	return &dataConf, err
+}
+
 // New returns a new Config instance
 func New() *Config {
 	return &Config{
 		Main: *NewMain(),
 	}
+}
+
+// GetConfig : Get the config from config file. If there is no config file then create a new config.
+func GetConfig() *Config {
+	var config *Config
+	var err error
+	if utils.CheckFileExist(constants.PASTEL_UTILITY_CONFIG_FILE_PATH) {
+		config, err = LoadConfig()
+		if err != nil {
+			log.Error("The pastel-utility.conf file is not correct\n")
+			os.Exit(-1)
+		}
+	} else {
+		config = New()
+	}
+	return config
 }

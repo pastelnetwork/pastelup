@@ -401,7 +401,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 						return err
 					}
 				} else {
-					log.WithContext(ctx).Info("Started pasteld successfully!\nHot wallet address = %s", output)
+					log.WithContext(ctx).Info(fmt.Sprintf("Started pasteld successfully!\nHot wallet address = %s", output))
 					break
 				}
 			}

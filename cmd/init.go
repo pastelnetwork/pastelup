@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/utils"
+	"github.com/pkg/errors"
 )
 
 func setupInitCommand() *cli.Command {
@@ -214,7 +214,7 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 	err = file.Sync()
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Error saving file")
-		return fmt.Errorf("failed to save file changes: %v", err)
+		return errors.Errorf("failed to save file changes: %v", err)
 	}
 
 	log.WithContext(ctx).Info("File updated successfully: \n")
@@ -233,13 +233,13 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 		// check if file exists and force is not set
 		if os.IsExist(err) && !force {
 			log.WithContext(ctx).WithError(err).Errorf("Error: file zksnark param already exists %s\n", zksnarkParamsPath)
-			return fmt.Errorf("zksnarkParam exists:  %s", zksnarkParamsPath)
+			return errors.Errorf("zksnarkParam exists:  %s", zksnarkParamsPath)
 		}
 
 		out, err := os.Create(zksnarkParamsPath)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
-			return fmt.Errorf("failed to create file: %v", err)
+			return errors.Errorf("Failed to create file: %v", err)
 		}
 		defer out.Close()
 
@@ -247,7 +247,7 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 		resp, err := http.Get(configs.ZksnarkParamsURL + zksnarkParamsName)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL+zksnarkParamsName)
-			return fmt.Errorf("failed to download: %v", err)
+			return errors.Errorf("failed to download: %v", err)
 		}
 		defer resp.Body.Close()
 

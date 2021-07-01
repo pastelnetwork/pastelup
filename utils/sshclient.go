@@ -12,10 +12,10 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type remoteScriptType byte
+type scriptType byte
 
 const (
-	cmdLine remoteScriptType = iota
+	cmdLine scriptType = iota
 	rawScript
 	scriptFile
 )
@@ -150,7 +150,7 @@ func (c *Client) ScriptFile(fname string) *RemoteScript {
 // A RemoteScript represents script that can be run remotely.
 type RemoteScript struct {
 	client     *ssh.Client
-	_type      remoteScriptType
+	_type      scriptType
 	script     *bytes.Buffer
 	scriptFile string
 	err        error

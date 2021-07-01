@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -74,6 +75,11 @@ func setupInitCommand() *cli.Command {
 		if err != nil {
 			return err
 		}
+
+		if len(args) == 0 {
+			return fmt.Errorf("command is required")
+		}
+
 		return runInit(ctx, config)
 	})
 	return initCommand
@@ -104,7 +110,7 @@ func runInit(ctx context.Context, config *configs.Config) error {
 	})
 
 	//run the init command logic flow
-	err = initCommandLogic(ctx, config)
+	err = InitCommandLogic(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -112,10 +118,10 @@ func runInit(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-// initCommandLogic runs the init command logic flow
+// InitCommandLogic runs the init command logic flow
 // takes all provided arguments in the cli and does all the background tasks
 // Print success info log on successfully ran command, return error if fail
-func initCommandLogic(ctx context.Context, config *configs.Config) error {
+func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 	forceSet := config.Force
 	var workDirPath, zksnarkPath string
 	if config.WorkingDir == configurer.DefaultWorkingDir() {
@@ -128,7 +134,9 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 
 	// create working dir path
 	if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {
-		return err
+		if !(os.IsExist(err) && !forceSet) {
+			return err
+		}
 	}
 
 	// create zksnark parameters path
@@ -151,7 +159,7 @@ func initCommandLogic(ctx context.Context, config *configs.Config) error {
 	}
 
 	// download zksnark params
-	if err := downloadZksnarkParams(ctx, zksnarkPath, forceSet); err != nil {
+	if err := downloadZksnarkParams(ctx, zksnarkPath, forceSet); err != nil && !(os.IsExist(err) && !forceSet) {
 		return err
 	}
 	checkLocalAndRouterFirewalls(ctx, []string{"80", "21"})
@@ -170,30 +178,30 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 	defer file.Close()
 
 	// Populate pastel.conf line-by-line to file.
-	_, err = file.WriteString("*server=1* \n \n") // creates server line
+	_, err = file.WriteString("server=1\n\n") // creates server line
 	if err != nil {
 		return err
 	}
 
-	_, err = file.WriteString("*listen=1* \n \n") // creates server line
+	_, err = file.WriteString("listen=1\n\n") // creates server line
 	if err != nil {
 		return err
 	}
 
 	rpcUser := utils.GenerateRandomString(8)
-	_, err = file.WriteString("*rpcuser=" + rpcUser + "* \n \n") // creates  rpcuser line
+	_, err = file.WriteString("rpcuser=" + rpcUser + "\n \n") // creates  rpcuser line
 	if err != nil {
 		return err
 	}
 
 	rpcPassword := utils.GenerateRandomString(15)
-	_, err = file.WriteString("*rpcpassword=" + rpcPassword + "* \n \n") // creates rpcpassword line
+	_, err = file.WriteString("rpcpassword=" + rpcPassword + "\n\n") // creates rpcpassword line
 	if err != nil {
 		return err
 	}
 
 	if config.Network == "testnet" {
-		_, err = file.WriteString("*testnet=1* \n \n") // creates testnet line
+		_, err = file.WriteString("testnet=1\n\n") // creates testnet line
 		if err != nil {
 			return err
 		}
@@ -202,7 +210,7 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 	if config.Peers != "" {
 		nodes := strings.Split(config.Peers, ",")
 		for _, node := range nodes {
-			_, err = file.WriteString("*addnode=" + node + "* \n \n") // creates addnode line
+			_, err = file.WriteString("addnode=" + node + "\n\n") // creates addnode line
 			if err != nil {
 				return err
 			}

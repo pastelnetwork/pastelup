@@ -18,6 +18,12 @@ const (
 
 	// PastelUtilityConfigFilePath - The path of the config of pastel-utility
 	PastelUtilityConfigFilePath string = "./pastel-utility.conf"
+
+	// DirectoryExist - Directory already exists
+	DirectoryExist string = "Directory already exists"
+
+	// FileExist - File already exists
+	FileExist string = "File already exists"
 )
 
 // PasteldName - The name of the pasteld
@@ -44,6 +50,14 @@ var PastelWalletExecName = map[OSType]string{
 	Unknown: "",
 }
 
+// PastelSuperNodeExecName - The name of the pastel wallet node
+var PastelSuperNodeExecName = map[OSType]string{
+	Windows: "supernode-windows-amd64.exe",
+	Linux:   "supernode-linux-amd64",
+	Mac:     "supernode-darwin-amd64",
+	Unknown: "",
+}
+
 // PastelExecArchiveName - The name of the pastel executable files
 var PastelExecArchiveName = map[OSType]string{
 	Windows: "pastel-win64-rc5.1.zip",
@@ -65,5 +79,13 @@ var PastelWalletDownloadURL = map[OSType]string{
 	Windows: "https://github.com/pastelnetwork/gonode/releases/download/v1.0-rc5.1/walletnode-windows-amd64",
 	Linux:   "https://github.com/pastelnetwork/gonode/releases/download/v1.0-rc5.1/walletnode-linux-amd64",
 	Mac:     "https://github.com/pastelnetwork/gonode/releases/download/v1.0-rc5.1/walletnode-darwin-amd64",
+	Unknown: "",
+}
+
+// PastelSuperNodeDownloadURL - The download url of the pastel wallet node
+var PastelSuperNodeDownloadURL = map[OSType]string{
+	Windows: "https://github.com/pastelnetwork/gonode/releases/download/v1.0-rc5.1/supernode-linux-amd64",
+	Linux:   "https://github.com/pastelnetwork/gonode/releases/download/v1.0-rc5.1/supernode-windows-amd64",
+	Mac:     "https://github.com/pastelnetwork/gonode/releases/download/v1.0-rc5.1/supernode-darwin-amd64",
 	Unknown: "",
 }

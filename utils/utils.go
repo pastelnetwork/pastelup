@@ -40,8 +40,8 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 			}
 			log.WithContext(ctx).Infof("Directory created on %s \n", path)
 		} else {
-			log.WithContext(ctx).WithError(err).Error("Directory already exists \n")
-			return errors.Errorf("Directory already exists")
+			log.WithContext(ctx).Warn("Directory already exists")
+			return errors.Errorf(constants.DirectoryExist)
 		}
 	}
 
@@ -72,8 +72,8 @@ func CreateFile(ctx context.Context, fileName string, force bool) (string, error
 			}
 			defer file.Close()
 		} else {
-			log.WithContext(ctx).WithError(err).Error("File already exists \n")
-			return "", errors.Errorf("File already exists")
+			log.WithContext(ctx).Warn("File already exists")
+			return fileName, errors.Errorf(constants.FileExist)
 		}
 	}
 
@@ -322,4 +322,42 @@ func CheckFileExist(filepath string) bool {
 		return false
 	}
 	return true
+}
+
+// CopyFile copies the file.
+func CopyFile(ctx context.Context, src string, dstFolder string, dstFileName string) error {
+	sourceFileStat, err := os.Stat(src)
+	if err != nil {
+		log.WithContext(ctx).Error(fmt.Sprintf("%s file not exist!!!", src))
+		return err
+	}
+
+	if !sourceFileStat.Mode().IsRegular() {
+		log.WithContext(ctx).Error(fmt.Sprintf("%s is not a regular file", src))
+		return fmt.Errorf("%s is not a regular file", src)
+	}
+
+	source, err := os.Open(src)
+	if err != nil {
+		log.WithContext(ctx).Error(fmt.Sprintf("%s file cannot be opened!!!", src))
+		return err
+	}
+	defer source.Close()
+
+	if _, err := os.Stat(dstFolder); os.IsNotExist(err) {
+		if err = CreateFolder(ctx, dstFolder, true); err != nil {
+			log.WithContext(ctx).Error(fmt.Sprintf("Could not create folder on this %s", dstFolder))
+			return CreateFolder(ctx, dstFolder, true)
+		}
+	}
+
+	destination, err := os.Create(fmt.Sprintf("%s/%s", dstFolder, dstFileName))
+	if err != nil {
+		log.WithContext(ctx).Error(fmt.Sprintf("Could not copy file to %s", dstFolder))
+		return err
+	}
+	defer destination.Close()
+	_, err = io.Copy(destination, source)
+
+	return err
 }

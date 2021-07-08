@@ -22,5 +22,5 @@ func DefaultZksnarkDir() string {
 // DefaultPastelExecutableDir returns the default pastel executable path for Linux OS.
 func DefaultPastelExecutableDir() string {
 	homeDir, _ := os.UserConfigDir()
-	return filepath.Join(homeDir, "PastelNode")
+	return filepath.Join(homeDir, "Pastel")
 }

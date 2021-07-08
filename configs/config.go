@@ -49,6 +49,10 @@ node:
     listen_addresses: "%s"
     port: %s
 `
+
+	// RQServiceConfig - default rqserivce config
+	RQServiceConfig = `grpc-service = "%s:%s"`
+
 	// ZksnarkParamsURL - url for zksnark params
 	ZksnarkParamsURL = "https://z.cash/downloads/"
 )

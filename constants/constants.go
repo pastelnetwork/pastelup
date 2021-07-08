@@ -18,12 +18,6 @@ const (
 
 	// PastelUtilityConfigFilePath - The path of the config of pastel-utility
 	PastelUtilityConfigFilePath string = "./pastel-utility.conf"
-
-	// DirectoryExist - Directory already exists
-	DirectoryExist string = "Directory already exists"
-
-	// FileExist - File already exists
-	FileExist string = "File already exists"
 )
 
 // PasteldName - The name of the pasteld

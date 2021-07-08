@@ -46,5 +46,5 @@ func DefaultPastelExecutableDir() string {
 	if v&0xff > 5 {
 		appDir = sinceVistaAppDir
 	}
-	return filepath.Join(homeDir, filepath.FromSlash(appDir), "PastelNode")
+	return filepath.Join(homeDir, filepath.FromSlash(appDir), "Pastel")
 }

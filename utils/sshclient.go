@@ -123,25 +123,25 @@ func (c *Client) UnderlyingClient() *ssh.Client {
 // Cmd creates a RemoteScript that can run the command on the client. The cmd string is split on newlines and each line is executed separately.
 func (c *Client) Cmd(cmd string) *RemoteScript {
 	return &RemoteScript{
-		_type:  cmdLine,
-		client: c.client,
-		script: bytes.NewBufferString(cmd + "\n"),
+		scriptType: cmdLine,
+		client:     c.client,
+		script:     bytes.NewBufferString(cmd + "\n"),
 	}
 }
 
 // Script creates a RemoteScript that can run the script on the client.
 func (c *Client) Script(script string) *RemoteScript {
 	return &RemoteScript{
-		_type:  rawScript,
-		client: c.client,
-		script: bytes.NewBufferString(script + "\n"),
+		scriptType: rawScript,
+		client:     c.client,
+		script:     bytes.NewBufferString(script + "\n"),
 	}
 }
 
 // ScriptFile creates a RemoteScript that can read a local script file and run it remotely on the client.
 func (c *Client) ScriptFile(fname string) *RemoteScript {
 	return &RemoteScript{
-		_type:      scriptFile,
+		scriptType: scriptFile,
 		client:     c.client,
 		scriptFile: fname,
 	}
@@ -150,7 +150,7 @@ func (c *Client) ScriptFile(fname string) *RemoteScript {
 // A RemoteScript represents script that can be run remotely.
 type RemoteScript struct {
 	client     *ssh.Client
-	_type      scriptType
+	scriptType scriptType
 	script     *bytes.Buffer
 	scriptFile string
 	err        error
@@ -170,11 +170,11 @@ func (rs *RemoteScript) Run() error {
 		return rs.err
 	}
 
-	if rs._type == cmdLine {
+	if rs.scriptType == cmdLine {
 		return rs.runCmds()
-	} else if rs._type == rawScript {
+	} else if rs.scriptType == rawScript {
 		return rs.runScript()
-	} else if rs._type == scriptFile {
+	} else if rs.scriptType == scriptFile {
 		return rs.runScriptFile()
 	} else {
 		return errors.New("not supported RemoteScript type")

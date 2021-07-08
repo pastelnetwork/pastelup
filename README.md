@@ -70,6 +70,51 @@ Specifies `supernode` executable directory. By default [default_exec_dir](#defau
 ##### --force
 Replace all directory and files. By default `false`.
 
+## Stop
+Command [stop](#stop) stops Pastel network services
+
+### Stop all
+
+stop ALL local Pastel Network services
+
+``` shell
+./pastel-utility stop all [options]
+```
+
+### Stop node
+
+stop Pastel Core node
+
+``` shell
+./pastel-utility stop node [options]
+```
+
+### Stop walletnode
+
+stop Pastel Network Walletnode (not UI Wallet!)
+
+``` shell
+./pastel-utility stop walletnode [options]
+```
+
+### Stop supernode
+
+stop Pastel Network Supernode
+
+``` shell
+./pastel-utility stop supernode [options]
+```
+
+### Options
+
+#### --d, --dir
+
+Optional, location to Pastel executables installation, default - see platform specific in [install](#install) section
+
+#### --w, --workdir
+
+Optional, location to working directory, default - see platform specific in [install](#install) section
+
 ### Default settings
 
 ##### default_working_dir

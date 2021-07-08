@@ -30,7 +30,7 @@ func setupInitCommand() *cli.Command {
 	initCommand.CustomHelpTemplate = GetColoredCommandHeaders()
 	initCommand.SetUsage(blue("Command that performs initialization of the system for both Wallet and SuperNodes"))
 	initCommandFlags := []*cli.Flag{
-		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("d").
+		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
 		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
@@ -133,22 +133,22 @@ func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 	}
 
 	// create working dir path
-	if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {
-		if !(os.IsExist(err) && !forceSet) {
-			return err
+	if config.WorkingDir != config.PastelExecDir {
+		if err := utils.CreateFolder(ctx, workDirPath, forceSet); err != nil {
+			if config.WorkingDir != config.PastelExecDir {
+				return err
+			}
 		}
 	}
 
 	// create zksnark parameters path
 	if err := utils.CreateFolder(ctx, zksnarkPath, forceSet); err != nil {
-		if !(os.IsExist(err) && !forceSet) {
-			return err
-		}
+		return err
 	}
 
 	// create pastel.conf file
 	f, err := utils.CreateFile(ctx, workDirPath+"/pastel.conf", forceSet)
-	if err != nil && !(os.IsExist(err) && !forceSet) {
+	if err != nil {
 		return err
 	}
 
@@ -178,7 +178,7 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 	defer file.Close()
 
 	// Populate pastel.conf line-by-line to file.
-	_, err = file.WriteString("server=1\n\n") // creates server line
+	_, err = file.WriteString("server=1\n") // creates server line
 	if err != nil {
 		return err
 	}
@@ -189,19 +189,24 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 	}
 
 	rpcUser := utils.GenerateRandomString(8)
-	_, err = file.WriteString("rpcuser=" + rpcUser + "\n \n") // creates  rpcuser line
+	_, err = file.WriteString("rpcuser=" + rpcUser + "\n") // creates  rpcuser line
 	if err != nil {
 		return err
 	}
 
 	rpcPassword := utils.GenerateRandomString(15)
-	_, err = file.WriteString("rpcpassword=" + rpcPassword + "\n\n") // creates rpcpassword line
+	_, err = file.WriteString("rpcpassword=" + rpcPassword + "\n") // creates rpcpassword line
 	if err != nil {
 		return err
 	}
 
-	if config.Network == "testnet" {
-		_, err = file.WriteString("testnet=1\n\n") // creates testnet line
+	if config.Network == "testnet" || flagNetworkMode == "testnet" {
+		_, err = file.WriteString("testnet=1\n") // creates testnet line
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = file.WriteString("testnet=0\n") 
 		if err != nil {
 			return err
 		}
@@ -210,7 +215,7 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 	if config.Peers != "" {
 		nodes := strings.Split(config.Peers, ",")
 		for _, node := range nodes {
-			_, err = file.WriteString("addnode=" + node + "\n\n") // creates addnode line
+			_, err = file.WriteString("addnode=" + node + "\n") // creates addnode line
 			if err != nil {
 				return err
 			}

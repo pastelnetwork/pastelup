@@ -17,7 +17,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/structure"
 	"github.com/pastelnetwork/pastel-utility/utils"
@@ -38,6 +37,7 @@ var (
 	errNotFoundPastelCli            = fmt.Errorf("cannot find pastel-cli on SSH server")
 	errNotFoundMNOutput             = fmt.Errorf("cannot find output of masternode")
 	errNotFoundPastelPath           = fmt.Errorf("cannot find pasteld/pastel-cli path. please install node")
+	errNetworkModeInvalid           = fmt.Errorf("invalid network mode")
 )
 
 var (
@@ -45,8 +45,10 @@ var (
 	flagRestart         bool
 
 	// node flags
-	flagNodeExtIP string
-	flagReIndex   bool
+	flagNodeExtIP   string
+	flagReIndex     bool
+	flagNetworkMode string
+	flagWorkDir     string
 
 	// masternode flags
 	flagMasterNodeName       string
@@ -92,26 +94,44 @@ func setupStartCommand() *cli.Command {
 	masterNodeFlags := []*cli.Flag{
 		cli.NewFlag("i", &flagInteractiveMode),
 		cli.NewFlag("r", &flagRestart),
-		cli.NewFlag("name", &flagMasterNodeName).SetUsage("name of the Master node").SetRequired(),
+		cli.NewFlag("name", &flagMasterNodeName).
+			SetUsage("name of the Master node").SetRequired(),
 		cli.NewFlag("testnet", &flagMasterNodeIsTestNet),
-		cli.NewFlag("create", &flagMasterNodeIsCreate),
-		cli.NewFlag("update", &flagMasterNodeIsUpdate),
-		cli.NewFlag("txid", &flagMasterNodeTxID),
-		cli.NewFlag("ind", &flagMasterNodeIND),
-		cli.NewFlag("ip", &flagMasterNodeIP),
-		cli.NewFlag("port", &flagMasterNodePort),
-		cli.NewFlag("pkey", &flagMasterNodePrivateKey),
-		cli.NewFlag("pastelid", &flagMasterNodePastelID),
-		cli.NewFlag("passphrase", &flagMasterNodePassPhrase),
-		cli.NewFlag("rpc-ip", &flagMasterNodeRPCIP),
-		cli.NewFlag("rpc-port", &flagMasterNodeRPCPort),
-		cli.NewFlag("p2p-ip", &flagMasterNodeP2PIP),
-		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort),
+		cli.NewFlag("create", &flagMasterNodeIsCreate).
+			SetUsage(green("Optional, if specified, will create Masternode record in the masternode.conf.")),
+		cli.NewFlag("update", &flagMasterNodeIsUpdate).
+			SetUsage(green("Optional, if specified, will create Masternode record in the masternode.conf.")),
+		cli.NewFlag("txid", &flagMasterNodeTxID).
+			SetUsage(green("collateral payment txid , transaction id of 5M collateral MN payment")),
+		cli.NewFlag("ind", &flagMasterNodeIND).
+			SetUsage(green("collateral payment output index , output index in the transaction of 5M collateral MN payment")),
+		cli.NewFlag("ip", &flagMasterNodeIP).
+			SetUsage(green("WAN address of the host")).SetRequired(),
+		cli.NewFlag("port", &flagMasterNodePort).
+			SetUsage(green("Port for WAN IP address of the node - Optional, default - 9933 (19933 for Testnet)")),
+		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
+			SetUsage(green("Pmasternode priv key- Optional, if omitted, new masternode private key will be created")),
+		cli.NewFlag("pastelid", &flagMasterNodePastelID).
+			SetUsage(green("pastelid of the Masternode. Optional, if omitted, new pastelid will be created and registered")),
+		cli.NewFlag("passphrase", &flagMasterNodePassPhrase).
+			SetUsage(green("passphrase to pastelid private key, Required, if pastelid is omitted")),
+		cli.NewFlag("rpc-ip", &flagMasterNodeRPCIP).
+			SetUsage(green("supernode IP address - Optional, if omitted, value passed to --ip will be used")),
+		cli.NewFlag("rpc-port", &flagMasterNodeRPCPort).
+			SetUsage(green("supernode port - Optional, default - 4444 (14444 for Testnet")),
+		cli.NewFlag("p2p-ip", &flagMasterNodeP2PIP).
+			SetUsage(green("Kademlia IP address - Optional, if omitted, value passed to --ip will be used")),
+		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort).
+			SetUsage(green("Kademlia port - Optional, default - 4445 (14445 for Testnet)")),
 		cli.NewFlag("coldhot", &flagMasterNodeColdHot),
 		cli.NewFlag("ssh-ip", &flagMasterNodeSSHIP),
 		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).SetValue(22),
 		cli.NewFlag("coldnode-ip", &flagMasterNodeColdNodeIP),
 		cli.NewFlag("pastelpath", &flagMasterNodePastelPath),
+		cli.NewFlag("work-dir", &flagWorkDir).SetAliases("w").
+			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
+		cli.NewFlag("network", &flagNetworkMode).SetAliases("n").
+			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 	}
 	superNodeSubCommand.AddFlags(masterNodeFlags...)
 
@@ -128,12 +148,17 @@ func setupStartCommand() *cli.Command {
 	nodeFlags := []*cli.Flag{
 		cli.NewFlag("i", &flagInteractiveMode),
 		cli.NewFlag("r", &flagRestart),
-		cli.NewFlag("ip", &flagNodeExtIP),
 		cli.NewFlag("reindex", &flagReIndex),
+		cli.NewFlag("ip", &flagNodeExtIP).
+			SetUsage(green("WAN address of the host")).SetRequired(),
+		cli.NewFlag("work-dir", &flagWorkDir).SetAliases("w").
+			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
+		cli.NewFlag("network", &flagNetworkMode).SetAliases("n").
+			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 	}
 	nodeSubCommand.AddFlags(nodeFlags...)
 
-	walletSubCommand := cli.NewCommand("wallet")
+	walletSubCommand := cli.NewCommand("walletnode")
 	walletSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
 	walletSubCommand.SetUsage(cyan("Starts wallet"))
 	walletSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
@@ -145,9 +170,15 @@ func setupStartCommand() *cli.Command {
 	})
 	walletFlags := []*cli.Flag{
 		cli.NewFlag("i", &flagInteractiveMode),
-		cli.NewFlag("r", &flagRestart),
-		cli.NewFlag("ip", &flagNodeExtIP),
+		cli.NewFlag("release", &flagRestart).SetAliases("r").
+			SetUsage(green("Optional, release version to install, default is the latest")),
 		cli.NewFlag("reindex", &flagReIndex),
+		cli.NewFlag("ip", &flagNodeExtIP).
+			SetUsage(green("WAN address of the host")).SetRequired(),
+		cli.NewFlag("work-dir", &flagWorkDir).SetAliases("w").
+			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
+		cli.NewFlag("network", &flagNetworkMode).SetAliases("n").
+			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 	}
 	walletSubCommand.AddFlags(walletFlags...)
 
@@ -178,7 +209,7 @@ func runStart(ctx context.Context, config *configs.Config) error {
 	if err != nil {
 		return err
 	}
-	log.WithContext(ctx).Infof("Config: %s", configJSON)
+	log.WithContext(ctx).Info("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -202,7 +233,18 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	log.WithContext(ctx).Infof("Config: %s", configJSON)
+	if len(flagWorkDir) != 0 {
+		config.WorkingDir = flagWorkDir
+		InitializeFunc(ctx, config)
+	}
+
+	err = updatePastelConfigFile(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
+
+	if err != nil {
+		return err
+	}
+
+	log.WithContext(ctx).Info("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -215,7 +257,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	// TODO: Implement start node command
 	var pastelDPath string
 
-	if _, pastelDPath, _, _, err = checkPastelInstallPath(ctx, config); err != nil {
+	if _, pastelDPath, _, _, err = checkPastelInstallPath(ctx, config, ""); err != nil {
 		return errNotFoundPastelPath
 	}
 
@@ -223,14 +265,22 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
+	var pasteldArgs string
+	if len(flagNetworkMode) != 0 && (flagNetworkMode == "testnet" || flagNetworkMode == "mainnet") {
+		pasteldArgs = fmt.Sprintf("--%s", flagNetworkMode)
+	}
+	if len(flagWorkDir) != 0 {
+		pasteldArgs = fmt.Sprintf("%s --datadir=%s", pasteldArgs, flagWorkDir)
+	}
+
 	if flagInteractiveMode {
 		if flagReIndex {
-			log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --txindex=1 --reindex", pastelDPath, flagNodeExtIP))
+			log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --txindex=1 --reindex %s", pastelDPath, flagNodeExtIP, pasteldArgs))
 			if err = RunPasteldWithInteractive(ctx, config, fmt.Sprintf("--externalip=%s", flagNodeExtIP), "--reindex", "--txindex==1"); err != nil {
 				return err
 			}
 		} else {
-			log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s", pastelDPath, flagNodeExtIP))
+			log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s %s", pastelDPath, flagNodeExtIP, pasteldArgs))
 			if err = RunPasteldWithInteractive(ctx, config, fmt.Sprintf("--externalip=%s", flagNodeExtIP)); err != nil {
 				return err
 			}
@@ -238,10 +288,10 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 
 	} else {
 		if flagReIndex {
-			log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --txindex=1 --reindex --daemon", pastelDPath, flagNodeExtIP))
+			log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --txindex=1 --reindex --daemon %s", pastelDPath, flagNodeExtIP, pasteldArgs))
 			go RunPasteld(ctx, config, fmt.Sprintf("--externalip=%s", flagNodeExtIP), "--reindex", "--txindex=1", "--daemon")
 		} else {
-			log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --daemon", pastelDPath, flagNodeExtIP))
+			log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --daemon %s", pastelDPath, flagNodeExtIP, pasteldArgs))
 			go RunPasteld(ctx, config, fmt.Sprintf("--externalip=%s", flagNodeExtIP), "--daemon")
 		}
 
@@ -281,7 +331,18 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 		return err
 	}
 
-	log.WithContext(ctx).Infof("Config: %s", configJSON)
+	log.WithContext(ctx).Info("Config: %s", configJSON)
+
+	if len(flagWorkDir) != 0 {
+		config.WorkingDir = flagWorkDir
+		InitializeFunc(ctx, config)
+	}
+
+	err = updatePastelConfigFile(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
+
+	if err != nil {
+		return err
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -295,7 +356,7 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 	var pastelDPath, _ string
 
 	// *************  1. Start pastel node  *************
-	if _, pastelDPath, _, _, err = checkPastelInstallPath(ctx, config); err != nil {
+	if _, pastelDPath, _, _, err = checkPastelInstallPath(ctx, config, ""); err != nil {
 		return errNotFoundPastelPath
 	}
 
@@ -303,11 +364,19 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 		return err
 	}
 
+	var pasteldArgs string
+	if len(flagNetworkMode) != 0 && (flagNetworkMode == "testnet" || flagNetworkMode == "mainnet") {
+		pasteldArgs = fmt.Sprintf("--%s", flagNetworkMode)
+	}
+	if len(flagWorkDir) != 0 {
+		pasteldArgs = fmt.Sprintf("%s --datadir=%s", pasteldArgs, flagWorkDir)
+	}
+
 	if flagReIndex {
-		log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --txindex=1 --reindex --daemon", pastelDPath, flagNodeExtIP))
+		log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --txindex=1 --reindex --daemon %s", pastelDPath, flagNodeExtIP, pasteldArgs))
 		go RunPasteld(ctx, config, fmt.Sprintf("--externalip=%s", flagNodeExtIP), "--reindex", "--txindex=1", "--daemon")
 	} else {
-		log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --daemon", pastelDPath, flagNodeExtIP))
+		log.WithContext(ctx).Info(fmt.Sprintf("Starting pasteld...\n%s --externalip=%s --daemon %s", pastelDPath, flagNodeExtIP, pasteldArgs))
 		go RunPasteld(ctx, config, fmt.Sprintf("--externalip=%s", flagNodeExtIP), "--daemon")
 	}
 
@@ -335,7 +404,10 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 		}
 	} else {
 		go runPastelWalletNode(ctx, config, fmt.Sprintf("--config-file=%s/walletnode/wallet.yml", config.WorkingDir))
-		log.WithContext(ctx).Error("Wallet node was started successfully!")
+
+		time.Sleep(10000 * time.Millisecond)
+
+		log.WithContext(ctx).Info("Wallet node was started successfully!")
 	}
 	return nil
 }
@@ -343,6 +415,11 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	var masternodePrivKey, pastelid, output string
 	var err error
+
+	if len(flagWorkDir) != 0 {
+		config.WorkingDir = flagWorkDir
+		InitializeFunc(ctx, config)
+	}
 
 	// *************  1. Parse parameters  *************
 	log.WithContext(ctx).Info("Checking parameters")
@@ -361,7 +438,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
 
 		if flagMasterNodeIsCreate {
-			if err = backupConfFile(); err != nil { // delete conf file
+			if err = backupConfFile(config); err != nil { // delete conf file
 				return err
 			}
 			log.WithContext(ctx).Info("Backup masternode.conf was finished successfully.")
@@ -463,7 +540,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 			data, _ := json.Marshal(confData)
 
 			// Create masternode.conf file
-			if err = createConfFile(data); err != nil {
+			if err = createConfFile(data, config); err != nil {
 				return err
 			}
 			log.WithContext(ctx).Info(fmt.Sprintf("masternode.conf = %s", string(data)))
@@ -492,7 +569,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 			}
 
 			// Create masternode.conf file
-			if _, err = updateMasternodeConfFile(confData); err != nil {
+			if _, err = updateMasternodeConfFile(confData, config); err != nil {
 				return err
 			}
 
@@ -502,10 +579,10 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// Get conf data from masternode.conf File
-	var nodeName, privKey, extIP, pastelID, extPort = getStartInfo()
+	var nodeName, privKey, extIP, pastelID, extPort = getStartInfo(config)
 
 	// *************  3. Start Node as Masternode  *************
-	go RunPasteld(ctx, config, "-masternode", "-txindex=1", "-reindex", fmt.Sprintf("-masternodeprivkey=%s", privKey), fmt.Sprintf("--externalip=%s", extIP))
+	go RunPasteld(ctx, config, "--masternode", "--txindex=1", "--reindex", fmt.Sprintf("--masternodeprivkey=%s", privKey), fmt.Sprintf("--externalip=%s", extIP))
 
 	// *************  4. Wait for blockchain and masternodes sync  *************
 	var mnstatus structure.RPCPastelMSStatus
@@ -568,14 +645,14 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	workDirPath := filepath.Join(config.WorkingDir, "supernode")
 
 	// create working dir path
-	if err := utils.CreateFolder(ctx, workDirPath, false); err != nil && err.Error() != constants.DirectoryExist {
+	if err := utils.CreateFolder(ctx, workDirPath, false); err != nil {
 		return err
 	}
 
 	// create walletnode default config
 	// create file
 	fileName, err := utils.CreateFile(ctx, filepath.Join(workDirPath, "supernode.yml"), false)
-	if err != nil && err.Error() != constants.FileExist {
+	if err != nil {
 		return err
 	}
 
@@ -595,7 +672,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Configuring supernode was finished")
 	log.WithContext(ctx).Info("Start supernode")
 
-	if _, err := RunCMD(filepath.Join(config.PastelSuperNodeDir, constants.PastelSuperNodeExecName[utils.GetOS()]),
+	if _, err := RunCMD(filepath.Join(config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()]),
 		fmt.Sprintf("--config-file %s", filepath.Join(config.WorkingDir, "supernode", "supernode.yml"))); err != nil {
 		log.WithContext(ctx).Error("Coulod not run supernode")
 		return err
@@ -608,6 +685,11 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	var masternodePrivKey, pastelid, output string
 	var err error
+
+	if len(flagWorkDir) != 0 {
+		config.WorkingDir = flagWorkDir
+		InitializeFunc(ctx, config)
+	}
 
 	log.WithContext(ctx).Info("Checking parameters...")
 	if err := checkStartMasterNodeParams(ctx, config); err != nil {
@@ -625,7 +707,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
 
 		if flagMasterNodeIsCreate {
-			if err = backupConfFile(); err != nil { // delete conf file
+			if err = backupConfFile(config); err != nil { // delete conf file
 				return err
 			}
 
@@ -753,7 +835,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 			data, _ := json.Marshal(confData)
 
 			// Create masternode.conf file
-			if err = createConfFile(data); err != nil {
+			if err = createConfFile(data, config); err != nil {
 				return err
 			}
 			fmt.Println(string(data))
@@ -775,7 +857,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 			}
 
 			// Create masternode.conf file
-			if _, err = updateMasternodeConfFile(confData); err != nil {
+			if _, err = updateMasternodeConfFile(confData, config); err != nil {
 				return err
 			}
 		}
@@ -791,7 +873,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("The hot wallet node has been successfully launched!")
 	// ***************  5. Enable Masternode  ***************
 	// Get conf data from masternode.conf File
-	var _, _, extIP, _, _ = getStartInfo()
+	var _, _, extIP, _, _ = getStartInfo(config)
 
 	// Start Node as Masternode
 	go RunPasteld(ctx, config, "-txindex=1", "-reindex", fmt.Sprintf("--externalip=%s", extIP))
@@ -1024,7 +1106,7 @@ func credentials() (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-
+	fmt.Print("\n")
 	password := string(bytePassword)
 	return strings.TrimSpace(username), strings.TrimSpace(password), nil
 }
@@ -1156,11 +1238,19 @@ func GetExternalIPAddress() (externalIP string, err error) {
 func RunPasteld(ctx context.Context, config *configs.Config, args ...string) (output string, err error) {
 	var pastelDPath string
 
-	if _, pastelDPath, _, _, err = checkPastelInstallPath(ctx, config); err != nil {
+	if _, pastelDPath, _, _, err = checkPastelInstallPath(ctx, config, ""); err != nil {
 		return pastelDPath, errNotFoundPastelPath
 	}
 
+	if len(flagNetworkMode) != 0 && !(flagNetworkMode == "mainnet" || flagNetworkMode == "testnet") {
+		return pastelDPath, errNetworkModeInvalid
+	}
+
 	args = append(args, fmt.Sprintf("--datadir=%s", config.WorkingDir))
+
+	if flagNetworkMode == "testnet" {
+		flagMasterNodeIsTestNet = true
+	}
 
 	if flagMasterNodeIsTestNet {
 		args = append(args, "--testnet")
@@ -1168,6 +1258,7 @@ func RunPasteld(ctx context.Context, config *configs.Config, args ...string) (ou
 	} else {
 		output, err = RunCMD(pastelDPath, args...)
 	}
+
 	return output, err
 }
 
@@ -1175,11 +1266,19 @@ func RunPasteld(ctx context.Context, config *configs.Config, args ...string) (ou
 func RunPasteldWithInteractive(ctx context.Context, config *configs.Config, args ...string) (err error) {
 	var pastelDPath string
 
-	if _, pastelDPath, _, _, err = checkPastelInstallPath(ctx, config); err != nil {
+	if _, pastelDPath, _, _, err = checkPastelInstallPath(ctx, config, ""); err != nil {
 		return errNotFoundPastelPath
 	}
 
+	if len(flagNetworkMode) != 0 && !(flagNetworkMode == "mainnet" || flagNetworkMode == "testnet") {
+		return errNetworkModeInvalid
+	}
+
 	args = append(args, fmt.Sprintf("--datadir=%s", config.WorkingDir))
+
+	if flagNetworkMode == "testnet" {
+		flagMasterNodeIsTestNet = true
+	}
 
 	if flagMasterNodeIsTestNet {
 		args = append(args, "--testnet")
@@ -1193,7 +1292,7 @@ func RunPasteldWithInteractive(ctx context.Context, config *configs.Config, args
 func runPastelCLI(ctx context.Context, config *configs.Config, args ...string) (output string, err error) {
 	var pastelCliPath string
 
-	if _, _, pastelCliPath, _, err = checkPastelInstallPath(ctx, config); err != nil {
+	if _, _, pastelCliPath, _, err = checkPastelInstallPath(ctx, config, ""); err != nil {
 		return "", errNotFoundPastelPath
 	}
 
@@ -1205,7 +1304,7 @@ func runPastelCLI(ctx context.Context, config *configs.Config, args ...string) (
 func runPastelWalletNode(ctx context.Context, config *configs.Config, args ...string) (output string, err error) {
 	var pastelWalletNodePath string
 
-	if _, _, _, pastelWalletNodePath, err = checkPastelInstallPath(ctx, config); err != nil {
+	if _, _, _, pastelWalletNodePath, err = checkPastelInstallPath(ctx, config, "wallet"); err != nil {
 		return pastelWalletNodePath, errNotFoundPastelPath
 	}
 
@@ -1215,7 +1314,7 @@ func runPastelWalletNode(ctx context.Context, config *configs.Config, args ...st
 func runPastelWalletNodeWithInteractive(ctx context.Context, config *configs.Config, args ...string) (err error) {
 	var pastelWalletNodePath string
 
-	if _, _, _, pastelWalletNodePath, err = checkPastelInstallPath(ctx, config); err != nil {
+	if _, _, _, pastelWalletNodePath, err = checkPastelInstallPath(ctx, config, "wallet"); err != nil {
 		return errNotFoundPastelPath
 	}
 
@@ -1223,8 +1322,8 @@ func runPastelWalletNodeWithInteractive(ctx context.Context, config *configs.Con
 }
 
 // Create or Update masternode.conf File
-func createConfFile(confData []byte) (err error) {
-	workDirPath := configurer.DefaultWorkingDir()
+func createConfFile(confData []byte, config *configs.Config) (err error) {
+	workDirPath := config.WorkingDir
 	var masternodeConfPath, masternodeConfPathBackup string
 
 	if flagMasterNodeIsTestNet {
@@ -1255,8 +1354,8 @@ func createConfFile(confData []byte) (err error) {
 	return nil
 }
 
-func updateMasternodeConfFile(confData map[string]interface{}) (result bool, err error) {
-	workDirPath := configurer.DefaultWorkingDir()
+func updateMasternodeConfFile(confData map[string]interface{}, config *configs.Config) (result bool, err error) {
+	workDirPath := config.WorkingDir
 	var masternodeConfPath string
 
 	if flagMasterNodeIsTestNet {
@@ -1301,8 +1400,8 @@ func updateMasternodeConfFile(confData map[string]interface{}) (result bool, err
 	return true, nil
 }
 
-func backupConfFile() (err error) {
-	workDirPath := configurer.DefaultWorkingDir()
+func backupConfFile(config *configs.Config) (err error) {
+	workDirPath := config.WorkingDir
 	var masternodeConfPath, masternodeConfPathBackup string
 
 	if flagMasterNodeIsTestNet {
@@ -1331,14 +1430,13 @@ func backupConfFile() (err error) {
 	return nil
 }
 
-func getStartInfo() (nodeName string, privKey string, extIP string, pastelID string, extPort string) {
-	workDirPath := configurer.DefaultWorkingDir()
+func getStartInfo(config *configs.Config) (nodeName string, privKey string, extIP string, pastelID string, extPort string) {
 	var masternodeConfPath string
 
 	if flagMasterNodeIsTestNet {
-		masternodeConfPath = filepath.Join(workDirPath, "testnet3", "masternode.conf")
+		masternodeConfPath = filepath.Join(config.WorkingDir, "testnet3", "masternode.conf")
 	} else {
-		masternodeConfPath = filepath.Join(workDirPath, "masternode.conf")
+		masternodeConfPath = filepath.Join(config.WorkingDir, "masternode.conf")
 	}
 
 	// Read ConfData from masternode.conf
@@ -1355,7 +1453,8 @@ func getStartInfo() (nodeName string, privKey string, extIP string, pastelID str
 	}
 	confData := conf[nodeName].(map[string]interface{})
 	extAddr := strings.Split(confData["mnAddress"].(string), ":") // get Ext IP
-	extKey := confData["extkey"].(string)
+	extKey := confData["extKey"].(string)
+
 	return nodeName, confData["mnPrivKey"].(string), extAddr[0], extKey, extAddr[1]
 }
 
@@ -1407,35 +1506,35 @@ func CheckPastelConf(config *configs.Config) (err error) {
 	return nil
 }
 
-func checkPastelInstallPath(ctx context.Context, config *configs.Config) (pastelDirPath string, pasteldPath string, pastelCliPath string, pastelWalletNodePath string, err error) {
-
-	if _, err = os.Stat(config.PastelNodeDir); os.IsNotExist(err) {
-		log.WithContext(ctx).Error("could not find pastel node path")
-		return "", "", "", "", fmt.Errorf("could not find pastel node path")
-	}
-	pastelDirPath = config.PastelNodeDir
-
-	if _, err = os.Stat(filepath.Join(config.PastelNodeDir, constants.PasteldName[utils.GetOS()])); os.IsNotExist(err) {
-		log.WithContext(ctx).Error("could not find pasteld path")
-		return "", "", "", "", fmt.Errorf("could not find pasteld path")
-	}
-	pasteldPath = filepath.Join(config.PastelNodeDir, constants.PasteldName[utils.GetOS()])
-
-	if _, err = os.Stat(filepath.Join(config.PastelNodeDir, constants.PastelCliName[utils.GetOS()])); os.IsNotExist(err) {
-		log.WithContext(ctx).Error("could not find pastel-cli path")
-		return "", "", "", "", fmt.Errorf("could not find pastel-cli path")
-	}
-	pastelCliPath = filepath.Join(config.PastelNodeDir, constants.PastelCliName[utils.GetOS()])
-
-	if _, err = os.Stat(filepath.Join(config.PastelWalletDir, constants.PastelWalletExecName[utils.GetOS()])); os.IsNotExist(err) {
-		log.WithContext(ctx).Error("could not find wallet node path")
-		return "", "", "", "", fmt.Errorf("could not find wallet node path")
-	}
-	pastelWalletNodePath = filepath.Join(config.PastelWalletDir, constants.PastelWalletExecName[utils.GetOS()])
-
+func checkPastelInstallPath(ctx context.Context, config *configs.Config, flagMode string) (pastelDirPath string, pasteldPath string, pastelCliPath string, pastelWalletNodePath string, err error) {
 	if _, err = os.Stat(filepath.Join(config.WorkingDir, constants.PastelConfName)); os.IsNotExist(err) {
 		log.WithContext(ctx).Error("could not find pastel.conf")
 		return "", "", "", "", fmt.Errorf("could not find pastel.conf")
+	}
+
+	if _, err = os.Stat(config.PastelExecDir); os.IsNotExist(err) {
+		log.WithContext(ctx).Error("could not find pastel node path")
+		return "", "", "", "", fmt.Errorf("could not find pastel node path")
+	}
+	pastelDirPath = config.PastelExecDir
+
+	if _, err = os.Stat(filepath.Join(config.PastelExecDir, constants.PasteldName[utils.GetOS()])); os.IsNotExist(err) {
+		log.WithContext(ctx).Error("could not find pasteld path")
+		return "", "", "", "", fmt.Errorf("could not find pasteld path")
+	}
+	pasteldPath = filepath.Join(config.PastelExecDir, constants.PasteldName[utils.GetOS()])
+
+	if _, err = os.Stat(filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])); os.IsNotExist(err) {
+		log.WithContext(ctx).Error("could not find pastel-cli path")
+		return "", "", "", "", fmt.Errorf("could not find pastel-cli path")
+	}
+	pastelCliPath = filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
+	if flagMode == "wallet" {
+		if _, err = os.Stat(filepath.Join(config.PastelExecDir, constants.PastelWalletExecName[utils.GetOS()])); os.IsNotExist(err) {
+			log.WithContext(ctx).Error("could not find wallet node path")
+			return "", "", "", "", fmt.Errorf("could not find wallet node path")
+		}
+		pastelWalletNodePath = filepath.Join(config.PastelExecDir, constants.PastelWalletExecName[utils.GetOS()])
 	}
 
 	return pastelDirPath, pasteldPath, pastelCliPath, pastelWalletNodePath, err

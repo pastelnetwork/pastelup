@@ -40,8 +40,7 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 			}
 			log.WithContext(ctx).Infof("Directory created on %s \n", path)
 		} else {
-			log.WithContext(ctx).Warn("Directory already exists")
-			return errors.Errorf(constants.DirectoryExist)
+			return errors.Errorf("Directory already exists on %s", path)
 		}
 	}
 
@@ -72,8 +71,7 @@ func CreateFile(ctx context.Context, fileName string, force bool) (string, error
 			}
 			defer file.Close()
 		} else {
-			log.WithContext(ctx).Warn("File already exists")
-			return fileName, errors.Errorf(constants.FileExist)
+			return fileName, errors.Errorf("File already exists: %s", fileName)
 		}
 	}
 
@@ -106,6 +104,20 @@ func DeleteFile(filePath string) error {
 		return e
 	}
 	return nil
+}
+
+// WriteFile writes a file as data
+func WriteFile(fileName string, data string) (err error) {
+	// write to file
+	file, err := os.OpenFile(fileName, os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(data)
+
+	return err
 }
 
 // WriteCounter counts the number of bytes written to it. It implements to the io.Writer interface
@@ -192,7 +204,7 @@ func GetOS() constants.OSType {
 
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile
 // creating the file structure at 'dst' along the way, and writing any files
-func Untar(dst string, r io.Reader) error {
+func Untar(dst string, r io.Reader, filenames ...string) error {
 
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
@@ -222,6 +234,10 @@ func Untar(dst string, r io.Reader) error {
 
 		// the target location where the dir/file should be created
 		target := filepath.Join(dst, header.Name)
+
+		if !Contains(filenames, target) {
+			continue
+		}
 
 		// the following switch could also be done using fi.Mode(), not sure if there
 		// a benefit of using one vs. the other.
@@ -259,7 +275,7 @@ func Untar(dst string, r io.Reader) error {
 
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
-func Unzip(src string, dest string) ([]string, error) {
+func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
 
 	var filenames []string
 
@@ -273,6 +289,9 @@ func Unzip(src string, dest string) ([]string, error) {
 
 		// Store filename/path for returning and using later on
 		fpath := filepath.Join(dest, f.Name)
+		if !Contains(fPaths, fpath) {
+			continue
+		}
 
 		// Check for ZipSlip. More Info: http://bit.ly/2MsjAWE
 		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
@@ -360,4 +379,14 @@ func CopyFile(ctx context.Context, src string, dstFolder string, dstFileName str
 	_, err = io.Copy(destination, source)
 
 	return err
+}
+
+// Contains check the slice contains the special string
+func Contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

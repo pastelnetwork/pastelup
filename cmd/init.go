@@ -205,12 +205,7 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 		if err != nil {
 			return err
 		}
-	} else {
-		_, err = file.WriteString("testnet=0\n") 
-		if err != nil {
-			return err
-		}
-	}
+	} 
 
 	if config.Peers != "" {
 		nodes := strings.Split(config.Peers, ",")

@@ -110,7 +110,7 @@ func runStop(ctx context.Context, config *configs.Config) error {
 	if err != nil {
 		return err
 	}
-	log.WithContext(ctx).Info("Config: %s", configJSON)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -133,7 +133,7 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	log.WithContext(ctx).Info("Config: %s", configJSON)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -172,7 +172,7 @@ func runStopNodeSubCommand(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	log.WithContext(ctx).Info("Config: %s", configJSON)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -200,7 +200,7 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error 
 		return err
 	}
 
-	log.WithContext(ctx).Info("Config: %s", configJSON)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

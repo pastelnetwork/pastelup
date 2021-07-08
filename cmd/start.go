@@ -207,7 +207,7 @@ func runStart(ctx context.Context, config *configs.Config) error {
 	if err != nil {
 		return err
 	}
-	log.WithContext(ctx).Info("Config: %s", configJSON)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -241,7 +241,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	log.WithContext(ctx).Info("Config: %s", configJSON)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -328,7 +328,7 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 		return err
 	}
 
-	log.WithContext(ctx).Info("Config: %s", configJSON)
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
 	if len(config.WorkingDir) != 0 {
 		InitializeFunc(ctx, config)

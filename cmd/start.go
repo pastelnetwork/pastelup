@@ -45,10 +45,8 @@ var (
 	flagRestart         bool
 
 	// node flags
-	flagNodeExtIP   string
-	flagReIndex     bool
-	flagNetworkMode string
-	flagWorkDir     string
+	flagNodeExtIP string
+	flagReIndex   bool
 
 	// masternode flags
 	flagMasterNodeName       string
@@ -128,9 +126,9 @@ func setupStartCommand() *cli.Command {
 		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).SetValue(22),
 		cli.NewFlag("coldnode-ip", &flagMasterNodeColdNodeIP),
 		cli.NewFlag("pastelpath", &flagMasterNodePastelPath),
-		cli.NewFlag("work-dir", &flagWorkDir).SetAliases("w").
+		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
-		cli.NewFlag("network", &flagNetworkMode).SetAliases("n").
+		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 	}
 	superNodeSubCommand.AddFlags(masterNodeFlags...)
@@ -151,9 +149,9 @@ func setupStartCommand() *cli.Command {
 		cli.NewFlag("reindex", &flagReIndex),
 		cli.NewFlag("ip", &flagNodeExtIP).
 			SetUsage(green("WAN address of the host")).SetRequired(),
-		cli.NewFlag("work-dir", &flagWorkDir).SetAliases("w").
+		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
-		cli.NewFlag("network", &flagNetworkMode).SetAliases("n").
+		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 	}
 	nodeSubCommand.AddFlags(nodeFlags...)
@@ -175,9 +173,9 @@ func setupStartCommand() *cli.Command {
 		cli.NewFlag("reindex", &flagReIndex),
 		cli.NewFlag("ip", &flagNodeExtIP).
 			SetUsage(green("WAN address of the host")).SetRequired(),
-		cli.NewFlag("work-dir", &flagWorkDir).SetAliases("w").
+		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
-		cli.NewFlag("network", &flagNetworkMode).SetAliases("n").
+		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 	}
 	walletSubCommand.AddFlags(walletFlags...)
@@ -233,8 +231,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	if len(flagWorkDir) != 0 {
-		config.WorkingDir = flagWorkDir
+	if len(config.WorkingDir) != 0 {
 		InitializeFunc(ctx, config)
 	}
 
@@ -266,11 +263,11 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	}
 
 	var pasteldArgs string
-	if len(flagNetworkMode) != 0 && (flagNetworkMode == "testnet" || flagNetworkMode == "mainnet") {
-		pasteldArgs = fmt.Sprintf("--%s", flagNetworkMode)
+	if len(config.Network) != 0 && (config.Network == "testnet" || config.Network == "mainnet") {
+		pasteldArgs = fmt.Sprintf("--%s", config.Network)
 	}
-	if len(flagWorkDir) != 0 {
-		pasteldArgs = fmt.Sprintf("%s --datadir=%s", pasteldArgs, flagWorkDir)
+	if len(config.WorkingDir) != 0 {
+		pasteldArgs = fmt.Sprintf("%s --datadir=%s", pasteldArgs, config.WorkingDir)
 	}
 
 	if flagInteractiveMode {
@@ -333,8 +330,7 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 
 	log.WithContext(ctx).Info("Config: %s", configJSON)
 
-	if len(flagWorkDir) != 0 {
-		config.WorkingDir = flagWorkDir
+	if len(config.WorkingDir) != 0 {
 		InitializeFunc(ctx, config)
 	}
 
@@ -365,11 +361,11 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 	}
 
 	var pasteldArgs string
-	if len(flagNetworkMode) != 0 && (flagNetworkMode == "testnet" || flagNetworkMode == "mainnet") {
-		pasteldArgs = fmt.Sprintf("--%s", flagNetworkMode)
+	if len(config.Network) != 0 && (config.Network == "testnet" || config.Network == "mainnet") {
+		pasteldArgs = fmt.Sprintf("--%s", config.Network)
 	}
-	if len(flagWorkDir) != 0 {
-		pasteldArgs = fmt.Sprintf("%s --datadir=%s", pasteldArgs, flagWorkDir)
+	if len(config.WorkingDir) != 0 {
+		pasteldArgs = fmt.Sprintf("%s --datadir=%s", pasteldArgs, config.WorkingDir)
 	}
 
 	if flagReIndex {
@@ -416,8 +412,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	var masternodePrivKey, pastelid, output string
 	var err error
 
-	if len(flagWorkDir) != 0 {
-		config.WorkingDir = flagWorkDir
+	if len(config.WorkingDir) != 0 {
 		InitializeFunc(ctx, config)
 	}
 
@@ -686,8 +681,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	var masternodePrivKey, pastelid, output string
 	var err error
 
-	if len(flagWorkDir) != 0 {
-		config.WorkingDir = flagWorkDir
+	if len(config.WorkingDir) != 0 {
 		InitializeFunc(ctx, config)
 	}
 
@@ -1242,13 +1236,13 @@ func RunPasteld(ctx context.Context, config *configs.Config, args ...string) (ou
 		return pastelDPath, errNotFoundPastelPath
 	}
 
-	if len(flagNetworkMode) != 0 && !(flagNetworkMode == "mainnet" || flagNetworkMode == "testnet") {
+	if len(config.Network) != 0 && !(config.Network == "mainnet" || config.Network == "testnet") {
 		return pastelDPath, errNetworkModeInvalid
 	}
 
 	args = append(args, fmt.Sprintf("--datadir=%s", config.WorkingDir))
 
-	if flagNetworkMode == "testnet" {
+	if config.Network == "testnet" {
 		flagMasterNodeIsTestNet = true
 	}
 
@@ -1270,13 +1264,13 @@ func RunPasteldWithInteractive(ctx context.Context, config *configs.Config, args
 		return errNotFoundPastelPath
 	}
 
-	if len(flagNetworkMode) != 0 && !(flagNetworkMode == "mainnet" || flagNetworkMode == "testnet") {
+	if len(config.Network) != 0 && !(config.Network == "mainnet" || config.Network == "testnet") {
 		return errNetworkModeInvalid
 	}
 
 	args = append(args, fmt.Sprintf("--datadir=%s", config.WorkingDir))
 
-	if flagNetworkMode == "testnet" {
+	if config.Network == "testnet" {
 		flagMasterNodeIsTestNet = true
 	}
 

@@ -200,12 +200,12 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 		return err
 	}
 
-	if config.Network == "testnet" || flagNetworkMode == "testnet" {
+	if config.Network == "testnet" {
 		_, err = file.WriteString("testnet=1\n") // creates testnet line
 		if err != nil {
 			return err
 		}
-	} 
+	}
 
 	if config.Peers != "" {
 		nodes := strings.Split(config.Peers, ",")

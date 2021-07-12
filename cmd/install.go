@@ -289,10 +289,12 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) (er
 	}
 
 	log.WithContext(ctx).Info(fmt.Sprintf("Wallet dir path -> %s", filepath.Join(config.PastelExecDir, constants.PastelWalletExecName[utils.GetOS()])))
-	if _, err = RunCMD("chmod", "777",
-		fmt.Sprintf("%s/%s", config.PastelExecDir, constants.PastelWalletExecName[utils.GetOS()])); err != nil {
-		log.WithContext(ctx).Error("Failed to make wallet node as executable")
-		return err
+	if utils.GetOS() == "Linux" {
+		if _, err = RunCMD("chmod", "777",
+			fmt.Sprintf("%s/%s", config.PastelExecDir, constants.PastelWalletExecName[utils.GetOS()])); err != nil {
+			log.WithContext(ctx).Error("Failed to make wallet node as executable")
+			return err
+		}
 	}
 
 	log.WithContext(ctx).Info("Initialize the walletnode")
@@ -356,9 +358,11 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return err
 	}
 
-	_, err = client.Cmd(fmt.Sprintf("chmod 777 %s", filepath.Join(config.RemotePastelUtilityDir, "pastel-utility-linux-amd64"))).Output()
-	if err != nil {
-		return err
+	if utils.GetOS() == "Linux" {
+		_, err = client.Cmd(fmt.Sprintf("chmod 777 %s", filepath.Join(config.RemotePastelUtilityDir, "pastel-utility-linux-amd64"))).Output()
+		if err != nil {
+			return err
+		}
 	}
 
 	// client.Terminal(nil).Start()
@@ -436,10 +440,12 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 	log.WithContext(ctx).Info("Installing...")
 
 	log.WithContext(ctx).Info(fmt.Sprintf("Supernode dir path -> %s/%s", config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()]))
-	if _, err = RunCMD("chmod", "777",
-		fmt.Sprintf("%s/%s", config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()])); err != nil {
-		log.WithContext(ctx).Error("Failed to make wallet node as executable")
-		return err
+	if utils.GetOS() == "Linux" {
+		if _, err = RunCMD("chmod", "777",
+			fmt.Sprintf("%s/%s", config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()])); err != nil {
+			log.WithContext(ctx).Error("Failed to make wallet node as executable")
+			return err
+		}
 	}
 
 	log.WithContext(ctx).Info("Initialize the supernode")

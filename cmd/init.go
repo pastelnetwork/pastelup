@@ -320,7 +320,8 @@ func runWalletSubCommand(ctx context.Context, config *configs.Config) error {
 
 	// create walletnode default config
 	// create file
-	fileName, err := utils.CreateFile(ctx, workDirPath+"/wallet.yml", forceSet)
+
+	fileName, err := utils.CreateFile(ctx, filepath.Join(workDirPath, "wallet.yml"), forceSet)
 	if err != nil {
 		return err
 	}

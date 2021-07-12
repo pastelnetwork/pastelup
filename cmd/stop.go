@@ -144,19 +144,25 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
 	})
 
 	// *************  Kill process super node  *************
+	log.WithContext(ctx).Info("Supernode process kill starting.")
 	if _, err = processKillSuperNode(ctx, config); err != nil {
 		return err
 	}
+	log.WithContext(ctx).Info("Supernode process ended.")
 
 	// *************  Kill process wallet node  *************
+	log.WithContext(ctx).Info("Walletnode process kill starting.")
 	if _, err = processKillWalletNode(ctx, config); err != nil {
 		return err
 	}
+	log.WithContext(ctx).Info("Walletnode process ended.")
 
 	// TODO: Implement Stop node command
+	log.WithContext(ctx).Info("Pasteld process kill starting.")
 	if _, err = stopPatelCLI(ctx, config); err != nil {
 		return err
 	}
+	log.WithContext(ctx).Info("Pasteld process ended.")
 
 	time.Sleep(10000 * time.Millisecond)
 
@@ -183,9 +189,11 @@ func runStopNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	})
 
 	// TODO: Implement Stop node command
+	log.WithContext(ctx).Info("Pasteld process kill starting.")
 	if _, err = stopPatelCLI(ctx, config); err != nil {
 		return err
 	}
+	log.WithContext(ctx).Info("Pasteld process ended.")
 
 	return nil
 }
@@ -211,14 +219,18 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error 
 	})
 
 	// *************  Kill process wallet node  *************
+	log.WithContext(ctx).Info("Walletnode process kill starting.")
 	if _, err = processKillWalletNode(ctx, config); err != nil {
 		return err
 	}
+	log.WithContext(ctx).Info("Walletnode process ended.")
 
-	// *************  Stop pastel cli  *************
+	// *************  Stop pasteld  *************
+	log.WithContext(ctx).Info("Pasteld process kill starting.")
 	if _, err = stopPatelCLI(ctx, config); err != nil {
 		return err
 	}
+	log.WithContext(ctx).Info("Pasteld process ended.")
 
 	return nil
 }
@@ -236,14 +248,19 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 	log.WithContext(ctx).Info("Finished checking pastel config!")
 
 	// *************  Kill process super node  *************
+	log.WithContext(ctx).Info("Supernode process kill starting.")
 	if _, err = processKillSuperNode(ctx, config); err != nil {
 		return err
 	}
+	log.WithContext(ctx).Info("Supernode process ended.")
 
 	// *************  Stop pastel super node   *************
+	log.WithContext(ctx).Info("Pasteld process kill starting.")
 	if _, err = stopPatelCLI(ctx, config); err != nil {
 		return err
 	}
+	log.WithContext(ctx).Info("Pasteld process ended.")
+
 	return nil
 }
 

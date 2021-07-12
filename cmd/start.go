@@ -72,8 +72,6 @@ var (
 	flagMasterNodeColdNodeIP    string
 	flagMasterNodePastelPath    string
 	flagMasterNodeSupernodePath string
-
-
 )
 
 func setupStartCommand() *cli.Command {
@@ -941,11 +939,8 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Start supernode")
 	log.WithContext(ctx).Debug("Configure supernode setting")
 
-	
-
 	var supernodeYmlString = fmt.Sprintf(configs.SupernodeDefaultConfig, pastelid, extIP, fmt.Sprintf("%d", flagMasterNodeRPCPort))
 
-	
 	log.WithContext(ctx).Info("Configuring supernode was finished")
 	log.WithContext(ctx).Info("Start supernode")
 
@@ -958,19 +953,18 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 
 	remoteSuperNodePath = filepath.Join(remoteSuperNodePath, "supernode", "supernode.yml")
 
+	log.WithContext(ctx).Infof("RemoteSuperNodePath:%s", remoteSuperNodePath)
 
-	log.WithContext(ctx).Info(fmt.Sprintf("RemoteSuperNodePath:%s", remoteSuperNodePath))
+	log.WithContext(ctx).Infof("RemoteSuperNodeYmlString:%s", supernodeYmlString)
 
-	log.WithContext(ctx).Info(fmt.Sprintf("RemoteSuperNodeYmlString:%s", supernodeYmlString))
-
-	log.WithContext(ctx).Info(fmt.Sprintf("RemoteSuperNodeCmd1:%s", fmt.Sprintf("%s %s", filepath.Join(config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()]), fmt.Sprintf("--config-file=%s", remoteSuperNodePath))))
+	log.WithContext(ctx).Infof("RemoteSuperNodeCmd1:%s", fmt.Sprintf("%s %s", filepath.Join(config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()]), fmt.Sprintf("--config-file=%s", remoteSuperNodePath)))
 
 	_, err = client.Cmd(fmt.Sprintf("echo %s > %s", supernodeYmlString, remoteSuperNodePath)).Output()
 	if err != nil {
 		return err
 	}
 
-	log.WithContext(ctx).Info(fmt.Sprintf("echo %s > %s", supernodeYmlString, remoteSuperNodePath))
+	log.WithContext(ctx).Infof("echo %s > %s", supernodeYmlString, remoteSuperNodePath)
 
 	go client.Cmd(fmt.Sprintf("%s %s", filepath.Join(config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()]), fmt.Sprintf("--config-file=%s", remoteSuperNodePath))).Run()
 

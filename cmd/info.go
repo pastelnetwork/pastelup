@@ -48,7 +48,7 @@ func setupInfoCommand() *cli.Command {
 	return infoCommand
 }
 
-func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
+func runInfoSubCommand(_ context.Context, _ *configs.Config) error {
 
 	if flagOSVersion {
 		fmt.Print(utils.GetOS())

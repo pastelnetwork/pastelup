@@ -929,9 +929,9 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	if aliasStatus["result"] == "failed" {
 		log.WithContext(ctx).Error(aliasStatus["errorMessage"])
 		return err
-	} else {
-		log.WithContext(ctx).Infof("masternode alias status = %s\n", output)
 	}
+
+	log.WithContext(ctx).Infof("masternode alias status = %s\n", output)
 
 	// ***************  6. Stop Cold Node  ***************
 	if _, err = runPastelCLI(ctx, config, "stop"); err != nil {

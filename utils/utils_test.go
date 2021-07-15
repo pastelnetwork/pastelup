@@ -98,8 +98,7 @@ func TestCreateFileWithoutForce(t *testing.T) {
 }
 
 func TestGenerateRandomString(t *testing.T) {
-	var length int
-	length = 20
+	length := 20
 	var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	var result = GenerateRandomString(length)
 	if len(result) != length {

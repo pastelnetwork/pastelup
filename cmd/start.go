@@ -50,29 +50,27 @@ var (
 	flagReIndex   bool
 
 	// masternode flags
-	flagMasterNodeName       string
-	flagMasterNodeIsTestNet  bool
-	flagMasterNodeIsCreate   bool
-	flagMasterNodeIsUpdate   bool
-	flagMasterNodeTxID       string
-	flagMasterNodeIND        string
-	flagMasterNodeIP         string
-	flagMasterNodePort       int
-	flagMasterNodePrivateKey string
-	flagMasterNodePastelID   string
-	flagMasterNodePassPhrase string
-	flagMasterNodeRPCIP      string
-	flagMasterNodeRPCPort    int
-	flagMasterNodeP2PIP      string
-	flagMasterNodeP2PPort    int
-
+	flagMasterNodeName          string
+	flagMasterNodeIsTestNet     bool
+	flagMasterNodeIsCreate      bool
+	flagMasterNodeIsUpdate      bool
+	flagMasterNodeTxID          string
+	flagMasterNodeIND           string
+	flagMasterNodeIP            string
+	flagMasterNodePort          int
+	flagMasterNodePrivateKey    string
+	flagMasterNodePastelID      string
+	flagMasterNodePassPhrase    string
+	flagMasterNodeRPCIP         string
+	flagMasterNodeRPCPort       int
+	flagMasterNodeP2PIP         string
+	flagMasterNodeP2PPort       int
 	flagMasterNodeColdHot       bool
 	flagMasterNodeSSHIP         string
 	flagMasterNodeSSHPort       int
 	flagMasterNodeColdNodeIP    string
 	flagMasterNodePastelPath    string
 	flagMasterNodeSupernodePath string
-
 )
 
 func setupStartCommand() *cli.Command {

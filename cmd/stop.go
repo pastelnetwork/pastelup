@@ -125,7 +125,7 @@ func runStop(ctx context.Context, config *configs.Config) error {
 }
 
 func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
-	log.WithContext(ctx).Info(fmt.Sprintf("Stop all on %s", utils.GetOS()))
+	log.WithContext(ctx).Infof("Stop all on %s", utils.GetOS())
 	defer log.WithContext(ctx).Info("End successfully")
 
 	configJSON, err := config.String()
@@ -170,7 +170,7 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
 }
 
 func runStopNodeSubCommand(ctx context.Context, config *configs.Config) error {
-	log.WithContext(ctx).Info(fmt.Sprintf("Stop node on %s", utils.GetOS()))
+	log.WithContext(ctx).Infof("Stop node on %s", utils.GetOS())
 	defer log.WithContext(ctx).Info("End successfully")
 
 	configJSON, err := config.String()
@@ -200,7 +200,7 @@ func runStopNodeSubCommand(ctx context.Context, config *configs.Config) error {
 
 func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error {
 
-	log.WithContext(ctx).Info(fmt.Sprintf("Stop wallet node on %s", utils.GetOS()))
+	log.WithContext(ctx).Infof("Stop wallet node on %s", utils.GetOS())
 	defer log.WithContext(ctx).Info("End successfully")
 
 	configJSON, err := config.String()

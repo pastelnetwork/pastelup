@@ -288,7 +288,7 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) (er
 		return err
 	}
 
-	log.WithContext(ctx).Info(fmt.Sprintf("Wallet dir path -> %s", filepath.Join(config.PastelExecDir, constants.PastelWalletExecName[utils.GetOS()])))
+	log.WithContext(ctx).Infof("Wallet dir path -> %s", filepath.Join(config.PastelExecDir, constants.PastelWalletExecName[utils.GetOS()]))
 	if utils.GetOS() == "Linux" {
 		if _, err = RunCMD("chmod", "777",
 			fmt.Sprintf("%s/%s", config.PastelExecDir, constants.PastelWalletExecName[utils.GetOS()])); err != nil {
@@ -340,11 +340,9 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return fmt.Errorf("--ssh-ip IP address - Required, SSH address of the remote host")
 	}
 
-	//username, password, _ := credentials()
-	username := "root"
-	password := "vST5utLHaX7feEmh"
+	username, password, _ := credentials()
 
-	log.WithContext(ctx).Info(fmt.Sprintf("Connecting to SSH Hot node wallet -> %s:%d...", flagMasterNodeSSHIP, flagMasterNodeSSHPort))
+	log.WithContext(ctx).Infof("Connecting to SSH Hot node wallet -> %s:%d...", flagMasterNodeSSHIP, flagMasterNodeSSHPort)
 	client, err := utils.DialWithPasswd(fmt.Sprintf("%s:%d", sshIP, sshPort), username, password)
 	if err != nil {
 		return err
@@ -365,7 +363,6 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		}
 	}
 
-	// client.Terminal(nil).Start()
 	if len(config.RemotePastelExecDir) > 0 && len(config.RemoteWorkingDir) > 0 {
 		_, err = client.Cmd(fmt.Sprintf("%s install supernode --dir=%s –work-dir=%s --force", filepath.Join(config.RemotePastelUtilityDir, "pastel-utility-linux-amd64"), config.RemotePastelExecDir, config.RemoteWorkingDir)).Output()
 		if err != nil {
@@ -439,7 +436,7 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 
 	log.WithContext(ctx).Info("Installing...")
 
-	log.WithContext(ctx).Info(fmt.Sprintf("Supernode dir path -> %s/%s", config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()]))
+	log.WithContext(ctx).Infof("Supernode dir path -> %s/%s", config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()])
 	if utils.GetOS() == "Linux" {
 		if _, err = RunCMD("chmod", "777",
 			fmt.Sprintf("%s/%s", config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()])); err != nil {

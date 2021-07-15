@@ -46,9 +46,18 @@ node:
   pastel_id: %s
   server:
     # ` + `listen_address` + ` and ` + `port` + ` must match to ` + `extAddress` + ` from masternode.conf
-    listen_addresses: "%s"
+    listen_addresses: %s
     port: %s
 `
+
+	SupernodeYmlLine1 = "node:"
+	SupernodeYmlLine2 = "  # ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode."
+	SupernodeYmlLine3 = "  # To check it out first get the active outpoint from ` + `masteronde status` + `, then filter the result of ` + `tickets list id mine` + ` by this outpoint."
+	SupernodeYmlLine4 = "  pastel_id: %s"
+	SupernodeYmlLine5 = "  server:"
+	SupernodeYmlLine6 = `    # ` + `listen_address` + ` and ` + `port` + ` must match to ` + `extAddress` + ` from masternode.conf`
+	SupernodeYmlLine7 = "    listen_addresses: %s"
+	SupernodeYmlLine8 = "    port: %s"
 
 	// RQServiceConfig - default rqserivce config
 	RQServiceConfig = `grpc-service = "%s:%s"`

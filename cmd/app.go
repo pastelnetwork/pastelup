@@ -41,6 +41,7 @@ func NewApp() *cli.App {
 		setupStopCommand(),
 		setupShowCommand(),
 		setupUpdateCommand(),
+		setupInfoCommand(),
 	)
 
 	return app

@@ -327,6 +327,7 @@ func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 		return runMasterNodOnColdHot(ctx, config)
 	}
 	return runMasterNodOnHotHot(ctx, config)
+
 }
 
 func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error {
@@ -702,6 +703,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 	log.WithContext(ctx).Info("Finished checking parameters!")
+
 	log.WithContext(ctx).Info("Checking pastel config...")
 	if err := CheckPastelConf(config); err != nil {
 		log.WithContext(ctx).Error("pastel.conf was not correct!")
@@ -972,7 +974,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	if string(osType) == "Linux" {
 
 		remoteSuperNodeConfigFilePath = strings.ReplaceAll(remoteSuperNodeConfigFilePath, "\\", "/")
-		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName["Linux"])
+		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName[constants.Linux])
 		remoteWorkDirPath = strings.ReplaceAll(remoteWorkDirPath, "\\", "/")
 
 		client.Cmd(fmt.Sprintf("rm %s", remoteSuperNodeConfigFilePath)).Run()
@@ -982,7 +984,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	if string(osType) == "Windows" {
 
 		remoteSuperNodeConfigFilePath = strings.ReplaceAll(remoteSuperNodeConfigFilePath, "/", "\\")
-		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName["Windows"])
+		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName[constants.Windows])
 		remoteWorkDirPath = strings.ReplaceAll(remoteWorkDirPath, "/", "\\")
 
 		client.Cmd(fmt.Sprintf("del %s", remoteSuperNodeConfigFilePath)).Run()

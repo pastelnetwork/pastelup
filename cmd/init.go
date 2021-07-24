@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/configurer"
+	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
 	"github.com/pkg/errors"
 )
@@ -235,35 +238,55 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 	log.WithContext(ctx).Info("Downloading zksnark files:")
 	for _, zksnarkParamsName := range configs.ZksnarkParamsNames {
-		zksnarkParamsPath := path + "/" + zksnarkParamsName
+		checkSum := ""
+		zksnarkParamsPath := filepath.Join(path, zksnarkParamsName)
 		log.WithContext(ctx).Infof("downloading: %s", zksnarkParamsPath)
 		_, err := os.Stat(zksnarkParamsPath)
 		// check if file exists and force is not set
-		if os.IsExist(err) && !force {
+		if err == nil && !force {
 			log.WithContext(ctx).WithError(err).Errorf("Error: file zksnark param already exists %s\n", zksnarkParamsPath)
 			return errors.Errorf("zksnarkParam exists:  %s", zksnarkParamsPath)
+
+		} else if err == nil {
+			f, err := os.Open(zksnarkParamsPath)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
+			}
+			defer f.Close()
+
+			hasher := sha256.New()
+			if _, err := io.Copy(hasher, f); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
+			}
+
+			checkSum = hex.EncodeToString(hasher.Sum(nil))
 		}
 
-		out, err := os.Create(zksnarkParamsPath)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
-			return errors.Errorf("Failed to create file: %v", err)
-		}
-		defer out.Close()
+		if checkSum != constants.PastelParamsCheckSums[zksnarkParamsName] {
+			out, err := os.Create(zksnarkParamsPath)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
+				return errors.Errorf("Failed to create file: %v", err)
+			}
+			defer out.Close()
 
-		// download param
-		resp, err := http.Get(configs.ZksnarkParamsURL + zksnarkParamsName)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL+zksnarkParamsName)
-			return errors.Errorf("failed to download: %v", err)
-		}
-		defer resp.Body.Close()
+			// download param
+			resp, err := http.Get(configs.ZksnarkParamsURL + zksnarkParamsName)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL+zksnarkParamsName)
+				return errors.Errorf("failed to download: %v", err)
+			}
+			defer resp.Body.Close()
 
-		// write to file
-		_, err = io.Copy(out, resp.Body)
-		if err != nil {
-			return err
+			// write to file
+			_, err = io.Copy(out, resp.Body)
+			if err != nil {
+				return err
+			}
+		} else {
+			log.WithContext(ctx).Infof("No need to download. Pastel Param File %s already exists.", zksnarkParamsName)
 		}
+
 	}
 
 	log.WithContext(ctx).Info("ZkSnark params downloaded.\n")
@@ -275,13 +298,7 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 // checkLocalAndRouterFirewalls checks local and router firewalls and suggest what to open
 func checkLocalAndRouterFirewalls(ctx context.Context, requiredPorts []string) error {
 	baseURL := "http://portchecker.com?q=" + strings.Join(requiredPorts[:], ",")
-	// resp, err := http.Get(baseURL)
-	// if err != nil {
-	// 	log.WithContext(ctx).WithError(err).Errorf("Error requesting url\n")
-	// 	return errors.Errorf("Failed to request port url %v \n", err)
-	// }
-	// defer resp.Body.Close()
-	// ok := resp.StatusCode == http.StatusOK
+
 	ok := true
 	if ok {
 		log.WithContext(ctx).Info("Your ports {} are opened and can be accessed by other PAstel nodes! ", baseURL)

@@ -71,7 +71,7 @@ node:
 	RQServiceConfig = `grpc-service = "%s:%s"`
 
 	// ZksnarkParamsURL - url for zksnark params
-	ZksnarkParamsURL = "https://z.cash/downloads/"
+	ZksnarkParamsURL = "https://download.pastel.network/pastel-params/"
 )
 
 // ZksnarkParamsNames - slice of zksnark parameters

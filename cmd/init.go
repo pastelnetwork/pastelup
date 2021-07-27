@@ -262,9 +262,9 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 		}
 
 		if checkSum != constants.PastelParamsCheckSums[zksnarkParamsName] {
-			err := utils.DownloadFile(ctx, zksnarkParamsPath , configs.ZksnarkParamsURL + zksnarkParamsName )
-			if err!= nil{
-				log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL + zksnarkParamsName )
+			err := utils.DownloadFile(ctx, zksnarkParamsPath, configs.ZksnarkParamsURL+zksnarkParamsName)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL+zksnarkParamsName)
 				return err
 			}
 		} else {

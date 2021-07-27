@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -263,24 +262,9 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 		}
 
 		if checkSum != constants.PastelParamsCheckSums[zksnarkParamsName] {
-			out, err := os.Create(zksnarkParamsPath)
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
-				return errors.Errorf("Failed to create file: %v", err)
-			}
-			defer out.Close()
-
-			// download param
-			resp, err := http.Get(configs.ZksnarkParamsURL + zksnarkParamsName)
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL+zksnarkParamsName)
-				return errors.Errorf("failed to download: %v", err)
-			}
-			defer resp.Body.Close()
-
-			// write to file
-			_, err = io.Copy(out, resp.Body)
-			if err != nil {
+			err := utils.DownloadFile(ctx, zksnarkParamsPath , configs.ZksnarkParamsURL + zksnarkParamsName )
+			if err!= nil{
+				log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL + zksnarkParamsName )
 				return err
 			}
 		} else {

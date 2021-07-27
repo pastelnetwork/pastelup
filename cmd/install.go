@@ -205,6 +205,7 @@ func runInstall(ctx context.Context, config *configs.Config) error {
 }
 
 func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+
 	log.WithContext(ctx).Info("Start install node")
 	defer log.WithContext(ctx).Info("End install node")
 
@@ -255,7 +256,15 @@ func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) (err 
 		return err
 	}
 
+	if utils.GetOS() == constants.Linux {
+		err = installChrome(ctx, config)
+		if err != nil {
+			return err
+		}
+	}
+
 	log.WithContext(ctx).Info("Node install was finished successfully")
+
 	return nil
 }
 
@@ -354,7 +363,15 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) (er
 		return err
 	}
 
+	if utils.GetOS() == constants.Linux {
+		err = installChrome(ctx, config)
+		if err != nil {
+			return err
+		}
+	}
+
 	log.WithContext(ctx).Info("Wallet node install was finished successfully")
+
 	return nil
 }
 
@@ -569,20 +586,28 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 
 	}
 
-	log.WithContext(ctx).Info("Supernode install was finished successfully")
+	if utils.GetOS() == constants.Linux {
+		err = installChrome(ctx, config)
+		if err != nil {
+			return err
+		}
+	}
 
 	openErr := openPort(ctx, "9933")
 	if openErr != nil {
 		return openErr
 	}
+
 	openErr = openPort(ctx, "19933")
 	if openErr != nil {
 		return openErr
 	}
+
 	openErr = openPort(ctx, "4444")
 	if openErr != nil {
 		return openErr
 	}
+
 	openErr = openPort(ctx, "14444")
 	if openErr != nil {
 		return openErr
@@ -590,12 +615,14 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 
 	log.WithContext(ctx).Info("Installing Pip...")
 	if utils.GetOS() == constants.Windows {
-		RunCMDWithInteractive("python", "-m", "pip", "install", "xgboost", "hyppo", "zstandard", "tensorflow", "pandas", "scipy", "scikit-learn", "matplotlib")
+		RunCMDWithInteractive("python", "-m", "pip", "install", "-r", filepath.Join(config.WorkingDir, constants.PipRequirmentsFileName))
 	} else {
-		RunCMDWithInteractive("python3", "-m", "pip", "install", "xgboost", "hyppo", "zstandard", "tensorflow", "pandas", "scipy", "scikit-learn", "matplotlib")
+		RunCMDWithInteractive("python3", "-m", "pip", "install", "-r", filepath.Join(config.WorkingDir, constants.PipRequirmentsFileName))
 	}
 
 	log.WithContext(ctx).Info("Pip install finished")
+
+	log.WithContext(ctx).Info("Supernode install was finished successfully")
 
 	return nil
 }
@@ -706,6 +733,32 @@ func openPort(ctx context.Context, port string) (err error) {
 			return err
 		}
 	}
+
+	return nil
+
+}
+
+func installChrome(ctx context.Context, config *configs.Config) (err error) {
+
+	log.WithContext(ctx).Infof("Downloading Chrome to install: %s \n", constants.ChromeDownloadURL[utils.GetOS()])
+
+	err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]), constants.ChromeDownloadURL[utils.GetOS()])
+
+	if err != nil {
+		return err
+	}
+
+	if _, err = RunCMD("chmod", "777",
+		filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()])); err != nil {
+		log.WithContext(ctx).Error("Failed to make chrome-install as executable")
+		return err
+	}
+
+	log.WithContext(ctx).Infof("Installing Chrome : %s \n", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
+
+	RunCMDWithInteractive("sudo", "dpkg", "-i", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
+
+	utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
 
 	return nil
 

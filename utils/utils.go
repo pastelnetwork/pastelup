@@ -187,6 +187,8 @@ func DownloadFile(ctx context.Context, filepath string, url string) error {
 	return os.Rename(filepath+".tmp", filepath)
 }
 
+
+
 // GetOS gets current OS.
 func GetOS() constants.OSType {
 	os := runtime.GOOS

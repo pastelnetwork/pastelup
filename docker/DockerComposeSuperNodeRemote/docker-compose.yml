@@ -1,0 +1,74 @@
+version: "3.9"
+services:
+
+    miner:
+        build: .
+        container_name: miner
+        command: >
+                bash -c "./pastel-utility install supernode || true
+                && echo 'testnet=1' >> /root/.pastel/pastel.conf
+                && echo 'gen=1' >> /root/.pastel/pastel.conf
+                && cat '/root/.pastel/pastel.conf'
+                && /root/.pastel/pasteld --mine --daemon --testnet --reindex
+                && ps -A
+                && sleep 100
+                && echo 'Input Account Address!'
+                && read account_addr
+                && echo '{\"'$$account_addr'\":1000000}'
+                && /root/.pastel/pastel-cli sendmany '' '{\"'$$account_addr'\": 1000000}'
+                "
+
+        networks:
+            pastel_net:
+                ipv4_address: 192.168.114.2
+
+             
+    supernode:
+        build: .
+        container_name: supernode
+        command: >
+            bash -c "./pastel-utility install supernode --peers 192.168.114.2 || true
+            && echo 'testnet=1' >> /root/.pastel/pastel.conf
+            && cat '/root/.pastel/pastel.conf'
+            && /root/.pastel/pasteld --daemon --testnet --reindex
+            && ps -A
+            && echo 'Input Transaction ID!'
+            && read transaction_id
+            && echo $$transaction_id
+            && sed -i -e 's/transaction_id/'$$transaction_id'/g' script.exp
+            && cat script.exp
+            && expect script.exp
+            "
+        networks: 
+            pastel_net:
+                ipv4_address: 192.168.114.3
+    
+                
+    remote:
+        build: .
+        container_name: remote
+        command: >
+            bash -c "./pastel-utility install supernode --peers 192.168.114.2,192.168.114.3 || true
+            && echo 'testnet=1' >> /root/.pastel/pastel.conf
+            && cat '/root/.pastel/pastel.conf'
+            && /root/.pastel/pasteld --daemon --testnet --reindex
+            && ps -A
+            && sleep 40
+            && /root/.pastel/pastel-cli getaccountaddress ''
+            && service ssh restart
+            && passwd
+            && sleep 5000
+            "
+        networks: 
+            pastel_net:
+                ipv4_address: 192.168.114.4
+
+networks: 
+        pastel_net:
+            driver: bridge
+            ipam:
+                driver: default
+                config: 
+                    - subnet: 192.168.0.0/16
+                      gateway: 192.168.114.1
+                

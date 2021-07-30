@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
-	"net/http"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +17,7 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/configurer"
+	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
 	"github.com/pkg/errors"
 )
@@ -27,7 +30,6 @@ func setupInitCommand() *cli.Command {
 	}
 
 	initCommand := cli.NewCommand("init")
-	initCommand.CustomHelpTemplate = GetColoredCommandHeaders()
 	initCommand.SetUsage(blue("Command that performs initialization of the system for both Wallet and SuperNodes"))
 	initCommandFlags := []*cli.Flag{
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
@@ -44,7 +46,6 @@ func setupInitCommand() *cli.Command {
 
 	// create walletnode and supernode subcommands
 	walletnodeSubCommand := cli.NewCommand("walletnode")
-	walletnodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders() // TODO: this is not working
 	walletnodeSubCommand.SetUsage(cyan("Perform wallet specific initialization after common"))
 	walletnodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "walletnodeSubCommand", config)
@@ -55,7 +56,6 @@ func setupInitCommand() *cli.Command {
 	})
 
 	supernodeSubCommand := cli.NewCommand("supernode")
-	supernodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders() // TODO: this is not working
 	supernodeSubCommand.SetUsage(cyan("Perform Supernode/Masternode specific initialization after common"))
 	supernodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "supernodeSubCommand", config)
@@ -167,6 +167,50 @@ func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
+// updatePastelConfigFileForNetwork populates the pastel.conf file with the corresponding logic
+// Print success info log on successfully ran command, return error if fail
+func updatePastelConfigFileForNetwork(ctx context.Context, fileName string, config *configs.Config) error {
+	// Open file using READ & WRITE permission.
+
+	if config.Network == "mainnet" {
+		input, err := ioutil.ReadFile(fileName)
+		if err != nil {
+			return err
+		}
+
+		lines := strings.Split(string(input), "\n")
+		for i, line := range lines {
+			if strings.Contains(strings.ReplaceAll(line, " ", ""), "testnet=1") {
+				lines[i] = ""
+			}
+		}
+
+		output := strings.Join(lines, "\n")
+		err = ioutil.WriteFile(fileName, []byte(output), 0644)
+		if err != nil {
+			return err
+		}
+	} else {
+		input, err := ioutil.ReadFile(fileName)
+		if err != nil {
+			return err
+		}
+
+		if !strings.Contains(strings.ReplaceAll(string(input), " ", ""), "testnet=1") {
+			output := string(input) + "testnet=1"
+			err = ioutil.WriteFile(fileName, []byte(output), 0644)
+			if err != nil {
+				return err
+			}
+		}
+
+	}
+
+	log.WithContext(ctx).Info("File updated successfully: \n")
+
+	return nil
+}
+
 // updatePastelConfigFile populates the pastel.conf file with the corresponding logic
 // Print success info log on successfully ran command, return error if fail
 func updatePastelConfigFile(ctx context.Context, fileName string, config *configs.Config) error {
@@ -233,40 +277,45 @@ func updatePastelConfigFile(ctx context.Context, fileName string, config *config
 // downloadZksnarkParams downloads zksnark params to the specified forlder
 // Print success info log on successfully ran command, return error if fail
 func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
-	log.WithContext(ctx).Info("Downloading zksnark files:")
+	log.WithContext(ctx).Info("Downloading pastel-param files:")
 	for _, zksnarkParamsName := range configs.ZksnarkParamsNames {
-		zksnarkParamsPath := path + "/" + zksnarkParamsName
-		log.WithContext(ctx).Infof("downloading: %s", zksnarkParamsPath)
+		checkSum := ""
+		zksnarkParamsPath := filepath.Join(path, zksnarkParamsName)
+		log.WithContext(ctx).Infof("Downloading: %s", zksnarkParamsPath)
 		_, err := os.Stat(zksnarkParamsPath)
 		// check if file exists and force is not set
-		if os.IsExist(err) && !force {
-			log.WithContext(ctx).WithError(err).Errorf("Error: file zksnark param already exists %s\n", zksnarkParamsPath)
-			return errors.Errorf("zksnarkParam exists:  %s", zksnarkParamsPath)
+		if err == nil && !force {
+			log.WithContext(ctx).WithError(err).Errorf("Error:pastel param file already exists %s\n", zksnarkParamsPath)
+			return errors.Errorf("pastel-param exists:  %s", zksnarkParamsPath)
+
+		} else if err == nil {
+			f, err := os.Open(zksnarkParamsPath)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
+			}
+			defer f.Close()
+
+			hasher := sha256.New()
+			if _, err := io.Copy(hasher, f); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
+			}
+
+			checkSum = hex.EncodeToString(hasher.Sum(nil))
 		}
 
-		out, err := os.Create(zksnarkParamsPath)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
-			return errors.Errorf("Failed to create file: %v", err)
+		if checkSum != constants.PastelParamsCheckSums[zksnarkParamsName] {
+			err := utils.DownloadFile(ctx, zksnarkParamsPath, configs.ZksnarkParamsURL+zksnarkParamsName)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL+zksnarkParamsName)
+				return err
+			}
+		} else {
+			log.WithContext(ctx).Infof("Pastel param file %s already exists and checksum matched, so skipping to download.", zksnarkParamsName)
 		}
-		defer out.Close()
 
-		// download param
-		resp, err := http.Get(configs.ZksnarkParamsURL + zksnarkParamsName)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Error downloading file: %s\n", configs.ZksnarkParamsURL+zksnarkParamsName)
-			return errors.Errorf("failed to download: %v", err)
-		}
-		defer resp.Body.Close()
-
-		// write to file
-		_, err = io.Copy(out, resp.Body)
-		if err != nil {
-			return err
-		}
 	}
 
-	log.WithContext(ctx).Info("ZkSnark params downloaded.\n")
+	log.WithContext(ctx).Info("Pastel params downloaded.\n")
 
 	return nil
 
@@ -275,13 +324,7 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 // checkLocalAndRouterFirewalls checks local and router firewalls and suggest what to open
 func checkLocalAndRouterFirewalls(ctx context.Context, requiredPorts []string) error {
 	baseURL := "http://portchecker.com?q=" + strings.Join(requiredPorts[:], ",")
-	// resp, err := http.Get(baseURL)
-	// if err != nil {
-	// 	log.WithContext(ctx).WithError(err).Errorf("Error requesting url\n")
-	// 	return errors.Errorf("Failed to request port url %v \n", err)
-	// }
-	// defer resp.Body.Close()
-	// ok := resp.StatusCode == http.StatusOK
+
 	ok := true
 	if ok {
 		log.WithContext(ctx).Info("Your ports {} are opened and can be accessed by other PAstel nodes! ", baseURL)

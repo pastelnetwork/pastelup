@@ -48,6 +48,12 @@ node:
     # ` + `listen_address` + ` and ` + `port` + ` must match to ` + `extAddress` + ` from masternode.conf
     listen_addresses: %s
     port: %s
+dupe-detection:
+  base_dir: %s
+  input_dir: "input"
+  output_dir: "output"
+  internet_rareness: "rareness"
+  data_file: %s
 `
 
 	// SupernodeYmlLine1 - default supernode.yml content line 1
@@ -66,12 +72,24 @@ node:
 	SupernodeYmlLine7 = "    listen_addresses: %s"
 	// SupernodeYmlLine8 - default supernode.yml content line 8
 	SupernodeYmlLine8 = "    port: %s"
+	// SupernodeYmlLine9 - default supernode.yml content line 9
+	SupernodeYmlLine9 = "dupe-detection:"
+	// SupernodeYmlLine10 - default supernode.yml content line 10
+	SupernodeYmlLine10 = "  base_dir: %s"
+	// SupernodeYmlLine11 - default supernode.yml content line 11
+	SupernodeYmlLine11 = "  input_dir: \"input\""
+	// SupernodeYmlLine12 - default supernode.yml content line 12
+	SupernodeYmlLine12 = "  output_dir: \"output\""
+	// SupernodeYmlLine13 - default supernode.yml content line 13
+	SupernodeYmlLine13 = "  internet_rareness: \"rareness\""
+	// SupernodeYmlLine14 - default supernode.yml content line 14
+	SupernodeYmlLine14 = "  data_file: %s"
 
 	// RQServiceConfig - default rqserivce config
 	RQServiceConfig = `grpc-service = "%s:%s"`
 
 	// ZksnarkParamsURL - url for zksnark params
-	ZksnarkParamsURL = "https://z.cash/downloads/"
+	ZksnarkParamsURL = "https://download.pastel.network/pastel-params/"
 )
 
 // ZksnarkParamsNames - slice of zksnark parameters

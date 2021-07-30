@@ -78,10 +78,57 @@ func setupStartCommand() *cli.Command {
 
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage("usage")
+
+	startFlags := []*cli.Flag{
+		cli.NewFlag("ip", &flagMasterNodeIP).
+			SetUsage(green("Required, WAN address of the host")).SetRequired(),
+		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+			SetUsage(green("Optional, location where to create working directory")).SetValue(config.WorkingDir),
+		cli.NewFlag("network", &config.Network).SetAliases("n").
+			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
+		cli.NewFlag("i", &flagInteractiveMode),
+		cli.NewFlag("r", &flagRestart),
+		cli.NewFlag("name", &flagMasterNodeName).
+			SetUsage(yellow("supernode specific: Required, name of the Master node")).SetRequired(),
+		cli.NewFlag("port", &flagMasterNodePort).
+			SetUsage(yellow("supernode specific: Optional, Port for WAN IP address of the node - Optional, default - 9933 (19933 for Testnet)")),
+		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
+			SetUsage(yellow("supernode specific: Optional, Pmasternode priv key- Optional, if omitted, new masternode private key will be created")),
+		cli.NewFlag("create", &flagMasterNodeIsCreate).
+			SetUsage(yellow("supernode specific: Optional, if specified, will create Masternode record in the masternode.conf.")),
+		cli.NewFlag("update", &flagMasterNodeIsUpdate).
+			SetUsage(yellow("supernode specific: Optional, if specified, will update Masternode record in the masternode.conf.")),
+		cli.NewFlag("txid", &flagMasterNodeTxID).
+			SetUsage(yellow("supernode specific: Required, collateral payment txid , transaction id of 5M collateral MN payment")),
+		cli.NewFlag("ind", &flagMasterNodeIND).
+			SetUsage(yellow("supernode specific: Required, collateral payment output index , output index in the transaction of 5M collateral MN payment")),
+
+		cli.NewFlag("pastelid", &flagMasterNodePastelID).
+			SetUsage(yellow("supernode specific: Optional, pastelid of the Masternode. Optional, if omitted, new pastelid will be created and registered")),
+		cli.NewFlag("passphrase", &flagMasterNodePassPhrase).
+			SetUsage(yellow("supernode specific: Required, passphrase to pastelid private key, if pastelid is omitted")),
+		cli.NewFlag("rpc-ip", &flagMasterNodeRPCIP).
+			SetUsage(yellow("supernode specific: Optional, supernode IP address , if omitted, value passed to --ip will be used")),
+		cli.NewFlag("rpc-port", &flagMasterNodeRPCPort).
+			SetUsage(yellow("supernode specific: Optional, supernode port , default - 4444 (14444 for Testnet")),
+		cli.NewFlag("p2p-ip", &flagMasterNodeP2PIP).
+			SetUsage(yellow("supernode specific: Optional, Kademlia IP address , if omitted, value passed to --ip will be used")),
+		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort).
+			SetUsage(yellow("supernode specific: Optional, Kademlia port , default - 4445 (14445 for Testnet)")),
+		cli.NewFlag("ssh-ip", &flagMasterNodeSSHIP).
+			SetUsage(cyan("remote supernode specific: Required, SSH address of the remote HOT node")),
+		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).
+			SetUsage(cyan("remote supernode specific: Optional, SSH port of the remote HOT node")).SetValue(22),
+		cli.NewFlag("remote-work-dir", &flagNodeExtIP).
+			SetUsage(cyan("remote supernode specific: Optional, location of the working directory")).
+			SetValue(config.RemoteWorkingDir),
+	}
+
+	startCommand.AddFlags(startFlags...)
+
 	addLogFlags(startCommand, config)
 
 	superNodeSubCommand := cli.NewCommand("supernode")
-	superNodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
 	superNodeSubCommand.SetUsage(cyan("Starts supernode"))
 	superNodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "superNodeSubCommand", config)
@@ -94,22 +141,25 @@ func setupStartCommand() *cli.Command {
 		cli.NewFlag("i", &flagInteractiveMode),
 		cli.NewFlag("r", &flagRestart),
 		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage("name of the Master node").SetRequired(),
-		cli.NewFlag("testnet", &flagMasterNodeIsTestNet),
+			SetUsage(green("Required, name of the Masternode to start and create in the masternode.conf if --create or --update are specified")).SetRequired(),
+		cli.NewFlag("ip", &flagMasterNodeIP).
+			SetUsage(green("Required, WAN address of the host")).SetRequired(),
+		cli.NewFlag("port", &flagMasterNodePort).
+			SetUsage(green("Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet)")),
+		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
+			SetUsage(green("Optinoal, Pmasternode priv key, if omitted, new masternode private key will be created")),
+		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
+		cli.NewFlag("network", &config.Network).SetAliases("n").
+			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 		cli.NewFlag("create", &flagMasterNodeIsCreate).
 			SetUsage(green("Optional, if specified, will create Masternode record in the masternode.conf.")),
 		cli.NewFlag("update", &flagMasterNodeIsUpdate).
-			SetUsage(green("Optional, if specified, will create Masternode record in the masternode.conf.")),
+			SetUsage(green("Optional, if specified, will update Masternode record in the masternode.conf.")),
 		cli.NewFlag("txid", &flagMasterNodeTxID).
 			SetUsage(green("collateral payment txid , transaction id of 5M collateral MN payment")),
 		cli.NewFlag("ind", &flagMasterNodeIND).
 			SetUsage(green("collateral payment output index , output index in the transaction of 5M collateral MN payment")),
-		cli.NewFlag("ip", &flagMasterNodeIP).
-			SetUsage(green("WAN address of the host")).SetRequired(),
-		cli.NewFlag("port", &flagMasterNodePort).
-			SetUsage(green("Port for WAN IP address of the node - Optional, default - 9933 (19933 for Testnet)")),
-		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
-			SetUsage(green("Pmasternode priv key- Optional, if omitted, new masternode private key will be created")),
 		cli.NewFlag("pastelid", &flagMasterNodePastelID).
 			SetUsage(green("pastelid of the Masternode. Optional, if omitted, new pastelid will be created and registered")),
 		cli.NewFlag("passphrase", &flagMasterNodePassPhrase).
@@ -123,19 +173,20 @@ func setupStartCommand() *cli.Command {
 		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort).
 			SetUsage(green("Kademlia port - Optional, default - 4445 (14445 for Testnet)")),
 		cli.NewFlag("coldhot", &flagMasterNodeColdHot),
-		cli.NewFlag("ssh-ip", &flagMasterNodeSSHIP),
-		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).SetValue(22),
+		cli.NewFlag("ssh-ip", &flagMasterNodeSSHIP).
+			SetUsage(green("remote supernode specific: Required, SSH address of the remote HOT node")),
+		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).
+			SetUsage(green("remote supernode specific: Optional, SSH port of the remote HOT node")).SetValue(22),
+		cli.NewFlag("remote-work-dir", &flagNodeExtIP).
+			SetUsage(green("remote supernode specific: Optional, location of the working directory")).
+			SetValue(config.RemoteWorkingDir),
 		cli.NewFlag("coldnode-ip", &flagMasterNodeColdNodeIP),
 		cli.NewFlag("pastelpath", &flagMasterNodePastelPath),
-		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
-		cli.NewFlag("network", &config.Network).SetAliases("n").
-			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 	}
+
 	superNodeSubCommand.AddFlags(masterNodeFlags...)
 
 	nodeSubCommand := cli.NewCommand("node")
-	nodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
 	nodeSubCommand.SetUsage(cyan("Starts specified node"))
 	nodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "nodeSubCommand", config)
@@ -158,7 +209,6 @@ func setupStartCommand() *cli.Command {
 	nodeSubCommand.AddFlags(nodeFlags...)
 
 	walletSubCommand := cli.NewCommand("walletnode")
-	walletSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
 	walletSubCommand.SetUsage(cyan("Starts wallet"))
 	walletSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "nodeSubCommand", config)
@@ -202,7 +252,6 @@ func setupStartCommand() *cli.Command {
 
 func runStart(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Start")
-	defer log.WithContext(ctx).Info("End")
 
 	configJSON, err := config.String()
 	if err != nil {
@@ -220,12 +269,12 @@ func runStart(ctx context.Context, config *configs.Config) error {
 
 	// actions to run goes here
 
+	log.WithContext(ctx).Info("End")
 	return nil
 }
 
 func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("Start node on %s", utils.GetOS())
-	defer log.WithContext(ctx).Info("End successfully")
 
 	configJSON, err := config.String()
 	if err != nil {
@@ -236,7 +285,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 		InitializeFunc(ctx, config)
 	}
 
-	err = updatePastelConfigFile(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
+	err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
 
 	if err != nil {
 		return err
@@ -304,6 +353,8 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 			}
 		}
 	}
+
+	log.WithContext(ctx).Info("End successfully")
 	return nil
 }
 
@@ -313,7 +364,7 @@ func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 		InitializeFunc(ctx, config)
 	}
 
-	var err = updatePastelConfigFile(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
+	var err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
 
 	if err != nil {
 		return err
@@ -327,11 +378,11 @@ func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 		return runMasterNodOnColdHot(ctx, config)
 	}
 	return runMasterNodOnHotHot(ctx, config)
+
 }
 
 func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("Start wallet node on %s", utils.GetOS())
-	defer log.WithContext(ctx).Info("End successfully")
 
 	configJSON, err := config.String()
 	if err != nil {
@@ -344,7 +395,7 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 		InitializeFunc(ctx, config)
 	}
 
-	err = updatePastelConfigFile(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
+	err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
 
 	if err != nil {
 		return err
@@ -411,6 +462,8 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 
 		log.WithContext(ctx).Info("Wallet node was started successfully!")
 	}
+
+	log.WithContext(ctx).Info("End successfully")
 	return nil
 }
 
@@ -488,6 +541,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 				if masternodePrivKey, err = runPastelCLI(ctx, config, "masternode", "genkey"); err != nil {
 					return err
 				}
+				masternodePrivKey = strings.TrimSuffix(masternodePrivKey, "\n")
 			} else {
 				masternodePrivKey = flagMasterNodePrivateKey
 			}
@@ -662,7 +716,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	defer file.Close()
 
 	// Populate pastel.conf line-by-line to file.
-	_, err = file.WriteString(fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort)) // creates server line
+	_, err = file.WriteString(fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort, config.WorkingDir, constants.DupeDetectionImageFingerPrintDataBase)) // creates server line
 	if err != nil {
 		return err
 	}
@@ -702,6 +756,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 	log.WithContext(ctx).Info("Finished checking parameters!")
+
 	log.WithContext(ctx).Info("Checking pastel config...")
 	if err := CheckPastelConf(config); err != nil {
 		log.WithContext(ctx).Error("pastel.conf was not correct!")
@@ -756,6 +811,8 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 				if masternodePrivKey, err = runPastelCLI(ctx, config, "masternode", "genkey"); err != nil {
 					return err
 				}
+				masternodePrivKey = strings.TrimSuffix(masternodePrivKey, "\n")
+
 				flagMasterNodePrivateKey = masternodePrivKey
 			} else {
 				masternodePrivKey = flagMasterNodePrivateKey
@@ -972,7 +1029,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	if string(osType) == "Linux" {
 
 		remoteSuperNodeConfigFilePath = strings.ReplaceAll(remoteSuperNodeConfigFilePath, "\\", "/")
-		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName["Linux"])
+		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName[constants.Linux])
 		remoteWorkDirPath = strings.ReplaceAll(remoteWorkDirPath, "\\", "/")
 
 		client.Cmd(fmt.Sprintf("rm %s", remoteSuperNodeConfigFilePath)).Run()
@@ -982,7 +1039,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	if string(osType) == "Windows" {
 
 		remoteSuperNodeConfigFilePath = strings.ReplaceAll(remoteSuperNodeConfigFilePath, "/", "\\")
-		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName["Windows"])
+		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName[constants.Windows])
 		remoteWorkDirPath = strings.ReplaceAll(remoteWorkDirPath, "/", "\\")
 
 		client.Cmd(fmt.Sprintf("del %s", remoteSuperNodeConfigFilePath)).Run()
@@ -997,6 +1054,12 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine6, remoteSuperNodeConfigFilePath)).Run()
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine7, extIP), remoteSuperNodeConfigFilePath)).Run()
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine8, fmt.Sprintf("%d", flagMasterNodeRPCPort)), remoteSuperNodeConfigFilePath)).Run()
+	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine9, remoteSuperNodeConfigFilePath)).Run()
+	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine10, config.WorkingDir), remoteSuperNodeConfigFilePath)).Run()
+	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine11, remoteSuperNodeConfigFilePath)).Run()
+	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine12, remoteSuperNodeConfigFilePath)).Run()
+	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine13, remoteSuperNodeConfigFilePath)).Run()
+	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine14, constants.DupeDetectionImageFingerPrintDataBase), remoteSuperNodeConfigFilePath)).Run()
 
 	time.Sleep(5000 * time.Millisecond)
 

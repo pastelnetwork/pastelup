@@ -30,7 +30,7 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 			log.WithContext(ctx).WithError(err).Error("Error creating directory")
 			return errors.Errorf("Failed to create directory: %v", err)
 		}
-		log.WithContext(ctx).Infof("directory created on %s", path)
+		log.WithContext(ctx).Infof("Directory created on %s", path)
 	} else {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			err := os.MkdirAll(path, 0755)
@@ -283,13 +283,14 @@ func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
 	if err != nil {
 		return filenames, err
 	}
-	defer r.Close()
 
+	defer r.Close()
 	for _, f := range r.File {
 
 		// Store filename/path for returning and using later on
 		fpath := filepath.Join(dest, f.Name)
-		if !Contains(fPaths, fpath) {
+
+		if !Contains(fPaths, fpath) && len(fPaths) != 0 {
 			continue
 		}
 
@@ -299,13 +300,11 @@ func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
 		}
 
 		filenames = append(filenames, fpath)
-
 		if f.FileInfo().IsDir() {
 			// Make Folder
 			os.MkdirAll(fpath, os.ModePerm)
 			continue
 		}
-
 		// Make File
 		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 			return filenames, err
@@ -330,7 +329,9 @@ func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
 		if err != nil {
 			return filenames, err
 		}
+
 	}
+
 	return filenames, nil
 }
 

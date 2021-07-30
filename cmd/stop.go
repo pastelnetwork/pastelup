@@ -28,7 +28,6 @@ func setupStopCommand() *cli.Command {
 	stopCommand.SetUsage("usage")
 
 	allSubCommand := cli.NewCommand("all")
-	allSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
 	allSubCommand.SetUsage(cyan("Stop all"))
 	allSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "allSubCommand", config)
@@ -46,7 +45,6 @@ func setupStopCommand() *cli.Command {
 	allSubCommand.AddFlags(nodeFlags...)
 
 	nodeSubCommand := cli.NewCommand("node")
-	nodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
 	nodeSubCommand.SetUsage(cyan("Stop specified node"))
 	nodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "nodeSubCommand", config)
@@ -59,7 +57,6 @@ func setupStopCommand() *cli.Command {
 	nodeSubCommand.AddFlags(nodeFlags...)
 
 	walletSubCommand := cli.NewCommand("walletnode")
-	walletSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
 	walletSubCommand.SetUsage(cyan("Stop wallet"))
 	walletSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "walletnodeSubCommand", config)
@@ -72,7 +69,6 @@ func setupStopCommand() *cli.Command {
 	walletSubCommand.AddFlags(nodeFlags...)
 
 	superNodeSubCommand := cli.NewCommand("supernode")
-	superNodeSubCommand.CustomHelpTemplate = GetColoredSubCommandHeaders()
 	superNodeSubCommand.SetUsage(cyan("Stop supernode"))
 	superNodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "superNodeSubCommand", config)
@@ -90,6 +86,8 @@ func setupStopCommand() *cli.Command {
 		walletSubCommand,
 		allSubCommand,
 	)
+
+	stopCommand.AddFlags(nodeFlags...)
 
 	stopCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 		ctx, err := configureLogging(ctx, "stopcommand", config)
@@ -126,7 +124,6 @@ func runStop(ctx context.Context, config *configs.Config) error {
 
 func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("Stop all on %s", utils.GetOS())
-	defer log.WithContext(ctx).Info("End successfully")
 
 	configJSON, err := config.String()
 	if err != nil {
@@ -166,12 +163,13 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
 
 	time.Sleep(10000 * time.Millisecond)
 
+	log.WithContext(ctx).Info("End successfully")
+
 	return nil
 }
 
 func runStopNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("Stop node on %s", utils.GetOS())
-	defer log.WithContext(ctx).Info("End successfully")
 
 	configJSON, err := config.String()
 	if err != nil {
@@ -194,6 +192,7 @@ func runStopNodeSubCommand(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 	log.WithContext(ctx).Info("Pasteld process ended.")
+	log.WithContext(ctx).Info("End successfully")
 
 	return nil
 }
@@ -201,7 +200,6 @@ func runStopNodeSubCommand(ctx context.Context, config *configs.Config) error {
 func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error {
 
 	log.WithContext(ctx).Infof("Stop wallet node on %s", utils.GetOS())
-	defer log.WithContext(ctx).Info("End successfully")
 
 	configJSON, err := config.String()
 	if err != nil {
@@ -231,6 +229,8 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error 
 		return err
 	}
 	log.WithContext(ctx).Info("Pasteld process ended.")
+
+	log.WithContext(ctx).Info("End successfully")
 
 	return nil
 }
@@ -265,26 +265,11 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 }
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) (output string, err error) {
-	var pasteldPath string
-
-	if _, pasteldPath, _, _, err = checkPastelInstallPath(ctx, config, ""); err != nil {
-		return pasteldPath, errNotFoundPastelPath
+	if _, err = runPastelCLI(ctx, config, "stop"); err != nil {
+		return "", err
 	}
 
-	matches, err := filepath.Glob("/proc/*/exe")
-	for _, file := range matches {
-		target, _ := os.Readlink(file)
-		if len(target) > 0 {
-			if target == pasteldPath {
-				if _, err = runPastelCLI(ctx, config, "stop"); err != nil {
-					return "", err
-				}
-				break
-			}
-		}
-	}
-
-	return
+	return "", nil
 }
 
 func processKillWalletNode(ctx context.Context, config *configs.Config) (output string, err error) {
@@ -296,25 +281,31 @@ func processKillWalletNode(ctx context.Context, config *configs.Config) (output 
 		return pastelWalletNodePath, errNotFoundPastelPath
 	}
 
-	matches, err := filepath.Glob("/proc/*/exe")
-	for _, file := range matches {
-		target, _ := os.Readlink(file)
-		if len(target) > 0 {
-			if target == pastelWalletNodePath {
-				split := strings.Split(file, "/")
+	if utils.GetOS() == constants.Windows {
+		RunCMDWithInteractive("Taskkill", "/IM", constants.PastelWalletExecName[utils.GetOS()], "/F")
 
-				pID = split[len(split)-2]
-				processID, err = strconv.Atoi(pID)
-				proc, err := os.FindProcess(processID)
-				if err != nil {
-					log.Println(err)
+	} else {
+		matches, _ := filepath.Glob("/proc/*/exe")
+		for _, file := range matches {
+			target, _ := os.Readlink(file)
+			if len(target) > 0 {
+				if target == pastelWalletNodePath {
+					split := strings.Split(file, "/")
+
+					pID = split[len(split)-2]
+					processID, err = strconv.Atoi(pID)
+					proc, err := os.FindProcess(processID)
+					if err != nil {
+						log.Println(err)
+					}
+					// Kill the process
+					proc.Kill()
+
+					break
 				}
-				// Kill the process
-				proc.Kill()
-
-				break
 			}
 		}
+
 	}
 
 	return
@@ -331,23 +322,28 @@ func processKillSuperNode(ctx context.Context, config *configs.Config) (output s
 	}
 	pastelSuperNodePath = filepath.Join(config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()])
 
-	matches, err := filepath.Glob("/proc/*/exe")
-	for _, file := range matches {
-		target, _ := os.Readlink(file)
-		if len(target) > 0 {
-			if target == pastelSuperNodePath {
-				split := strings.Split(file, "/")
+	if utils.GetOS() == constants.Windows {
+		RunCMDWithInteractive("Taskkill", "/IM", constants.PastelWalletExecName[utils.GetOS()], "/F")
 
-				pID = split[len(split)-2]
-				processID, err = strconv.Atoi(pID)
-				proc, err := os.FindProcess(processID)
-				if err != nil {
-					log.Println(err)
+	} else {
+		matches, _ := filepath.Glob("/proc/*/exe")
+		for _, file := range matches {
+			target, _ := os.Readlink(file)
+			if len(target) > 0 {
+				if target == pastelSuperNodePath {
+					split := strings.Split(file, "/")
+
+					pID = split[len(split)-2]
+					processID, err = strconv.Atoi(pID)
+					proc, err := os.FindProcess(processID)
+					if err != nil {
+						log.Println(err)
+					}
+					// Kill the process
+					proc.Kill()
+
+					break
 				}
-				// Kill the process
-				proc.Kill()
-
-				break
 			}
 		}
 	}

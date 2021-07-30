@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+    miner:
+        build: .
+        container_name: pastel_walletnode
+        command: >
+                bash -c "./pastel-utility install walletnode || true
+                && ./pastel-utility start walletnode
+                && ps -A
+                "

@@ -21,6 +21,9 @@ const (
 
 	// PipRequirmentsFileName - pip install requirements file name
 	PipRequirmentsFileName string = "requirements.txt"
+
+	// DupeDetectionImageFingerPrintDataBase - dupe_detection_image_fingerprint_database file
+	DupeDetectionImageFingerPrintDataBase string = "dupe_detection_image_fingerprint_database.sqlite"
 )
 
 // PasteldName - The name of the pasteld
@@ -109,16 +112,16 @@ var PastelSuperNodeDownloadURL = map[OSType]string{
 // PastelWalletSuperReleaseDownloadURL - The download url of the pastel wallet, super node for release
 var PastelWalletSuperReleaseDownloadURL = "https://download.pastel.network/gonode/"
 
-// PastelWalletFileReleaseDownloadURL - The download url of the  wallet node file
-var PastelWalletFileReleaseDownloadURL = map[OSType]string{
+// WalletNodeExecArchiveName - The download url of the  wallet node file
+var WalletNodeExecArchiveName = map[OSType]string{
 	Windows: "walletnode-windows-amd64.zip",
 	Linux:   "walletnode-linux-amd64.zip",
 	Mac:     "walletnode-darwin-amd64.zip",
 	Unknown: "",
 }
 
-// PastelSuperFileReleaseDownloadURL - The download url of the  super node file
-var PastelSuperFileReleaseDownloadURL = map[OSType]string{
+// SupperNodeExecArchiveName - The download url of the  super node file
+var SupperNodeExecArchiveName = map[OSType]string{
 	Windows: "supernode-windows-amd64.zip",
 	Linux:   "supernode-linux-amd64.zip",
 	Mac:     "supernode-darwin-amd64.zip",
@@ -149,3 +152,6 @@ var ChromeExecFileName = map[OSType]string{
 	Mac:     "pastel-osx-",
 	Unknown: "",
 }
+
+// PortList - PortList to open in install supernode
+var PortList = []string{"9933", "19933", "4444", "14444"}

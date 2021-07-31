@@ -506,7 +506,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	} else {
 		_, err = client.Cmd(fmt.Sprintf("%s install supernode --force --peers=%s", pastelUtilityPath, config.Peers)).Output()
 		if err != nil {
-			fmt.Println(fmt.Sprintf("%s install supernode --force --peers=%s", pastelUtilityPath, config.Peers))
+			fmt.Printf("%s install supernode --force --peers=%s\n", pastelUtilityPath, config.Peers)
 			fmt.Println("install supernode Err4")
 			fmt.Println(err.Error())
 			return err
@@ -840,7 +840,7 @@ func installChrome(ctx context.Context, config *configs.Config) (err error) {
 
 func installPackages() (err error) {
 
-	fmt.Println(fmt.Sprintf("Installing Packages: %s \n", constants.ChromeDownloadURL[utils.GetOS()]))
+	fmt.Printf("Installing Packages: %s \n", constants.ChromeDownloadURL[utils.GetOS()])
 
 	RunCMDWithInteractive("sudo", "apt-get", "update")
 	RunCMDWithInteractive("sudo", "apt-get", "install", "-y", "wget")

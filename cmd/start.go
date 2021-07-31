@@ -37,7 +37,6 @@ var (
 	errNotFoundPastelCli              = fmt.Errorf("cannot find pastel-cli on SSH server")
 	errNotFoundPastelPath             = fmt.Errorf("cannot find pasteld/pastel-cli path. please install node")
 	errNetworkModeInvalid             = fmt.Errorf("invalid network mode")
-	errNotFoundRemoteWorkingDir       = fmt.Errorf("cannot find remote working dir")
 	errNotFoundRemotePastelUtilityDir = fmt.Errorf("cannot find remote pastel-utility dir")
 )
 
@@ -1014,7 +1013,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	fmt.Println("remotePastelExec:", remotePastelUtilityExec)
 	osType, err := client.Cmd(fmt.Sprintf("%s info --os-version", remotePastelUtilityExec)).Output()
 	if err != nil {
-		fmt.Println(fmt.Sprintf("%s info --os-version", remotePastelUtilityExec))
+		fmt.Printf("%s info --os-version\n", remotePastelUtilityExec)
 		fmt.Println("osType err")
 		return err
 	}

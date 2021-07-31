@@ -14,6 +14,8 @@ import (
 
 var (
 	flagOSVersion bool
+	flagExecDir   bool
+	flagWorkDir   bool
 )
 
 func setupInfoCommand() *cli.Command {
@@ -25,6 +27,10 @@ func setupInfoCommand() *cli.Command {
 	infoFlags := []*cli.Flag{
 		cli.NewFlag("os-version", &flagOSVersion).SetAliases("ov").
 			SetUsage(green("Get OS version of running machine")),
+		cli.NewFlag("work-dir", &flagWorkDir).SetAliases("wd").
+			SetUsage(green("Get Working Direcotry of running machine")),
+		cli.NewFlag("exec-dir", &flagExecDir).SetAliases("ed").
+			SetUsage(green("Get Executable Direcotry of running machine")),
 	}
 	infoCommand.AddFlags(infoFlags...)
 
@@ -48,11 +54,20 @@ func setupInfoCommand() *cli.Command {
 	return infoCommand
 }
 
-func runInfoSubCommand(_ context.Context, _ *configs.Config) error {
+func runInfoSubCommand(_ context.Context, config *configs.Config) error {
 
 	if flagOSVersion {
 		fmt.Print(utils.GetOS())
 	}
+
+	if flagWorkDir {
+		fmt.Print(config.WorkingDir)
+	}
+
+	if flagExecDir {
+		fmt.Print(config.PastelExecDir)
+	}
+
 	return nil
 
 }

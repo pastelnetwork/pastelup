@@ -56,10 +56,6 @@ func setupInstallCommand() *cli.Command {
 
 		if utils.GetOS() == constants.Linux {
 			installPackages()
-			err = installChrome(ctx, config)
-			if err != nil {
-				return err
-			}
 		}
 
 		ctx, cancel := context.WithCancel(ctx)
@@ -79,8 +75,6 @@ func setupInstallCommand() *cli.Command {
 		if err != nil {
 			return err
 		}
-
-		installPackages()
 
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -115,10 +109,6 @@ func setupInstallCommand() *cli.Command {
 
 		if utils.GetOS() == constants.Linux {
 			installPackages()
-			err = installChrome(ctx, config)
-			if err != nil {
-				return err
-			}
 		}
 
 		ctx, cancel := context.WithCancel(ctx)
@@ -154,10 +144,6 @@ func setupInstallCommand() *cli.Command {
 
 		if utils.GetOS() == constants.Linux {
 			installPackages()
-			err = installChrome(ctx, config)
-			if err != nil {
-				return err
-			}
 		}
 
 		ctx, cancel := context.WithCancel(ctx)
@@ -298,6 +284,13 @@ func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) (err 
 		return err
 	}
 
+	if utils.GetOS() == constants.Linux {
+		err = installChrome(ctx, config)
+		if err != nil {
+			return err
+		}
+	}
+
 	log.WithContext(ctx).Info("Node install was finished successfully")
 
 	return nil
@@ -411,6 +404,13 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) (er
 		return err
 	}
 
+	if utils.GetOS() == constants.Linux {
+		err = installChrome(ctx, config)
+		if err != nil {
+			return err
+		}
+	}
+
 	log.WithContext(ctx).Info("Wallet node install was finished successfully")
 
 	return nil
@@ -456,7 +456,8 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return err
 	}
 	log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
-	_, err = client.Cmd(fmt.Sprintf("wget -O pastel-utility -P %s https://github.com/pastelnetwork/pastel-utility/releases/download/v0.5.8/pastel-utility-linux-amd64", config.RemotePastelUtilityDir)).Output()
+	_, err = client.Cmd(fmt.Sprintf("wget -O /%s https://github.com/pastelnetwork/pastel-utility/releases/download/v0.5.8/pastel-utility-linux-amd64", pastelUtilityPath)).Output()
+	fmt.Printf("wget -O /%s  https://github.com/pastelnetwork/pastel-utility/releases/download/v0.5.8/pastel-utility-linux-amd64\n", pastelUtilityPath)
 	if err != nil {
 		fmt.Println("download Err")
 		fmt.Println(err.Error())
@@ -466,8 +467,9 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	log.WithContext(ctx).Info(fmt.Sprintf("Downloading  %s...", pastelUtilityPath))
 
-	_, err = client.Cmd(fmt.Sprintf("chmod 777 %s", pastelUtilityPath)).Output()
+	_, err = client.Cmd(fmt.Sprintf("chmod 777 /%s", pastelUtilityPath)).Output()
 	if err != nil {
+		fmt.Printf("chmod 777 /%s\n", pastelUtilityPath)
 		fmt.Println("chmod Err")
 		fmt.Println(err.Error())
 		return err
@@ -482,7 +484,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	fmt.Println(pastelUtilityPath)
 	if len(config.RemotePastelExecDir) > 0 && len(config.RemoteWorkingDir) > 0 {
-		_, err = client.Cmd(fmt.Sprintf("%s install supernode --dir=%s –work-dir=%s --force --peers=%s", pastelUtilityPath, config.RemotePastelExecDir, config.RemoteWorkingDir, config.Peers)).Output()
+		_, err = client.Cmd(fmt.Sprintf("/%s install supernode --dir=%s –work-dir=%s --force --peers=%s", pastelUtilityPath, config.RemotePastelExecDir, config.RemoteWorkingDir, config.Peers)).Output()
 		if err != nil {
 			fmt.Println("install supernode Err1")
 			fmt.Println(err.Error())
@@ -490,25 +492,32 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		}
 
 	} else if len(config.RemotePastelExecDir) > 0 && len(config.RemoteWorkingDir) == 0 {
-		_, err = client.Cmd(fmt.Sprintf("%s install supernode --dir=%s --force --peers=%s", pastelUtilityPath, config.RemotePastelExecDir, config.Peers)).Output()
+		_, err = client.Cmd(fmt.Sprintf("/%s install supernode --dir=%s --force --peers=%s", pastelUtilityPath, config.RemotePastelExecDir, config.Peers)).Output()
 		if err != nil {
 			fmt.Println("install supernode Err2")
 			fmt.Println(err.Error())
 			return err
 		}
 	} else if len(config.RemoteWorkingDir) > 0 && len(config.RemotePastelExecDir) == 0 {
-		_, err = client.Cmd(fmt.Sprintf("%s install supernode –work-dir=%s --force --peers=%s", pastelUtilityPath, config.RemoteWorkingDir, config.Peers)).Output()
+		_, err = client.Cmd(fmt.Sprintf("/%s install supernode –work-dir=%s --force --peers=%s", pastelUtilityPath, config.RemoteWorkingDir, config.Peers)).Output()
 		if err != nil {
 			fmt.Println("install supernode Err3")
 			fmt.Println(err.Error())
 			return err
 		}
 	} else {
-		_, err = client.Cmd(fmt.Sprintf("%s install supernode --force --peers=%s", pastelUtilityPath, config.Peers)).Output()
+		_, err = client.Cmd(fmt.Sprintf("/%s install supernode --force --peers=%s", pastelUtilityPath, config.Peers)).Output()
 		if err != nil {
 			fmt.Printf("%s install supernode --force --peers=%s\n", pastelUtilityPath, config.Peers)
 			fmt.Println("install supernode Err4")
 			fmt.Println(err.Error())
+			return err
+		}
+	}
+
+	if utils.GetOS() == constants.Linux {
+		err = installChrome(ctx, config)
+		if err != nil {
 			return err
 		}
 	}
@@ -666,6 +675,13 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 		log.WithContext(ctx).Info("Pip install finished")
 	} else {
 		log.WithContext(ctx).Info("Can not download requirement file to install Pip.")
+	}
+
+	if utils.GetOS() == constants.Linux {
+		err = installChrome(ctx, config)
+		if err != nil {
+			return err
+		}
 	}
 
 	log.WithContext(ctx).Info("Supernode install was finished successfully")

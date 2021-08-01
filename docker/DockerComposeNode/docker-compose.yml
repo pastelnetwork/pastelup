@@ -1,10 +1,11 @@
 version: "3.9"
+
 services:
-    miner:
+    pastelnode:
         build: .
         container_name: pastelnode
         command: >
-                bash -c "./pastel-utility install node || true
+                bash -c "./pastel-utility install node --force || true
                 && ./pastel-utility start node
                 && ps -A
                 "

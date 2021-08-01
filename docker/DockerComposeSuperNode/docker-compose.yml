@@ -5,16 +5,16 @@ services:
         build: .
         container_name: miner
         command: >
-                bash -c "./pastel-utility install supernode || true
+                bash -c "/pastel-utility install supernode --force || true
                 && echo 'testnet=1' >> /root/.pastel/pastel.conf
                 && echo 'gen=1' >> /root/.pastel/pastel.conf
                 && cat '/root/.pastel/pastel.conf'
-                && /root/.pastel/pasteld --mine --daemon --testnet --reindex
+                && /root/pastel/pasteld --mine --daemon --testnet --reindex
                 && ps -A
                 && echo 'Input Account Address!'
                 && read account_addr
                 && sleep 20
-                && /root/.pastel/pastel-cli sendmany '' '{\"'$$account_addr'\": 1000000}'
+                && /root/pastel/pastel-cli sendmany '' '{\"'$$account_addr'\": 1000000}'
                 "
 
         networks:
@@ -26,17 +26,18 @@ services:
         build: .
         container_name: supernode
         command: >
-            bash -c "./pastel-utility install supernode --peers 192.168.114.2 || true
-            && echo 'testnet=1' >> /root/.pastel/pastel.conf
+            bash -c "/pastel-utility install supernode --force --peers 192.168.114.2 || true
+            && echo 'testnet=1' >> /roo/.pastel/pastel.conf
             && cat '/root/.pastel/pastel.conf'
-            && /root/.pastel/pasteld --daemon --testnet --reindex
+            && /root/pastel/pasteld --daemon --testnet --reindex
             && ps -A
             && sleep 40
-            && /root/.pastel/pastel-cli getaccountaddress ''
-            && echo 'Input Transaction ID!'
+            && /root/pastel/pastel-cli getaccountaddress ''
+            && echo 'Input Transaction ID:'
             && read transaction_id
-            && echo $$transaction_id
-            && ./pastel-utility start supernode --name=masternode1 --ip=188.43.136.32  --create --rpc-ip=192.168.114.147 --rpc-port=9933 --txid=$$transaction_id --ind=1 --passphrase=4342 --network=testnet
+            && echo 'Input Vout Value:'
+            && read vout_value
+            && /pastel-utility start supernode --name=masternode1 --ip=188.43.136.32  --create --rpc-ip=192.168.114.147 --rpc-port=9933 --txid=$$transaction_id --ind=$$vout_value --remote-work-dir=/root/.pastel --passphrase=4342 --network=testnet
             "
         networks: 
             pastel_net:

@@ -4,7 +4,7 @@ services:
         build: .
         container_name: pastel_walletnode
         command: >
-                bash -c "./pastel-utility install walletnode || true
+                bash -c "./pastel-utility install walletnode --force || true
                 && ./pastel-utility start walletnode
                 && ps -A
                 "

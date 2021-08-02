@@ -2,10 +2,7 @@ package cmd
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -289,18 +286,12 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 			return errors.Errorf("pastel-param exists:  %s", zksnarkParamsPath)
 
 		} else if err == nil {
-			f, err := os.Open(zksnarkParamsPath)
+
+			checkSum, err = utils.GetChecksum(ctx, zksnarkParamsPath)
 			if err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
+				log.WithContext(ctx).WithError(err).Errorf("Checking pastel param file failed: %s\n", zksnarkParamsPath)
+				return err
 			}
-			defer f.Close()
-
-			hasher := sha256.New()
-			if _, err := io.Copy(hasher, f); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", zksnarkParamsPath)
-			}
-
-			checkSum = hex.EncodeToString(hasher.Sum(nil))
 		}
 
 		if checkSum != constants.PastelParamsCheckSums[zksnarkParamsName] {

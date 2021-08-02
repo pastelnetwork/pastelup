@@ -37,7 +37,6 @@ var (
 	errNotFoundPastelCli              = fmt.Errorf("cannot find pastel-cli on SSH server")
 	errNotFoundPastelPath             = fmt.Errorf("cannot find pasteld/pastel-cli path. please install node")
 	errNetworkModeInvalid             = fmt.Errorf("invalid network mode")
-	errNotFoundRemoteWorkingDir       = fmt.Errorf("cannot find remote working dir")
 	errNotFoundRemotePastelUtilityDir = fmt.Errorf("cannot find remote pastel-utility dir")
 )
 
@@ -102,7 +101,6 @@ func setupStartCommand() *cli.Command {
 			SetUsage(yellow("supernode specific: Required, collateral payment txid , transaction id of 5M collateral MN payment")),
 		cli.NewFlag("ind", &flagMasterNodeIND).
 			SetUsage(yellow("supernode specific: Required, collateral payment output index , output index in the transaction of 5M collateral MN payment")),
-
 		cli.NewFlag("pastelid", &flagMasterNodePastelID).
 			SetUsage(yellow("supernode specific: Optional, pastelid of the Masternode. Optional, if omitted, new pastelid will be created and registered")),
 		cli.NewFlag("passphrase", &flagMasterNodePassPhrase).
@@ -119,9 +117,8 @@ func setupStartCommand() *cli.Command {
 			SetUsage(cyan("remote supernode specific: Required, SSH address of the remote HOT node")),
 		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).
 			SetUsage(cyan("remote supernode specific: Optional, SSH port of the remote HOT node")).SetValue(22),
-		cli.NewFlag("remote-work-dir", &flagNodeExtIP).
-			SetUsage(cyan("remote supernode specific: Optional, location of the working directory")).
-			SetValue(config.RemoteWorkingDir),
+		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
+			SetUsage(cyan("remote supernode specific: Optional, location of the working directory")),
 	}
 
 	startCommand.AddFlags(startFlags...)
@@ -177,9 +174,8 @@ func setupStartCommand() *cli.Command {
 			SetUsage(green("remote supernode specific: Required, SSH address of the remote HOT node")),
 		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).
 			SetUsage(green("remote supernode specific: Optional, SSH port of the remote HOT node")).SetValue(22),
-		cli.NewFlag("remote-work-dir", &flagNodeExtIP).
-			SetUsage(green("remote supernode specific: Optional, location of the working directory")).
-			SetValue(config.RemoteWorkingDir),
+		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
+			SetUsage(cyan("remote supernode specific: Required, location of the working directory")),
 		cli.NewFlag("coldnode-ip", &flagMasterNodeColdNodeIP),
 		cli.NewFlag("pastelpath", &flagMasterNodePastelPath),
 	}
@@ -219,8 +215,7 @@ func setupStartCommand() *cli.Command {
 	})
 	walletFlags := []*cli.Flag{
 		cli.NewFlag("i", &flagInteractiveMode),
-		cli.NewFlag("release", &flagRestart).SetAliases("r").
-			SetUsage(green("Optional, release version to install, default is the latest")),
+		cli.NewFlag("r", &flagRestart),
 		cli.NewFlag("reindex", &flagReIndex),
 		cli.NewFlag("ip", &flagNodeExtIP).
 			SetUsage(green("WAN address of the host")).SetRequired(),
@@ -750,6 +745,12 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 		flagMasterNodeIsTestNet = true
 	}
 
+	remotePastelUtilityDir := config.RemotePastelUtilityDir
+	fmt.Println(config)
+	if len(remotePastelUtilityDir) == 0 {
+		return errNotFoundRemotePastelUtilityDir
+	}
+
 	log.WithContext(ctx).Info("Checking parameters...")
 	if err := checkStartMasterNodeParams(ctx, config); err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("Checking parameters occurs error -> %s", err))
@@ -1002,49 +1003,53 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Configuring supernode was finished")
 	log.WithContext(ctx).Info("Start supernode")
 
-	var remoteWorkDirPath = config.RemoteWorkingDir
-	if len(remoteWorkDirPath) == 0 {
-		return errNotFoundRemoteWorkingDir
-	}
-
-	var remotePastelUtilityDir = config.RemotePastelUtilityDir
-	if len(remotePastelUtilityDir) == 0 {
-		return errNotFoundRemotePastelUtilityDir
-	}
-
-	var remoteSuperNodePath = filepath.Join(remoteWorkDirPath, "supernode")
-
-	var remoteSuperNodeConfigFilePath = filepath.Join(remoteSuperNodePath, "supernode.yml")
-
 	client, err := utils.DialWithPasswd(fmt.Sprintf("%s:%d", flagMasterNodeSSHIP, flagMasterNodeSSHPort), username, password)
 	if err != nil {
 		return err
 	}
 
-	osType, err := client.Cmd(fmt.Sprintf("%s/./pastel-utility info --os-version", remotePastelUtilityDir)).Output()
+	remotePastelUtilityExec := filepath.Join(remotePastelUtilityDir, "pastel-utility")
+	remotePastelUtilityExec = strings.ReplaceAll(remotePastelUtilityExec, "\\", "/")
+	fmt.Println("remotePastelExec:", remotePastelUtilityExec)
+	osType, err := client.Cmd(fmt.Sprintf("%s info --os-version", remotePastelUtilityExec)).Output()
 	if err != nil {
+		fmt.Printf("%s info --os-version\n", remotePastelUtilityExec)
+		fmt.Println("osType err")
 		return err
 	}
+	fmt.Println(osType)
 
-	if string(osType) == "Linux" {
+	remoteWorkDirPath, err := client.Cmd(fmt.Sprintf("%s info --work-dir", remotePastelUtilityExec)).Output()
+	if err != nil {
+		fmt.Println("remoteWorkDirPath err")
 
-		remoteSuperNodeConfigFilePath = strings.ReplaceAll(remoteSuperNodeConfigFilePath, "\\", "/")
-		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName[constants.Linux])
-		remoteWorkDirPath = strings.ReplaceAll(remoteWorkDirPath, "\\", "/")
-
-		client.Cmd(fmt.Sprintf("rm %s", remoteSuperNodeConfigFilePath)).Run()
-
+		return err
 	}
+	fmt.Println(remoteWorkDirPath)
 
-	if string(osType) == "Windows" {
+	remotePastelExecPath, err := client.Cmd(fmt.Sprintf("%s info --exec-dir", remotePastelUtilityExec)).Output()
+	if err != nil {
+		fmt.Println("remotePastelExecPath err")
 
-		remoteSuperNodeConfigFilePath = strings.ReplaceAll(remoteSuperNodeConfigFilePath, "/", "\\")
-		remoteWorkDirPath = filepath.Join(remoteWorkDirPath, constants.PastelSuperNodeExecName[constants.Windows])
-		remoteWorkDirPath = strings.ReplaceAll(remoteWorkDirPath, "/", "\\")
-
-		client.Cmd(fmt.Sprintf("del %s", remoteSuperNodeConfigFilePath)).Run()
-
+		return err
 	}
+	fmt.Println(remotePastelExecPath)
+
+	remoteSuperNodePath := filepath.Join(string(remoteWorkDirPath), "supernode")
+
+	fmt.Println("remoteSuperNodePath:", remoteSuperNodePath)
+
+	var remoteSuperNodeConfigFilePath = filepath.Join(remoteSuperNodePath, "supernode.yml")
+	var remoteSupernodeExecFile string
+
+	remoteSuperNodeConfigFilePath = strings.ReplaceAll(remoteSuperNodeConfigFilePath, "\\", "/")
+	remoteSupernodeExecFile = filepath.Join(string(remotePastelExecPath), constants.PastelSuperNodeExecName[constants.Linux])
+	remoteSupernodeExecFile = strings.ReplaceAll(remoteSupernodeExecFile, "\\", "/")
+
+	fmt.Println("remoteSuperNodeConfigFilePath:", remoteSuperNodeConfigFilePath)
+	fmt.Println("remoteSupernodeExecFile:", remoteSupernodeExecFile)
+
+	client.Cmd(fmt.Sprintf("rm %s", remoteSuperNodeConfigFilePath)).Run()
 
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine1, remoteSuperNodeConfigFilePath)).Run()
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine2, remoteSuperNodeConfigFilePath)).Run()
@@ -1063,9 +1068,9 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 
 	time.Sleep(5000 * time.Millisecond)
 
-	log.WithContext(ctx).Infof("Start supernode command : %s", fmt.Sprintf("%s %s", filepath.Join(remoteWorkDirPath), fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath)))
+	log.WithContext(ctx).Infof("Start supernode command : %s", fmt.Sprintf("%s %s", filepath.Join(remoteSupernodeExecFile), fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath)))
 
-	go client.Cmd(fmt.Sprintf("%s %s", remoteWorkDirPath, fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath))).Run()
+	go client.Cmd(fmt.Sprintf("%s %s", remoteSupernodeExecFile, fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath))).Run()
 
 	defer client.Close()
 

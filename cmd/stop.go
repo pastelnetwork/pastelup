@@ -13,16 +13,12 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 func setupStopCommand() *cli.Command {
 	config := configs.GetConfig()
-
-	defaultWorkingDir := configurer.DefaultWorkingDir()
-	defaultExecutableDir := configurer.DefaultPastelExecutableDir()
 
 	stopCommand := cli.NewCommand("stop")
 	stopCommand.SetUsage("usage")
@@ -38,9 +34,9 @@ func setupStopCommand() *cli.Command {
 	})
 	nodeFlags := []*cli.Flag{
 		cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-			SetUsage(green("Location where to create pastel node directory")).SetValue(defaultExecutableDir),
+			SetUsage(green("Location where to create pastel node directory")).SetValue(config.PastelExecDir),
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-			SetUsage(green("Location where to create working directory")).SetValue(defaultWorkingDir),
+			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
 	}
 	allSubCommand.AddFlags(nodeFlags...)
 

@@ -5,6 +5,8 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/rand"
@@ -390,4 +392,31 @@ func Contains(s []string, e string) bool {
 		}
 	}
 	return false
+}
+
+// GetChecksum gets the checksum of file
+func GetChecksum(ctx context.Context, fileName string) (checksum string, err error) {
+	checkSum := ""
+	_, err = os.Stat(fileName)
+	if err == nil {
+		f, err := os.Open(fileName)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("File is missing: %s\n", fileName)
+			return "", err
+		}
+		defer f.Close()
+
+		hasher := sha256.New()
+		if _, err := io.Copy(hasher, f); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", fileName)
+			return "", err
+		}
+
+		checkSum = hex.EncodeToString(hasher.Sum(nil))
+	} else {
+		log.WithContext(ctx).WithError(err).Errorf("File is missing: %s\n", fileName)
+		return "", err
+	}
+
+	return checkSum, nil
 }

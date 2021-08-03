@@ -24,18 +24,18 @@ var (
 	sshKey  string
 )
 
-type InstallCommand uint8
+type installCommand uint8
 
 const (
-	nodeInstall InstallCommand = iota
+	nodeInstall installCommand = iota
 	walletInstall
 	superNodeInstall
 	remoteInstall
-	highLevel
+	//highLevel
 )
 
 func setupSubCommand(config *configs.Config,
-	installCommand InstallCommand,
+	installCommand installCommand,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 

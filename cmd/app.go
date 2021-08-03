@@ -34,7 +34,7 @@ func NewApp() *cli.App {
 	app.HideHelp = false
 	app.HideHelpCommand = false
 	app.AddCommands(
-		//setupInitCommand(),
+		setupInitCommand(),
 		setupInstallCommand(),
 		setupStartCommand(),
 		setupStopCommand(),

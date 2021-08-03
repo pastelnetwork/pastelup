@@ -21,10 +21,11 @@ import (
 var (
 	sshIP   string
 	sshPort int
-	sshKey string
+	sshKey  string
 )
 
 type InstallCommand uint8
+
 const (
 	nodeInstall InstallCommand = iota
 	walletInstall
@@ -34,10 +35,9 @@ const (
 )
 
 func setupSubCommand(config *configs.Config,
-					 installCommand InstallCommand,
-					 f func(context.Context, *configs.Config) error,
-					) *cli.Command {
-
+	installCommand InstallCommand,
+	f func(context.Context, *configs.Config) error,
+) *cli.Command {
 
 	defaultWorkingDir := configurer.DefaultWorkingDir()
 	defaultExecutableDir := configurer.DefaultPastelExecutableDir()
@@ -114,7 +114,6 @@ func setupSubCommand(config *configs.Config,
 		}
 	}
 
-
 	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))
 	subCommand.AddFlags(commandFlags...)
@@ -146,7 +145,6 @@ func setupSubCommand(config *configs.Config,
 
 func setupInstallCommand() *cli.Command {
 	config := configs.GetConfig()
-
 
 	installNodeSubCommand := setupSubCommand(config, nodeInstall, runInstallNodeSubCommand)
 	installWalletSubCommand := setupSubCommand(config, walletInstall, runInstallWalletSubCommand)
@@ -239,7 +237,6 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) (er
 	if _, err = initNodeDownloadPath(ctx, config, config.PastelExecDir); err != nil {
 		return err
 	}
-
 
 	var PastelWalletDonwloadURL string
 

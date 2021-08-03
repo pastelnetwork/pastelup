@@ -61,6 +61,8 @@ Add peers to connect Pastel blockchain.
 Specifies `walletnode` executable directory. By default [default_exec_dir](#default_exec_dir).
 ##### --force
 Replace all directory and files. By default `false`.
+##### --check-and-force
+Check the `walletnode` install path and install walletnode --force, if not install.
 
 ### CLI Install supernode command options
 `pastel-utility` supports the following CLI parameters:
@@ -69,8 +71,6 @@ Replace all directory and files. By default `false`.
 Specifies `supernode` executable directory. By default [default_exec_dir](#default_exec_dir).
 ##### --force
 Replace all directory and files. By default `false`.
-##### --check-and-force
-Check the `walletnode` install path and install walletnode --force, if not install.
 
 ## Stop
 Command [stop](#stop) stops Pastel network services

@@ -21,215 +21,147 @@ import (
 var (
 	sshIP   string
 	sshPort int
+	sshKey string
 )
 
-func setupInstallCommand() *cli.Command {
-	config := configs.GetConfig()
+type InstallCommand uint8
+const (
+	nodeInstall InstallCommand = iota
+	walletInstall
+	superNodeInstall
+	remoteInstall
+	highLevel
+)
+
+func setupSubCommand(config *configs.Config,
+					 installCommand InstallCommand,
+					 f func(context.Context, *configs.Config) error,
+					) *cli.Command {
+
 
 	defaultWorkingDir := configurer.DefaultWorkingDir()
 	defaultExecutableDir := configurer.DefaultPastelExecutableDir()
 
-	installCommand := cli.NewCommand("install")
-	installCommand.SetUsage("usage")
-
-	installNodeSubCommand := cli.NewCommand("node")
-	installNodeSubCommand.SetUsage(cyan("Install node"))
-
-	installNodeFlags := []*cli.Flag{
-		cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-			SetUsage(green("Location where to create pastel node directory")).SetValue(defaultExecutableDir),
-		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-			SetUsage(green("Location where to create working directory")).SetValue(defaultWorkingDir),
+	commonFlags := []*cli.Flag{
 		cli.NewFlag("force", &config.Force).SetAliases("f").
-			SetUsage(green("Force to overwrite config files and re-download ZKSnark parameters")),
+			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
 		cli.NewFlag("peers", &config.Peers).SetAliases("p").
-			SetUsage(green("List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
-		cli.NewFlag("release", &config.Version).SetAliases("r").SetValue("latest"),
+			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
+		cli.NewFlag("release", &config.Version).SetAliases("r").
+			SetUsage(green("Optional, Pastel version to install")).SetValue("latest"),
 	}
-	installNodeSubCommand.AddFlags(installNodeFlags...)
 
-	installNodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx, err := configureLogging(ctx, "Install Node", config)
-		if err != nil {
-			return err
+	var dirsFlags []*cli.Flag
+
+	if installCommand != remoteInstall {
+		dirsFlags = []*cli.Flag{
+			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
+				SetUsage(green("Optional, Location where to create pastel node directory")).SetValue(defaultExecutableDir),
+			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+				SetUsage(green("Optional, Location where to create working directory")).SetValue(defaultWorkingDir),
 		}
-
-		if utils.GetOS() == constants.Linux {
-			installPackages()
+	} else {
+		dirsFlags = []*cli.Flag{
+			cli.NewFlag("dir", &config.RemotePastelExecDir).SetAliases("d").
+				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
+			cli.NewFlag("work-dir", &config.RemoteWorkingDir).SetAliases("w").
+				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/pastel-utility)")),
 		}
-
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		sys.RegisterInterruptHandler(cancel, func() {
-			log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
-			os.Exit(0)
-		})
-		return runInstallNodeSubCommand(ctx, config)
-	})
-
-	installWalletSubCommand := cli.NewCommand("walletnode")
-	installWalletSubCommand.SetUsage(cyan("Install walletnode"))
-	installWalletSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx, err := configureLogging(ctx, "Install walletnode", config)
-		if err != nil {
-			return err
-		}
-
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		sys.RegisterInterruptHandler(cancel, func() {
-			log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
-			os.Exit(0)
-		})
-		return runInstallWalletSubCommand(ctx, config)
-	})
-
-	installWalletFlags := []*cli.Flag{
-		cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-			SetUsage(green("Location where to create pastel node directory")).SetValue(defaultExecutableDir),
-		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-			SetUsage(green("Location where to create working directory")).SetValue(defaultWorkingDir),
-		cli.NewFlag("force", &config.Force).SetAliases("f").
-			SetUsage(green("Force to overwrite config files and re-download ZKSnark parameters")),
-		cli.NewFlag("peers", &config.Peers).SetAliases("p").
-			SetUsage(green("List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
-		cli.NewFlag("release", &config.Version).SetAliases("r").SetValue("latest"),
 	}
-	installWalletSubCommand.AddFlags(installWalletFlags...)
 
-	installSuperNodeSubCommand := cli.NewCommand("supernode")
-	installSuperNodeSubCommand.SetUsage(cyan("Install supernode"))
-	installSuperNodeSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx, err := configureLogging(ctx, "Install supernode", config)
-		if err != nil {
-			return err
-		}
-
-		if utils.GetOS() == constants.Linux {
-			installPackages()
-		}
-
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		sys.RegisterInterruptHandler(cancel, func() {
-			log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
-			os.Exit(0)
-		})
-
-		return runInstallSuperNodeSubCommand(ctx, config)
-	})
-	installSuperNodeFlags := []*cli.Flag{
-		cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-			SetUsage(green("Location where to create pastel node directory")).SetValue(defaultExecutableDir),
-		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-			SetUsage(green("Location where to create working directory")).SetValue(defaultWorkingDir),
-		cli.NewFlag("force", &config.Force).SetAliases("f").
-			SetUsage(green("Force to overwrite config files and re-download ZKSnark parameters")),
-		cli.NewFlag("peers", &config.Peers).SetAliases("p").
-			SetUsage(green("List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
-		cli.NewFlag("release", &config.Version).SetAliases("r").SetValue("latest"),
-	}
-	installSuperNodeSubCommand.AddFlags(installSuperNodeFlags...)
-
-	installSuperNodeRemoteSubCommand := cli.NewCommand("remote")
-	installSuperNodeRemoteSubCommand.SetUsage(cyan("Install supernode remote"))
-	installSuperNodeRemoteSubCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx, err := configureLogging(ctx, "Install supernode remote", config)
-		if err != nil {
-			return err
-		}
-
-		if utils.GetOS() == constants.Linux {
-			installPackages()
-		}
-
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		sys.RegisterInterruptHandler(cancel, func() {
-			log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
-			os.Exit(0)
-		})
-
-		return runInstallSuperNodeRemoteSubCommand(ctx, config)
-	})
-	installSuperNodeRemoteFlags := []*cli.Flag{
-		cli.NewFlag("dir", &config.RemotePastelExecDir).SetAliases("d").
-			SetUsage(green("Location where to create pastel node directory")),
-		cli.NewFlag("work-dir", &config.RemoteWorkingDir).SetAliases("w").
-			SetUsage(green("Location where to create working directory")),
-		cli.NewFlag("force", &config.Force).SetAliases("f").
-			SetUsage(green("Force to overwrite config files and re-download ZKSnark parameters")),
-		cli.NewFlag("release", &config.Version).SetAliases("r").SetValue("latest"),
-		cli.NewFlag("ssh-ip", &sshIP).SetUsage(green("Required,IP address - Required, SSH address of the remote host")).SetRequired(),
-		cli.NewFlag("ssh-port", &sshPort).SetUsage(green("port - Optional, SSH port of the remote host, default is 22")).SetValue(22),
+	remoteFlags := []*cli.Flag{
+		cli.NewFlag("ssh-ip", &sshIP).
+			SetUsage(yellow("Required, SSH address of the remote host")).SetRequired(),
+		cli.NewFlag("ssh-port", &sshPort).
+			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
+		cli.NewFlag("ssh-key", &sshKey).
+			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
-			SetUsage(green("Required, Location where to create pastel-utility directory")).SetRequired(),
-		cli.NewFlag("peers", &config.Peers).SetAliases("p").
-			SetUsage(green("Required,List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")).SetRequired(),
+			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
 	}
-	installSuperNodeRemoteSubCommand.AddFlags(installSuperNodeRemoteFlags...)
 
+	var commandName, commandMessage string
+	var commandFlags []*cli.Flag
+
+	switch installCommand {
+	case nodeInstall:
+		{
+			commandFlags = append(dirsFlags, commonFlags[:]...)
+			commandName = "node"
+			commandMessage = "Install node"
+		}
+	case walletInstall:
+		{
+			commandFlags = append(dirsFlags, commonFlags[:]...)
+			commandName = "walletnode"
+			commandMessage = "Install walletnode"
+		}
+	case superNodeInstall:
+		{
+			commandFlags = append(dirsFlags, commonFlags[:]...)
+			commandName = "supernode"
+			commandMessage = "Install supernode"
+		}
+	case remoteInstall:
+		{
+			commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
+			commandName = "remote"
+			commandMessage = "Install supernode remote"
+		}
+	default:
+		{
+			commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
+		}
+	}
+
+
+	subCommand := cli.NewCommand(commandName)
+	subCommand.SetUsage(cyan(commandMessage))
+	subCommand.AddFlags(commandFlags...)
+	if f != nil {
+		subCommand.SetActionFunc(func(ctx context.Context, args []string) error {
+			ctx, err := configureLogging(ctx, commandMessage, config)
+			if err != nil {
+				return err
+			}
+
+			if installCommand != remoteInstall {
+				if utils.GetOS() == constants.Linux {
+					installPackages()
+				}
+			}
+
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			sys.RegisterInterruptHandler(cancel, func() {
+				log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
+				os.Exit(0)
+			})
+			return f(ctx, config)
+		})
+	}
+	return subCommand
+}
+
+func setupInstallCommand() *cli.Command {
+	config := configs.GetConfig()
+
+
+	installNodeSubCommand := setupSubCommand(config, nodeInstall, runInstallNodeSubCommand)
+	installWalletSubCommand := setupSubCommand(config, walletInstall, runInstallWalletSubCommand)
+	installSuperNodeSubCommand := setupSubCommand(config, superNodeInstall, runInstallSuperNodeSubCommand)
+	installSuperNodeRemoteSubCommand := setupSubCommand(config, remoteInstall, runInstallSuperNodeRemoteSubCommand)
 	installSuperNodeSubCommand.AddSubcommands(installSuperNodeRemoteSubCommand)
 
+	installCommand := cli.NewCommand("install")
+	installCommand.SetUsage("Performs installation and initialization of the system for both WalletNode and SuperNodes")
 	installCommand.AddSubcommands(installNodeSubCommand)
 	installCommand.AddSubcommands(installWalletSubCommand)
 	installCommand.AddSubcommands(installSuperNodeSubCommand)
+	//installCommand := setupSubCommand(config, highLevel, nil)
 
-	installFlags := []*cli.Flag{
-		cli.NewFlag("dir", &config.RemotePastelExecDir).SetAliases("d").
-			SetUsage(green("Optional, location where to create pastel node directory")),
-		cli.NewFlag("work-dir", &config.RemoteWorkingDir).SetAliases("w").
-			SetUsage(green("Optional, location where to create working directory")),
-		cli.NewFlag("force", &config.Force).SetAliases("f").
-			SetUsage(green("Optional, force to overwrite config files and re-download ZKSnark parameters")),
-		cli.NewFlag("peers", &config.Peers).SetAliases("p").
-			SetUsage(green("Optional, list of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
-		cli.NewFlag("release", &config.Version).
-			SetUsage(green("Optional, release version to install")).SetAliases("r").SetValue("latest"),
-		cli.NewFlag("ssh-ip", &sshIP).SetUsage(yellow("Supernode specific : IP address - Required , SSH address of the remote host")).SetRequired(),
-		cli.NewFlag("ssh-port", &sshPort).SetUsage(yellow("Supernode specific : Optional, SSH port of the remote host, default is 22")).SetValue(22),
-		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
-			SetUsage(yellow("Supernode specific : Required, Location where to create pastel-utility directory")).SetRequired(),
-	}
-	installCommand.AddFlags(installFlags...)
-
-	installCommand.SetActionFunc(func(ctx context.Context, args []string) error {
-		ctx, err := configureLogging(ctx, "installcommand", config)
-		if err != nil {
-			return err
-		}
-
-		return runInstall(ctx, config)
-	})
 	return installCommand
-}
-
-func runInstall(ctx context.Context, config *configs.Config) error {
-	log.WithContext(ctx).Info("Install")
-	defer log.WithContext(ctx).Info("End")
-
-	configJSON, err := config.String()
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Infof("Config: %s", configJSON)
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	sys.RegisterInterruptHandler(cancel, func() {
-		log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
-		os.Exit(0)
-	})
-
-	// actions to run goes here
-
-	return nil
-
 }
 
 func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
@@ -307,6 +239,7 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) (er
 	if _, err = initNodeDownloadPath(ctx, config, config.PastelExecDir); err != nil {
 		return err
 	}
+
 
 	var PastelWalletDonwloadURL string
 
@@ -412,117 +345,6 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) (er
 	}
 
 	log.WithContext(ctx).Info("Wallet node install was finished successfully")
-
-	return nil
-}
-
-func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	if len(sshIP) == 0 {
-		return fmt.Errorf("--ssh-ip IP address - Required, SSH address of the remote host")
-	}
-
-	if len(config.RemotePastelUtilityDir) == 0 {
-		return fmt.Errorf("--ssh-dir RemotePastelUtilityDir - Required, pastel-utility path of the remote host")
-	}
-
-	if len(config.Peers) == 0 {
-		return fmt.Errorf("--peers - Required, list of peers to add into pastel.conf file, must be in the format - “ip” or “ip:port")
-	}
-
-	log.WithContext(ctx).Info("Start install supernode on remote")
-	defer log.WithContext(ctx).Info("End install supernode on remote")
-	if err = InitializeFunc(ctx, config); err != nil {
-		return err
-	}
-
-	username, password, _ := credentials()
-
-	log.WithContext(ctx).Infof("Connecting to SSH Hot node wallet -> %s:%d...", flagMasterNodeSSHIP, flagMasterNodeSSHPort)
-	client, err := utils.DialWithPasswd(fmt.Sprintf("%s:%d", sshIP, sshPort), username, password)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	log.WithContext(ctx).Info("Connected successfully")
-
-	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
-	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
-
-	_, err = client.Cmd(fmt.Sprintf("rm -r -f %s", pastelUtilityPath)).Output()
-	if err != nil {
-		fmt.Println("rm Err")
-		fmt.Println(err.Error())
-		return err
-	}
-	log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
-	_, err = client.Cmd(fmt.Sprintf("wget -O /%s https://github.com/pastelnetwork/pastel-utility/releases/download/v0.5.8/pastel-utility-linux-amd64", pastelUtilityPath)).Output()
-	fmt.Printf("wget -O /%s  https://github.com/pastelnetwork/pastel-utility/releases/download/v0.5.8/pastel-utility-linux-amd64\n", pastelUtilityPath)
-	if err != nil {
-		fmt.Println("download Err")
-		fmt.Println(err.Error())
-		return err
-	}
-	log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
-
-	log.WithContext(ctx).Info(fmt.Sprintf("Downloading  %s...", pastelUtilityPath))
-
-	_, err = client.Cmd(fmt.Sprintf("chmod 777 /%s", pastelUtilityPath)).Output()
-	if err != nil {
-		fmt.Printf("chmod 777 /%s\n", pastelUtilityPath)
-		fmt.Println("chmod Err")
-		fmt.Println(err.Error())
-		return err
-	}
-
-	_, err = client.Cmd(fmt.Sprintf("%s stop supernode ", pastelUtilityPath)).Output()
-	if err != nil {
-		fmt.Println("Stop supernode Err1")
-	}
-
-	log.WithContext(ctx).Info("Installing Supernode ...")
-
-	fmt.Println(pastelUtilityPath)
-	if len(config.RemotePastelExecDir) > 0 && len(config.RemoteWorkingDir) > 0 {
-		_, err = client.Cmd(fmt.Sprintf("/%s install supernode --dir=%s –work-dir=%s --force --peers=%s", pastelUtilityPath, config.RemotePastelExecDir, config.RemoteWorkingDir, config.Peers)).Output()
-		if err != nil {
-			fmt.Println("install supernode Err1")
-			fmt.Println(err.Error())
-			return err
-		}
-
-	} else if len(config.RemotePastelExecDir) > 0 && len(config.RemoteWorkingDir) == 0 {
-		_, err = client.Cmd(fmt.Sprintf("/%s install supernode --dir=%s --force --peers=%s", pastelUtilityPath, config.RemotePastelExecDir, config.Peers)).Output()
-		if err != nil {
-			fmt.Println("install supernode Err2")
-			fmt.Println(err.Error())
-			return err
-		}
-	} else if len(config.RemoteWorkingDir) > 0 && len(config.RemotePastelExecDir) == 0 {
-		_, err = client.Cmd(fmt.Sprintf("/%s install supernode –work-dir=%s --force --peers=%s", pastelUtilityPath, config.RemoteWorkingDir, config.Peers)).Output()
-		if err != nil {
-			fmt.Println("install supernode Err3")
-			fmt.Println(err.Error())
-			return err
-		}
-	} else {
-		_, err = client.Cmd(fmt.Sprintf("/%s install supernode --force --peers=%s", pastelUtilityPath, config.Peers)).Output()
-		if err != nil {
-			fmt.Printf("%s install supernode --force --peers=%s\n", pastelUtilityPath, config.Peers)
-			fmt.Println("install supernode Err4")
-			fmt.Println(err.Error())
-			return err
-		}
-	}
-
-	if utils.GetOS() == constants.Linux {
-		err = installChrome(ctx, config)
-		if err != nil {
-			return err
-		}
-	}
-
-	log.WithContext(ctx).Info("Finished Install Supernode successfully")
 
 	return nil
 }
@@ -685,6 +507,123 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 	}
 
 	log.WithContext(ctx).Info("Supernode install was finished successfully")
+
+	return nil
+}
+
+func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	if len(sshIP) == 0 {
+		return fmt.Errorf("--ssh-ip IP address - Required, SSH address of the remote host")
+	}
+
+	if len(config.RemotePastelUtilityDir) == 0 {
+		return fmt.Errorf("--ssh-dir RemotePastelUtilityDir - Required, pastel-utility path of the remote host")
+	}
+
+	//if len(config.Peers) == 0 {
+	//	return fmt.Errorf("--peers - Required, list of peers to add into pastel.conf file, must be in the format - “ip” or “ip:port")
+	//}
+
+	log.WithContext(ctx).Info("Start install supernode on remote")
+	defer log.WithContext(ctx).Info("End install supernode on remote")
+	if err = InitializeFunc(ctx, config); err != nil {
+		return err
+	}
+
+	var client *utils.Client
+	log.WithContext(ctx).Infof("Connecting to SSH Hot node wallet -> %s:%d...", sshIP, sshPort)
+	if len(sshKey) == 0 {
+		username, password, _ := credentials(true)
+		client, err = utils.DialWithPasswd(fmt.Sprintf("%s:%d", sshIP, sshPort), username, password)
+	} else {
+		username, _, _ := credentials(false)
+		client, err = utils.DialWithKey(fmt.Sprintf("%s:%d", sshIP, sshPort), username, sshKey)
+	}
+	if err != nil {
+		return err
+	}
+
+	defer client.Close()
+
+	log.WithContext(ctx).Info("Connected successfully")
+
+	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
+	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
+
+	_, err = client.Cmd(fmt.Sprintf("rm -r -f %s", pastelUtilityPath)).Output()
+	if err != nil {
+		fmt.Println("rm Err")
+		fmt.Println(err.Error())
+		return err
+	}
+	log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
+	_, err = client.Cmd(fmt.Sprintf("wget -O %s https://github.com/pastelnetwork/pastel-utility/releases/download/v0.5.8/pastel-utility-linux-amd64", pastelUtilityPath)).Output()
+	fmt.Printf("wget -O %s  https://github.com/pastelnetwork/pastel-utility/releases/download/v0.5.8/pastel-utility-linux-amd64\n", pastelUtilityPath)
+	if err != nil {
+		fmt.Println("download Err")
+		fmt.Println(err.Error())
+		return err
+	}
+	log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
+
+	log.WithContext(ctx).Info(fmt.Sprintf("Downloading  %s...", pastelUtilityPath))
+
+	_, err = client.Cmd(fmt.Sprintf("chmod 777 /%s", pastelUtilityPath)).Output()
+	if err != nil {
+		fmt.Printf("chmod 777 /%s\n", pastelUtilityPath)
+		fmt.Println("chmod Err")
+		fmt.Println(err.Error())
+		return err
+	}
+
+	_, err = client.Cmd(fmt.Sprintf("%s stop supernode ", pastelUtilityPath)).Output()
+	if err != nil {
+		fmt.Println("Stop supernode Err1")
+	}
+
+	log.WithContext(ctx).Info("Installing Supernode ...")
+
+	fmt.Println(pastelUtilityPath)
+	if len(config.RemotePastelExecDir) > 0 && len(config.RemoteWorkingDir) > 0 {
+		_, err = client.Cmd(fmt.Sprintf("/%s install supernode --dir=%s –work-dir=%s --force --peers=%s", pastelUtilityPath, config.RemotePastelExecDir, config.RemoteWorkingDir, config.Peers)).Output()
+		if err != nil {
+			fmt.Println("install supernode Err1")
+			fmt.Println(err.Error())
+			return err
+		}
+
+	} else if len(config.RemotePastelExecDir) > 0 && len(config.RemoteWorkingDir) == 0 {
+		_, err = client.Cmd(fmt.Sprintf("/%s install supernode --dir=%s --force --peers=%s", pastelUtilityPath, config.RemotePastelExecDir, config.Peers)).Output()
+		if err != nil {
+			fmt.Println("install supernode Err2")
+			fmt.Println(err.Error())
+			return err
+		}
+	} else if len(config.RemoteWorkingDir) > 0 && len(config.RemotePastelExecDir) == 0 {
+		_, err = client.Cmd(fmt.Sprintf("/%s install supernode –work-dir=%s --force --peers=%s", pastelUtilityPath, config.RemoteWorkingDir, config.Peers)).Output()
+		if err != nil {
+			fmt.Println("install supernode Err3")
+			fmt.Println(err.Error())
+			return err
+		}
+	} else {
+		_, err = client.Cmd(fmt.Sprintf("/%s install supernode --force --peers=%s", pastelUtilityPath, config.Peers)).Output()
+		if err != nil {
+			fmt.Printf("%s install supernode --force --peers=%s\n", pastelUtilityPath, config.Peers)
+			fmt.Println("install supernode Err4")
+			fmt.Println(err.Error())
+			return err
+		}
+	}
+
+	if utils.GetOS() == constants.Linux {
+		err = installChrome(ctx, config)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.WithContext(ctx).Info("Finished Install Supernode successfully")
 
 	return nil
 }

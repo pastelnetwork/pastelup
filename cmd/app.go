@@ -15,7 +15,7 @@ import (
 
 const (
 	appName  = "Pastel-Utility"
-	appUsage = `This is a cli utility for Pastel Network.` // TODO: Write a clear description.
+	appUsage = `This is a tool for installation, configuration and running of Pastel network nodes both - SuperNode and WalletNode.`
 
 	// defaultConfigFile = ""
 )
@@ -34,7 +34,7 @@ func NewApp() *cli.App {
 	app.HideHelp = false
 	app.HideHelpCommand = false
 	app.AddCommands(
-		setupInitCommand(),
+		//setupInitCommand(),
 		setupInstallCommand(),
 		setupStartCommand(),
 		setupStopCommand(),

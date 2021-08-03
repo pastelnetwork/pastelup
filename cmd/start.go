@@ -924,7 +924,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// ***************  4. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
-	username, password, _ := credentials()
+	username, password, _ := credentials(true)
 
 	if err = remoteHotNodeCtrl(ctx, config, username, password); err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("%s\n", err))
@@ -1259,7 +1259,7 @@ func readstrings(comment string) (string, error) {
 	return strings.TrimSpace(line), nil
 }
 
-func credentials() (string, string, error) {
+func credentials(pwdToo bool) (string, string, error) {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Enter Username: ")
@@ -1268,13 +1268,17 @@ func credentials() (string, string, error) {
 		return "", "", err
 	}
 
-	fmt.Print("Enter Password: ")
-	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		return "", "", err
+	password := ""
+	if pwdToo {
+		fmt.Print("Enter Password: ")
+		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return "", "", err
+		}
+		fmt.Print("\n")
+		password = string(bytePassword)
 	}
-	fmt.Print("\n")
-	password := string(bytePassword)
+
 	return strings.TrimSpace(username), strings.TrimSpace(password), nil
 }
 

@@ -17,9 +17,11 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/structure"
 	"github.com/pastelnetwork/pastel-utility/utils"
+	"github.com/pkg/errors"
 
 	"golang.org/x/term"
 )
@@ -47,6 +49,9 @@ var (
 	// node flags
 	flagNodeExtIP string
 	flagReIndex   bool
+
+	// walletnode flag
+	flagCheckForce bool
 
 	// masternode flags
 	flagMasterNodeName          string
@@ -85,6 +90,8 @@ func setupStartCommand() *cli.Command {
 			SetUsage(green("Optional, location where to create working directory")).SetValue(config.WorkingDir),
 		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
+		cli.NewFlag("check-and-force", &flagCheckForce).SetAliases("cf").
+			SetUsage(green("walletnode specific: Optional, check pastel params before starting walletnode")),
 		cli.NewFlag("i", &flagInteractiveMode),
 		cli.NewFlag("r", &flagRestart),
 		cli.NewFlag("name", &flagMasterNodeName).
@@ -223,6 +230,8 @@ func setupStartCommand() *cli.Command {
 			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
 		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(green("Network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
+		cli.NewFlag("check-and-force", &flagCheckForce).SetAliases("cf").
+			SetUsage(green("Optional, check pastel params before starting walletnode")),
 	}
 	walletSubCommand.AddFlags(walletFlags...)
 
@@ -410,6 +419,22 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 	// *************  1. Start pastel node  *************
 	if _, pastelDPath, _, _, err = checkPastelInstallPath(ctx, config, ""); err != nil {
 		return errNotFoundPastelPath
+	}
+
+	if flagCheckForce {
+		// Check Pastel Param Flies
+		log.WithContext(ctx).Info("Checking pastel param files...")
+		err = checkPastelParamInstallPath(ctx, config)
+		if err != nil {
+			log.WithContext(ctx).Error("Walletnode is not installed correctly.")
+			config.Force = true
+			if err = InitializeFunc(ctx, config); err != nil {
+				return err
+			}
+
+			log.WithContext(ctx).Info("Installing Walletnode...")
+			runInstallWalletSubCommand(ctx, config)
+		}
 	}
 
 	if err = checkStartNodeParams(ctx, config); err != nil {
@@ -1717,4 +1742,29 @@ func checkPastelInstallPath(ctx context.Context, config *configs.Config, flagMod
 	}
 
 	return pastelDirPath, pasteldPath, pastelCliPath, pastelWalletNodePath, err
+}
+
+func checkPastelParamInstallPath(ctx context.Context, config *configs.Config) (err error) {
+
+	for _, zksnarkParamsName := range configs.ZksnarkParamsNames {
+		zksnarkPath := ""
+		if config.WorkingDir == configurer.DefaultWorkingDir() {
+			zksnarkPath = configurer.DefaultZksnarkDir()
+		} else {
+			zksnarkPath = filepath.Join(config.WorkingDir, "/.pastel-params/")
+		}
+		zksnarkParamsPath := filepath.Join(zksnarkPath, zksnarkParamsName)
+
+		log.WithContext(ctx).Infof(fmt.Sprintf("Checking pastel param file : %s", zksnarkParamsPath))
+		checkSum, checkSumerr := utils.GetChecksum(ctx, zksnarkParamsPath)
+		if checkSumerr != nil {
+			return checkSumerr
+		} else if checkSum != constants.PastelParamsCheckSums[zksnarkParamsName] {
+			log.WithContext(ctx).Errorf(fmt.Sprintf("Checking pastel param file : %s\n", zksnarkParamsPath))
+			return errors.Errorf(fmt.Sprintf("Checking pastel param file : %s\n", zksnarkParamsPath))
+		}
+
+	}
+
+	return nil
 }

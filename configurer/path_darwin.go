@@ -34,11 +34,7 @@ func GetDownloadPath(version string, tool constants.ToolType, architectrue const
 
 	versionSubURL := constants.GetVersionSubURL(version)
 
-	if tool == constants.RQService {
-		ret = fmt.Sprintf("%s/%s/%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "macosx", ".zip")
-	} else {
-		ret = fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "darwin", architectrue, ".zip")
-	}
+	ret = fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "darwin", architectrue, ".zip")
 
 	return ret
 }

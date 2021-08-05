@@ -33,12 +33,10 @@ func GetDownloadPath(version string, tool constants.ToolType, architectrue const
 	var ret string
 
 	versionSubURL := constants.GetVersionSubURL(version)
-	if tool == constants.PastelD {
+	if tool == constants.PastelD || tool == constants.RQService {
 		ret = fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "ubuntu20.04", architectrue, ".zip")
 	} else if tool == constants.SuperNode || tool == constants.WalletNode {
 		ret = fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "linux", architectrue, ".zip")
-	} else if tool == constants.RQService {
-		ret = fmt.Sprintf("%s/%s/%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "ubuntu20", ".zip")
 	}
 
 	return ret

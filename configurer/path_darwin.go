@@ -3,8 +3,11 @@
 package configurer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/pastelnetwork/pastel-utility/constants"
 )
 
 // DefaultWorkingDir returns the default config path for darwin OS.

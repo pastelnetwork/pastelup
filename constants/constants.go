@@ -145,9 +145,9 @@ var PortList = []string{"9933", "19933", "4444", "14444"}
 
 // PastelRQServiceArchiveName - The name of the pastel rqservice files
 var PastelRQServiceArchiveName = map[OSType]string{
-	Windows: "rq-service-win10-x64.zip",
-	Linux:   "rq-service-ubuntu20.zip",
-	Mac:     "rq-service-macosx.zip",
+	Windows: "rqservice-win-amd64.zip",
+	Linux:   "rqservice-ubuntu20.04-amd64.zip",
+	Mac:     "rqservice-darwin-amd64.zip",
 	Unknown: "",
 }
 

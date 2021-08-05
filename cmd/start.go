@@ -365,14 +365,6 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	sys.RegisterInterruptHandler(cancel, func() {
-		log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
-		os.Exit(0)
-	})
-
 	// *************  1. Start pastel node  *************
 
 	if err = checkStartNodeParams(ctx, config); err != nil {
@@ -406,9 +398,16 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 	}
 
 	// *************  2. Start rq-servce    *************
+	log.WithContext(ctx).Info("Starting rqservice")
+	if err = startRqService(ctx, config); err != nil {
+		log.WithContext(ctx).Error("The rqservice was not started!")
+		return err
+	}
+	log.WithContext(ctx).Info("The rqservice started succesfully!")
 
 	// *************  3. Start wallet node  *************
-	var workDirPath = filepath.Join(config.WorkingDir, "walletnode", "wallet.yml")
+	log.WithContext(ctx).Info("Starting walletnode")
+	workDirPath := filepath.Join(config.WorkingDir, "walletnode", "wallet.yml")
 
 	if flagInteractiveMode {
 		if flagSwagger {
@@ -431,6 +430,8 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 
 		time.Sleep(10000 * time.Millisecond)
 	}
+	log.WithContext(ctx).Info("Walletnode started succesfully!")
+
 	return nil
 }
 
@@ -659,8 +660,16 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 
 	}
 
-	// *************  6. Start supernode  **************
-	log.WithContext(ctx).Info("Start supernode")
+	// *************  6. Start rq-servce    *************
+	log.WithContext(ctx).Info("Starting rqservice")
+	if err = startRqService(ctx, config); err != nil {
+		log.WithContext(ctx).Error("The rqservice was not started!")
+		return err
+	}
+	log.WithContext(ctx).Info("The rqservice started succesfully!")
+
+	// *************  7. Start supernode  **************
+	log.WithContext(ctx).Info("Starting supernode")
 	log.WithContext(ctx).Debug("Configure supernode setting")
 
 	workDirPath := filepath.Join(config.WorkingDir, "supernode")
@@ -961,7 +970,15 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	// ***************  7. Start supernode  **************
+	// *************  7. Start rq-servce    *************
+	log.WithContext(ctx).Info("Starting rqservice")
+	if err = startRqService(ctx, config); err != nil {
+		log.WithContext(ctx).Error("The rqservice was not started!")
+		return err
+	}
+	log.WithContext(ctx).Info("The rqservice started succesfully!")
+
+	// ***************  8. Start supernode  **************
 	log.WithContext(ctx).Info("Start supernode")
 	log.WithContext(ctx).Debug("Configure supernode setting")
 
@@ -975,11 +992,6 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 
 	remotePastelUtilityExec := filepath.Join(remotePastelUtilityDir, "pastel-utility")
 	remotePastelUtilityExec = strings.ReplaceAll(remotePastelUtilityExec, "\\", "/")
-
-	_, err = client.Cmd(fmt.Sprintf("%s info --os-version", remotePastelUtilityExec)).Output()
-	if err != nil {
-		return err
-	}
 
 	remoteWorkDirPath, err := client.Cmd(fmt.Sprintf("%s info --work-dir", remotePastelUtilityExec)).Output()
 	if err != nil {
@@ -1672,6 +1684,24 @@ func checkPastelParamInstallPath(ctx context.Context, config *configs.Config) (e
 			return errors.Errorf(fmt.Sprintf("Checking pastel param file : %s\n", zksnarkParamsPath))
 		}
 
+	}
+
+	return nil
+}
+
+func startRqService(ctx context.Context, config *configs.Config) (err error) {
+	var workDirPath = filepath.Join(config.WorkingDir, "rqservice", "rqservice.toml")
+	pastelRqServicePath := filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
+
+	if flagInteractiveMode {
+		if err = RunCMDWithInteractive(pastelRqServicePath, fmt.Sprintf("--config-file=%s", workDirPath)); err != nil {
+			log.WithContext(ctx).Error("rqservice start was failed!")
+			return err
+		}
+	} else {
+		go RunCMD(pastelRqServicePath, fmt.Sprintf("--config-file=%s", workDirPath))
+
+		time.Sleep(10000 * time.Millisecond)
 	}
 
 	return nil

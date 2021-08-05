@@ -51,7 +51,7 @@ const (
 	SuperNode  ToolType = "gonode/supernode"
 	PastelD    ToolType = "pasteld/pastel"
 	DDService  ToolType = "dd-service/ddservice"
-	RQService  ToolType = "rq-service/rq-service"
+	RQService  ToolType = "rq-service/rqservice"
 )
 
 // Architecture type

@@ -278,7 +278,7 @@ func processKillWalletNode(ctx context.Context, config *configs.Config) (output 
 	}
 
 	if utils.GetOS() == constants.Windows {
-		RunCMDWithInteractive("Taskkill", "/IM", constants.PastelWalletExecName[utils.GetOS()], "/F")
+		RunCMDWithInteractive("Taskkill", "/IM", constants.WalletNodeExecName[utils.GetOS()], "/F")
 
 	} else {
 		matches, _ := filepath.Glob("/proc/*/exe")
@@ -312,14 +312,14 @@ func processKillSuperNode(ctx context.Context, config *configs.Config) (output s
 	var processID int
 	var pastelSuperNodePath string
 
-	if _, err = os.Stat(filepath.Join(config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()])); os.IsNotExist(err) {
+	if _, err = os.Stat(filepath.Join(config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()])); os.IsNotExist(err) {
 		log.WithContext(ctx).Error("could not find super node path")
 		return "", fmt.Errorf("could not find super node path")
 	}
-	pastelSuperNodePath = filepath.Join(config.PastelExecDir, constants.PastelSuperNodeExecName[utils.GetOS()])
+	pastelSuperNodePath = filepath.Join(config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()])
 
 	if utils.GetOS() == constants.Windows {
-		RunCMDWithInteractive("Taskkill", "/IM", constants.PastelWalletExecName[utils.GetOS()], "/F")
+		RunCMDWithInteractive("Taskkill", "/IM", constants.WalletNodeExecName[utils.GetOS()], "/F")
 
 	} else {
 		matches, _ := filepath.Glob("/proc/*/exe")

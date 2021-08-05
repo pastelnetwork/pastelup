@@ -58,11 +58,11 @@ func GetDownloadPath(version string, tool constants.ToolType, architectrue const
 
 	versionSubURL := constants.GetVersionSubURL(version)
 
-	if tool == constants.PastelD || if tool == constants.RQService {
+	if tool == constants.PastelD || tool == constants.RQService {
 		ret = fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "win", architectrue, ".zip")
 	} else if tool == constants.SuperNode || tool == constants.WalletNode {
 		ret = fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "windows", architectrue, ".zip")
-	} 
+	}
 
 	return ret
 }

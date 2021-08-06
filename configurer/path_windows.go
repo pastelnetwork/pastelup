@@ -16,6 +16,12 @@ const (
 	sinceVistaAppDir  = "AppData/Roaming"
 )
 
+// GetHomeDir returns the home path for Windows OS.
+func GetHomeDir() string {
+	homeDir, _ := os.UserHomeDir()
+	return homeDir
+}
+
 // DefaultWorkingDir returns the default config path for Windows OS.
 func DefaultWorkingDir() string {
 	homeDir, _ := os.UserHomeDir()

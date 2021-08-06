@@ -138,11 +138,6 @@ func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 		}
 	}
 
-	// create zksnark parameters path
-	if err := utils.CreateFolder(ctx, zksnarkPath, forceSet); err != nil {
-		return err
-	}
-
 	// create pastel.conf file
 	f, err := utils.CreateFile(ctx, workDirPath+"/pastel.conf", forceSet)
 	if err != nil {
@@ -153,6 +148,14 @@ func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 	err = updatePastelConfigFile(ctx, f, config)
 	if err != nil {
 		return err
+	}
+
+	// create zksnark parameters path
+	if err := utils.CreateFolder(ctx, zksnarkPath, forceSet); err != nil {
+		if os.IsNotExist(err) {
+			return err
+		}
+		forceSet = true
 	}
 
 	// download zksnark params

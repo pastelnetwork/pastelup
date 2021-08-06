@@ -10,6 +10,12 @@ import (
 	"github.com/pastelnetwork/pastel-utility/constants"
 )
 
+// GetHomeDir returns the home path for darwin OS.
+func GetHomeDir() string {
+	homeDir, _ := os.UserConfigDir()
+	return homeDir
+}
+
 // DefaultWorkingDir returns the default config path for darwin OS.
 func DefaultWorkingDir() string {
 	homeDir, _ := os.UserConfigDir()

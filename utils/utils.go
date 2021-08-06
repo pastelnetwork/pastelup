@@ -277,7 +277,7 @@ func Untar(dst string, r io.Reader, filenames ...string) error {
 
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
-func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
+func Unzip(src string, dest string, _ ...string) ([]string, error) {
 
 	var filenames []string
 
@@ -291,10 +291,6 @@ func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
 
 		// Store filename/path for returning and using later on
 		fpath := filepath.Join(dest, f.Name)
-
-		if !Contains(fPaths, fpath) && len(fPaths) != 0 {
-			continue
-		}
 
 		// Check for ZipSlip. More Info: http://bit.ly/2MsjAWE
 		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {

@@ -161,11 +161,27 @@ var PastelRQServiceExecName = map[OSType]string{
 
 // DupeDetectionConfigs - dupe detection path of the supernode config
 var DupeDetectionConfigs = []string{
-	"dupe_detection_je",
-	"input",
-	"output",
-	"rareness",
+	"dupe_detection_input_files",
+	"dupe_detection_support_files",
+	"dupe_detection_output_files",
+	"dupe_detection_processed_files",
+	"dupe_detection_rare_on_internet",
+	"mobilenet_v2_140_224",
 }
+
+// DupeDetectionSupportDownloadURL - The URL of dupe detection support files
+var DupeDetectionSupportDownloadURL = []string{
+	"https://download.pastel.network/machine-learning/dupe_detection_image_fingerprint_database.zip",
+	"https://download.pastel.network/machine-learning/keras_dupe_classifier.model.zip",
+	"https://download.pastel.network/machine-learning/xgboost_dupe_classifier.zip",
+	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
+}
+
+// DupeDetectionMobileNetDownloadURL - The URL of dupe detection mobile net files
+var DupeDetectionMobileNetDownloadURL = "https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip"
+
+// DupeDetectionSupportFilePath - The target path for downloading dupe detection support files
+var DupeDetectionSupportFilePath = "dupe_detection_support_files"
 
 // GetVersionSubURL returns the sub url concerned with version info
 func GetVersionSubURL(version string) string {

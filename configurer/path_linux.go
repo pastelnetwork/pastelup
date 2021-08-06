@@ -10,6 +10,12 @@ import (
 	"github.com/pastelnetwork/pastel-utility/constants"
 )
 
+// GetHomeDir returns the home path for Linux OS.
+func GetHomeDir() string {
+	homeDir, _ := os.UserHomeDir()
+	return homeDir
+}
+
 // DefaultWorkingDir returns the default config path for Linux OS.
 func DefaultWorkingDir() string {
 	homeDir, _ := os.UserHomeDir()

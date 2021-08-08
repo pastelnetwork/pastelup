@@ -599,25 +599,35 @@ func runPastelService(ctx context.Context, config *configs.Config, tool constant
 	commandName := strings.Split(string(tool), "/")[len(strings.Split(string(tool), "/"))-1]
 	log.WithContext(ctx).Infof("Starting %s", commandName)
 
+	var workDirPath, pastelServicePath string
 	switch tool {
 	case constants.RQService:
 		{
-			var workDirPath = filepath.Join(config.WorkingDir, "rqservice", "rqservice.toml")
-			pastelRqServicePath := filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
+			workDirPath = filepath.Join(config.WorkingDir, "rqservice", "rqservice.toml")
+			pastelServicePath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
 			if interactive {
-				if err = RunCMDWithInteractive(pastelRqServicePath, fmt.Sprintf("--config-file=%s", workDirPath)); err != nil {
+				if err = RunCMDWithInteractive(pastelServicePath, fmt.Sprintf("--config-file=%s", workDirPath)); err != nil {
 					log.WithContext(ctx).Error("rqservice start was failed!")
 					return err
 				}
 			} else {
-				go RunCMD(pastelRqServicePath, fmt.Sprintf("--config-file=%s", workDirPath))
+				go RunCMD(pastelServicePath, fmt.Sprintf("--config-file=%s", workDirPath))
 
 				time.Sleep(10000 * time.Millisecond)
 			}
 		}
 	}
 
-	log.WithContext(ctx).Infof("The %s started succesfully!", commandName)
+	isServiceRunning := checkServiceRunning(ctx, config, tool)
+	if isServiceRunning {
+		log.WithContext(ctx).Infof("The %s started succesfully!", commandName)
+	} else {
+		if output, err := RunCMD(pastelServicePath, fmt.Sprintf("--config-file=%s", workDirPath)); err != nil {
+			log.WithContext(ctx).Errorf("%s start was failed! : %s", commandName, output)
+			return err
+		}
+	}
+
 	return nil
 }
 func runPastelServiceRemote(ctx context.Context, config *configs.Config, tool constants.ToolType, client *utils.Client) (err error) {
@@ -1531,4 +1541,56 @@ func getMasternodeConf(ctx context.Context, config *configs.Config) (pastelid st
 		}
 	}
 	return pastelid, nil
+}
+
+func checkServiceRunning(_ context.Context, config *configs.Config, toolType constants.ToolType) bool {
+	var pID string
+	var processID int
+	execPath := ""
+	execName := ""
+	switch toolType {
+	case constants.RQService:
+		{
+			execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
+			execName = constants.PastelRQServiceExecName[utils.GetOS()]
+		}
+	default:
+		{
+			execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
+			execName = constants.PastelRQServiceExecName[utils.GetOS()]
+		}
+	}
+
+	if utils.GetOS() == constants.Windows {
+		arg := fmt.Sprintf("IMAGENAME eq %s", execName)
+		out, err := RunCMD("tasklist", "/FI", arg)
+		cnt := strings.Count(out, ",")
+		if err != nil {
+			return false
+		}
+		if strings.Contains(out, "No tasks") || cnt == 2 {
+			return false
+		}
+
+	} else {
+		matches, _ := filepath.Glob("/proc/*/exe")
+		for _, file := range matches {
+			target, _ := os.Readlink(file)
+			if len(target) > 0 {
+				if target == execPath {
+					split := strings.Split(file, "/")
+
+					pID = split[len(split)-2]
+					processID, _ = strconv.Atoi(pID)
+					_, err := os.FindProcess(processID)
+					if err != nil {
+						return false
+					}
+				}
+			}
+		}
+
+	}
+
+	return true
 }

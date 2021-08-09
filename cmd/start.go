@@ -42,6 +42,7 @@ var (
 	errNotFoundRemotePastelUtilityDir = fmt.Errorf("cannot find remote pastel-utility dir")
 	errNotFoundPastelParamPath        = fmt.Errorf("pastel param files are not correct")
 	errNotStartPasteld                = fmt.Errorf("pasteld was not started")
+	errMasternodeStartAlias           = fmt.Errorf("masternode start alias failed")
 )
 
 var (
@@ -588,7 +589,7 @@ func runStartAliasMasternode(ctx context.Context, config *configs.Config, master
 
 	if aliasStatus["result"] == "failed" {
 		log.WithContext(ctx).Error(aliasStatus["errorMessage"])
-		return err
+		return errMasternodeStartAlias
 	}
 
 	log.WithContext(ctx).Infof("masternode alias status = %s\n", output)

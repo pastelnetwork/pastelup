@@ -17,58 +17,70 @@ const (
 )
 
 // GetHomeDir returns the home path for Windows OS.
-func GetHomeDir() string {
-	homeDir, _ := os.UserHomeDir()
-	return homeDir
+func GetHomeDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return homeDir, nil
 }
 
 // DefaultWorkingDir returns the default config path for Windows OS.
-func DefaultWorkingDir() string {
-	homeDir, _ := os.UserHomeDir()
+func DefaultWorkingDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
 	appDir := beforeVistaAppDir
 
 	v, _ := syscall.GetVersion()
 	if v&0xff > 5 {
 		appDir = sinceVistaAppDir
 	}
-	return filepath.Join(homeDir, filepath.FromSlash(appDir), "Pastel")
+
+	return filepath.Join(homeDir, filepath.FromSlash(appDir), "Pastel"), nil
 }
 
 // DefaultZksnarkDir returns the default config path for Windows OS.
-func DefaultZksnarkDir() string {
-	homeDir, _ := os.UserHomeDir()
+func DefaultZksnarkDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
 	appDir := beforeVistaAppDir
 
 	v, _ := syscall.GetVersion()
 	if v&0xff > 5 {
 		appDir = sinceVistaAppDir
 	}
-	return filepath.Join(homeDir, filepath.FromSlash(appDir), "PastelParams")
+
+	return filepath.Join(homeDir, filepath.FromSlash(appDir), "PastelParams"), nil
 }
 
 // DefaultPastelExecutableDir returns the default pastel executable path for Windows OS.
-func DefaultPastelExecutableDir() string {
-	homeDir, _ := os.UserHomeDir()
+func DefaultPastelExecutableDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
 	appDir := beforeVistaAppDir
 
 	v, _ := syscall.GetVersion()
 	if v&0xff > 5 {
 		appDir = sinceVistaAppDir
 	}
-	return filepath.Join(homeDir, filepath.FromSlash(appDir), "PastelWallet")
+	return filepath.Join(homeDir, filepath.FromSlash(appDir), "PastelWallet"), nil
 }
 
 // GetDownloadPath returns download path of the pastel executables.
 func GetDownloadPath(version string, tool constants.ToolType, architectrue constants.ArchitectureType) string {
-	var ret string
 
 	versionSubURL := constants.GetVersionSubURL(version)
 
 	if tool == constants.PastelD || tool == constants.RQService {
-		ret = fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "win", architectrue, ".zip")
-	} else if tool == constants.SuperNode || tool == constants.WalletNode {
-		ret = fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "windows", architectrue, ".zip")
+		return fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "win", architectrue, ".zip")
 	}
 
-	return ret
+	return fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "windows", architectrue, ".zip")
+
 }

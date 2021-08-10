@@ -41,8 +41,14 @@ func setupSubCommand(config *configs.Config,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 
-	defaultWorkingDir := configurer.DefaultWorkingDir()
-	defaultExecutableDir := configurer.DefaultPastelExecutableDir()
+	var defaultWorkingDir, defaultExecutableDir string
+	var err error
+	if defaultWorkingDir, err = configurer.DefaultWorkingDir(); err != nil {
+		return nil
+	}
+	if defaultExecutableDir, err = configurer.DefaultPastelExecutableDir(); err != nil {
+		return nil
+	}
 
 	commonFlags := []*cli.Flag{
 		cli.NewFlag("force", &config.Force).SetAliases("f").
@@ -84,7 +90,7 @@ func setupSubCommand(config *configs.Config,
 
 	dupeFlags := []*cli.Flag{
 		cli.NewFlag("force", &config.Force).SetAliases("f").
-			SetUsage(green("Optional, Force to overwrite config files and python dependencies.")),
+			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
 	}
 
 	var commandName, commandMessage string
@@ -92,39 +98,27 @@ func setupSubCommand(config *configs.Config,
 
 	switch installCommand {
 	case nodeInstall:
-		{
-			commandFlags = append(dirsFlags, commonFlags[:]...)
-			commandName = "node"
-			commandMessage = "Install node"
-		}
+		commandFlags = append(dirsFlags, commonFlags[:]...)
+		commandName = "node"
+		commandMessage = "Install node"
 	case walletInstall:
-		{
-			commandFlags = append(dirsFlags, commonFlags[:]...)
-			commandName = "walletnode"
-			commandMessage = "Install walletnode"
-		}
+		commandFlags = append(dirsFlags, commonFlags[:]...)
+		commandName = "walletnode"
+		commandMessage = "Install walletnode"
 	case superNodeInstall:
-		{
-			commandFlags = append(dirsFlags, commonFlags[:]...)
-			commandName = "supernode"
-			commandMessage = "Install supernode"
-		}
+		commandFlags = append(dirsFlags, commonFlags[:]...)
+		commandName = "supernode"
+		commandMessage = "Install supernode"
 	case remoteInstall:
-		{
-			commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
-			commandName = "remote"
-			commandMessage = "Install supernode remote"
-		}
+		commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
+		commandName = "remote"
+		commandMessage = "Install supernode remote"
 	case dupedetectionInstall:
-		{
-			commandFlags = dupeFlags
-			commandName = "dupedetection"
-			commandMessage = "Install dupedetection"
-		}
+		commandFlags = dupeFlags
+		commandName = "dupedetection"
+		commandMessage = "Install dupedetection"
 	default:
-		{
-			commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
-		}
+		commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
 	}
 
 	subCommand := cli.NewCommand(commandName)
@@ -340,52 +334,46 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 
 	switch installCommand {
 	case constants.PastelD:
-		{
-			if err = installComponent(ctx, config, constants.PastelD, config.Version); err != nil {
-				return err
-			}
+		if err = installComponent(ctx, config, constants.PastelD, config.Version); err != nil {
+			return err
 		}
 	case constants.WalletNode:
-		{
-			if err = installComponent(ctx, config, constants.PastelD, "latest"); err != nil {
-				return err
-			}
+		if err = installComponent(ctx, config, constants.PastelD, "latest"); err != nil {
+			return err
+		}
 
-			if err = installComponent(ctx, config, constants.WalletNode, config.Version); err != nil {
-				return err
-			}
+		if err = installComponent(ctx, config, constants.WalletNode, config.Version); err != nil {
+			return err
+		}
 
-			if err = installComponent(ctx, config, constants.RQService, config.Version); err != nil {
-				return err
-			}
+		if err = installComponent(ctx, config, constants.RQService, config.Version); err != nil {
+			return err
 		}
 	case constants.SuperNode:
-		{
-			if err = installComponent(ctx, config, constants.PastelD, "latest"); err != nil {
-				return err
-			}
-
-			if err = installComponent(ctx, config, constants.SuperNode, config.Version); err != nil {
-				return err
-			}
-
-			if err = installComponent(ctx, config, constants.RQService, config.Version); err != nil {
-				return err
-			}
-
-			// Open ports
-			openErr := openPort(ctx, constants.PortList)
-			if openErr != nil {
-				return openErr
-			}
-
-			log.WithContext(ctx).Info("Installing dd-service...")
-			if err = installDupeDetection(ctx, config); err != nil {
-				log.WithContext(ctx).Error("Installing dd-service executable failed")
-				return err
-			}
-			log.WithContext(ctx).Info("The dd-service Installed Successfully")
+		if err = installComponent(ctx, config, constants.PastelD, "latest"); err != nil {
+			return err
 		}
+
+		if err = installComponent(ctx, config, constants.SuperNode, config.Version); err != nil {
+			return err
+		}
+
+		if err = installComponent(ctx, config, constants.RQService, config.Version); err != nil {
+			return err
+		}
+
+		// Open ports
+		openErr := openPort(ctx, constants.PortList)
+		if openErr != nil {
+			return openErr
+		}
+
+		log.WithContext(ctx).Info("Installing dd-service...")
+		if err = installDupeDetection(ctx, config); err != nil {
+			log.WithContext(ctx).Error("Installing dd-service executable failed")
+			return err
+		}
+		log.WithContext(ctx).Info("The dd-service Installed Successfully")
 	}
 
 	return nil
@@ -399,25 +387,17 @@ func installComponent(ctx context.Context, config *configs.Config, installComman
 
 	switch installCommand {
 	case constants.PastelD:
-		{
-			DownloadURL = configurer.GetDownloadPath(version, constants.PastelD, constants.AMD64)
-			ExecArchiveName = constants.PastelExecArchiveName[utils.GetOS()]
-		}
+		DownloadURL = configurer.GetDownloadPath(version, constants.PastelD, constants.AMD64)
+		ExecArchiveName = constants.PastelExecArchiveName[utils.GetOS()]
 	case constants.WalletNode:
-		{
-			DownloadURL = configurer.GetDownloadPath(version, constants.WalletNode, constants.AMD64)
-			ExecArchiveName = constants.WalletNodeExecArchiveName[utils.GetOS()]
-		}
+		DownloadURL = configurer.GetDownloadPath(version, constants.WalletNode, constants.AMD64)
+		ExecArchiveName = constants.WalletNodeExecArchiveName[utils.GetOS()]
 	case constants.SuperNode:
-		{
-			DownloadURL = configurer.GetDownloadPath(version, constants.SuperNode, constants.AMD64)
-			ExecArchiveName = constants.SupperNodeExecArchiveName[utils.GetOS()]
-		}
+		DownloadURL = configurer.GetDownloadPath(version, constants.SuperNode, constants.AMD64)
+		ExecArchiveName = constants.SupperNodeExecArchiveName[utils.GetOS()]
 	case constants.RQService:
-		{
-			DownloadURL = configurer.GetDownloadPath(version, constants.RQService, constants.AMD64)
-			ExecArchiveName = constants.PastelRQServiceArchiveName[utils.GetOS()]
-		}
+		DownloadURL = configurer.GetDownloadPath(version, constants.RQService, constants.AMD64)
+		ExecArchiveName = constants.PastelRQServiceArchiveName[utils.GetOS()]
 	}
 
 	if err = installExecutable(ctx, config, config.PastelExecDir, DownloadURL, ExecArchiveName, installCommand); err != nil {
@@ -499,18 +479,12 @@ func openPort(ctx context.Context, portList []string) (err error) {
 
 		switch utils.GetOS() {
 		case constants.Linux:
-			{
-				out, err = RunCMD("sudo", "ufw", "allow", portList[k])
-			}
+			out, err = RunCMD("sudo", "ufw", "allow", portList[k])
 		case constants.Windows:
-			{
-				out, err = RunCMD("netsh", "advfirewall", "firewall", "add", "rule", "name=TCP Port "+portList[k], "dir=in", "action=allow", "protocol=TCP", "localport="+portList[k])
+			out, err = RunCMD("netsh", "advfirewall", "firewall", "add", "rule", "name=TCP Port "+portList[k], "dir=in", "action=allow", "protocol=TCP", "localport="+portList[k])
 
-			}
 		case constants.Mac:
-			{
-				out, err = RunCMD("sudo", "ipfw", "allow", "tcp", "from", "any", "to", "any", "dst-port", portList[k])
-			}
+			out, err = RunCMD("sudo", "ipfw", "allow", "tcp", "from", "any", "to", "any", "dst-port", portList[k])
 		}
 
 		if err != nil {
@@ -530,27 +504,25 @@ func openPort(ctx context.Context, portList []string) (err error) {
 func installChrome(ctx context.Context, config *configs.Config) (err error) {
 	switch utils.GetOS() {
 	case constants.Linux:
-		{
-			log.WithContext(ctx).Infof("Downloading Chrome to install: %s \n", constants.ChromeDownloadURL[utils.GetOS()])
+		log.WithContext(ctx).Infof("Downloading Chrome to install: %s \n", constants.ChromeDownloadURL[utils.GetOS()])
 
-			err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]), constants.ChromeDownloadURL[utils.GetOS()])
+		err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]), constants.ChromeDownloadURL[utils.GetOS()])
 
-			if err != nil {
-				return err
-			}
-
-			if _, err = RunCMD("chmod", "777",
-				filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()])); err != nil {
-				log.WithContext(ctx).Error("Failed to make chrome-install as executable")
-				return err
-			}
-
-			log.WithContext(ctx).Infof("Installing Chrome : %s \n", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-
-			RunCMDWithInteractive("sudo", "dpkg", "-i", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-
-			utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
+		if err != nil {
+			return err
 		}
+
+		if _, err = RunCMD("chmod", "777",
+			filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()])); err != nil {
+			log.WithContext(ctx).Error("Failed to make chrome-install as executable")
+			return err
+		}
+
+		log.WithContext(ctx).Infof("Installing Chrome : %s \n", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
+
+		RunCMDWithInteractive("sudo", "dpkg", "-i", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
+
+		utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
 	}
 
 	return nil
@@ -562,16 +534,14 @@ func installPackages(ctx context.Context) (err error) {
 
 	switch utils.GetOS() {
 	case constants.Linux:
-		{
-			log.WithContext(ctx).Info("Installing Packages : \n")
+		log.WithContext(ctx).Info("Installing Packages : \n")
 
-			RunCMDWithInteractive("sudo", "apt-get", "update")
-			RunCMDWithInteractive("sudo", "apt-get", "install", "-y", "wget")
-			RunCMDWithInteractive("sudo", "apt-get", "-qq", "-y", "install", "curl")
-			RunCMDWithInteractive("sudo", "apt-get", "install", "-y", "libgomp1")
-			RunCMDWithInteractive("sudo", "apt-get", "install", "-y", "python3-pip")
-			RunCMDWithInteractive("sudo", "apt", "install", "--fix-broken")
-		}
+		RunCMDWithInteractive("sudo", "apt-get", "update")
+		RunCMDWithInteractive("sudo", "apt-get", "install", "-y", "wget")
+		RunCMDWithInteractive("sudo", "apt-get", "-qq", "-y", "install", "curl")
+		RunCMDWithInteractive("sudo", "apt-get", "install", "-y", "libgomp1")
+		RunCMDWithInteractive("sudo", "apt-get", "install", "-y", "python3-pip")
+		RunCMDWithInteractive("sudo", "apt", "install", "--fix-broken")
 	}
 
 	log.WithContext(ctx).Info("Finished installing the dependencies")
@@ -596,120 +566,110 @@ func installExecutable(ctx context.Context, config *configs.Config, workdir stri
 
 	switch toolType {
 	case constants.PastelD:
-		{
-			err = uncompressNodeArchive(ctx, workdir, filepath.Join(workdir, archiveName))
-			if err == nil {
-				if utils.GetOS() == constants.Linux {
-					if _, err = RunCMD("chmod", "777",
-						filepath.Join(workdir, constants.PasteldName[utils.GetOS()])); err != nil {
-						log.WithContext(ctx).Error("Failed to make pasteld as executable")
-						return err
-					}
-					if _, err = RunCMD("chmod", "777",
-						filepath.Join(workdir, constants.PastelCliName[utils.GetOS()])); err != nil {
-						log.WithContext(ctx).Error("Failed to make pastel-cli as executable")
-						return err
-					}
+		err = uncompressNodeArchive(ctx, workdir, filepath.Join(workdir, archiveName))
+		if err == nil {
+			if utils.GetOS() == constants.Linux {
+				if _, err = RunCMD("chmod", "777",
+					filepath.Join(workdir, constants.PasteldName[utils.GetOS()])); err != nil {
+					log.WithContext(ctx).Error("Failed to make pasteld as executable")
+					return err
+				}
+				if _, err = RunCMD("chmod", "777",
+					filepath.Join(workdir, constants.PastelCliName[utils.GetOS()])); err != nil {
+					log.WithContext(ctx).Error("Failed to make pastel-cli as executable")
+					return err
 				}
 			}
 		}
 	case constants.WalletNode:
-		{
-			err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName), constants.WalletNodeExecName[utils.GetOS()])
-			if err == nil {
-				if utils.GetOS() == constants.Linux {
-					if _, err = RunCMD("chmod", "777",
-						filepath.Join(workdir, constants.WalletNodeExecName[utils.GetOS()])); err != nil {
-						log.WithContext(ctx).Error("Failed to make walletnode as executable")
-						return err
-					}
-				}
-				log.WithContext(ctx).Info("Initialize the walletnode")
-
-				workDirPath := filepath.Join(config.WorkingDir, "walletnode")
-
-				if err := utils.CreateFolder(ctx, workDirPath, config.Force); err != nil {
+		err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName), constants.WalletNodeExecName[utils.GetOS()])
+		if err == nil {
+			if utils.GetOS() == constants.Linux {
+				if _, err = RunCMD("chmod", "777",
+					filepath.Join(workdir, constants.WalletNodeExecName[utils.GetOS()])); err != nil {
+					log.WithContext(ctx).Error("Failed to make walletnode as executable")
 					return err
 				}
+			}
+			log.WithContext(ctx).Info("Initialize the walletnode")
 
-				fileName, err := utils.CreateFile(ctx, filepath.Join(workDirPath, "wallet.yml"), config.Force)
-				if err != nil {
-					return err
-				}
+			workDirPath := filepath.Join(config.WorkingDir, "walletnode")
 
-				if err = utils.WriteFile(fileName, configs.WalletMainNetConfig); err != nil {
-					return err
-				}
+			if err := utils.CreateFolder(ctx, workDirPath, config.Force); err != nil {
+				return err
+			}
+
+			fileName, err := utils.CreateFile(ctx, filepath.Join(workDirPath, "wallet.yml"), config.Force)
+			if err != nil {
+				return err
+			}
+
+			if err = utils.WriteFile(fileName, configs.WalletMainNetConfig); err != nil {
+				return err
 			}
 		}
 
 	case constants.SuperNode:
-		{
-			err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName), constants.SuperNodeExecName[utils.GetOS()])
-			if err == nil {
-				if utils.GetOS() == constants.Linux {
-					if _, err = RunCMD("chmod", "777",
-						filepath.Join(workdir, constants.SuperNodeExecName[utils.GetOS()])); err != nil {
-						log.WithContext(ctx).Error("Failed to make supernode as executable")
-						return err
-					}
-				}
-
-				log.WithContext(ctx).Info("Initialize the supernode")
-
-				workDirPath := filepath.Join(config.WorkingDir, "supernode")
-
-				if err := utils.CreateFolder(ctx, workDirPath, config.Force); err != nil {
+		err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName), constants.SuperNodeExecName[utils.GetOS()])
+		if err == nil {
+			if utils.GetOS() == constants.Linux {
+				if _, err = RunCMD("chmod", "777",
+					filepath.Join(workdir, constants.SuperNodeExecName[utils.GetOS()])); err != nil {
+					log.WithContext(ctx).Error("Failed to make supernode as executable")
 					return err
 				}
+			}
 
-				fileName, err := utils.CreateFile(ctx, filepath.Join(workDirPath, "supernode.yml"), config.Force)
-				if err != nil {
-					return err
-				}
+			log.WithContext(ctx).Info("Initialize the supernode")
 
-				if err = utils.WriteFile(fileName, fmt.Sprintf(configs.SupernodeDefaultConfig, "some-value", "127.0.0.1", "4444")); err != nil {
-					return err
-				}
+			workDirPath := filepath.Join(config.WorkingDir, "supernode")
+
+			if err := utils.CreateFolder(ctx, workDirPath, config.Force); err != nil {
+				return err
+			}
+
+			fileName, err := utils.CreateFile(ctx, filepath.Join(workDirPath, "supernode.yml"), config.Force)
+			if err != nil {
+				return err
+			}
+
+			if err = utils.WriteFile(fileName, fmt.Sprintf(configs.SupernodeDefaultConfig, "some-value", "127.0.0.1", "4444")); err != nil {
+				return err
 			}
 		}
 	case constants.RQService:
-		{
-			err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName), constants.PastelRQServiceExecName[utils.GetOS()])
-			if err == nil {
-				if utils.GetOS() == constants.Linux {
-					if _, err = RunCMD("chmod", "777",
-						filepath.Join(workdir, constants.PastelRQServiceExecName[utils.GetOS()])); err != nil {
-						log.WithContext(ctx).Error("Failed to make rqservice as executable")
-						return err
-					}
-				}
-				log.WithContext(ctx).Info("Initialize the rqservice")
-
-				workDirPath := filepath.Join(config.WorkingDir, "rqservice")
-
-				if err := utils.CreateFolder(ctx, workDirPath, config.Force); err != nil {
-					log.WithContext(ctx).Error("Failed to create rqservice folder")
-					return err
-				}
-
-				var fileName string
-				if fileName, err = utils.CreateFile(ctx, filepath.Join(workDirPath, "rqservice.toml"), config.Force); err != nil {
-					log.WithContext(ctx).Error("Failed to create rqservice.toml file")
-					return err
-				}
-
-				if err = utils.WriteFile(fileName, fmt.Sprintf(configs.RQServiceConfig, "127.0.0.1", "50051")); err != nil {
-					log.WithContext(ctx).Error("Failed to write rqservice.toml file")
+		err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName), constants.PastelRQServiceExecName[utils.GetOS()])
+		if err == nil {
+			if utils.GetOS() == constants.Linux {
+				if _, err = RunCMD("chmod", "777",
+					filepath.Join(workdir, constants.PastelRQServiceExecName[utils.GetOS()])); err != nil {
+					log.WithContext(ctx).Error("Failed to make rqservice as executable")
 					return err
 				}
 			}
+			log.WithContext(ctx).Info("Initialize the rqservice")
+
+			workDirPath := filepath.Join(config.WorkingDir, "rqservice")
+
+			if err := utils.CreateFolder(ctx, workDirPath, config.Force); err != nil {
+				log.WithContext(ctx).Error("Failed to create rqservice folder")
+				return err
+			}
+
+			var fileName string
+			if fileName, err = utils.CreateFile(ctx, filepath.Join(workDirPath, "rqservice.toml"), config.Force); err != nil {
+				log.WithContext(ctx).Error("Failed to create rqservice.toml file")
+				return err
+			}
+
+			if err = utils.WriteFile(fileName, fmt.Sprintf(configs.RQServiceConfig, "127.0.0.1", "50051")); err != nil {
+				log.WithContext(ctx).Error("Failed to write rqservice.toml file")
+				return err
+			}
 		}
 	default:
-		{
-			log.WithContext(ctx).Warn("Please select correct tool type!")
-			return nil
-		}
+		log.WithContext(ctx).Warn("Please select correct tool type!")
+		return nil
 	}
 
 	if err != nil {
@@ -747,7 +707,10 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
-	homeDir := configurer.GetHomeDir()
+	homeDir, err := configurer.GetHomeDir()
+	if err != nil {
+		return err
+	}
 
 	homeDir = filepath.Join(homeDir, "pastel_dupe_detection_service")
 	var pathList []interface{}
@@ -796,9 +759,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	switch utils.GetOS() {
 	case constants.Linux:
-		{
-			RunCMDWithInteractive("export", "DUPEDETECTIONCONFIGPATH=%s", configPath)
-		}
+		RunCMDWithInteractive("export", "DUPEDETECTIONCONFIGPATH=%s", configPath)
 	}
 
 	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")

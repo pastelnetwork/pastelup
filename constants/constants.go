@@ -185,20 +185,12 @@ var DupeDetectionSupportFilePath = "dupe_detection_support_files"
 
 // GetVersionSubURL returns the sub url concerned with version info
 func GetVersionSubURL(version string) string {
-	var versionSubURL string
 	switch version {
 	case "latest":
-		{
-			versionSubURL = version
-		}
+		return version
 	case "beta":
-		{
-			versionSubURL = version
-		}
+		return version
 	default:
-		{
-			versionSubURL = fmt.Sprintf("history/%s", version)
-		}
+		return fmt.Sprintf("history/%s", version)
 	}
-	return versionSubURL
 }

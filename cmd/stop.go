@@ -42,31 +42,21 @@ func setupStopSubCommand(config *configs.Config,
 
 	switch stopCommand {
 	case nodeStop:
-		{
-			commandName = "node"
-			commandMessage = "Stop node"
-		}
+		commandName = "node"
+		commandMessage = "Stop node"
 	case walletStop:
-		{
-			commandName = "walletnode"
-			commandMessage = "Stop walletnode"
-		}
+		commandName = "walletnode"
+		commandMessage = "Stop walletnode"
 	case superNodeStop:
-		{
-			commandName = "supernode"
-			commandMessage = "Stop supernode"
-		}
+		commandName = "supernode"
+		commandMessage = "Stop supernode"
 	case allStop:
-		{
-			commandName = "all"
-			commandMessage = "Stop all"
-		}
+		commandName = "all"
+		commandMessage = "Stop all"
 
 	default:
-		{
-			commandName = "all"
-			commandMessage = "Stop all"
-		}
+		commandName = "all"
+		commandMessage = "Stop all"
 	}
 
 	subCommand := cli.NewCommand(commandName)
@@ -245,25 +235,17 @@ func processKill(ctx context.Context, config *configs.Config, toolType constants
 	execName := ""
 	switch toolType {
 	case constants.WalletNode:
-		{
-			execPath = filepath.Join(config.PastelExecDir, constants.WalletNodeExecName[utils.GetOS()])
-			execName = constants.WalletNodeExecName[utils.GetOS()]
-		}
+		execPath = filepath.Join(config.PastelExecDir, constants.WalletNodeExecName[utils.GetOS()])
+		execName = constants.WalletNodeExecName[utils.GetOS()]
 	case constants.SuperNode:
-		{
-			execPath = filepath.Join(config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()])
-			execName = constants.SuperNodeExecName[utils.GetOS()]
-		}
+		execPath = filepath.Join(config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()])
+		execName = constants.SuperNodeExecName[utils.GetOS()]
 	case constants.RQService:
-		{
-			execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
-			execName = constants.PastelRQServiceExecName[utils.GetOS()]
-		}
+		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
+		execName = constants.PastelRQServiceExecName[utils.GetOS()]
 	default:
-		{
-			execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
-			execName = constants.PastelRQServiceExecName[utils.GetOS()]
-		}
+		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
+		execName = constants.PastelRQServiceExecName[utils.GetOS()]
 	}
 
 	if utils.GetOS() == constants.Windows {

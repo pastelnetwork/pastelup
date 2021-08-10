@@ -11,36 +11,42 @@ import (
 )
 
 // GetHomeDir returns the home path for darwin OS.
-func GetHomeDir() string {
-	homeDir, _ := os.UserConfigDir()
-	return homeDir
+func GetHomeDir() (string, error) {
+	if homeDir, err := os.UserConfigDir(); err != nil {
+		return "", err
+	}
+	return homeDir, nil
 }
 
 // DefaultWorkingDir returns the default config path for darwin OS.
-func DefaultWorkingDir() string {
-	homeDir, _ := os.UserConfigDir()
-	return filepath.Join(homeDir, "Pastel")
+func DefaultWorkingDir() (string, error) {
+	if homeDir, err := os.UserConfigDir(); err != nil {
+		return "", err
+	}
+	return filepath.Join(homeDir, "Pastel"), nil
 }
 
 // DefaultZksnarkDir returns the default config path for darwin OS.
-func DefaultZksnarkDir() string {
-	homeDir, _ := os.UserConfigDir()
-	return filepath.Join(homeDir, "PastelParams")
+func DefaultZksnarkDir() (string, error) {
+	if homeDir, err := os.UserConfigDir(); err != nil {
+		return "", err
+	}
+	return filepath.Join(homeDir, "PastelParams"), nil
 }
 
 // DefaultPastelExecutableDir returns the default pastel executable path for darwin OS.
-func DefaultPastelExecutableDir() string {
-	homeDir, _ := os.UserConfigDir()
-	return filepath.Join(homeDir, "Pastel")
+func DefaultPastelExecutableDir() (string, error) {
+	if homeDir, err := os.UserConfigDir(); err != nil {
+		return "", err
+	}
+	return filepath.Join(homeDir, "Pastel"), nil
 }
 
 // GetDownloadPath returns download path of the pastel executables.
 func GetDownloadPath(version string, tool constants.ToolType, architectrue constants.ArchitectureType) string {
-	var ret string
 
 	versionSubURL := constants.GetVersionSubURL(version)
 
-	ret = fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "darwin", architectrue, ".zip")
+	return fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "darwin", architectrue, ".zip")
 
-	return ret
 }

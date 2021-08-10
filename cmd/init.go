@@ -21,9 +21,12 @@ import (
 
 func setupInitCommand() *cli.Command {
 	config := configs.GetConfig()
-
+	var err error
 	if len(config.WorkingDir) == 0 {
-		config.WorkingDir = configurer.DefaultWorkingDir()
+		config.WorkingDir, err = configurer.DefaultWorkingDir()
+		if err != nil {
+			return nil
+		}
 	}
 
 	initCommand := cli.NewCommand("init")
@@ -121,8 +124,14 @@ func runInit(ctx context.Context, config *configs.Config) error {
 func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 	forceSet := config.Force
 	var workDirPath, zksnarkPath string
-	if config.WorkingDir == configurer.DefaultWorkingDir() {
-		zksnarkPath = configurer.DefaultZksnarkDir()
+	var tmpPath string
+	var err error
+	tmpPath, err = configurer.DefaultZksnarkDir()
+	if err != nil {
+		return err
+	}
+	if config.WorkingDir == tmpPath {
+		zksnarkPath = tmpPath
 		workDirPath = config.WorkingDir
 	} else {
 		workDirPath = filepath.Join(config.WorkingDir)
@@ -152,10 +161,7 @@ func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 
 	// create zksnark parameters path
 	if err := utils.CreateFolder(ctx, zksnarkPath, forceSet); err != nil {
-		if os.IsNotExist(err) {
-			return err
-		}
-		forceSet = true
+		return err
 	}
 
 	// download zksnark params

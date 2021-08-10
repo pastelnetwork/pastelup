@@ -32,6 +32,7 @@ const (
 	walletInstall
 	superNodeInstall
 	remoteInstall
+	dupedetectionInstall
 	//highLevel
 )
 
@@ -81,6 +82,11 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
 	}
 
+	dupeFlags := []*cli.Flag{
+		cli.NewFlag("force", &config.Force).SetAliases("f").
+			SetUsage(green("Optional, Force to overwrite config files and python dependencies.")),
+	}
+
 	var commandName, commandMessage string
 	var commandFlags []*cli.Flag
 
@@ -108,6 +114,12 @@ func setupSubCommand(config *configs.Config,
 			commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
 			commandName = "remote"
 			commandMessage = "Install supernode remote"
+		}
+	case dupedetectionInstall:
+		{
+			commandFlags = dupeFlags
+			commandName = "dupedetection"
+			commandMessage = "Install dupedetection"
 		}
 	default:
 		{
@@ -159,12 +171,14 @@ func setupInstallCommand() *cli.Command {
 	installSuperNodeSubCommand := setupSubCommand(config, superNodeInstall, runInstallSuperNodeSubCommand)
 	installSuperNodeRemoteSubCommand := setupSubCommand(config, remoteInstall, runInstallSuperNodeRemoteSubCommand)
 	installSuperNodeSubCommand.AddSubcommands(installSuperNodeRemoteSubCommand)
+	installDupeDetecionSubCommand := setupSubCommand(config, dupedetectionInstall, runInstallDupeDetectionSubCommand)
 
 	installCommand := cli.NewCommand("install")
 	installCommand.SetUsage(blue("Performs installation and initialization of the system for both WalletNode and SuperNodes"))
 	installCommand.AddSubcommands(installNodeSubCommand)
 	installCommand.AddSubcommands(installWalletSubCommand)
 	installCommand.AddSubcommands(installSuperNodeSubCommand)
+	installCommand.AddSubcommands(installDupeDetecionSubCommand)
 	//installCommand := setupSubCommand(config, highLevel, nil)
 
 	return installCommand
@@ -270,6 +284,17 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	var stdout, stderr io.Writer
 
 	return client.Shell().SetStdio(stdin, stdout, stderr).Start()
+}
+
+func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	err = installDupeDetection(ctx, config)
+	if err != nil {
+
+		return err
+	}
+
+	return nil
+
 }
 
 func initNodeDownloadPath(ctx context.Context, config *configs.Config, nodeInstallPath string) (nodePath string, err error) {
@@ -775,6 +800,8 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 			RunCMDWithInteractive("export", "DUPEDETECTIONCONFIGPATH=%s", configPath)
 		}
 	}
+
+	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")
 
 	return nil
 }

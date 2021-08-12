@@ -502,8 +502,7 @@ func openPort(ctx context.Context, portList []string) (err error) {
 }
 
 func installChrome(ctx context.Context, config *configs.Config) (err error) {
-	switch utils.GetOS() {
-	case constants.Linux:
+	if utils.GetOS() == constants.Linux {
 		log.WithContext(ctx).Infof("Downloading Chrome to install: %s \n", constants.ChromeDownloadURL[utils.GetOS()])
 
 		err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]), constants.ChromeDownloadURL[utils.GetOS()])
@@ -530,10 +529,7 @@ func installChrome(ctx context.Context, config *configs.Config) (err error) {
 }
 
 func installPackages(ctx context.Context) (err error) {
-	log.WithContext(ctx).Info("Install dependencies")
-
-	switch utils.GetOS() {
-	case constants.Linux:
+	if utils.GetOS() == constants.Linux {
 		log.WithContext(ctx).Info("Installing Packages : \n")
 
 		RunCMDWithInteractive("sudo", "apt-get", "update")
@@ -542,9 +538,9 @@ func installPackages(ctx context.Context) (err error) {
 		RunCMDWithInteractive("sudo", "apt-get", "install", "-y", "libgomp1")
 		RunCMDWithInteractive("sudo", "apt-get", "install", "-y", "python3-pip")
 		RunCMDWithInteractive("sudo", "apt", "install", "--fix-broken")
-	}
 
-	log.WithContext(ctx).Info("Finished installing the dependencies")
+		log.WithContext(ctx).Info("Finished installing the packages")
+	}
 	return nil
 
 }
@@ -757,8 +753,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	configPath := filepath.Join(targetDir, "config.ini")
 
-	switch utils.GetOS() {
-	case constants.Linux:
+	if utils.GetOS() == constants.Linux {
 		RunCMDWithInteractive("export", "DUPEDETECTIONCONFIGPATH=%s", configPath)
 	}
 

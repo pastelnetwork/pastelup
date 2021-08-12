@@ -12,7 +12,8 @@ import (
 
 // GetHomeDir returns the home path for darwin OS.
 func GetHomeDir() (string, error) {
-	if homeDir, err := os.UserConfigDir(); err != nil {
+	homeDir, err := os.UserConfigDir()
+	if err != nil {
 		return "", err
 	}
 	return homeDir, nil
@@ -20,7 +21,8 @@ func GetHomeDir() (string, error) {
 
 // DefaultWorkingDir returns the default config path for darwin OS.
 func DefaultWorkingDir() (string, error) {
-	if homeDir, err := os.UserConfigDir(); err != nil {
+	homeDir, err := os.UserConfigDir()
+	if err != nil {
 		return "", err
 	}
 	return filepath.Join(homeDir, "Pastel"), nil
@@ -28,7 +30,8 @@ func DefaultWorkingDir() (string, error) {
 
 // DefaultZksnarkDir returns the default config path for darwin OS.
 func DefaultZksnarkDir() (string, error) {
-	if homeDir, err := os.UserConfigDir(); err != nil {
+	homeDir, err := os.UserConfigDir()
+	if err != nil {
 		return "", err
 	}
 	return filepath.Join(homeDir, "PastelParams"), nil
@@ -36,7 +39,8 @@ func DefaultZksnarkDir() (string, error) {
 
 // DefaultPastelExecutableDir returns the default pastel executable path for darwin OS.
 func DefaultPastelExecutableDir() (string, error) {
-	if homeDir, err := os.UserConfigDir(); err != nil {
+	homeDir, err := os.UserConfigDir()
+	if err != nil {
 		return "", err
 	}
 	return filepath.Join(homeDir, "Pastel"), nil

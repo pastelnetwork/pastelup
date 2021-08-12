@@ -1463,7 +1463,9 @@ func getMasternodeConf(ctx context.Context, config *configs.Config) (pastelid st
 				return "", err
 			}
 			var recMasterNode map[string]interface{}
-			json.Unmarshal([]byte(output), &recMasterNode)
+			if err := json.Unmarshal([]byte(output), &recMasterNode); err != nil {
+				return "", errors.Errorf("failed to unmarshal, err: %s", err)
+			}
 
 			if len(recMasterNode) != 0 {
 
@@ -1542,11 +1544,11 @@ func checkServiceRunning(_ context.Context, config *configs.Config, toolType con
 	var processID int
 	execPath := ""
 	execName := ""
-	switch toolType {
-	case constants.RQService:
+
+	if toolType == constants.RQService {
 		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
 		execName = constants.PastelRQServiceExecName[utils.GetOS()]
-	default:
+	} else {
 		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
 		execName = constants.PastelRQServiceExecName[utils.GetOS()]
 	}

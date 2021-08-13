@@ -1,5 +1,5 @@
 // +build windows
-
+// TODO: remove this file
 package configurer
 
 import (
@@ -9,11 +9,6 @@ import (
 	"syscall"
 
 	"github.com/pastelnetwork/pastel-utility/constants"
-)
-
-const (
-	beforeVistaAppDir = "Application Data"
-	sinceVistaAppDir  = "AppData/Roaming"
 )
 
 // GetHomeDir returns the home path for Windows OS.
@@ -31,14 +26,8 @@ func DefaultWorkingDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	appDir := beforeVistaAppDir
 
-	v, _ := syscall.GetVersion()
-	if v&0xff > 5 {
-		appDir = sinceVistaAppDir
-	}
-
-	return filepath.Join(homeDir, filepath.FromSlash(appDir), "Pastel"), nil
+	return filepath.Join(homeDir, filepath.FromSlash(getAppDir()), "Pastel"), nil
 }
 
 // DefaultZksnarkDir returns the default config path for Windows OS.
@@ -47,14 +36,8 @@ func DefaultZksnarkDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	appDir := beforeVistaAppDir
 
-	v, _ := syscall.GetVersion()
-	if v&0xff > 5 {
-		appDir = sinceVistaAppDir
-	}
-
-	return filepath.Join(homeDir, filepath.FromSlash(appDir), "PastelParams"), nil
+	return filepath.Join(homeDir, filepath.FromSlash(getAppDir()), "PastelParams"), nil
 }
 
 // DefaultPastelExecutableDir returns the default pastel executable path for Windows OS.
@@ -63,24 +46,22 @@ func DefaultPastelExecutableDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	appDir := beforeVistaAppDir
 
-	v, _ := syscall.GetVersion()
-	if v&0xff > 5 {
-		appDir = sinceVistaAppDir
-	}
-	return filepath.Join(homeDir, filepath.FromSlash(appDir), "PastelWallet"), nil
+	return filepath.Join(homeDir, filepath.FromSlash(getAppDir()), "PastelWallet"), nil
 }
 
 // GetDownloadPath returns download path of the pastel executables.
 func GetDownloadPath(version string, tool constants.ToolType, architectrue constants.ArchitectureType) string {
-
-	versionSubURL := constants.GetVersionSubURL(version)
-
+	t := "windows"
 	if tool == constants.PastelD || tool == constants.RQService {
-		return fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "win", architectrue, ".zip")
+		t = "win"
 	}
 
-	return fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "windows", architectrue, ".zip")
-
+	return fmt.Sprintf("%s/%s/%s-%s-%s%s",
+		constants.DownloadBaseURL,
+		constants.GetVersionSubURL(version),
+		tool,
+		t,
+		architectrue,
+		".zip")
 }

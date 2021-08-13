@@ -247,7 +247,11 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return err
 	}
 
-	client.Cmd(fmt.Sprintf("%s stop supernode ", pastelUtilityPath)).Output()
+	_, err = client.Cmd(fmt.Sprintf("%s stop supernode ", pastelUtilityPath)).Output()
+	if err != nil {
+		log.WithContext(ctx).Error("failed to stop supernode, err: %s", err)
+		return err
+	}
 
 	log.WithContext(ctx).Info("Installing Supernode ...")
 
@@ -294,30 +298,25 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 func initNodeDownloadPath(ctx context.Context, config *configs.Config, nodeInstallPath string) (nodePath string, err error) {
 	defer log.WithContext(ctx).Infof("Node install path is %s", nodeInstallPath)
 
-	if err = utils.CreateFolder(ctx, nodeInstallPath, config.Force); err != nil {
-		if strings.Contains(err.Error(), "already exists") {
-			reader := bufio.NewReader(os.Stdin)
-
-			log.WithContext(ctx).Warnf("%s. Do you want continue to install? Y/N", err.Error())
-			line, readErr := reader.ReadString('\n')
-			if readErr != nil {
-				return "", readErr
-			}
-
-			if strings.TrimSpace(line) == "Y" || strings.TrimSpace(line) == "y" {
-
-				config.Force = true
-				if err = InitializeFunc(ctx, config); err != nil {
-					return "", err
-				}
-				if err = utils.CreateFolder(ctx, nodeInstallPath, config.Force); err != nil {
-					return "", err
-				}
-			} else {
-				return "", err
-			}
+	if err = utils.CreateFolder(ctx, nodeInstallPath, config.Force); os.IsExist(err) {
+		reader := bufio.NewReader(os.Stdin)
+		log.WithContext(ctx).Warnf("%s. Do you want continue to install? Y/N", err.Error())
+		line, readErr := reader.ReadString('\n')
+		if readErr != nil {
+			return "", readErr
 		}
 
+		if strings.TrimSpace(line) == "Y" || strings.TrimSpace(line) == "y" {
+			config.Force = true
+			if err = InitializeFunc(ctx, config); err != nil {
+				return "", err
+			}
+			if err = utils.CreateFolder(ctx, nodeInstallPath, config.Force); err != nil {
+				return "", err
+			}
+		} else {
+			return "", err
+		}
 	}
 
 	return "", nil
@@ -418,16 +417,14 @@ func installComponent(ctx context.Context, config *configs.Config, installComman
 }
 
 func uncompressNodeArchive(ctx context.Context, dstFolder string, archiveFile string) error {
-
 	file, err := os.Open(archiveFile)
-
 	if err != nil {
 		log.WithContext(ctx).Error("Not found archive file!!!")
 		return err
 	}
 	defer file.Close()
 
-	_, err = utils.Unzip(archiveFile, dstFolder, filepath.Join(dstFolder, constants.PasteldName[utils.GetOS()]), filepath.Join(dstFolder, constants.PastelCliName[utils.GetOS()]))
+	_, err = utils.Unzip(archiveFile, dstFolder)
 
 	if err != nil {
 		log.WithContext(ctx).Error("Extracting pastel executables Error!!!")
@@ -437,7 +434,7 @@ func uncompressNodeArchive(ctx context.Context, dstFolder string, archiveFile st
 	return nil
 }
 
-func uncompressArchive(ctx context.Context, dstFolder string, archiveFile string, execName string) error {
+func uncompressArchive(ctx context.Context, dstFolder string, archiveFile string) error {
 
 	file, err := os.Open(archiveFile)
 
@@ -447,7 +444,7 @@ func uncompressArchive(ctx context.Context, dstFolder string, archiveFile string
 	}
 	defer file.Close()
 
-	_, err = utils.Unzip(archiveFile, dstFolder, filepath.Join(dstFolder, execName))
+	_, err = utils.Unzip(archiveFile, dstFolder)
 
 	if err != nil {
 		return err
@@ -482,7 +479,6 @@ func openPort(ctx context.Context, portList []string) (err error) {
 			out, err = RunCMD("sudo", "ufw", "allow", portList[k])
 		case constants.Windows:
 			out, err = RunCMD("netsh", "advfirewall", "firewall", "add", "rule", "name=TCP Port "+portList[k], "dir=in", "action=allow", "protocol=TCP", "localport="+portList[k])
-
 		case constants.Mac:
 			out, err = RunCMD("sudo", "ipfw", "allow", "tcp", "from", "any", "to", "any", "dst-port", portList[k])
 		}
@@ -498,7 +494,6 @@ func openPort(ctx context.Context, portList []string) (err error) {
 	}
 
 	return nil
-
 }
 
 func installChrome(ctx context.Context, config *configs.Config) (err error) {
@@ -525,7 +520,6 @@ func installChrome(ctx context.Context, config *configs.Config) (err error) {
 	}
 
 	return nil
-
 }
 
 func installPackages(ctx context.Context) (err error) {
@@ -542,7 +536,6 @@ func installPackages(ctx context.Context) (err error) {
 		log.WithContext(ctx).Info("Finished installing the packages")
 	}
 	return nil
-
 }
 
 func installExecutable(ctx context.Context, config *configs.Config, workdir string, downloadURL string, archiveName string, toolType constants.ToolType) (err error) {
@@ -578,7 +571,7 @@ func installExecutable(ctx context.Context, config *configs.Config, workdir stri
 			}
 		}
 	case constants.WalletNode:
-		err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName), constants.WalletNodeExecName[utils.GetOS()])
+		err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName))
 		if err == nil {
 			if utils.GetOS() == constants.Linux {
 				if _, err = RunCMD("chmod", "777",
@@ -606,7 +599,7 @@ func installExecutable(ctx context.Context, config *configs.Config, workdir stri
 		}
 
 	case constants.SuperNode:
-		err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName), constants.SuperNodeExecName[utils.GetOS()])
+		err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName))
 		if err == nil {
 			if utils.GetOS() == constants.Linux {
 				if _, err = RunCMD("chmod", "777",
@@ -634,7 +627,7 @@ func installExecutable(ctx context.Context, config *configs.Config, workdir stri
 			}
 		}
 	case constants.RQService:
-		err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName), constants.PastelRQServiceExecName[utils.GetOS()])
+		err = uncompressArchive(ctx, workdir, filepath.Join(workdir, archiveName))
 		if err == nil {
 			if utils.GetOS() == constants.Linux {
 				if _, err = RunCMD("chmod", "777",
@@ -730,7 +723,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		}
 
 		log.WithContext(ctx).Infof("Extracting archive file : %s", filepath.Join(targetDir, "temp.zip"))
-		if err = uncompressArchive(ctx, targetDir, filepath.Join(targetDir, "temp.zip"), "temp"); err != nil {
+		if err = uncompressArchive(ctx, targetDir, filepath.Join(targetDir, "temp.zip")); err != nil {
 			log.WithContext(ctx).Errorf("Failed to extract archive file : %s", filepath.Join(targetDir, "temp.zip"))
 			return err
 		}

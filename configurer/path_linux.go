@@ -52,12 +52,16 @@ func DefaultPastelExecutableDir() (string, error) {
 
 // GetDownloadPath returns download path of the pastel executables.
 func GetDownloadPath(version string, tool constants.ToolType, architectrue constants.ArchitectureType) string {
-
-	versionSubURL := constants.GetVersionSubURL(version)
+	t := "linux"
 	if tool == constants.PastelD || tool == constants.RQService {
-		return fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "ubuntu20.04", architectrue, ".zip")
+		t = "ubuntu20.04"
 	}
 
-	return fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "linux", architectrue, ".zip")
-
+	return fmt.Sprintf("%s/%s/%s-%s-%s%s",
+		constants.DownloadBaseURL,
+		constants.GetVersionSubURL(version),
+		tool,
+		t,
+		architectrue,
+		".zip")
 }

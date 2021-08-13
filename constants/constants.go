@@ -35,27 +35,21 @@ const (
 
 	// RequirementDownloadURL - The path of requirement.txt for install pip
 	RequirementDownloadURL string = "https://download.pastel.network/machine-learning/requirements.txt"
-)
 
-// Windows type
-const (
+	// Windows type
 	Windows OSType = "Windows"
 	Linux   OSType = "Linux"
 	Mac     OSType = "MAC"
 	Unknown OSType = "Unknown"
-)
 
-// Tool type
-const (
+	// Tool type
 	WalletNode ToolType = "gonode/walletnode"
 	SuperNode  ToolType = "gonode/supernode"
 	PastelD    ToolType = "pasteld/pastel"
 	DDService  ToolType = "dd-service/ddservice"
 	RQService  ToolType = "rq-service/rqservice"
-)
 
-// Architecture type
-const (
+	// Architecture type
 	AMD64 ArchitectureType = "amd64"
 )
 
@@ -186,9 +180,7 @@ var DupeDetectionSupportFilePath = "dupe_detection_support_files"
 // GetVersionSubURL returns the sub url concerned with version info
 func GetVersionSubURL(version string) string {
 	switch version {
-	case "latest":
-		return version
-	case "beta":
+	case "latest", "beta":
 		return version
 	default:
 		return fmt.Sprintf("history/%s", version)

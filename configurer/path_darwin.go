@@ -1,5 +1,5 @@
 // +build darwin
-
+// TODO: remove this file
 package configurer
 
 import (
@@ -48,9 +48,11 @@ func DefaultPastelExecutableDir() (string, error) {
 
 // GetDownloadPath returns download path of the pastel executables.
 func GetDownloadPath(version string, tool constants.ToolType, architectrue constants.ArchitectureType) string {
-
-	versionSubURL := constants.GetVersionSubURL(version)
-
-	return fmt.Sprintf("%s/%s/%s-%s-%s%s", constants.DownloadBaseURL, versionSubURL, tool, "darwin", architectrue, ".zip")
-
+	return fmt.Sprintf("%s/%s/%s-%s-%s%s",
+		constants.DownloadBaseURL,
+		constants.GetVersionSubURL(version),
+		tool,
+		"darwin",
+		architectrue,
+		".zip")
 }

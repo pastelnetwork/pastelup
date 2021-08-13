@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -33,7 +34,6 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 			return errors.Errorf("Failed to create directory: %v", err)
 		}
 		log.WithContext(ctx).Infof("Directory created on %s", path)
-
 		return nil
 	}
 	if force {
@@ -264,14 +264,10 @@ func Untar(dst string, r io.Reader, filenames ...string) error {
 
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
-<<<<<<< HEAD
-func Unzip(src string, dest string, fPaths ...string) (filenames []string, err error) {
-=======
-func Unzip(src string, dest string, _ ...string) ([]string, error) {
 
+func Unzip(src string, dest string) ([]string, error) {
 	var filenames []string
 
->>>>>>> 8272874... Fix the coding style.
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return filenames, err
@@ -397,4 +393,22 @@ func GetChecksum(_ context.Context, fileName string) (checksum string, err error
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
+func GetInstalledCommand(ctx context.Context) map[string]bool {
+	pathEnv := os.Getenv("PATH")
+	paths := strings.Split(pathEnv, ":")
+
+	m := make(map[string]bool)
+	for _, path := range paths {
+		files, err := ioutil.ReadDir(path)
+		if err != nil {
+			log.WithContext(ctx).Errorf("failed to read dir, err: %s", err)
+			continue
+		}
+		for _, file := range files {
+			m[file.Name()] = true
+		}
+	}
+	return m
 }

@@ -28,7 +28,6 @@ func TestCreateFolderWithForce(t *testing.T) {
 	} else {
 		t.Logf(fmt.Sprintf("CreateFolder Function OK : %s", path))
 	}
-
 }
 
 func TestCreateFolderWithoutForce(t *testing.T) {
@@ -43,6 +42,7 @@ func TestCreateFolderWithoutForce(t *testing.T) {
 	} else {
 		force = false
 		err = CreateFolder(cxt, path, force)
+
 		var wanted = fs.ErrExist.Error()
 		if err.Error() != wanted {
 			t.Fatalf(fmt.Sprintf("%s %s", "CreateFolder Function Failed", err.Error()))
@@ -50,7 +50,6 @@ func TestCreateFolderWithoutForce(t *testing.T) {
 			t.Logf(fmt.Sprintf("Can not Create Folder OK : %s", path))
 		}
 	}
-
 }
 
 func TestCreateFileWithForce(t *testing.T) {
@@ -70,9 +69,7 @@ func TestCreateFileWithForce(t *testing.T) {
 		t.Fatalf(`CreateFolder Function Failed`)
 	} else {
 		t.Logf(fmt.Sprintf("CreateFile Function OK : %s", newFileName))
-
 	}
-
 }
 
 func TestCreateFileWithoutForce(t *testing.T) {
@@ -95,7 +92,6 @@ func TestCreateFileWithoutForce(t *testing.T) {
 			t.Logf(fmt.Sprintf("Can not Create File OK : %s", newFileName))
 		}
 	}
-
 }
 
 func TestGenerateRandomString(t *testing.T) {
@@ -157,7 +153,6 @@ func TestWriteFile(t *testing.T) {
 				}
 			}
 		}
-
 	}
 }
 
@@ -184,7 +179,6 @@ func TestCheckFileExist(t *testing.T) {
 			t.Fatalf(fmt.Sprintf("CheckFileExist Function Failed: filePath=%s, expectedValue = %t , result = %t", testCase.filePath, testCase.expectedValue, CheckFileExist(testCase.filePath)))
 		}
 	}
-
 }
 
 func TestContains(t *testing.T) {
@@ -264,7 +258,5 @@ func TestCopyFile(t *testing.T) {
 		t.Fatalf(fmt.Sprintf("CopyFile Function Failed; dstFileName not availabe but function copies file ; src=%s, dst = %s , dstFile = %s", src, dstFolder, dstFileName))
 	} else {
 		t.Logf("CopyFile Function OK")
-
 	}
-
 }

@@ -11,5 +11,5 @@ type IConfigurer interface {
 	DefaultWorkingDir() string
 	DefaultZksnarkDir() string
 	DefaultPastelExecutableDir() string
-	GetDownloadURL(version string, tool constants.ToolType) (*url.URL, error)
+	GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error)
 }

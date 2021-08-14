@@ -17,7 +17,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/structure"
 	"github.com/pastelnetwork/pastel-utility/utils"
@@ -748,15 +747,10 @@ func checkAndForceInit(ctx context.Context, config *configs.Config) (err error) 
 			log.WithContext(ctx).Warn("Walletnode is not installed correctly.")
 			config.Force = true
 			if len(config.WorkingDir) == 0 {
-				if config.WorkingDir, err = configurer.DefaultWorkingDir(); err != nil {
-					return err
-				}
-
+				config.WorkingDir = config.Configurer.DefaultWorkingDir()
 			}
 			if len(config.PastelExecDir) == 0 {
-				if config.PastelExecDir, err = configurer.DefaultPastelExecutableDir(); err != nil {
-					return err
-				}
+				config.PastelExecDir = config.Configurer.DefaultPastelExecutableDir()
 			}
 			if len(config.Version) == 0 {
 				config.Version = "latest"
@@ -1284,21 +1278,12 @@ func checkPastelInstallPath(ctx context.Context, config *configs.Config, flagMod
 }
 
 func checkPastelParamInstallPath(ctx context.Context, config *configs.Config) (err error) {
-
-	var tmpPath string
-	if tmpPath, err = configurer.DefaultWorkingDir(); err != nil {
-		return err
+	zksnarkPath := filepath.Join(config.WorkingDir, "/.pastel-params/")
+	if config.WorkingDir == config.Configurer.DefaultWorkingDir() {
+		zksnarkPath = config.Configurer.DefaultZksnarkDir()
 	}
 
 	for _, zksnarkParamsName := range configs.ZksnarkParamsNames {
-		zksnarkPath := ""
-		if config.WorkingDir == tmpPath {
-			if zksnarkPath, err = configurer.DefaultZksnarkDir(); err != nil {
-				return err
-			}
-		} else {
-			zksnarkPath = filepath.Join(config.WorkingDir, "/.pastel-params/")
-		}
 		zksnarkParamsPath := filepath.Join(zksnarkPath, zksnarkParamsName)
 
 		log.WithContext(ctx).Infof(fmt.Sprintf("Checking pastel param file : %s", zksnarkParamsPath))
@@ -1309,9 +1294,7 @@ func checkPastelParamInstallPath(ctx context.Context, config *configs.Config) (e
 			log.WithContext(ctx).Errorf(fmt.Sprintf("Checking pastel param file : %s\n", zksnarkParamsPath))
 			return errors.Errorf(fmt.Sprintf("Checking pastel param file : %s\n", zksnarkParamsPath))
 		}
-
 	}
-
 	return nil
 }
 

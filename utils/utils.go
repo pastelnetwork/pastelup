@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -395,19 +395,21 @@ func GetChecksum(_ context.Context, fileName string) (checksum string, err error
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
+// GetInstalledCommand only support for linux
 func GetInstalledCommand(ctx context.Context) map[string]bool {
-	pathEnv := os.Getenv("PATH")
-	paths := strings.Split(pathEnv, ":")
-
 	m := make(map[string]bool)
-	for _, path := range paths {
-		files, err := ioutil.ReadDir(path)
-		if err != nil {
-			log.WithContext(ctx).Errorf("failed to read dir, err: %s", err)
-			continue
-		}
-		for _, file := range files {
-			m[file.Name()] = true
+	cmd := exec.Command("dpkg-query", "-f", "${binary:Package} ", "-W")
+	stdout, err := cmd.Output()
+	if err != nil {
+		log.WithContext(ctx).Errorf("failed to execute cmd, err: %s", err)
+		return m
+	}
+
+	packages := strings.Split(string(stdout), " ")
+	for _, p := range packages {
+		tokens := strings.Split(p, ":")
+		if tokens[0] != "" {
+			m[tokens[0]] = true
 		}
 	}
 	return m

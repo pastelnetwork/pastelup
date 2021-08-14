@@ -186,3 +186,7 @@ func GetVersionSubURL(version string) string {
 		return fmt.Sprintf("history/%s", version)
 	}
 }
+
+// DependenciesPackages
+// TODO: Need to separate for supernode, walletnode, node
+var DependenciesPackages = []string{"wget", "curl", "libgomp1", "python3-pip", "ufw"}

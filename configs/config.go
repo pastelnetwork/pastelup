@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
 )
@@ -95,8 +96,9 @@ var ZksnarkParamsNames = []string{
 
 // Config contains configuration of all components of the WalletNode.
 type Config struct {
-	Main `json:","`
-	Init `json:","`
+	Main       `json:","`
+	Init       `json:","`
+	Configurer configurer.IConfigurer `json:"-"`
 }
 
 // String : returns string from Config fields
@@ -154,11 +156,18 @@ func GetConfig() *Config {
 	if utils.CheckFileExist(constants.PastelUtilityConfigFilePath) {
 		config, err = LoadConfig()
 		if err != nil {
-			log.Error("The pastel-utility.conf file is not correct\n")
+			log.Errorf("the pastel-utility.conf file is not correct, err: %s", err)
 			os.Exit(-1)
 		}
 	} else {
 		config = New()
 	}
+
+	c, err := configurer.NewConfigurer()
+	if err != nil {
+		log.Errorf("failed to initialize configurer, err: %s", err)
+		os.Exit(-1)
+	}
+	config.Configurer = c
 	return config
 }

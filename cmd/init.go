@@ -13,7 +13,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
 	"github.com/pkg/errors"
@@ -21,12 +20,8 @@ import (
 
 func setupInitCommand() *cli.Command {
 	config := configs.GetConfig()
-	var err error
 	if len(config.WorkingDir) == 0 {
-		config.WorkingDir, err = configurer.DefaultWorkingDir()
-		if err != nil {
-			return nil
-		}
+		config.WorkingDir = config.Configurer.DefaultWorkingDir()
 	}
 
 	initCommand := cli.NewCommand("init")
@@ -124,12 +119,8 @@ func runInit(ctx context.Context, config *configs.Config) error {
 func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 	forceSet := config.Force
 	var workDirPath, zksnarkPath string
-	var tmpPath string
-	var err error
-	tmpPath, err = configurer.DefaultZksnarkDir()
-	if err != nil {
-		return err
-	}
+	tmpPath := config.Configurer.DefaultZksnarkDir()
+
 	if config.WorkingDir == tmpPath {
 		zksnarkPath = tmpPath
 		workDirPath = config.WorkingDir

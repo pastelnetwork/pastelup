@@ -5,13 +5,16 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-errors/errors"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
-const templateDownloadURL = constants.DownloadBaseURL + "/%s/%s-%s-%s.zip"
+const (
+	templateDownloadURL = constants.DownloadBaseURL + "/%s/%s-%s-%s.zip"
+)
 
 type configurer struct {
 	workingDir          string
@@ -52,7 +55,7 @@ func (c *configurer) DefaultPastelExecutableDir() string {
 }
 
 // GetDownloadURL returns download url of the pastel executables.
-func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*url.URL, error) {
+func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error) {
 	var toolType string
 	switch c.osType {
 	case constants.Mac:
@@ -69,16 +72,19 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 		}
 	}
 
-	url, err := url.Parse(fmt.Sprintf(
+	urlString := fmt.Sprintf(
 		templateDownloadURL,
 		constants.GetVersionSubURL(version),
 		tool,
 		toolType,
-		c.architecture))
+		c.architecture)
+	url, err := url.Parse(urlString)
 	if err != nil {
-		return nil, errors.Errorf("failed to parse url, err: %s", err)
+		return nil, "", errors.Errorf("failed to parse url, err: %s", err)
 	}
-	return url, nil
+	tokens := strings.Split(urlString, "/")
+
+	return url, tokens[len(tokens)-1], nil
 }
 
 func newLinuxConfigurer(homeDir string) IConfigurer {
@@ -116,18 +122,25 @@ func newWindowsConfigurer(homeDir string) IConfigurer {
 
 // NewConfigurer return a new configurer instance
 func NewConfigurer() (IConfigurer, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, errors.Errorf("failed to get user home dir, err: %s", err)
-	}
-
 	osType := utils.GetOS()
 	switch osType {
 	case constants.Linux:
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, errors.Errorf("failed to get user home dir, err: %s", err)
+		}
 		return newLinuxConfigurer(homeDir), nil
 	case constants.Mac:
+		homeDir, err := os.UserConfigDir()
+		if err != nil {
+			return nil, errors.Errorf("failed to get user config dir dir, err: %s", err)
+		}
 		return newDarwinConfigurer(homeDir), nil
 	case constants.Windows:
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, errors.Errorf("failed to get user home dir, err: %s", err)
+		}
 		return newWindowsConfigurer(homeDir), nil
 	default:
 		return nil, errors.New("unknown os")

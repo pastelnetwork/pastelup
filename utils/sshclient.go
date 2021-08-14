@@ -216,10 +216,10 @@ func (rs *RemoteScript) SmartOutput() ([]byte, error) {
 
 // Cmd appends a command to the RemoteScript.
 func (rs *RemoteScript) Cmd(cmd string) *RemoteScript {
-	_, err := rs.script.WriteString(cmd + "\n")
-	if err != nil {
+	if _, err := rs.script.WriteString(cmd + "\n"); err != nil {
 		rs.err = err
 	}
+
 	return rs
 }
 

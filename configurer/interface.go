@@ -6,6 +6,7 @@ import (
 	"github.com/pastelnetwork/pastel-utility/constants"
 )
 
+// IConfigurer returns a interface of Configurer
 type IConfigurer interface {
 	GetHomeDir() string
 	DefaultWorkingDir() string

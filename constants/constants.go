@@ -38,18 +38,25 @@ const (
 
 	// Windows type
 	Windows OSType = "Windows"
-	Linux   OSType = "Linux"
-	Mac     OSType = "MAC"
+	// Linux type
+	Linux OSType = "Linux"
+	// Mac type
+	Mac OSType = "MAC"
+	// Unknown type
 	Unknown OSType = "Unknown"
 
-	// Tool type
+	// WalletNode type
 	WalletNode ToolType = "gonode/walletnode"
-	SuperNode  ToolType = "gonode/supernode"
-	PastelD    ToolType = "pasteld/pastel"
-	DDService  ToolType = "dd-service/ddservice"
-	RQService  ToolType = "rq-service/rqservice"
+	// SuperNode type
+	SuperNode ToolType = "gonode/supernode"
+	// PastelD type
+	PastelD ToolType = "pasteld/pastel"
+	// DDService type
+	DDService ToolType = "dd-service/ddservice"
+	// RQService type
+	RQService ToolType = "rq-service/rqservice"
 
-	// Architecture type
+	// AMD64 is architecture type
 	AMD64 ArchitectureType = "amd64"
 )
 
@@ -187,6 +194,5 @@ func GetVersionSubURL(version string) string {
 	}
 }
 
-// DependenciesPackages
-// TODO: Need to separate for supernode, walletnode, node
+// DependenciesPackages TODO: Need to separate for supernode, walletnode, node
 var DependenciesPackages = []string{"wget", "curl", "libgomp1", "python3-pip", "ufw"}

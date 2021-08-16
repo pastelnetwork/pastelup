@@ -239,7 +239,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	_, err = client.Cmd(fmt.Sprintf("%s stop supernode ", pastelUtilityPath)).Output()
 	if err != nil {
-		log.WithContext(ctx).Error("failed to stop supernode, err: %s", err)
+		log.WithContext(ctx).Errorf("failed to stop supernode, err: %s", err)
 		return err
 	}
 
@@ -374,7 +374,7 @@ func installComponent(ctx context.Context, config *configs.Config, installComman
 
 	downloadURL, execArchiveName, err := config.Configurer.GetDownloadURL(version, installCommand)
 	if err != nil {
-		return errors.Errorf("failed to get download url, err: %s")
+		return errors.Errorf("failed to get download url, err: %s", err)
 	}
 
 	if err = installExecutable(ctx, config, downloadURL.String(), execArchiveName, installCommand); err != nil {

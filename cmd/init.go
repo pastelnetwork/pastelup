@@ -118,15 +118,11 @@ func runInit(ctx context.Context, config *configs.Config) error {
 // Print success info log on successfully ran command, return error if fail
 func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 	forceSet := config.Force
-	var workDirPath, zksnarkPath string
-	tmpPath := config.Configurer.DefaultZksnarkDir()
-
-	if config.WorkingDir == tmpPath {
-		zksnarkPath = tmpPath
+	workDirPath := filepath.Join(config.WorkingDir)
+	zksnarkPath := filepath.Join(config.WorkingDir, "/.pastel-params/")
+	if config.WorkingDir == config.Configurer.DefaultZksnarkDir() {
+		zksnarkPath = config.Configurer.DefaultZksnarkDir()
 		workDirPath = config.WorkingDir
-	} else {
-		workDirPath = filepath.Join(config.WorkingDir)
-		zksnarkPath = filepath.Join(config.WorkingDir, "/.pastel-params/")
 	}
 
 	// create working dir path

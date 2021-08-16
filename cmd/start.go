@@ -1279,7 +1279,7 @@ func checkPastelInstallPath(ctx context.Context, config *configs.Config, flagMod
 
 func checkPastelParamInstallPath(ctx context.Context, config *configs.Config) (err error) {
 	zksnarkPath := filepath.Join(config.WorkingDir, "/.pastel-params/")
-	if config.WorkingDir == config.Configurer.DefaultWorkingDir() {
+	if config.WorkingDir == config.Configurer.DefaultZksnarkDir() {
 		zksnarkPath = config.Configurer.DefaultZksnarkDir()
 	}
 

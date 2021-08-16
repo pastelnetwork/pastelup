@@ -275,10 +275,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 }
 
 func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) error {
-	if err := installDupeDetection(ctx, config); err != nil {
-		return err
-	}
-	return nil
+	return installDupeDetection(ctx, config)
 }
 
 func initNodeDownloadPath(ctx context.Context, config *configs.Config, nodeInstallPath string) (nodePath string, err error) {

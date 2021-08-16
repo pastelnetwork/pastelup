@@ -196,3 +196,11 @@ func GetVersionSubURL(version string) string {
 
 // DependenciesPackages TODO: Need to separate for supernode, walletnode, node
 var DependenciesPackages = []string{"wget", "curl", "libgomp1", "python3-pip", "ufw"}
+
+// DependenciesDupeDetectionPackages is dependencies for dupe detection service
+var DependenciesDupeDetectionPackages = []string{
+	"xgboost", "hyppo", "zstandard", "tensorflow", "pandas",
+	"scipy", "scikit-learn", "matplotlib", "watchdog",
+	"chromedriver_autoinstaller", "selenium", "Pillow",
+	"opennsfw-standalone", "tensorflow_hub", "imagehash",
+}

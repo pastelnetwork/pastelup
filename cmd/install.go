@@ -274,15 +274,11 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	return client.Shell().SetStdio(stdin, stdout, stderr).Start()
 }
 
-func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	err = installDupeDetection(ctx, config)
-	if err != nil {
-
+func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) error {
+	if err := installDupeDetection(ctx, config); err != nil {
 		return err
 	}
-
 	return nil
-
 }
 
 func initNodeDownloadPath(ctx context.Context, config *configs.Config, nodeInstallPath string) (nodePath string, err error) {
@@ -413,7 +409,6 @@ func uncompressNodeArchive(ctx context.Context, dstFolder string, archiveFile st
 }
 
 func uncompressArchive(ctx context.Context, dstFolder string, archiveFile string) error {
-
 	file, err := os.Open(archiveFile)
 
 	if err != nil {
@@ -479,7 +474,6 @@ func installChrome(ctx context.Context, config *configs.Config) (err error) {
 		log.WithContext(ctx).Infof("Downloading Chrome to install: %s \n", constants.ChromeDownloadURL[utils.GetOS()])
 
 		err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]), constants.ChromeDownloadURL[utils.GetOS()])
-
 		if err != nil {
 			return err
 		}
@@ -496,7 +490,6 @@ func installChrome(ctx context.Context, config *configs.Config) (err error) {
 
 		utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
 	}
-
 	return nil
 }
 
@@ -575,7 +568,6 @@ func installExecutable(ctx context.Context, config *configs.Config, downloadURL 
 				return err
 			}
 		}
-
 	case constants.SuperNode:
 		err = uncompressArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName))
 		if err == nil {
@@ -588,9 +580,7 @@ func installExecutable(ctx context.Context, config *configs.Config, downloadURL 
 			}
 
 			log.WithContext(ctx).Info("Initialize the supernode")
-
 			workDirPath := filepath.Join(config.WorkingDir, "supernode")
-
 			if err := utils.CreateFolder(ctx, workDirPath, config.Force); err != nil {
 				return err
 			}
@@ -653,21 +643,20 @@ func installExecutable(ctx context.Context, config *configs.Config, downloadURL 
 }
 
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
-	requirementURL := constants.RequirementDownloadURL
+	subCmd := []string{"-m", "pip", "install"}
+	subCmd = append(subCmd, constants.DependenciesDupeDetectionPackages...)
 
-	err = utils.DownloadFile(ctx, filepath.Join(config.WorkingDir, constants.PipRequirmentsFileName), requirementURL)
-	if err == nil {
-		log.WithContext(ctx).Info("Installing Pip...")
-		if utils.GetOS() == constants.Windows {
-			RunCMDWithInteractive("python", "-m", "pip", "install", "-r", filepath.Join(config.WorkingDir, constants.PipRequirmentsFileName))
-		} else {
-			RunCMDWithInteractive("python3", "-m", "pip", "install", "-r", filepath.Join(config.WorkingDir, constants.PipRequirmentsFileName))
+	log.WithContext(ctx).Info("Installing Pip...")
+	if utils.GetOS() == constants.Windows {
+		if err := RunCMDWithInteractive("python", subCmd...); err != nil {
+			return err
 		}
-
-		log.WithContext(ctx).Info("Pip install finished")
 	} else {
-		log.WithContext(ctx).Error("Can not download requirement file to install Pip.")
+		if err := RunCMDWithInteractive("python3", subCmd...); err != nil {
+			return err
+		}
 	}
+	log.WithContext(ctx).Info("Pip install finished")
 
 	if err = installChrome(ctx, config); err != nil {
 		return err
@@ -682,7 +671,6 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 			return err
 		}
 		pathList = append(pathList, dupeDetectionDirPath)
-
 	}
 
 	targetDir := filepath.Join(homeDir, constants.DupeDetectionSupportFilePath)

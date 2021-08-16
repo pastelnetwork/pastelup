@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -42,7 +43,7 @@ func TestCreateFolderWithoutForce(t *testing.T) {
 	} else {
 		force = false
 		err = CreateFolder(cxt, path, force)
-		var wanted = "Directory already exists on $HOME/test"
+		var wanted = fs.ErrExist.Error()
 		if err.Error() != wanted {
 			t.Fatalf(fmt.Sprintf("%s %s", "CreateFolder Function Failed", err.Error()))
 		} else {
@@ -87,7 +88,7 @@ func TestCreateFileWithoutForce(t *testing.T) {
 		t.Logf(fmt.Sprintf("CreateFile Function OK : %s", fileName))
 		force = false
 		newFileName, err := CreateFile(cxt, path, force)
-		var wanted = fmt.Sprintf("File already exists: %s", path)
+		var wanted = fs.ErrExist.Error()
 		if err.Error() != wanted {
 			t.Fatalf(fmt.Sprintf("%s %s", "CreateFile Function Failed", err.Error()))
 		} else {

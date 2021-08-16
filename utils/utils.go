@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/rand"
 	"net/http"
 	"os"
@@ -26,60 +27,51 @@ import (
 // CreateFolder creates the folder in the specified `path`
 // Print success info log on successfully ran command, return error if fail
 func CreateFolder(ctx context.Context, path string, force bool) error {
-	if force {
-		err := os.MkdirAll(path, 0755)
-		if err != nil {
+	create := func(path string) error {
+		if err := os.MkdirAll(path, 0755); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Error creating directory")
 			return errors.Errorf("Failed to create directory: %v", err)
 		}
 		log.WithContext(ctx).Infof("Directory created on %s", path)
-	} else {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			err := os.MkdirAll(path, 0755)
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Error creating directory")
-				return errors.Errorf("Failed to create directory: %v", err)
-			}
-			log.WithContext(ctx).Infof("Directory created on %s \n", path)
-		} else {
-			return errors.Errorf("Directory already exists on %s", path)
-		}
+
+		return nil
+	}
+	if force {
+		return create(path)
 	}
 
-	return nil
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return create(path)
+	}
+
+	return fs.ErrExist
 }
 
 // CreateFile creates pastel.conf file
 // Print success info log on successfully ran command, return error if fail
 func CreateFile(ctx context.Context, fileName string, force bool) (string, error) {
-
-	if force {
-		var file, err = os.Create(fileName)
+	create := func(filename string) error {
+		file, err := os.Create(fileName)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Error creating file")
-			return "", errors.Errorf("Failed to create file: %v", err)
+			return errors.Errorf("failed to create file: %v - err: %v", fileName, err)
 		}
 		defer file.Close()
-	} else {
-		// check if file exists
-		var _, err = os.Stat(fileName)
 
-		// create file if not exists
-		if os.IsNotExist(err) {
-			var file, err = os.Create(fileName)
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Error creating file")
-				return "", errors.Errorf("Failed to create file: %v", err)
-			}
-			defer file.Close()
-		} else {
-			return fileName, errors.Errorf("File already exists: %s", fileName)
-		}
+		log.WithContext(ctx).Infof("File created: %s \n", fileName)
+		return nil
 	}
 
-	log.WithContext(ctx).Infof("File created: %s \n", fileName)
+	if force {
+		return fileName, create(fileName)
+	}
 
-	return fileName, nil
+	// create if not already exists
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		return fileName, create(fileName)
+	}
+
+	return fileName, fs.ErrExist
 }
 
 // GenerateRandomString is a helper func for generating
@@ -110,7 +102,6 @@ func DeleteFile(filePath string) error {
 
 // WriteFile writes a file as data
 func WriteFile(fileName string, data string) (err error) {
-	// write to file
 	file, err := os.OpenFile(fileName, os.O_RDWR, 0644)
 	if err != nil {
 		return err
@@ -134,6 +125,7 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 	n := len(p)
 	wc.Total += uint64(n)
 	wc.PrintProgress()
+
 	return n, nil
 }
 
@@ -182,7 +174,6 @@ func DownloadFile(ctx context.Context, filepath string, url string) error {
 
 	// The progress use the same line so print a new line once it's finished downloading
 	fmt.Print("\n")
-
 	// Close the file without defer so it can happen before Rename()
 	out.Close()
 
@@ -207,7 +198,6 @@ func GetOS() constants.OSType {
 // Untar takes a destination path and a reader; a tar reader loops over the tarfile
 // creating the file structure at 'dst' along the way, and writing any files
 func Untar(dst string, r io.Reader, filenames ...string) error {
-
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
 		return err
@@ -220,15 +210,12 @@ func Untar(dst string, r io.Reader, filenames ...string) error {
 		header, err := tr.Next()
 
 		switch {
-
 		// if no more files are found return
 		case err == io.EOF:
 			return nil
-
 		// return any other error
 		case err != nil:
 			return err
-
 		// if the header is nil, just skip it (not sure how this happens)
 		case header == nil:
 			continue
@@ -277,10 +264,7 @@ func Untar(dst string, r io.Reader, filenames ...string) error {
 
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
-func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
-
-	var filenames []string
-
+func Unzip(src string, dest string, fPaths ...string) (filenames []string, err error) {
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return filenames, err
@@ -288,7 +272,6 @@ func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
 
 	defer r.Close()
 	for _, f := range r.File {
-
 		// Store filename/path for returning and using later on
 		fpath := filepath.Join(dest, f.Name)
 
@@ -303,7 +286,6 @@ func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
 
 		filenames = append(filenames, fpath)
 		if f.FileInfo().IsDir() {
-			// Make Folder
 			os.MkdirAll(fpath, os.ModePerm)
 			continue
 		}
@@ -322,16 +304,17 @@ func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
 			return filenames, err
 		}
 
-		_, err = io.Copy(outFile, rc)
-
-		// Close the file without defer to close before next iteration of loop
-		outFile.Close()
-		rc.Close()
-
-		if err != nil {
-			return filenames, err
+		if _, err := io.Copy(outFile, rc); err != nil {
+			return filenames, fmt.Errorf("copy %s", err)
 		}
 
+		// Close the file without defer to close before next iteration of loop
+		if err := outFile.Close(); err != nil {
+			return filenames, fmt.Errorf("outfile close %s", err)
+		}
+		if err := rc.Close(); err != nil {
+			return filenames, fmt.Errorf("rc close %s", err)
+		}
 	}
 
 	return filenames, nil
@@ -339,8 +322,7 @@ func Unzip(src string, dest string, fPaths ...string) ([]string, error) {
 
 // CheckFileExist check the file exist
 func CheckFileExist(filepath string) bool {
-	var err error
-	if _, err = os.Stat(filepath); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -350,7 +332,7 @@ func CheckFileExist(filepath string) bool {
 func CopyFile(ctx context.Context, src string, dstFolder string, dstFileName string) error {
 	sourceFileStat, err := os.Stat(src)
 	if err != nil {
-		log.WithContext(ctx).Error(fmt.Sprintf("%s file not exist!!!", src))
+		log.WithContext(ctx).Error(fmt.Sprintf("%s file does not exist!!!", src))
 		return err
 	}
 
@@ -395,28 +377,21 @@ func Contains(s []string, e string) bool {
 }
 
 // GetChecksum gets the checksum of file
-func GetChecksum(ctx context.Context, fileName string) (checksum string, err error) {
-	checkSum := ""
-	_, err = os.Stat(fileName)
-	if err == nil {
-		f, err := os.Open(fileName)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("File is missing: %s\n", fileName)
-			return "", err
-		}
-		defer f.Close()
-
-		hasher := sha256.New()
-		if _, err := io.Copy(hasher, f); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Error creating file: %s\n", fileName)
-			return "", err
-		}
-
-		checkSum = hex.EncodeToString(hasher.Sum(nil))
-	} else {
-		log.WithContext(ctx).WithError(err).Errorf("File is missing: %s\n", fileName)
-		return "", err
+func GetChecksum(_ context.Context, fileName string) (checksum string, err error) {
+	if _, err := os.Stat(fileName); err != nil {
+		return "", fmt.Errorf("file missing: %s", err)
 	}
 
-	return checkSum, nil
+	f, err := os.Open(fileName)
+	if err != nil {
+		return "", fmt.Errorf("open %s", err)
+	}
+	defer f.Close()
+
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, f); err != nil {
+		return "", fmt.Errorf("copy: %s", err)
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }

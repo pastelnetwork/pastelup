@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	templateDownloadURL = constants.DownloadBaseURL + "/%s/%s-%s-%s.zip"
+	templateDownloadURL = constants.DownloadBaseURL + "/%s/%s/%s"
 )
 
 type configurer struct {
@@ -56,28 +56,30 @@ func (c *configurer) DefaultPastelExecutableDir() string {
 
 // GetDownloadURL returns download url of the pastel executables.
 func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error) {
-	var toolType string
-	switch c.osType {
-	case constants.Mac:
-		toolType = "darwin"
-	case constants.Linux:
-		toolType = "linux"
-		if tool == constants.PastelD || tool == constants.RQService {
-			toolType = "ubuntu20.04"
-		}
-	case constants.Windows:
-		toolType = "windows"
-		if tool == constants.PastelD || tool == constants.RQService {
-			toolType = "win"
-		}
+	var name string
+	switch tool {
+	case constants.WalletNode:
+		name = constants.WalletNodeExecName[c.osType]
+		tool = constants.GoNode
+	case constants.RQService:
+		name = constants.PastelRQServiceExecName[c.osType]
+	case constants.PastelD:
+		name = constants.PastelExecArchiveName[c.osType]
+	case constants.SuperNode:
+		name = constants.SuperNodeExecName[c.osType]
+		tool = constants.GoNode
+	case constants.DDService:
+		name = constants.DupeDetectionExecName
+	default:
+		return nil, "", errors.Errorf("unknow tool: %s", tool)
 	}
 
 	urlString := fmt.Sprintf(
 		templateDownloadURL,
 		constants.GetVersionSubURL(version),
 		tool,
-		toolType,
-		c.architecture)
+		name)
+
 	url, err := url.Parse(urlString)
 	if err != nil {
 		return nil, "", errors.Errorf("failed to parse url, err: %s", err)

@@ -46,7 +46,7 @@ func setupSubCommand(config *configs.Config,
 		cli.NewFlag("peers", &config.Peers).SetAliases("p").
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
-			SetUsage(green("Optional, Pastel version to install")).SetValue("latest"),
+			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -320,7 +320,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 	case constants.WalletNode:
-		if err = installComponent(ctx, config, constants.PastelD, "latest"); err != nil {
+		if err = installComponent(ctx, config, constants.PastelD, config.Version); err != nil {
 			return err
 		}
 
@@ -332,7 +332,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 	case constants.SuperNode:
-		if err = installComponent(ctx, config, constants.PastelD, "latest"); err != nil {
+		if err = installComponent(ctx, config, constants.PastelD, config.Version); err != nil {
 			return err
 		}
 
@@ -518,12 +518,14 @@ func installExecutable(ctx context.Context, config *configs.Config, downloadURL 
 	}
 
 	log.WithContext(ctx).Info("Installing...")
-
 	log.WithContext(ctx).Debug("Extracting archive files")
+	isZip := strings.Contains(downloadURL, ".zip")
 
 	switch toolType {
 	case constants.PastelD:
-		err = uncompressNodeArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName))
+		if isZip {
+			err = uncompressNodeArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName))
+		}
 		if err == nil {
 			if utils.GetOS() == constants.Linux {
 				if _, err = RunCMD("chmod", "777",
@@ -539,7 +541,9 @@ func installExecutable(ctx context.Context, config *configs.Config, downloadURL 
 			}
 		}
 	case constants.WalletNode:
-		err = uncompressArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName))
+		if isZip {
+			err = uncompressArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName))
+		}
 		if err == nil {
 			if utils.GetOS() == constants.Linux {
 				if _, err = RunCMD("chmod", "777",
@@ -566,7 +570,9 @@ func installExecutable(ctx context.Context, config *configs.Config, downloadURL 
 			}
 		}
 	case constants.SuperNode:
-		err = uncompressArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName))
+		if isZip {
+			err = uncompressArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName))
+		}
 		if err == nil {
 			if utils.GetOS() == constants.Linux {
 				if _, err = RunCMD("chmod", "777",
@@ -592,7 +598,9 @@ func installExecutable(ctx context.Context, config *configs.Config, downloadURL 
 			}
 		}
 	case constants.RQService:
-		err = uncompressArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName))
+		if isZip {
+			err = uncompressArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName))
+		}
 		if err == nil {
 			if utils.GetOS() == constants.Linux {
 				if _, err = RunCMD("chmod", "777",
@@ -631,10 +639,12 @@ func installExecutable(ctx context.Context, config *configs.Config, downloadURL 
 		return err
 	}
 
-	log.WithContext(ctx).Debug("Delete archive files")
-	if err = utils.DeleteFile(filepath.Join(config.PastelExecDir, archiveName)); err != nil {
-		log.WithContext(ctx).Errorf("Failed to delete archive file : %s", filepath.Join(config.PastelExecDir, archiveName))
-		return err
+	if isZip {
+		log.WithContext(ctx).Debug("Delete archive files")
+		if err = utils.DeleteFile(filepath.Join(config.PastelExecDir, archiveName)); err != nil {
+			log.WithContext(ctx).Errorf("Failed to delete archive file : %s", filepath.Join(config.PastelExecDir, archiveName))
+			return err
+		}
 	}
 	return nil
 }
@@ -659,7 +669,18 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
-	homeDir := config.Configurer.GetHomeDir()
+	downloadURL, execArchiveName, err := config.Configurer.GetDownloadURL(config.Version, constants.DDService)
+	if err != nil {
+		return errors.Errorf("failed to get download url, err: %s", err)
+	}
+
+	if err = installExecutable(ctx, config, downloadURL.String(), execArchiveName, constants.DDService); err != nil {
+		log.WithContext(ctx).Errorf("Install %s executable failed", constants.DDService)
+		return err
+	}
+	log.WithContext(ctx).Infof("%s executable installed successfully", constants.DDService)
+
+	homeDir := config.WorkingDir
 	homeDir = filepath.Join(homeDir, "pastel_dupe_detection_service")
 	var pathList []interface{}
 	for index := range constants.DupeDetectionConfigs {

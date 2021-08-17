@@ -46,18 +46,21 @@ const (
 	Unknown OSType = "Unknown"
 
 	// WalletNode type
-	WalletNode ToolType = "gonode/walletnode"
+	WalletNode ToolType = "walletnode"
 	// SuperNode type
-	SuperNode ToolType = "gonode/supernode"
+	SuperNode ToolType = "supernode"
+	// SuperNode type
+	GoNode ToolType = "gonode"
 	// PastelD type
-	PastelD ToolType = "pasteld/pastel"
+	PastelD ToolType = "pasteld"
 	// DDService type
-	DDService ToolType = "dd-service/ddservice"
+	DDService ToolType = "dd-service"
 	// RQService type
-	RQService ToolType = "rq-service/rqservice"
-
+	RQService ToolType = "rq-service"
 	// AMD64 is architecture type
 	AMD64 ArchitectureType = "amd64"
+	// DupeDetectionExecName is execution file name
+	DupeDetectionExecName = "pastel_dupe_detection_daemon_v4.py"
 )
 
 // PasteldName - The name of the pasteld
@@ -78,17 +81,17 @@ var PastelCliName = map[OSType]string{
 
 // WalletNodeExecName - The name of the wallet node
 var WalletNodeExecName = map[OSType]string{
-	Windows: "walletnode-windows-amd64.exe",
-	Linux:   "walletnode-linux-amd64",
+	Windows: "walletnode-win-amd64.exe",
+	Linux:   "walletnode-ubuntu20.04-amd64",
 	Mac:     "walletnode-darwin-amd64",
 	Unknown: "",
 }
 
 // SuperNodeExecName - The name of the pastel wallet node
 var SuperNodeExecName = map[OSType]string{
-	Windows: "supernode-windows-amd64.exe",
-	Linux:   "supernode-linux-amd64",
-	Mac:     "supernode-darwin-amd64",
+	Windows: "",
+	Linux:   "supernode-ubuntu20.04-amd64",
+	Mac:     "",
 	Unknown: "",
 }
 
@@ -154,9 +157,9 @@ var PastelRQServiceArchiveName = map[OSType]string{
 
 // PastelRQServiceExecName - The name of the rqservice executable files
 var PastelRQServiceExecName = map[OSType]string{
-	Windows: "rq-service-win10-x64.exe",
+	Windows: "rq-service-win-amd64.exe",
 	Linux:   "rq-service-ubuntu20.04-x64",
-	Mac:     "rq-service-macosx",
+	Mac:     "rq-service-darwin-amd64",
 	Unknown: "",
 }
 

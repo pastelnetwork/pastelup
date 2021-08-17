@@ -1,17 +1,19 @@
 package constants
 
+import "fmt"
+
 // OSType - Windows, Linux, MAC, Unknown
 type OSType string
 
+// ToolType - gonode, pasteld, dd-service, rq-service
+type ToolType string
+
+// ArchitectureType - amd64
+type ArchitectureType string
+
 const (
-	// Windows - Current OS is Windows
-	Windows OSType = "Windows"
-	// Linux - Current OS is Linux
-	Linux OSType = "Linux"
-	// Mac - Current OS is MAC
-	Mac OSType = "MAC"
-	// Unknown - Current OS is unknown
-	Unknown OSType = "Unknown"
+	// DownloadBaseURL - The base URL of the pastel release files
+	DownloadBaseURL string = "https://download.pastel.network"
 
 	// PastelConfName - pastel config file name
 	PastelConfName string = "pastel.conf"
@@ -19,11 +21,46 @@ const (
 	// PastelUtilityConfigFilePath - The path of the config of pastel-utility
 	PastelUtilityConfigFilePath string = "./pastel-utility.conf"
 
+	// PastelUtilityLogFilePath - The path of the log of pastel-utility
+	PastelUtilityLogFilePath string = "./pastel-utility-remote-log.txt"
+
 	// PipRequirmentsFileName - pip install requirements file name
 	PipRequirmentsFileName string = "requirements.txt"
 
 	// DupeDetectionImageFingerPrintDataBase - dupe_detection_image_fingerprint_database file
 	DupeDetectionImageFingerPrintDataBase string = "dupe_detection_image_fingerprint_database.sqlite"
+
+	// PastelUtilityDownloadURL - The path of pastel-utility for install supernode remote
+	PastelUtilityDownloadURL string = "https://github.com/pastelnetwork/pastel-utility/releases/download/v0.5.8/pastel-utility-linux-amd64"
+
+	// RequirementDownloadURL - The path of requirement.txt for install pip
+	RequirementDownloadURL string = "https://download.pastel.network/machine-learning/requirements.txt"
+
+	// Windows type
+	Windows OSType = "Windows"
+	// Linux type
+	Linux OSType = "Linux"
+	// Mac type
+	Mac OSType = "MAC"
+	// Unknown type
+	Unknown OSType = "Unknown"
+
+	// WalletNode type
+	WalletNode ToolType = "walletnode"
+	// SuperNode type
+	SuperNode ToolType = "supernode"
+	// GoNode type
+	GoNode ToolType = "gonode"
+	// PastelD type
+	PastelD ToolType = "pasteld"
+	// DDService type
+	DDService ToolType = "dd-service"
+	// RQService type
+	RQService ToolType = "rq-service"
+	// AMD64 is architecture type
+	AMD64 ArchitectureType = "amd64"
+	// DupeDetectionExecName is execution file name
+	DupeDetectionExecName = "pastel_dupe_detection_daemon_v4.py"
 )
 
 // PasteldName - The name of the pasteld
@@ -42,75 +79,29 @@ var PastelCliName = map[OSType]string{
 	Unknown: "",
 }
 
-// PastelWalletExecName - The name of the pastel wallet node
-var PastelWalletExecName = map[OSType]string{
-	Windows: "walletnode-windows-amd64.exe",
-	Linux:   "walletnode-linux-amd64",
+// WalletNodeExecName - The name of the wallet node
+var WalletNodeExecName = map[OSType]string{
+	Windows: "walletnode-win-amd64.exe",
+	Linux:   "walletnode-ubuntu20.04-amd64",
 	Mac:     "walletnode-darwin-amd64",
 	Unknown: "",
 }
 
-// PastelSuperNodeExecName - The name of the pastel wallet node
-var PastelSuperNodeExecName = map[OSType]string{
-	Windows: "supernode-windows-amd64.exe",
-	Linux:   "supernode-linux-amd64",
-	Mac:     "supernode-darwin-amd64",
+// SuperNodeExecName - The name of the pastel wallet node
+var SuperNodeExecName = map[OSType]string{
+	Windows: "",
+	Linux:   "supernode-ubuntu20.04-amd64",
+	Mac:     "",
 	Unknown: "",
 }
 
 // PastelExecArchiveName - The name of the pastel executable files
 var PastelExecArchiveName = map[OSType]string{
-	Windows: "pastel-win64-rc5.1.zip",
-	Linux:   "pastel-ubuntu20.04-rc5.1.tar.gz",
-	Mac:     "pastel-osx-rc5.1.tar.gz",
+	Windows: "pastel-win-amd64.zip",
+	Linux:   "pastel-ubuntu20.04-amd64.zip",
+	Mac:     "pastel-darwin-amd64.zip",
 	Unknown: "",
 }
-
-// PastelDownloadURL - The download url of pastel executables
-var PastelDownloadURL = map[OSType]string{
-	Windows: "https://download.pastel.network/latest/pasteld/pastel-win64-rc5.1.zip",
-	Linux:   "https://download.pastel.network/latest/pasteld/pastel-ubuntu20.04-rc5.1.tar.gz",
-	Mac:     "https://download.pastel.network/latest/pasteld/pastel-osx-rc5.1.tar.gz",
-	Unknown: "",
-}
-
-// PastelDownloadReleaseURL - The download url of pastel executables for release
-var PastelDownloadReleaseURL = "https://download.pastel.network/pasteld/"
-
-// PastelDownloadReleaseFileName - The download filename of pastel executables for release
-var PastelDownloadReleaseFileName = map[OSType]string{
-	Windows: "pastel-win64-",
-	Linux:   "pastel-ubuntu20.04-",
-	Mac:     "pastel-osx-",
-	Unknown: "",
-}
-
-// PastelDownloadReleaseFileExtension - The download file extension of pastel executables for release
-var PastelDownloadReleaseFileExtension = map[OSType]string{
-	Windows: ".zip",
-	Linux:   ".tar.gz",
-	Mac:     ".tar.gz",
-	Unknown: "",
-}
-
-// PastelWalletDownloadURL - The download url of the pastel wallet node
-var PastelWalletDownloadURL = map[OSType]string{
-	Windows: "https://download.pastel.network/latest/gonode/walletnode-windows-amd64.zip",
-	Linux:   "https://download.pastel.network/latest/gonode/walletnode-linux-amd64.zip",
-	Mac:     "https://download.pastel.network/latest/gonode/walletnode-darwin-amd64.zip",
-	Unknown: "",
-}
-
-// PastelSuperNodeDownloadURL - The download url of the pastel super node
-var PastelSuperNodeDownloadURL = map[OSType]string{
-	Windows: "https://download.pastel.network/latest/gonode/supernode-windows-amd64.zip",
-	Linux:   "https://download.pastel.network/latest/gonode/supernode-linux-amd64.zip",
-	Mac:     "https://download.pastel.network/latest/gonode/supernode-darwin-amd64.zip",
-	Unknown: "",
-}
-
-// PastelWalletSuperReleaseDownloadURL - The download url of the pastel wallet, super node for release
-var PastelWalletSuperReleaseDownloadURL = "https://download.pastel.network/gonode/"
 
 // WalletNodeExecArchiveName - The download url of the  wallet node file
 var WalletNodeExecArchiveName = map[OSType]string{
@@ -139,19 +130,80 @@ var PastelParamsCheckSums = map[string]string{
 
 // ChromeDownloadURL - The download url of chrome
 var ChromeDownloadURL = map[OSType]string{
-	Windows: "https://download.pastel.network/latest/pasteld/pastel-win64-rc5.1.zip",
+	Windows: "",
 	Linux:   "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb",
-	Mac:     "https://download.pastel.network/latest/pasteld/pastel-osx-rc5.1.tar.gz",
+	Mac:     "",
 	Unknown: "",
 }
 
 // ChromeExecFileName - The download filename of chrome executable
 var ChromeExecFileName = map[OSType]string{
-	Windows: "pastel-win64-",
+	Windows: "",
 	Linux:   "google-chrome.deb",
-	Mac:     "pastel-osx-",
+	Mac:     "",
 	Unknown: "",
 }
 
 // PortList - PortList to open in install supernode
 var PortList = []string{"9933", "19933", "4444", "14444"}
+
+// PastelRQServiceArchiveName - The name of the pastel rqservice files
+var PastelRQServiceArchiveName = map[OSType]string{
+	Windows: "rqservice-win-amd64.zip",
+	Linux:   "rqservice-ubuntu20.04-amd64.zip",
+	Mac:     "rqservice-darwin-amd64.zip",
+	Unknown: "",
+}
+
+// PastelRQServiceExecName - The name of the rqservice executable files
+var PastelRQServiceExecName = map[OSType]string{
+	Windows: "rq-service-win-amd64.exe",
+	Linux:   "rq-service-ubuntu20.04-x64",
+	Mac:     "rq-service-darwin-amd64",
+	Unknown: "",
+}
+
+// DupeDetectionConfigs - dupe detection path of the supernode config
+var DupeDetectionConfigs = []string{
+	"dupe_detection_input_files",
+	"dupe_detection_support_files",
+	"dupe_detection_output_files",
+	"dupe_detection_processed_files",
+	"dupe_detection_rare_on_internet",
+	"mobilenet_v2_140_224",
+}
+
+// DupeDetectionSupportDownloadURL - The URL of dupe detection support files
+var DupeDetectionSupportDownloadURL = []string{
+	"https://download.pastel.network/machine-learning/dupe_detection_image_fingerprint_database.zip",
+	"https://download.pastel.network/machine-learning/keras_dupe_classifier.model.zip",
+	"https://download.pastel.network/machine-learning/xgboost_dupe_classifier.zip",
+	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
+}
+
+// DupeDetectionMobileNetDownloadURL - The URL of dupe detection mobile net files
+var DupeDetectionMobileNetDownloadURL = "https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip"
+
+// DupeDetectionSupportFilePath - The target path for downloading dupe detection support files
+var DupeDetectionSupportFilePath = "dupe_detection_support_files"
+
+// GetVersionSubURL returns the sub url concerned with version info
+func GetVersionSubURL(version string) string {
+	switch version {
+	case "latest", "beta":
+		return version
+	default:
+		return fmt.Sprintf("history/%s", version)
+	}
+}
+
+// DependenciesPackages TODO: Need to separate for supernode, walletnode, node
+var DependenciesPackages = []string{"wget", "curl", "libgomp1", "python3-pip", "ufw"}
+
+// DependenciesDupeDetectionPackages is dependencies for dupe detection service
+var DependenciesDupeDetectionPackages = []string{
+	"xgboost", "hyppo", "zstandard", "tensorflow", "pandas",
+	"scipy", "scikit-learn", "matplotlib", "watchdog",
+	"chromedriver_autoinstaller", "selenium", "Pillow",
+	"opennsfw-standalone", "tensorflow_hub", "imagehash",
+}

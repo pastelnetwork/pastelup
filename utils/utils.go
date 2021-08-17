@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -33,7 +34,6 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 			return errors.Errorf("Failed to create directory: %v", err)
 		}
 		log.WithContext(ctx).Infof("Directory created on %s", path)
-
 		return nil
 	}
 	if force {
@@ -264,7 +264,9 @@ func Untar(dst string, r io.Reader, filenames ...string) error {
 
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
-func Unzip(src string, dest string, fPaths ...string) (filenames []string, err error) {
+func Unzip(src string, dest string) ([]string, error) {
+	var filenames []string
+
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return filenames, err
@@ -274,10 +276,6 @@ func Unzip(src string, dest string, fPaths ...string) (filenames []string, err e
 	for _, f := range r.File {
 		// Store filename/path for returning and using later on
 		fpath := filepath.Join(dest, f.Name)
-
-		if !Contains(fPaths, fpath) && len(fPaths) != 0 {
-			continue
-		}
 
 		// Check for ZipSlip. More Info: http://bit.ly/2MsjAWE
 		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
@@ -394,4 +392,24 @@ func GetChecksum(_ context.Context, fileName string) (checksum string, err error
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
+// GetInstalledCommand only support for linux
+func GetInstalledCommand(ctx context.Context) map[string]bool {
+	m := make(map[string]bool)
+	cmd := exec.Command("dpkg-query", "-f", "${binary:Package} ", "-W")
+	stdout, err := cmd.Output()
+	if err != nil {
+		log.WithContext(ctx).Errorf("failed to execute cmd, err: %s", err)
+		return m
+	}
+
+	packages := strings.Split(string(stdout), " ")
+	for _, p := range packages {
+		tokens := strings.Split(p, ":")
+		if tokens[0] != "" {
+			m[tokens[0]] = true
+		}
+	}
+	return m
 }

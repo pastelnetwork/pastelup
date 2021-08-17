@@ -13,7 +13,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/configurer"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
 	"github.com/pkg/errors"
@@ -21,9 +20,8 @@ import (
 
 func setupInitCommand() *cli.Command {
 	config := configs.GetConfig()
-
 	if len(config.WorkingDir) == 0 {
-		config.WorkingDir = configurer.DefaultWorkingDir()
+		config.WorkingDir = config.Configurer.DefaultWorkingDir()
 	}
 
 	initCommand := cli.NewCommand("init")
@@ -120,13 +118,11 @@ func runInit(ctx context.Context, config *configs.Config) error {
 // Print success info log on successfully ran command, return error if fail
 func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 	forceSet := config.Force
-	var workDirPath, zksnarkPath string
-	if config.WorkingDir == configurer.DefaultWorkingDir() {
-		zksnarkPath = configurer.DefaultZksnarkDir()
+	workDirPath := filepath.Join(config.WorkingDir)
+	zksnarkPath := filepath.Join(config.WorkingDir, "/.pastel-params/")
+	if config.WorkingDir == config.Configurer.DefaultZksnarkDir() {
+		zksnarkPath = config.Configurer.DefaultZksnarkDir()
 		workDirPath = config.WorkingDir
-	} else {
-		workDirPath = filepath.Join(config.WorkingDir)
-		zksnarkPath = filepath.Join(config.WorkingDir, "/.pastel-params/")
 	}
 
 	// create working dir path
@@ -138,11 +134,6 @@ func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 		}
 	}
 
-	// create zksnark parameters path
-	if err := utils.CreateFolder(ctx, zksnarkPath, forceSet); err != nil {
-		return err
-	}
-
 	// create pastel.conf file
 	f, err := utils.CreateFile(ctx, workDirPath+"/pastel.conf", forceSet)
 	if err != nil {
@@ -152,6 +143,11 @@ func InitCommandLogic(ctx context.Context, config *configs.Config) error {
 	// write to file
 	err = updatePastelConfigFile(ctx, f, config)
 	if err != nil {
+		return err
+	}
+
+	// create zksnark parameters path
+	if err := utils.CreateFolder(ctx, zksnarkPath, forceSet); err != nil {
 		return err
 	}
 

@@ -49,7 +49,7 @@ const (
 	WalletNode ToolType = "walletnode"
 	// SuperNode type
 	SuperNode ToolType = "supernode"
-	// SuperNode type
+	// GoNode type
 	GoNode ToolType = "gonode"
 	// PastelD type
 	PastelD ToolType = "pasteld"

@@ -289,7 +289,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// write to file
-	if err = utils.WriteFile(fileName, fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort)); err != nil {
+	if err = utils.WriteFile(fileName, fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort, "50051")); err != nil {
 		return err
 	}
 

@@ -15,6 +15,7 @@ type Init struct {
 	RemotePastelExecDir    string `json:"remotepastelexecdir,omitempty"`
 	RemotePastelUtilityDir string `json:"remotepastelutilitydir,omitempty"`
 }
+
 /*
 // NewInit returns a new Init instance.
 func NewInit() *Init {

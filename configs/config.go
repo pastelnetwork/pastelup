@@ -68,22 +68,22 @@ metadb:
   data_dir: "metadb-4444"
 `
 
-/*	// SupernodeYmlLine1 - default supernode.yml content line 1
-	SupernodeYmlLine1 = "node:"
-	// SupernodeYmlLine2 - default supernode.yml content line 2
-	SupernodeYmlLine2 = "  # ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode."
-	// SupernodeYmlLine3 - default supernode.yml content line 3
-	SupernodeYmlLine3 = "  # To check it out first get the active outpoint from ` + `masteronde status` + `, then filter the result of ` + `tickets list id mine` + ` by this outpoint."
-	// SupernodeYmlLine4 - default supernode.yml content line 4
-	SupernodeYmlLine4 = "  pastel_id: %s"
-	// SupernodeYmlLine5 - default supernode.yml content line 5
-	SupernodeYmlLine5 = "  server:"
-	// SupernodeYmlLine6 - default supernode.yml content line 6
-	SupernodeYmlLine6 = `    # ` + `listen_address` + ` and ` + `port` + ` must match to ` + `extAddress` + ` from masternode.conf`
-	// SupernodeYmlLine7 - default supernode.yml content line 7
-	SupernodeYmlLine7 = "    listen_addresses: %s"
-	// SupernodeYmlLine8 - default supernode.yml content line 8
-	SupernodeYmlLine8 = "    port: %s"*/
+	/*	// SupernodeYmlLine1 - default supernode.yml content line 1
+		SupernodeYmlLine1 = "node:"
+		// SupernodeYmlLine2 - default supernode.yml content line 2
+		SupernodeYmlLine2 = "  # ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode."
+		// SupernodeYmlLine3 - default supernode.yml content line 3
+		SupernodeYmlLine3 = "  # To check it out first get the active outpoint from ` + `masteronde status` + `, then filter the result of ` + `tickets list id mine` + ` by this outpoint."
+		// SupernodeYmlLine4 - default supernode.yml content line 4
+		SupernodeYmlLine4 = "  pastel_id: %s"
+		// SupernodeYmlLine5 - default supernode.yml content line 5
+		SupernodeYmlLine5 = "  server:"
+		// SupernodeYmlLine6 - default supernode.yml content line 6
+		SupernodeYmlLine6 = `    # ` + `listen_address` + ` and ` + `port` + ` must match to ` + `extAddress` + ` from masternode.conf`
+		// SupernodeYmlLine7 - default supernode.yml content line 7
+		SupernodeYmlLine7 = "    listen_addresses: %s"
+		// SupernodeYmlLine8 - default supernode.yml content line 8
+		SupernodeYmlLine8 = "    port: %s"*/
 
 	// RQServiceConfig - default rqserivce config
 	RQServiceConfig = `grpc-service = "%s:%s"`

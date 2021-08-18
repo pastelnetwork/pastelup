@@ -309,7 +309,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 }
 
 func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
-	var pastelid string
+	//var pastelid string
 	var err error
 
 	if len(config.RemotePastelUtilityDir) == 0 {
@@ -331,7 +331,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Finished checking pastel config!")
 
 	// If create master node using HOT/HOT wallet
-	if pastelid, err = getMasternodeConf(ctx, config); err != nil {
+	if /*pastelid*/_, err = getMasternodeConf(ctx, config); err != nil {
 		return err
 	}
 
@@ -382,7 +382,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 
 	// ***************  8. Start supernode  **************
 
-	err = runSuperNodeRemote(ctx, config, client, extIP, pastelid)
+	err = runSuperNodeRemote(ctx, config, client/*, extIP, pastelid*/)
 	if err != nil {
 		return err
 	}
@@ -640,7 +640,7 @@ func runPastelServiceRemote(ctx context.Context, config *configs.Config, tool co
 	return nil
 }
 
-func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *utils.Client, extIP string, pastelid string) (err error) {
+func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *utils.Client/*, extIP string, pastelid string*/) (err error) {
 	log.WithContext(ctx).Info("Remote:::Starting supernode")
 	log.WithContext(ctx).Debug("Remote:::Configure supernode setting")
 

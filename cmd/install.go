@@ -478,13 +478,13 @@ func processArchive(ctx context.Context, dstFolder string, archivePath string) e
 }
 
 func makeExecutable(ctx context.Context, dirPath string, fileName string) error {
-	var err error = nil
 	if utils.GetOS() == constants.Linux {
-		if _, err = RunCMD("chmod", "777", filepath.Join(dirPath, fileName)); err != nil {
+		if _, err := RunCMD("chmod", "777", filepath.Join(dirPath, fileName)); err != nil {
 			log.WithContext(ctx).Errorf("Failed to make %s as executable", fileName)
+			return err
 		}
 	}
-	return err
+	return nil
 }
 
 func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Config,

@@ -494,12 +494,12 @@ func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, username str
 
 func runComponents(ctx context.Context, config *configs.Config, startType constants.ToolType) (err error) {
 	if len(config.WorkingDir) != 0 {
-		InitializeFunc(ctx, config)
+		CreateUtilityConfigFile(ctx, config)
 	}
 
-	if err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config); err != nil {
-		return err
-	}
+	//if err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config); err != nil {
+	//	return err
+	//}
 
 	switch startType {
 	case constants.PastelD:
@@ -662,7 +662,7 @@ func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *uti
 	remoteSupernodeExecFile = filepath.Join(string(remotePastelExecPath), constants.SuperNodeExecName[constants.OSType(string(remoteOsType))])
 	remoteSupernodeExecFile = strings.ReplaceAll(remoteSupernodeExecFile, "\\", "/")
 
-	client.Cmd(fmt.Sprintf("rm %s", remoteSuperNodeConfigFilePath)).Run()
+/*	client.Cmd(fmt.Sprintf("rm %s", remoteSuperNodeConfigFilePath)).Run()
 
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine1, remoteSuperNodeConfigFilePath)).Run()
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine2, remoteSuperNodeConfigFilePath)).Run()
@@ -672,7 +672,7 @@ func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *uti
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine6, remoteSuperNodeConfigFilePath)).Run()
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine7, extIP), remoteSuperNodeConfigFilePath)).Run()
 	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine8, fmt.Sprintf("%d", flagMasterNodeRPCPort)), remoteSuperNodeConfigFilePath)).Run()
-
+*/
 	time.Sleep(5000 * time.Millisecond)
 
 	log.WithContext(ctx).Infof("Remote:::Start supernode command : %s", fmt.Sprintf("%s %s", remoteSupernodeExecFile, fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath)))
@@ -755,7 +755,7 @@ func checkAndForceInit(ctx context.Context, config *configs.Config) (err error) 
 			if len(config.Version) == 0 {
 				config.Version = "latest"
 			}
-			if err := InitializeFunc(ctx, config); err != nil {
+			if err := CreateUtilityConfigFile(ctx, config); err != nil {
 				return err
 			}
 
@@ -763,14 +763,13 @@ func checkAndForceInit(ctx context.Context, config *configs.Config) (err error) 
 			runInstallWalletSubCommand(ctx, config)
 
 			if len(config.WorkingDir) != 0 {
-				InitializeFunc(ctx, config)
+				CreateUtilityConfigFile(ctx, config)
 			}
 
-			err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
-
-			if err != nil {
-				return err
-			}
+			//err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
+			//if err != nil {
+			//	return err
+			//}
 		}
 	} else {
 		if _, _, _, _, errPastelExecutable = checkPastelInstallPath(ctx, config, "wallet"); errPastelExecutable != nil {

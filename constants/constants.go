@@ -1,6 +1,8 @@
 package constants
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // OSType - Windows, Linux, MAC, Unknown
 type OSType string
@@ -61,6 +63,8 @@ const (
 	AMD64 ArchitectureType = "amd64"
 	// DupeDetectionExecName is execution file name
 	DupeDetectionExecName = "pastel_dupe_detection_daemon_v4.py"
+
+	PortCheckURL string = "http://portchecker.com?q="
 )
 
 // PasteldName - The name of the pasteld

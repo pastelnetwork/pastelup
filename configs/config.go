@@ -2,56 +2,73 @@ package configs
 
 import (
 	"encoding/json"
+	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastel-utility/utils"
 	"io/ioutil"
 	"os"
 
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/configurer"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 const (
-	// WalletMainNetConfig - mainnet config for walletnode
-	WalletMainNetConfig = `node:
-  api:
-    hostname: "localhost"
-    port: 8080
-`
-	// WalletTestNetConfig - testnet config for walletnode
-	WalletTestNetConfig = `pastel-api:
-  port: 19932
-  
+	// WalletDefaultConfig - default config for walletnode
+	WalletDefaultConfig = `
+pastel-api:
+  hostname: "localhost"
+  port: %s
+  username: %s 
+  password: %s
 node:
   api:
     hostname: "localhost"
     port: 8080
-`
-	// WalletLocalNetConfig - localnet config for walletnode
-	WalletLocalNetConfig = `pastel-api:
-  hostname: "127.0.0.1"
-  port: 29932
-  username: ""
-  password: ""
-  
-node:
-  api:
-    hostname: "localhost"
-    port: 8080
+  reg_art_tx_min_confirmations: 10
+  # Timeout waiting for 
+  reg_art_tx_timeout: 26
+  reg_act_tx_min_confirmations: 5 
+  # Timeout waiting for 
+  reg_act_tx_timeout: 13
+raptorq:
+  hostname: "localhost"
+  port: %s
 `
 
 	// SupernodeDefaultConfig - default config for supernode
-	SupernodeDefaultConfig = `node:
-  # ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode.
-  # To check it out first get the active outpoint from ` + `masteronde status` + `, then filter the result of ` + `tickets list id mine` + ` by this outpoint.
-  pastel_id: %s
+	SupernodeDefaultConfig = `
+pastel-api:
+  hostname: "localhost"
+  port: %s 
+  username: %s
+  password: %s
+node:
+  pastel_id: jXXzhJJnfEk4cfJWeyX3t6o6EGBaCKsp6Qn38BUX62gHbBB325t1JqrkisKJGLopZ6QjzfeAmE623oK7GqS3sw 
+  pass_phrase: "passphrase"
+  preburnt_tx_min_confirmation: 3
+  # Timeout in minutes
+  preburnt_tx_confirmation_timeout: 8 
   server:
-    # ` + `listen_address` + ` and ` + `port` + ` must match to ` + `extAddress` + ` from masternode.conf
-    listen_addresses: %s
-    port: %s
+    listen_addresses: "0.0.0.0"
+    port: 4444
+raptorq:
+  hostname: "localhost"
+  port: %s
+dupe-detection:
+  input_dir: "input"
+  output_dir: "output"
+  data_file: "dupe_detection_image_fingerprint_database.sqlite"
+p2p:
+  listen_address: "0.0.0.0"
+  port: 6000
+  data_dir: "p2p-localnet-6000"
+metadb:
+  listen_address: "0.0.0.0"
+  http_port: 4041
+  raft_port: 4042
+  data_dir: "metadb-4444"
 `
 
-	// SupernodeYmlLine1 - default supernode.yml content line 1
+/*	// SupernodeYmlLine1 - default supernode.yml content line 1
 	SupernodeYmlLine1 = "node:"
 	// SupernodeYmlLine2 - default supernode.yml content line 2
 	SupernodeYmlLine2 = "  # ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode."
@@ -66,7 +83,7 @@ node:
 	// SupernodeYmlLine7 - default supernode.yml content line 7
 	SupernodeYmlLine7 = "    listen_addresses: %s"
 	// SupernodeYmlLine8 - default supernode.yml content line 8
-	SupernodeYmlLine8 = "    port: %s"
+	SupernodeYmlLine8 = "    port: %s"*/
 
 	// RQServiceConfig - default rqserivce config
 	RQServiceConfig = `grpc-service = "%s:%s"`
@@ -75,7 +92,8 @@ node:
 	ZksnarkParamsURL = "https://download.pastel.network/pastel-params/"
 
 	//DupeDetectionConfig - default config for dupedecteion
-	DupeDetectionConfig = `[DUPEDETECTIONCONFIG]
+	DupeDetectionConfig = `
+	[DUPEDETECTIONCONFIG]
 	input_files_path = %s
 	support_files_path = %s
 	output_files_path = %s
@@ -165,7 +183,7 @@ func GetConfig() *Config {
 
 	c, err := configurer.NewConfigurer()
 	if err != nil {
-		log.Errorf("failed to initialize configurer, err: %s", err)
+		log.WithError(err).Error("failed to initialize configurer")
 		os.Exit(-1)
 	}
 	config.Configurer = c

@@ -11,7 +11,7 @@ import (
 )
 
 func setupShowCommand() *cli.Command {
-	config := configs.New()
+	config := configs.GetConfig()
 
 	// define flags here
 	var showFlag string

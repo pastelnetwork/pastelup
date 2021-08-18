@@ -28,9 +28,9 @@ func setupInfoCommand() *cli.Command {
 		cli.NewFlag("os-version", &flagOSVersion).SetAliases("ov").
 			SetUsage(green("Get OS version of running machine")),
 		cli.NewFlag("work-dir", &flagWorkDir).SetAliases("wd").
-			SetUsage(green("Get Working Direcotry of running machine")),
+			SetUsage(green("Get Working Directory of running machine")),
 		cli.NewFlag("exec-dir", &flagExecDir).SetAliases("ed").
-			SetUsage(green("Get Executable Direcotry of running machine")),
+			SetUsage(green("Get Executable Directory of running machine")),
 	}
 	infoCommand.AddFlags(infoFlags...)
 

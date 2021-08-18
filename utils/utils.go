@@ -394,8 +394,8 @@ func GetChecksum(_ context.Context, fileName string) (checksum string, err error
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
-// GetInstalledCommand only support for linux
-func GetInstalledCommand(ctx context.Context) map[string]bool {
+// GetInstalledPackages only support for linux
+func GetInstalledPackages(ctx context.Context) map[string]bool {
 	m := make(map[string]bool)
 	cmd := exec.Command("dpkg-query", "-f", "${binary:Package} ", "-W")
 	stdout, err := cmd.Output()

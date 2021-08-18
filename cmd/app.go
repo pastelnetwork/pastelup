@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
+	"os"
+	"os/exec"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
@@ -34,7 +36,6 @@ func NewApp() *cli.App {
 	app.HideHelp = false
 	app.HideHelpCommand = false
 	app.AddCommands(
-		setupInitCommand(),
 		setupInstallCommand(),
 		setupStartCommand(),
 		setupStopCommand(),
@@ -73,4 +74,44 @@ func configureLogging(ctx context.Context, logPrefix string, config *configs.Con
 		return nil, errors.Errorf("--log-level %q, %v", config.LogLevel, err)
 	}
 	return ctx, nil
+}
+
+// RunCMD runs shell command and returns output and error
+func RunCMD(command string, args ...string) (string, error) {
+	cmd := exec.Command(command, args...)
+
+	stdout, err := cmd.Output()
+
+	if err != nil {
+		return "", err
+	}
+	return string(stdout), nil
+}
+
+// RunCMDWithInteractive runs shell command with interactive
+func RunCMDWithInteractive(command string, args ...string) error {
+	cmd := exec.Command(command, args...)
+
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	return cmd.Run()
+}
+
+// CreateUtilityConfigFile - Initialize the function
+func CreateUtilityConfigFile(ctx context.Context, config *configs.Config) (err error) {
+	configJSON, err := config.String()
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Bad config")
+		return err
+	}
+
+	if err = config.SaveConfig(); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to save pastel-utility config file")
+		return err
+	}
+
+	log.WithContext(ctx).Infof("Config: %s", configJSON)
+
+	return nil
 }

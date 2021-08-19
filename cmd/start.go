@@ -318,7 +318,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 
 	log.WithContext(ctx).Info("Checking parameters...")
 	if err := checkStartMasterNodeParams(ctx, config); err != nil {
-		log.WithContext(ctx).Error(fmt.Sprintf("Checking parameters occurs error -> %s", err))
+		log.WithContext(ctx).WithError(err).Error("Checking parameters failed")
 		return err
 	}
 	log.WithContext(ctx).Info("Finished checking parameters!")
@@ -1277,7 +1277,7 @@ func checkPastelInstallPath(ctx context.Context, config *configs.Config, flagMod
 }
 
 func checkPastelParamInstallPath(ctx context.Context, config *configs.Config) (err error) {
-	zksnarkPath := filepath.Join(config.WorkingDir, "/.pastel-params/")
+	zksnarkPath := filepath.Join(config.WorkingDir, ".pastel-params")
 	if config.WorkingDir == config.Configurer.DefaultZksnarkDir() {
 		zksnarkPath = config.Configurer.DefaultZksnarkDir()
 	}
@@ -1285,13 +1285,13 @@ func checkPastelParamInstallPath(ctx context.Context, config *configs.Config) (e
 	for _, zksnarkParamsName := range configs.ZksnarkParamsNames {
 		zksnarkParamsPath := filepath.Join(zksnarkPath, zksnarkParamsName)
 
-		log.WithContext(ctx).Infof(fmt.Sprintf("Checking pastel param file : %s", zksnarkParamsPath))
+		log.WithContext(ctx).Infof("Checking pastel param file : %s", zksnarkParamsPath)
 		checkSum, checkSumerr := utils.GetChecksum(ctx, zksnarkParamsPath)
 		if checkSumerr != nil {
 			return checkSumerr
 		} else if checkSum != constants.PastelParamsCheckSums[zksnarkParamsName] {
-			log.WithContext(ctx).Errorf(fmt.Sprintf("Checking pastel param file : %s\n", zksnarkParamsPath))
-			return errors.Errorf(fmt.Sprintf("Checking pastel param file : %s\n", zksnarkParamsPath))
+			log.WithContext(ctx).Errorf("Checking pastel param file : %s", zksnarkParamsPath)
+			return errors.Errorf("checking pastel param file failed: %s", zksnarkParamsPath)
 		}
 	}
 	return nil
@@ -1446,7 +1446,7 @@ func getMasternodeConf(ctx context.Context, config *configs.Config) (pastelid st
 			}
 			var recMasterNode map[string]interface{}
 			if err := json.Unmarshal([]byte(output), &recMasterNode); err != nil {
-				return "", errors.Errorf("failed to unmarshal, err: %s", err)
+				return "", errors.Errorf("failed to unmarshal: %v", err)
 			}
 
 			if len(recMasterNode) != 0 {

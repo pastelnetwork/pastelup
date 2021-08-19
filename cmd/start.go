@@ -282,14 +282,14 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Debug("Configure supernode setting")
 
 	workDirPath := filepath.Join(config.WorkingDir, "supernode")
-
-	fileName, err := utils.CreateFile(ctx, filepath.Join(workDirPath, "supernode.yml"), true)
+	supernodeConfigPath := filepath.Join(workDirPath, "supernode.yml")
+	err = utils.CreateFile(ctx, supernodeConfigPath, true)
 	if err != nil {
 		return err
 	}
 
 	// write to file
-	if err = utils.WriteFile(fileName, fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort, "50051")); err != nil {
+	if err = utils.WriteFile(supernodeConfigPath, fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort, "50051")); err != nil {
 		return err
 	}
 
@@ -581,7 +581,7 @@ func runStartAliasMasternode(ctx context.Context, config *configs.Config, master
 }
 
 func runPastelService(ctx context.Context, config *configs.Config, tool constants.ToolType, interactive bool) (err error) {
-	commandName := strings.Split(string(tool), "/")[len(strings.Split(string(tool), "/"))-1]
+	commandName := filepath.Base(string(tool))
 	log.WithContext(ctx).Infof("Starting %s", commandName)
 
 	var workDirPath, pastelServicePath string
@@ -614,7 +614,7 @@ func runPastelService(ctx context.Context, config *configs.Config, tool constant
 	return nil
 }
 func runPastelServiceRemote(ctx context.Context, config *configs.Config, tool constants.ToolType, client *utils.Client) (err error) {
-	commandName := strings.Split(string(tool), "/")[len(strings.Split(string(tool), "/"))-1]
+	commandName := filepath.Base(string(tool))
 	log.WithContext(ctx).Infof("Remote:::Starting %s", commandName)
 
 	remoteWorkDirPath, remotePastelExecPath, remoteOsType, err := getRemoteInfo(config, client)

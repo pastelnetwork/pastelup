@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/pastelnetwork/gonode/common/cli"
@@ -54,18 +53,18 @@ func setupInfoCommand() *cli.Command {
 	return infoCommand
 }
 
-func runInfoSubCommand(_ context.Context, config *configs.Config) error {
+func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 
 	if flagOSVersion {
-		fmt.Print(utils.GetOS())
+		log.WithContext(ctx).Infof("Os : %s", utils.GetOS())
 	}
 
 	if flagWorkDir {
-		fmt.Print(config.WorkingDir)
+		log.WithContext(ctx).Infof("Working Directory : %s", config.WorkingDir)
 	}
 
 	if flagExecDir {
-		fmt.Print(config.PastelExecDir)
+		log.WithContext(ctx).Infof("Pastel Exec Directory: %s", config.PastelExecDir)
 	}
 
 	return nil

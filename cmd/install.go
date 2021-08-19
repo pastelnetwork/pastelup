@@ -121,7 +121,7 @@ func setupSubCommand(config *configs.Config,
 			ctx, err := configureLogging(ctx, commandMessage, config)
 			if err != nil {
 				//Logger doesn't exist
-				return err
+				return fmt.Errorf("failed to configure logging option - %v", err)
 			}
 
 			ctx, cancel := context.WithCancel(ctx)
@@ -159,14 +159,11 @@ func setupInstallCommand() *cli.Command {
 	installCommand.AddSubcommands(installWalletSubCommand)
 	installCommand.AddSubcommands(installSuperNodeSubCommand)
 	installCommand.AddSubcommands(installDupeDetecionSubCommand)
-	//installCommand := setupSubCommand(config, highLevel, nil)
 
 	return installCommand
 }
 
 func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	//print(config.String())
-	//return nil
 	return runComponentsInstall(ctx, config, constants.PastelD)
 }
 
@@ -279,6 +276,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		return err
 	}
 
+	// create installation directory, example ~/pastel
 	if err = createInstallDir(ctx, config, config.PastelExecDir); err != nil {
 		//error was logged inside createInstallDir
 		return err
@@ -289,36 +287,97 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		return err
 	}
 
+	// install pasteld and pastel-cli; setup working dir (~/.pastel) and pastel.conf
 	if installCommand == constants.PastelD ||
 		installCommand == constants.WalletNode ||
 		installCommand == constants.SuperNode {
-		if err = installComponent(ctx, config, constants.PastelD, config.Version); err != nil {
+
+		toolPath1 := constants.PasteldName[utils.GetOS()]
+		toolPath2 := constants.PastelCliName[utils.GetOS()]
+
+		if err = downloadComponents(ctx, config, constants.PastelD, config.Version); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.PastelD)
+			return err
+		}
+		if err = makeExecutable(ctx, config.PastelExecDir, toolPath1); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath1)
+			return err
+		}
+		if err = makeExecutable(ctx, config.PastelExecDir, toolPath2); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath2)
+			return err
+		}
+		if err = setupBasePasteWorkingEnvironment(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install Pastel Node")
 			return err
 		}
 	}
+	// install rq-service and its config
 	if installCommand == constants.WalletNode ||
 		installCommand == constants.SuperNode {
-		if err = installComponent(ctx, config, constants.RQService, config.Version); err != nil {
+
+		toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
+		toolConfig := fmt.Sprintf(configs.RQServiceConfig, "127.0.0.1", "50051")
+
+		if err = downloadComponents(ctx, config, constants.RQService, config.Version); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+			return err
+		}
+		if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
+			return err
+		}
+
+		if err = setupComponentWorkingEnvironment(ctx, config, "rqservice", "rqservice.toml", toolConfig); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
 	}
+	// install WalletNode and its config
 	if installCommand == constants.WalletNode {
-		if err = installComponent(ctx, config, constants.WalletNode, config.Version); err != nil {
+
+		toolPath := constants.WalletNodeExecName[utils.GetOS()]
+		toolConfig := fmt.Sprintf(configs.WalletDefaultConfig, config.RPCPort, config.RPCUser, config.RPCPwd, "50051")
+
+		if err = downloadComponents(ctx, config, constants.WalletNode, config.Version); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+			return err
+		}
+		if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
+			return err
+		}
+		if err = setupComponentWorkingEnvironment(ctx, config, "walletnode", "walletnode.yml", toolConfig); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
 	}
+	// install SuperNode, dd-service and their configs; open ports
 	if installCommand == constants.SuperNode {
-		if err = installComponent(ctx, config, constants.SuperNode, config.Version); err != nil {
+
+		toolPath := constants.SuperNodeExecName[utils.GetOS()]
+		toolConfig := fmt.Sprintf(configs.SupernodeDefaultConfig, config.RPCPort, config.RPCUser, config.RPCPwd, "50051")
+
+		if err = downloadComponents(ctx, config, constants.SuperNode, config.Version); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
 			return err
 		}
-		// Open ports
-		openErr := openPort(ctx, constants.PortList)
-		if openErr != nil {
-			return openErr
+		if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
+			return err
+		}
+		if err = setupComponentWorkingEnvironment(ctx, config, "supernode", "supernode.yml", toolConfig); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+			return err
 		}
 
 		if err = installDupeDetection(ctx, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Installing dd-service executable failed")
+			log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
+			return err
+		}
+		// Open ports
+		if err = openPort(ctx, constants.PortList); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to open ports")
 			return err
 		}
 	}
@@ -372,84 +431,28 @@ func checkInstalledPackages(ctx context.Context) (err error) {
 	return nil
 }
 
-func installComponent(ctx context.Context, config *configs.Config, installCommand constants.ToolType, version string) (err error) {
+func downloadComponents(ctx context.Context, config *configs.Config, installCommand constants.ToolType, version string) (err error) {
 	commandName := strings.Split(string(installCommand), "/")[len(strings.Split(string(installCommand), "/"))-1]
-	log.WithContext(ctx).Infof("Installing %s executable...", commandName)
+	log.WithContext(ctx).Infof("Downloading %s...", commandName)
 
-	downloadURL, execArchiveName, err := config.Configurer.GetDownloadURL(version, installCommand)
+	downloadURL, archiveName, err := config.Configurer.GetDownloadURL(version, installCommand)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("failed to get download url")
 		return err
 	}
 
-	if err = installExecutable(ctx, config, downloadURL.String(), execArchiveName, installCommand); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Install %s executable failed", commandName)
+	if err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, archiveName), downloadURL.String()); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf(fmt.Sprintf("Failed to download pastel executable file : %s", downloadURL.String()))
 		return err
 	}
-
-	log.WithContext(ctx).Infof("%s executable installed successfully", commandName)
-
-	return nil
-}
-
-func installExecutable(ctx context.Context, config *configs.Config,
-	downloadURL string,
-	archiveName string,
-	toolType constants.ToolType) (err error) {
-
-	if err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, archiveName), downloadURL); err != nil {
-		log.WithContext(ctx).Errorf(fmt.Sprintf("Failed to download pastel executable file : %s", downloadURL))
-		return err
-	}
-
-	log.WithContext(ctx).Info("Installing...")
-
-	if strings.Contains(downloadURL, ".zip") {
+	if strings.Contains(archiveName, ".zip") {
 		if err = processArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName)); err != nil {
 			//Error was logged in processArchive
 			return err
 		}
 	}
 
-	switch toolType {
-	case constants.PastelD:
-		if err = makeExecutable(ctx, config.PastelExecDir, constants.PasteldName[utils.GetOS()]); err != nil {
-			return err
-		}
-		if err = makeExecutable(ctx, config.PastelExecDir, constants.PastelCliName[utils.GetOS()]); err != nil {
-			return err
-		}
-		if err = setupBasePasteWorkingEnvironment(ctx, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Initialize the node")
-			return err
-		}
-	case constants.WalletNode:
-		if err = makeExecutable(ctx, config.PastelExecDir, constants.WalletNodeExecName[utils.GetOS()]); err != nil {
-			return err
-		}
-
-		toolConfig := fmt.Sprintf(configs.WalletDefaultConfig, config.RPCPort, config.RPCUser, config.RPCPwd, "50051")
-		setupComponentWorkingEnvironment(ctx, config, "walletnode", "walletnode.yml", toolConfig)
-
-	case constants.SuperNode:
-		if err = makeExecutable(ctx, config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()]); err != nil {
-			return err
-		}
-
-		toolConfig := fmt.Sprintf(configs.SupernodeDefaultConfig, config.RPCPort, config.RPCUser, config.RPCPwd, "50051")
-		setupComponentWorkingEnvironment(ctx, config, "supernode", "supernode.yml", toolConfig)
-	case constants.RQService:
-		if err = makeExecutable(ctx, config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()]); err != nil {
-			return err
-		}
-
-		toolConfig := fmt.Sprintf(configs.RQServiceConfig, "127.0.0.1", "50051")
-		setupComponentWorkingEnvironment(ctx, config, "rqservice", "rqservice.toml", toolConfig)
-
-	default:
-		log.WithContext(ctx).Warn("Please select correct tool type!")
-		return nil
-	}
+	log.WithContext(ctx).Infof("%s downloaded successfully", commandName)
 
 	return nil
 }
@@ -479,7 +482,7 @@ func processArchive(ctx context.Context, dstFolder string, archivePath string) e
 
 func makeExecutable(ctx context.Context, dirPath string, fileName string) error {
 	if utils.GetOS() == constants.Linux {
-		if _, err := RunCMD("chmod", "777", filepath.Join(dirPath, fileName)); err != nil {
+		if _, err := RunCMD("chmod", "755", filepath.Join(dirPath, fileName)); err != nil {
 			log.WithContext(ctx).Errorf("Failed to make %s as executable", fileName)
 			return err
 		}
@@ -490,15 +493,9 @@ func makeExecutable(ctx context.Context, dirPath string, fileName string) error 
 func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Config,
 	toolName string, configFileName string, toolConfig string) error {
 
-	log.WithContext(ctx).Infof("Initialize working directory for %s", toolName)
+	log.WithContext(ctx).Infof("Initialize working environment for %s", toolName)
 
-	workDirPath := filepath.Join(config.WorkingDir, toolName)
-	if err := utils.CreateFolder(ctx, workDirPath, config.Force); err != nil {
-		log.WithContext(ctx).Errorf("Failed to %s directory ", workDirPath)
-		return err
-	}
-
-	fileName, err := utils.CreateFile(ctx, filepath.Join(workDirPath, configFileName), config.Force)
+	fileName, err := utils.CreateFile(ctx, filepath.Join(config.WorkingDir, configFileName), config.Force)
 	if err != nil {
 		log.WithContext(ctx).Errorf("Failed to create %s file", configFileName)
 		return err
@@ -695,7 +692,6 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	subCmd := []string{"-m", "pip", "install"}
 	subCmd = append(subCmd, constants.DependenciesDupeDetectionPackages...)
-
 	log.WithContext(ctx).Info("Installing Pip...")
 	if utils.GetOS() == constants.Windows {
 		if err := RunCMDWithInteractive("python", subCmd...); err != nil {
@@ -712,47 +708,40 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
-	downloadURL, execArchiveName, err := config.Configurer.GetDownloadURL(config.Version, constants.DDService)
-	if err != nil {
-		return errors.Errorf("failed to get download url, err: %s", err)
-	}
-
-	if err = installExecutable(ctx, config, downloadURL.String(), execArchiveName, constants.DDService); err != nil {
-		log.WithContext(ctx).Errorf("Install %s executable failed", constants.DDService)
+	if err = downloadComponents(ctx, config, constants.DDService, config.Version); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
 		return err
 	}
-	log.WithContext(ctx).Infof("%s executable installed successfully", constants.DDService)
 
-	homeDir := config.WorkingDir
-	homeDir = filepath.Join(homeDir, "pastel_dupe_detection_service")
+	ddBaseDir := filepath.Join(config.Configurer.GetHomeDir(), "pastel_dupe_detection_service")
 	var pathList []interface{}
 	for index := range constants.DupeDetectionConfigs {
-		dupeDetectionDirPath := filepath.Join(homeDir, constants.DupeDetectionConfigs[index])
+		dupeDetectionDirPath := filepath.Join(ddBaseDir, constants.DupeDetectionConfigs[index])
 		if err = utils.CreateFolder(ctx, dupeDetectionDirPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create directory : %s", dupeDetectionDirPath)
 			return err
 		}
 		pathList = append(pathList, dupeDetectionDirPath)
 	}
 
-	targetDir := filepath.Join(homeDir, constants.DupeDetectionSupportFilePath)
+	targetDir := filepath.Join(ddBaseDir, constants.DupeDetectionSupportFilePath)
 	for index := range constants.DupeDetectionSupportDownloadURL {
-		if err = utils.DownloadFile(ctx,
-			filepath.Join(targetDir, "temp.zip"),
-			constants.DupeDetectionSupportDownloadURL[index]); err != nil {
-			log.WithContext(ctx).Errorf("Failed to download archive file : %s", constants.DupeDetectionSupportDownloadURL[index])
+		if err = utils.DownloadFile(ctx, filepath.Join(targetDir, "temp.zip"), constants.DupeDetectionSupportDownloadURL[index]); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file : %s", constants.DupeDetectionSupportDownloadURL[index])
 			return err
 		}
 
 		log.WithContext(ctx).Infof("Extracting archive file : %s", filepath.Join(targetDir, "temp.zip"))
 		if err = processArchive(ctx, targetDir, filepath.Join(targetDir, "temp.zip")); err != nil {
-			log.WithContext(ctx).Errorf("Failed to extract archive file : %s", filepath.Join(targetDir, "temp.zip"))
+			log.WithContext(ctx).WithError(err).Errorf("Failed to extract archive file : %s", filepath.Join(targetDir, "temp.zip"))
 			return err
 		}
 	}
 
-	targetDir = filepath.Join(homeDir, constants.DupeDetectionSupportFilePath)
+	targetDir = filepath.Join(ddBaseDir, constants.DupeDetectionSupportFilePath)
 	fileName, err := utils.CreateFile(ctx, filepath.Join(targetDir, "config.ini"), config.Force)
 	if err != nil {
+		log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", filepath.Join(targetDir, "temp.zip"))
 		return err
 	}
 

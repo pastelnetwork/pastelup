@@ -209,5 +209,5 @@ var DependenciesDupeDetectionPackages = []string{
 	"xgboost", "hyppo", "zstandard", "tensorflow", "pandas",
 	"scipy", "scikit-learn", "matplotlib", "watchdog",
 	"chromedriver_autoinstaller", "selenium", "Pillow",
-	"opennsfw-standalone", "tensorflow_hub", "imagehash",
+	"opennsfw-standalone", "tensorflow_hub", "imagehash", "psutil",
 }

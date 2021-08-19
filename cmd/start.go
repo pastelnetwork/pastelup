@@ -289,7 +289,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// write to file
-	if err = utils.WriteFile(fileName, fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort)); err != nil {
+	if err = utils.WriteFile(fileName, fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort, "50051")); err != nil {
 		return err
 	}
 
@@ -309,7 +309,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 }
 
 func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
-	var pastelid string
+	//var pastelid string
 	var err error
 
 	if len(config.RemotePastelUtilityDir) == 0 {
@@ -331,7 +331,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Finished checking pastel config!")
 
 	// If create master node using HOT/HOT wallet
-	if pastelid, err = getMasternodeConf(ctx, config); err != nil {
+	if /*pastelid*/ _, err = getMasternodeConf(ctx, config); err != nil {
 		return err
 	}
 
@@ -382,7 +382,7 @@ func runMasterNodOnColdHot(ctx context.Context, config *configs.Config) error {
 
 	// ***************  8. Start supernode  **************
 
-	err = runSuperNodeRemote(ctx, config, client, extIP, pastelid)
+	err = runSuperNodeRemote(ctx, config, client /*, extIP, pastelid*/)
 	if err != nil {
 		return err
 	}
@@ -494,12 +494,12 @@ func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, username str
 
 func runComponents(ctx context.Context, config *configs.Config, startType constants.ToolType) (err error) {
 	if len(config.WorkingDir) != 0 {
-		InitializeFunc(ctx, config)
+		CreateUtilityConfigFile(ctx, config)
 	}
 
-	if err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config); err != nil {
-		return err
-	}
+	//if err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config); err != nil {
+	//	return err
+	//}
 
 	switch startType {
 	case constants.PastelD:
@@ -640,7 +640,7 @@ func runPastelServiceRemote(ctx context.Context, config *configs.Config, tool co
 	return nil
 }
 
-func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *utils.Client, extIP string, pastelid string) (err error) {
+func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *utils.Client /*, extIP string, pastelid string*/) (err error) {
 	log.WithContext(ctx).Info("Remote:::Starting supernode")
 	log.WithContext(ctx).Debug("Remote:::Configure supernode setting")
 
@@ -662,17 +662,17 @@ func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *uti
 	remoteSupernodeExecFile = filepath.Join(string(remotePastelExecPath), constants.SuperNodeExecName[constants.OSType(string(remoteOsType))])
 	remoteSupernodeExecFile = strings.ReplaceAll(remoteSupernodeExecFile, "\\", "/")
 
-	client.Cmd(fmt.Sprintf("rm %s", remoteSuperNodeConfigFilePath)).Run()
+	/*	client.Cmd(fmt.Sprintf("rm %s", remoteSuperNodeConfigFilePath)).Run()
 
-	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine1, remoteSuperNodeConfigFilePath)).Run()
-	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine2, remoteSuperNodeConfigFilePath)).Run()
-	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine3, remoteSuperNodeConfigFilePath)).Run()
-	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine4, pastelid), remoteSuperNodeConfigFilePath)).Run()
-	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine5, remoteSuperNodeConfigFilePath)).Run()
-	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine6, remoteSuperNodeConfigFilePath)).Run()
-	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine7, extIP), remoteSuperNodeConfigFilePath)).Run()
-	client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine8, fmt.Sprintf("%d", flagMasterNodeRPCPort)), remoteSuperNodeConfigFilePath)).Run()
-
+		client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine1, remoteSuperNodeConfigFilePath)).Run()
+		client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine2, remoteSuperNodeConfigFilePath)).Run()
+		client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine3, remoteSuperNodeConfigFilePath)).Run()
+		client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine4, pastelid), remoteSuperNodeConfigFilePath)).Run()
+		client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine5, remoteSuperNodeConfigFilePath)).Run()
+		client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", configs.SupernodeYmlLine6, remoteSuperNodeConfigFilePath)).Run()
+		client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine7, extIP), remoteSuperNodeConfigFilePath)).Run()
+		client.Cmd(fmt.Sprintf("echo -e \"%s\" >> %s", fmt.Sprintf(configs.SupernodeYmlLine8, fmt.Sprintf("%d", flagMasterNodeRPCPort)), remoteSuperNodeConfigFilePath)).Run()
+	*/
 	time.Sleep(5000 * time.Millisecond)
 
 	log.WithContext(ctx).Infof("Remote:::Start supernode command : %s", fmt.Sprintf("%s %s", remoteSupernodeExecFile, fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath)))
@@ -755,7 +755,7 @@ func checkAndForceInit(ctx context.Context, config *configs.Config) (err error) 
 			if len(config.Version) == 0 {
 				config.Version = "latest"
 			}
-			if err := InitializeFunc(ctx, config); err != nil {
+			if err := CreateUtilityConfigFile(ctx, config); err != nil {
 				return err
 			}
 
@@ -763,14 +763,13 @@ func checkAndForceInit(ctx context.Context, config *configs.Config) (err error) 
 			runInstallWalletSubCommand(ctx, config)
 
 			if len(config.WorkingDir) != 0 {
-				InitializeFunc(ctx, config)
+				CreateUtilityConfigFile(ctx, config)
 			}
 
-			err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
-
-			if err != nil {
-				return err
-			}
+			//err = updatePastelConfigFileForNetwork(ctx, filepath.Join(config.WorkingDir, "pastel.conf"), config)
+			//if err != nil {
+			//	return err
+			//}
 		}
 	} else {
 		if _, _, _, _, errPastelExecutable = checkPastelInstallPath(ctx, config, "wallet"); errPastelExecutable != nil {

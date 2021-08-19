@@ -4,7 +4,7 @@ package configs
 type Init struct {
 	WorkingDir             string `json:"workdir,omitempty"`
 	Network                string `json:"network,omitempty"`
-	RPCPort                string `json:"rpc-port,omitempty"`
+	RPCPort                int    `json:"rpc-port,omitempty"`
 	RPCUser                string `json:"rpc-user,omitempty"`
 	RPCPwd                 string `json:"rpc-pwd,omitempty"`
 	Force                  bool   `json:"force,omitempty"`

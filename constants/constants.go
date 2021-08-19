@@ -201,8 +201,37 @@ func GetVersionSubURL(version string) string {
 	}
 }
 
-// DependenciesPackages TODO: Need to separate for supernode, walletnode, node
-var DependenciesPackages = []string{"wget", "curl", "libgomp1", "python3-pip", "ufw"}
+// TODO: Add more dependencies for walletnode/supernode/pasteld in mac/win/linux os
+// DependenciesPackages defines some dependencies
+var DependenciesPackages = map[ToolType]map[OSType][]string{
+	WalletNode: DependenciesPackagesWalletNode,
+	SuperNode:  DependenciesPackagesSuperNode,
+	PastelD:    DependenciesPackagesPastelD,
+}
+
+// DependenciesPackagesWalletNode defines some dependencies for walletnode
+var DependenciesPackagesWalletNode = map[OSType][]string{
+	Linux:   {"wget", "curl", "libgomp1"},
+	Mac:     {"wget", "curl"},
+	Windows: {},
+	Unknown: {},
+}
+
+// DependenciesPackagesSuperNode defines some dependencies for supernode
+var DependenciesPackagesSuperNode = map[OSType][]string{
+	Linux:   {"wget", "curl", "libgomp1", "ufw", "python3-pip"},
+	Mac:     {"wget", "curl", "ipfw"},
+	Windows: {},
+	Unknown: {},
+}
+
+// DependenciesPackagesPastelD defines some dependencies for pasteld
+var DependenciesPackagesPastelD = map[OSType][]string{
+	Linux:   {"wget", "curl", "libgomp1"},
+	Mac:     {"wget", "curl"},
+	Windows: {},
+	Unknown: {},
+}
 
 // DependenciesDupeDetectionPackages is dependencies for dupe detection service
 var DependenciesDupeDetectionPackages = []string{

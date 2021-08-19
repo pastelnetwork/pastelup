@@ -117,7 +117,7 @@ func setupSubCommand(config *configs.Config,
 	subCommand.SetUsage(cyan(commandMessage))
 	subCommand.AddFlags(commandFlags...)
 	if f != nil {
-		subCommand.SetActionFunc(func(ctx context.Context, args []string) error {
+		subCommand.SetActionFunc(func(ctx context.Context, _ []string) error {
 			ctx, err := configureLogging(ctx, commandMessage, config)
 			if err != nil {
 				//Logger doesn't exist
@@ -269,20 +269,20 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 	return installDupeDetection(ctx, config)
 }
 
-func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) (err error) {
+func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
 
-	if err = CreateUtilityConfigFile(ctx, config); err != nil {
+	if err := CreateUtilityConfigFile(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to create pastel-utility config file")
 		return err
 	}
 
 	// create installation directory, example ~/pastel
-	if err = createInstallDir(ctx, config, config.PastelExecDir); err != nil {
+	if err := createInstallDir(ctx, config, config.PastelExecDir); err != nil {
 		//error was logged inside createInstallDir
 		return err
 	}
 
-	if err = checkInstalledPackages(ctx); err != nil {
+	if err := checkInstalledPackages(ctx, installCommand); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing packages...")
 		return err
 	}
@@ -292,22 +292,22 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		installCommand == constants.WalletNode ||
 		installCommand == constants.SuperNode {
 
-		toolPath1 := constants.PasteldName[utils.GetOS()]
-		toolPath2 := constants.PastelCliName[utils.GetOS()]
+		pasteldName := constants.PasteldName[utils.GetOS()]
+		pastelCliName := constants.PastelCliName[utils.GetOS()]
 
-		if err = downloadComponents(ctx, config, constants.PastelD, config.Version); err != nil {
+		if err := downloadComponents(ctx, config, constants.PastelD, config.Version); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.PastelD)
 			return err
 		}
-		if err = makeExecutable(ctx, config.PastelExecDir, toolPath1); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath1)
+		if err := makeExecutable(ctx, config.PastelExecDir, pasteldName); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", pasteldName)
 			return err
 		}
-		if err = makeExecutable(ctx, config.PastelExecDir, toolPath2); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath2)
+		if err := makeExecutable(ctx, config.PastelExecDir, pastelCliName); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", pastelCliName)
 			return err
 		}
-		if err = setupBasePasteWorkingEnvironment(ctx, config); err != nil {
+		if err := setupBasePasteWorkingEnvironment(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install Pastel Node")
 			return err
 		}
@@ -317,7 +317,13 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		installCommand == constants.SuperNode {
 
 		toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
-		toolConfig := fmt.Sprintf(configs.RQServiceConfig, "127.0.0.1", "50051")
+		toolConfig, err := utils.GetServiceConfig("rqservice", configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
+			HostName: "127.0.0.1",
+			Port:     50051,
+		})
+		if err != nil {
+			return errors.Errorf("failed to get service config, err: %v", err)
+		}
 
 		if err = downloadComponents(ctx, config, constants.RQService, config.Version); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
@@ -335,9 +341,16 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	}
 	// install WalletNode and its config
 	if installCommand == constants.WalletNode {
-
 		toolPath := constants.WalletNodeExecName[utils.GetOS()]
-		toolConfig := fmt.Sprintf(configs.WalletDefaultConfig, config.RPCPort, config.RPCUser, config.RPCPwd, "50051")
+		toolConfig, err := utils.GetServiceConfig("walletnode", configs.WalletDefaultConfig, &configs.WalletNodeConfig{
+			PastelPort:     config.RPCPort,
+			PastelUserName: config.RPCUser,
+			PastelPassword: config.RPCPwd,
+			RaptorqPort:    50051,
+		})
+		if err != nil {
+			return errors.Errorf("failed to get service config, err: %v", err)
+		}
 
 		if err = downloadComponents(ctx, config, constants.WalletNode, config.Version); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
@@ -354,9 +367,16 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	}
 	// install SuperNode, dd-service and their configs; open ports
 	if installCommand == constants.SuperNode {
-
 		toolPath := constants.SuperNodeExecName[utils.GetOS()]
-		toolConfig := fmt.Sprintf(configs.SupernodeDefaultConfig, config.RPCPort, config.RPCUser, config.RPCPwd, "50051")
+		toolConfig, err := utils.GetServiceConfig("supernode", configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+			PastelPort:     config.RPCPort,
+			PastelUserName: config.RPCUser,
+			PastelPassword: config.RPCPwd,
+			RaptorqPort:    50051,
+		})
+		if err != nil {
+			return errors.Errorf("failed to get service config, err: %v", err)
+		}
 
 		if err = downloadComponents(ctx, config, constants.SuperNode, config.Version); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
@@ -412,22 +432,20 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 	return nil
 }
 
-func checkInstalledPackages(ctx context.Context) (err error) {
+func checkInstalledPackages(ctx context.Context, tool constants.ToolType) (err error) {
 	// TODO: 1) must offer to install missing packages
-	// TODO: 2) add support for Windows and Mac
-	if utils.GetOS() == constants.Linux {
-		installedCmd := utils.GetInstalledPackages(ctx)
-		var notInstall []string
-		for _, p := range constants.DependenciesPackages {
-			if _, ok := installedCmd[p]; !ok {
-				notInstall = append(notInstall, p)
-			}
-		}
-
-		if len(notInstall) > 0 {
-			return errors.New(strings.Join(notInstall, ", ") + " is missing from your OS, which is required for running, please install them")
+	installedCmd := utils.GetInstalledPackages(ctx)
+	var notInstall []string
+	for _, p := range constants.DependenciesPackages[tool][utils.GetOS()] {
+		if _, ok := installedCmd[p]; !ok {
+			notInstall = append(notInstall, p)
 		}
 	}
+
+	if len(notInstall) > 0 {
+		return errors.New(strings.Join(notInstall, ", ") + " is missing from your OS, which is required for running, please install them")
+	}
+
 	return nil
 }
 
@@ -510,7 +528,6 @@ func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Confi
 }
 
 func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Config) error {
-
 	// create working dir
 	if err := utils.CreateFolder(ctx, config.WorkingDir, config.Force); err != nil {
 		if config.WorkingDir != config.PastelExecDir {
@@ -519,23 +536,24 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 		}
 	}
 
-	config.RPCPort = "9932"
+	config.RPCPort = 9932
 	if config.Network == "testnet" {
-		config.RPCPort = "19932"
+		config.RPCPort = 19932
 	}
 	config.RPCUser = utils.GenerateRandomString(8)
 	config.RPCPwd = utils.GenerateRandomString(15)
 
 	// create pastel.conf file
-	f, err := utils.CreateFile(ctx, config.WorkingDir+"/pastel.conf", config.Force)
+	pastelConfPath := filepath.Join(config.WorkingDir, constants.PastelConfName)
+	f, err := utils.CreateFile(ctx, pastelConfPath, config.Force)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to create %s/pastel.conf", config.WorkingDir)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to create %s", pastelConfPath)
 		return err
 	}
 
 	// write to file
 	if err = updatePastelConfigFile(ctx, f, config); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s/pastel.conf", config.WorkingDir)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s", pastelConfPath)
 		return err
 	}
 
@@ -715,8 +733,8 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	ddBaseDir := filepath.Join(config.Configurer.GetHomeDir(), "pastel_dupe_detection_service")
 	var pathList []interface{}
-	for index := range constants.DupeDetectionConfigs {
-		dupeDetectionDirPath := filepath.Join(ddBaseDir, constants.DupeDetectionConfigs[index])
+	for _, name := range constants.DupeDetectionConfigs {
+		dupeDetectionDirPath := filepath.Join(ddBaseDir, name)
 		if err = utils.CreateFolder(ctx, dupeDetectionDirPath, config.Force); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to create directory : %s", dupeDetectionDirPath)
 			return err

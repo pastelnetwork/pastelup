@@ -1202,12 +1202,13 @@ func CheckPastelConf(config *configs.Config) (err error) {
 		return err
 	}
 
-	if _, err := os.Stat(filepath.Join(workDirPath, "pastel.conf")); os.IsNotExist(err) {
+	pastelConfPath := filepath.Join(workDirPath, constants.PastelConfName)
+	if _, err := os.Stat(pastelConfPath); os.IsNotExist(err) {
 		return err
 	}
 
 	if config.Network == "testnet" {
-		var file, err = os.OpenFile(filepath.Join(workDirPath, "pastel.conf"), os.O_RDWR, 0644)
+		var file, err = os.OpenFile(pastelConfPath, os.O_RDWR, 0644)
 		if err != nil {
 			return err
 		}
@@ -1223,7 +1224,7 @@ func CheckPastelConf(config *configs.Config) (err error) {
 			return errSetTestnet
 		}
 	} else {
-		var file, err = os.OpenFile(filepath.Join(workDirPath, "pastel.conf"), os.O_RDWR, 0644)
+		var file, err = os.OpenFile(pastelConfPath, os.O_RDWR, 0644)
 		if err != nil {
 			return err
 		}
@@ -1278,7 +1279,7 @@ func checkPastelInstallPath(ctx context.Context, config *configs.Config, flagMod
 
 func checkPastelParamInstallPath(ctx context.Context, config *configs.Config) (err error) {
 	zksnarkPath := filepath.Join(config.WorkingDir, "/.pastel-params/")
-	if config.WorkingDir == config.Configurer.DefaultZksnarkDir() {
+	if config.WorkingDir == config.Configurer.DefaultWorkingDir() {
 		zksnarkPath = config.Configurer.DefaultZksnarkDir()
 	}
 

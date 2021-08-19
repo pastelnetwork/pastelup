@@ -3,13 +3,16 @@ package utils
 import (
 	"archive/tar"
 	"archive/zip"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"html/template"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -394,22 +397,52 @@ func GetChecksum(_ context.Context, fileName string) (checksum string, err error
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
-// GetInstalledPackages only support for linux
+// GetInstalledPackages returns a map which contains install packages
 func GetInstalledPackages(ctx context.Context) map[string]bool {
 	m := make(map[string]bool)
-	cmd := exec.Command("dpkg-query", "-f", "${binary:Package} ", "-W")
-	stdout, err := cmd.Output()
-	if err != nil {
-		log.WithContext(ctx).Errorf("failed to execute cmd, err: %s", err)
-		return m
-	}
+	switch GetOS() {
+	case constants.Linux:
+		cmd := exec.Command("dpkg-query", "-f", "${binary:Package} ", "-W")
+		stdout, err := cmd.Output()
+		if err != nil {
+			log.WithContext(ctx).Errorf("failed to execute cmd, err: %s", err)
+			return m
+		}
 
-	packages := strings.Split(string(stdout), " ")
-	for _, p := range packages {
-		tokens := strings.Split(p, ":")
-		if tokens[0] != "" {
-			m[tokens[0]] = true
+		packages := strings.Split(string(stdout), " ")
+		for _, p := range packages {
+			tokens := strings.Split(p, ":")
+			if tokens[0] != "" {
+				m[tokens[0]] = true
+			}
+		}
+	case constants.Mac:
+		paths := os.Getenv("PATH")
+		for _, path := range strings.Split(paths, ":") {
+			files, err := ioutil.ReadDir(path)
+			if err != nil {
+				log.WithContext(ctx).Errorf("failed to read dir, err: %s", err)
+				continue
+			}
+
+			for _, file := range files {
+				m[file.Name()] = true
+			}
 		}
 	}
 	return m
+}
+
+func GetServiceConfig(name string, format string, value interface{}) (string, error) {
+	temp, err := template.New(name).Parse(format)
+	if err != nil {
+		return "", errors.Errorf("failed to parse walletnode config template, err: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err = temp.Execute(&buf, value); err != nil {
+		return "", errors.Errorf("failed to execute walletnode config template, err: %+v", err)
+	}
+
+	return buf.String(), nil
 }

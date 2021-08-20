@@ -191,6 +191,8 @@ var DupeDetectionSupportDownloadURL = []string{
 	"https://download.pastel.network/machine-learning/keras_dupe_classifier.model.zip",
 	"https://download.pastel.network/machine-learning/xgboost_dupe_classifier.zip",
 	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
+	"https://download.pastel.network/machine-learning/neuralhash_128x96_seed1.dat",
+	"https://download.pastel.network/machine-learning/neuralhash_model.onnx",
 }
 
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files

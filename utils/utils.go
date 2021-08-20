@@ -9,7 +9,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"html/template"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -20,6 +19,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/dustin/go-humanize"

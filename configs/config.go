@@ -18,8 +18,8 @@ const (
 pastel-api:
   hostname: "localhost"
   port: {{.PastelPort}}
-  username: {{.PastelUserName}}
-  password: {{.PastelPassword}}
+  username: "{{.PastelUserName}}"
+  password: "{{.PastelPassword}}"
 node:
   api:
     hostname: "localhost"
@@ -40,8 +40,8 @@ raptorq:
 pastel-api:
   hostname: "localhost"
   port: {{.PastelPort}}
-  username: {{.PastelUserName}}
-  password: {{.PastelPassword}}
+  username: "{{.PastelUserName}}"
+  password: "{{.PastelPassword}}"
 node:
   pastel_id: jXXzhJJnfEk4cfJWeyX3t6o6EGBaCKsp6Qn38BUX62gHbBB325t1JqrkisKJGLopZ6QjzfeAmE623oK7GqS3sw 
   pass_phrase: "passphrase"

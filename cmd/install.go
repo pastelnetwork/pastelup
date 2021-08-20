@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -746,15 +747,24 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	}
 
 	targetDir := filepath.Join(ddBaseDir, constants.DupeDetectionSupportFilePath)
+	tmpDir := filepath.Join(targetDir, "temp.zip")
 	for _, url := range constants.DupeDetectionSupportDownloadURL {
-		if err = utils.DownloadFile(ctx, filepath.Join(targetDir, "temp.zip"), url); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file : %s", url)
+		if !strings.Contains(url, ".zip") {
+			if err = utils.DownloadFile(ctx, filepath.Join(targetDir, path.Base(url)), url); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to download file: %s", url)
+				return err
+			}
+			continue
+		}
+
+		if err = utils.DownloadFile(ctx, tmpDir, url); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file: %s", url)
 			return err
 		}
 
-		log.WithContext(ctx).Infof("Extracting archive file : %s", filepath.Join(targetDir, "temp.zip"))
-		if err = processArchive(ctx, targetDir, filepath.Join(targetDir, "temp.zip")); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to extract archive file : %s", filepath.Join(targetDir, "temp.zip"))
+		log.WithContext(ctx).Infof("Extracting archive file : %s", tmpDir)
+		if err = processArchive(ctx, targetDir, tmpDir); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to extract archive file : %s", tmpDir)
 			return err
 		}
 	}

@@ -322,7 +322,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			Port:     50051,
 		})
 		if err != nil {
-			return errors.Errorf("failed to get service config, err: %v", err)
+			return errors.Errorf("failed to get rqservice config: %v", err)
 		}
 
 		if err = downloadComponents(ctx, config, constants.RQService, config.Version); err != nil {
@@ -349,7 +349,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			RaptorqPort:    50051,
 		})
 		if err != nil {
-			return errors.Errorf("failed to get service config, err: %v", err)
+			return errors.Errorf("failed to get walletnode config: %v", err)
 		}
 
 		if err = downloadComponents(ctx, config, constants.WalletNode, config.Version); err != nil {
@@ -375,7 +375,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			RaptorqPort:    50051,
 		})
 		if err != nil {
-			return errors.Errorf("failed to get service config, err: %v", err)
+			return errors.Errorf("failed to get supernode config: %v", err)
 		}
 
 		if err = downloadComponents(ctx, config, constants.SuperNode, config.Version); err != nil {
@@ -736,8 +736,8 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	ddBaseDir := filepath.Join(config.Configurer.GetHomeDir(), "pastel_dupe_detection_service")
 	var pathList []interface{}
-	for _, name := range constants.DupeDetectionConfigs {
-		dupeDetectionDirPath := filepath.Join(ddBaseDir, name)
+	for _, configItem := range constants.DupeDetectionConfigs {
+		dupeDetectionDirPath := filepath.Join(ddBaseDir, configItem)
 		if err = utils.CreateFolder(ctx, dupeDetectionDirPath, config.Force); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to create directory : %s", dupeDetectionDirPath)
 			return err

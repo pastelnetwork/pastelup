@@ -242,7 +242,7 @@ func processKill(toolType constants.ToolType) error {
 
 	process, err := os.FindProcess(pid)
 	if err != nil {
-		return errors.Errorf("failed to find process, err: %v", err)
+		return errors.Errorf("failed to find process, process: %s, err: %v", execName, err)
 	}
 
 	process.Kill()

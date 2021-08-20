@@ -298,7 +298,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 		RaptorqPort:    50051,
 	})
 	if err != nil {
-		return errors.Errorf("failed to get service config, err: %v", err)
+		return errors.Errorf("failed to get supernode config: %v", err)
 	}
 
 	// write to file

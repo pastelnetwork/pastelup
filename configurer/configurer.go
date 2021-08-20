@@ -129,19 +129,19 @@ func NewConfigurer() (IConfigurer, error) {
 	case constants.Linux:
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			return nil, errors.Errorf("failed to get user home dir, err: %s", err)
+			return nil, errors.Errorf("failed to get user home dir: %v", err)
 		}
 		return newLinuxConfigurer(homeDir), nil
 	case constants.Mac:
 		homeDir, err := os.UserConfigDir()
 		if err != nil {
-			return nil, errors.Errorf("failed to get user config dir dir, err: %s", err)
+			return nil, errors.Errorf("failed to get user config dir dir: %v", err)
 		}
 		return newDarwinConfigurer(homeDir), nil
 	case constants.Windows:
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			return nil, errors.Errorf("failed to get user home dir, err: %s", err)
+			return nil, errors.Errorf("failed to get user home dir: %v", err)
 		}
 		return newWindowsConfigurer(homeDir), nil
 	default:

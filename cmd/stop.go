@@ -230,7 +230,7 @@ func processKill(toolType constants.ToolType) error {
 	execName := constants.ServiceName[toolType][utils.GetOS()]
 	proc, err := ps.Processes()
 	if err != nil {
-		return errors.Errorf("failed to get list process %v", err)
+		return errors.Errorf("failed to get list process: %v", err)
 	}
 	pid := 0
 	for _, p := range proc {
@@ -242,7 +242,7 @@ func processKill(toolType constants.ToolType) error {
 
 	process, err := os.FindProcess(pid)
 	if err != nil {
-		return errors.Errorf("failed to find %s process %v", execName, err)
+		return errors.Errorf("failed to find %s process: %v", execName, err)
 	}
 
 	process.Kill()

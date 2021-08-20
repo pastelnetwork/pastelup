@@ -405,7 +405,7 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 		cmd := exec.Command("dpkg-query", "-f", "${binary:Package} ", "-W")
 		stdout, err := cmd.Output()
 		if err != nil {
-			log.WithContext(ctx).Errorf("failed to execute cmd %v", err)
+			log.WithContext(ctx).Errorf("failed to execute cmd: %v", err)
 			return m
 		}
 
@@ -421,7 +421,7 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 		for _, path := range strings.Split(paths, ":") {
 			files, err := ioutil.ReadDir(path)
 			if err != nil {
-				log.WithContext(ctx).Errorf("failed to read dir %v", err)
+				log.WithContext(ctx).Errorf("failed to read dir: %v", err)
 				continue
 			}
 
@@ -437,12 +437,12 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 func GetServiceConfig(name string, format string, value interface{}) (string, error) {
 	temp, err := template.New(name).Parse(format)
 	if err != nil {
-		return "", errors.Errorf("failed to parse service config template %v", err)
+		return "", errors.Errorf("failed to parse service config template: %v", err)
 	}
 
 	var buf bytes.Buffer
 	if err = temp.Execute(&buf, value); err != nil {
-		return "", errors.Errorf("failed to execute service config template %v", err)
+		return "", errors.Errorf("failed to execute service config template: %v", err)
 	}
 
 	return buf.String(), nil

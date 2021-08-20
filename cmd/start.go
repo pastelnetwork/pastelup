@@ -289,7 +289,7 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 
 	pastelPort, err := strconv.Atoi(pastelID)
 	if err != nil {
-		return errors.Errorf("failed to convert %s to integer %v", pastelID, err)
+		return errors.Errorf("failed to convert %s to integer: %v", pastelID, err)
 	}
 	toolConfig, err := utils.GetServiceConfig("supernode", configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
 		PastelPort:     pastelPort,

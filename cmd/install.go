@@ -230,7 +230,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	_, err = client.Cmd(fmt.Sprintf("%s stop supernode ", pastelUtilityPath)).Output()
 	if err != nil {
-		log.WithContext(ctx).Errorf("failed to stop supernode, err: %s", err)
+		log.WithContext(ctx).Errorf("failed to stop supernode %v", err)
 		return err
 	}
 

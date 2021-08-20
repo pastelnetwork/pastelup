@@ -197,7 +197,7 @@ func GetConfig() *Config {
 	if utils.CheckFileExist(constants.PastelUtilityConfigFilePath) {
 		config, err = LoadConfig()
 		if err != nil {
-			log.Errorf("the pastel-utility.conf file is not correct, err: %s", err)
+			log.Errorf("the pastel-utility.conf file is not correct %v", err)
 			os.Exit(-1)
 		}
 	} else {

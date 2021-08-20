@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	ps "github.com/mitchellh/go-ps"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
@@ -229,8 +230,6 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 }
 
 func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
-	var err error
-
 	// *************  1. Parse parameters  *************
 	log.WithContext(ctx).Info("Checking parameters")
 	if err := checkStartMasterNodeParams(ctx, config); err != nil {
@@ -245,13 +244,13 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Finished checking pastel config!")
 
 	// If create master node using HOT/HOT wallet
-	if _, err = getMasternodeConf(ctx, config); err != nil {
+	if _, err := getMasternodeConf(ctx, config); err != nil {
 		return err
 	}
 
 	// Get conf data from masternode.conf File
-	var nodeName, privKey, extIP, pastelID, extPort string
-	if nodeName, privKey, extIP, pastelID, extPort, err = getStartInfo(config); err != nil {
+	nodeName, privKey, extIP, pastelID, extPort, err := getStartInfo(config)
+	if err != nil {
 		return err
 	}
 
@@ -288,8 +287,22 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
+	pastelPort, err := strconv.Atoi(pastelID)
+	if err != nil {
+		return errors.Errorf("failed to convert %s to integer: %v", pastelID, err)
+	}
+	toolConfig, err := utils.GetServiceConfig("supernode", configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+		PastelPort:     pastelPort,
+		PastelUserName: extIP,
+		PastelPassword: extPort,
+		RaptorqPort:    50051,
+	})
+	if err != nil {
+		return errors.Errorf("failed to get supernode config: %v", err)
+	}
+
 	// write to file
-	if err = utils.WriteFile(supernodeConfigPath, fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort, "50051")); err != nil {
+	if err = utils.WriteFile(supernodeConfigPath, toolConfig); err != nil {
 		return err
 	}
 
@@ -601,7 +614,7 @@ func runPastelService(ctx context.Context, config *configs.Config, tool constant
 		}
 	}
 
-	isServiceRunning := checkServiceRunning(ctx, config, tool)
+	isServiceRunning := checkServiceRunning(tool)
 	if isServiceRunning {
 		log.WithContext(ctx).Infof("The %s started succesfully!", commandName)
 	} else {
@@ -1202,12 +1215,13 @@ func CheckPastelConf(config *configs.Config) (err error) {
 		return err
 	}
 
-	if _, err := os.Stat(filepath.Join(workDirPath, "pastel.conf")); os.IsNotExist(err) {
+	pastelConfPath := filepath.Join(workDirPath, constants.PastelConfName)
+	if _, err := os.Stat(pastelConfPath); os.IsNotExist(err) {
 		return err
 	}
 
 	if config.Network == "testnet" {
-		var file, err = os.OpenFile(filepath.Join(workDirPath, "pastel.conf"), os.O_RDWR, 0644)
+		var file, err = os.OpenFile(pastelConfPath, os.O_RDWR, 0644)
 		if err != nil {
 			return err
 		}
@@ -1223,7 +1237,7 @@ func CheckPastelConf(config *configs.Config) (err error) {
 			return errSetTestnet
 		}
 	} else {
-		var file, err = os.OpenFile(filepath.Join(workDirPath, "pastel.conf"), os.O_RDWR, 0644)
+		var file, err = os.OpenFile(pastelConfPath, os.O_RDWR, 0644)
 		if err != nil {
 			return err
 		}
@@ -1278,7 +1292,7 @@ func checkPastelInstallPath(ctx context.Context, config *configs.Config, flagMod
 
 func checkPastelParamInstallPath(ctx context.Context, config *configs.Config) (err error) {
 	zksnarkPath := filepath.Join(config.WorkingDir, ".pastel-params")
-	if config.WorkingDir == config.Configurer.DefaultZksnarkDir() {
+	if config.WorkingDir == config.Configurer.DefaultWorkingDir() {
 		zksnarkPath = config.Configurer.DefaultZksnarkDir()
 	}
 
@@ -1521,50 +1535,14 @@ func getMasternodeConf(ctx context.Context, config *configs.Config) (pastelid st
 	return pastelid, nil
 }
 
-func checkServiceRunning(_ context.Context, config *configs.Config, toolType constants.ToolType) bool {
-	var pID string
-	var processID int
-	execPath := ""
-	execName := ""
-
-	if toolType == constants.RQService {
-		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
-		execName = constants.PastelRQServiceExecName[utils.GetOS()]
-	} else {
-		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
-		execName = constants.PastelRQServiceExecName[utils.GetOS()]
+func checkServiceRunning(toolType constants.ToolType) bool {
+	execName := constants.ServiceName[toolType][utils.GetOS()]
+	proc, _ := ps.Processes()
+	for _, p := range proc {
+		if p.Executable() == execName {
+			return true
+		}
 	}
 
-	if utils.GetOS() == constants.Windows {
-		arg := fmt.Sprintf("IMAGENAME eq %s", execName)
-		out, err := RunCMD("tasklist", "/FI", arg)
-		cnt := strings.Count(out, ",")
-		if err != nil {
-			return false
-		}
-		if strings.Contains(out, "No tasks") || cnt == 2 {
-			return false
-		}
-
-	} else {
-		matches, _ := filepath.Glob("/proc/*/exe")
-		for _, file := range matches {
-			target, _ := os.Readlink(file)
-			if len(target) > 0 {
-				if target == execPath {
-					split := strings.Split(file, "/")
-
-					pID = split[len(split)-2]
-					processID, _ = strconv.Atoi(pID)
-					_, err := os.FindProcess(processID)
-					if err != nil {
-						return false
-					}
-				}
-			}
-		}
-
-	}
-
-	return true
+	return false
 }

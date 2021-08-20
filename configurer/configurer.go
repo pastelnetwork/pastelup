@@ -82,7 +82,7 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 
 	url, err := url.Parse(urlString)
 	if err != nil {
-		return nil, "", errors.Errorf("failed to parse url, err: %s", err)
+		return nil, "", errors.Errorf("failed to parse url: %v", err)
 	}
 	tokens := strings.Split(urlString, "/")
 

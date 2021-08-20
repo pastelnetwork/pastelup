@@ -3,11 +3,10 @@ package cmd
 import (
 	"context"
 	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
+	"github.com/go-errors/errors"
+	ps "github.com/mitchellh/go-ps"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
@@ -112,21 +111,21 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
 	var err error
 	// *************  Kill process super node  *************
 	log.WithContext(ctx).Info("Start stopping supernode process")
-	if _, err = processKill(ctx, config, constants.SuperNode); err != nil {
+	if err = processKill(constants.SuperNode); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("The Supernode stopped.")
 
 	// *************  Kill process wallet node  *************
 	log.WithContext(ctx).Info("Start stopping walletnode process")
-	if _, err = processKill(ctx, config, constants.WalletNode); err != nil {
+	if err = processKill(constants.WalletNode); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("The Walletnode stopped.")
 
 	// *************  Kill process wallet node  *************
 	log.WithContext(ctx).Info("Start stopping rqservice process")
-	if _, err = processKill(ctx, config, constants.RQService); err != nil {
+	if err = processKill(constants.RQService); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("The rqservice stopped.")
@@ -164,14 +163,14 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error 
 	// *************  Kill process wallet node  *************
 	log.WithContext(ctx).Info("Start stopping Walletnode process")
 
-	if _, err = processKill(ctx, config, constants.WalletNode); err != nil {
+	if err = processKill(constants.WalletNode); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("Walletnode process ended.")
 
 	// *************  Kill process rqservice  *************
 	log.WithContext(ctx).Info("Start stopping rqservice process")
-	if _, err = processKill(ctx, config, constants.RQService); err != nil {
+	if err = processKill(constants.RQService); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("The rqservice process ended.")
@@ -195,7 +194,7 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 	// *************  Kill process super node  *************
 	log.WithContext(ctx).Info("Start stopping Supernode process")
 
-	if _, err = processKill(ctx, config, constants.SuperNode); err != nil {
+	if err = processKill(constants.SuperNode); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("Supernode process ended.")
@@ -203,7 +202,7 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 	// *************  Kill process rqservice  *************
 	log.WithContext(ctx).Info("Start stopping rqservice process")
 
-	if _, err = processKill(ctx, config, constants.RQService); err != nil {
+	if err = processKill(constants.RQService); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("The rqservice process ended.")
@@ -227,53 +226,25 @@ func stopPatelCLI(ctx context.Context, config *configs.Config) (output string, e
 	return "", nil
 }
 
-func processKill(ctx context.Context, config *configs.Config, toolType constants.ToolType) (output string, err error) {
-	var pID string
-	var processID int
-
-	execPath := ""
-	execName := ""
-	switch toolType {
-	case constants.WalletNode:
-		execPath = filepath.Join(config.PastelExecDir, constants.WalletNodeExecName[utils.GetOS()])
-		execName = constants.WalletNodeExecName[utils.GetOS()]
-	case constants.SuperNode:
-		execPath = filepath.Join(config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()])
-		execName = constants.SuperNodeExecName[utils.GetOS()]
-	case constants.RQService:
-		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
-		execName = constants.PastelRQServiceExecName[utils.GetOS()]
-	default:
-		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
-		execName = constants.PastelRQServiceExecName[utils.GetOS()]
+func processKill(toolType constants.ToolType) error {
+	execName := constants.ServiceName[toolType][utils.GetOS()]
+	proc, err := ps.Processes()
+	if err != nil {
+		return errors.Errorf("failed to get list process: %v", err)
 	}
-
-	if utils.GetOS() == constants.Windows {
-		RunCMDWithInteractive("Taskkill", "/IM", execName, "/F")
-
-	} else {
-		matches, _ := filepath.Glob("/proc/*/exe")
-		for _, file := range matches {
-			target, _ := os.Readlink(file)
-			if len(target) > 0 {
-				if target == execPath {
-					split := strings.Split(file, "/")
-
-					pID = split[len(split)-2]
-					processID, err = strconv.Atoi(pID)
-					proc, err := os.FindProcess(processID)
-					if err != nil {
-						log.WithContext(ctx).Errorf("Can not find process %s", execName)
-					}
-					// Kill the process
-					proc.Kill()
-
-					break
-				}
-			}
+	pid := 0
+	for _, p := range proc {
+		if p.Executable() == execName {
+			pid = p.Pid()
+			break
 		}
-
 	}
 
-	return
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return errors.Errorf("failed to find %s process: %v", execName, err)
+	}
+
+	process.Kill()
+	return nil
 }

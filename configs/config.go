@@ -2,10 +2,11 @@ package configs
 
 import (
 	"encoding/json"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/utils"
 	"io/ioutil"
 	"os"
+
+	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastel-utility/utils"
 
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/configurer"
@@ -16,9 +17,9 @@ const (
 	WalletDefaultConfig = `
 pastel-api:
   hostname: "localhost"
-  port: %s
-  username: %s 
-  password: %s
+  port: {{.PastelPort}}
+  username: "{{.PastelUserName}}"
+  password: "{{.PastelPassword}}"
 node:
   api:
     hostname: "localhost"
@@ -31,16 +32,16 @@ node:
   reg_act_tx_timeout: 13
 raptorq:
   hostname: "localhost"
-  port: %s
+  port: {{.RaptorqPort}}
 `
 
 	// SupernodeDefaultConfig - default config for supernode
 	SupernodeDefaultConfig = `
 pastel-api:
   hostname: "localhost"
-  port: %s 
-  username: %s
-  password: %s
+  port: {{.PastelPort}}
+  username: "{{.PastelUserName}}"
+  password: "{{.PastelPassword}}"
 node:
   pastel_id: jXXzhJJnfEk4cfJWeyX3t6o6EGBaCKsp6Qn38BUX62gHbBB325t1JqrkisKJGLopZ6QjzfeAmE623oK7GqS3sw 
   pass_phrase: "passphrase"
@@ -52,7 +53,7 @@ node:
     port: 4444
 raptorq:
   hostname: "localhost"
-  port: %s
+  port: {{.RaptorqPort}}
 dupe-detection:
   input_dir: "input"
   output_dir: "output"
@@ -85,8 +86,8 @@ metadb:
 		// SupernodeYmlLine8 - default supernode.yml content line 8
 		SupernodeYmlLine8 = "    port: %s"*/
 
-	// RQServiceConfig - default rqserivce config
-	RQServiceConfig = `grpc-service = "%s:%s"`
+	// RQServiceDefaultConfig - default rqserivce config
+	RQServiceDefaultConfig = `grpc-service = "{{.HostName}}:{{.Port}}"`
 
 	// ZksnarkParamsURL - url for zksnark params
 	ZksnarkParamsURL = "https://download.pastel.network/pastel-params/"
@@ -102,6 +103,28 @@ internet_rareness_downloaded_images_path = %s/
 nsfw_model_path = %s/
 `
 )
+
+// WalletNodeConfig defines configurations for walletnode
+type WalletNodeConfig struct {
+	PastelPort     int
+	PastelUserName string
+	PastelPassword string
+	RaptorqPort    int
+}
+
+// SuperNodeConfig defines configurations for supernode
+type SuperNodeConfig struct {
+	PastelPort     int
+	PastelUserName string
+	PastelPassword string
+	RaptorqPort    int
+}
+
+// RQServiceConfig defines configurations for rqservice
+type RQServiceConfig struct {
+	HostName string
+	Port     int
+}
 
 // ZksnarkParamsNames - slice of zksnark parameters
 var ZksnarkParamsNames = []string{
@@ -174,7 +197,7 @@ func GetConfig() *Config {
 	if utils.CheckFileExist(constants.PastelUtilityConfigFilePath) {
 		config, err = LoadConfig()
 		if err != nil {
-			log.Errorf("the pastel-utility.conf file is not correct, err: %s", err)
+			log.Errorf("the pastel-utility.conf file is not correct: %v", err)
 			os.Exit(-1)
 		}
 	} else {

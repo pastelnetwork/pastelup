@@ -67,6 +67,14 @@ const (
 	PortCheckURL string = "http://portchecker.com?q="
 )
 
+// ServiceName defines services name
+var ServiceName = map[ToolType]map[OSType]string{
+	PastelD:    PasteldName,
+	WalletNode: WalletNodeExecName,
+	SuperNode:  SuperNodeExecName,
+	RQService:  PastelRQServiceExecName,
+}
+
 // PasteldName - The name of the pasteld
 var PasteldName = map[OSType]string{
 	Windows: "pasteld.exe",
@@ -183,10 +191,9 @@ var DupeDetectionSupportDownloadURL = []string{
 	"https://download.pastel.network/machine-learning/keras_dupe_classifier.model.zip",
 	"https://download.pastel.network/machine-learning/xgboost_dupe_classifier.zip",
 	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
+	"https://download.pastel.network/machine-learning/neuralhash_128x96_seed1.dat",
+	"https://download.pastel.network/machine-learning/neuralhash_model.onnx",
 }
-
-// DupeDetectionMobileNetDownloadURL - The URL of dupe detection mobile net files
-var DupeDetectionMobileNetDownloadURL = "https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip"
 
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files
 var DupeDetectionSupportFilePath = "dupe_detection_support_files"
@@ -201,8 +208,38 @@ func GetVersionSubURL(version string) string {
 	}
 }
 
-// DependenciesPackages TODO: Need to separate for supernode, walletnode, node
-var DependenciesPackages = []string{"wget", "curl", "libgomp1", "python3-pip", "ufw"}
+// TODO: Add more dependencies for walletnode/supernode/pasteld in mac/win/linux os
+
+// DependenciesPackages defines some dependencies
+var DependenciesPackages = map[ToolType]map[OSType][]string{
+	WalletNode: DependenciesPackagesWalletNode,
+	SuperNode:  DependenciesPackagesSuperNode,
+	PastelD:    DependenciesPackagesPastelD,
+}
+
+// DependenciesPackagesWalletNode defines some dependencies for walletnode
+var DependenciesPackagesWalletNode = map[OSType][]string{
+	Linux:   {"wget", "curl", "libgomp1"},
+	Mac:     {"wget", "curl"},
+	Windows: {},
+	Unknown: {},
+}
+
+// DependenciesPackagesSuperNode defines some dependencies for supernode
+var DependenciesPackagesSuperNode = map[OSType][]string{
+	Linux:   {"wget", "curl", "libgomp1", "ufw", "python3-pip"},
+	Mac:     {"wget", "curl", "ipfw"},
+	Windows: {},
+	Unknown: {},
+}
+
+// DependenciesPackagesPastelD defines some dependencies for pasteld
+var DependenciesPackagesPastelD = map[OSType][]string{
+	Linux:   {"wget", "curl", "libgomp1"},
+	Mac:     {"wget", "curl"},
+	Windows: {},
+	Unknown: {},
+}
 
 // DependenciesDupeDetectionPackages is dependencies for dupe detection service
 var DependenciesDupeDetectionPackages = []string{
@@ -210,4 +247,5 @@ var DependenciesDupeDetectionPackages = []string{
 	"scipy", "scikit-learn", "matplotlib", "watchdog",
 	"chromedriver_autoinstaller", "selenium", "Pillow",
 	"opennsfw-standalone", "tensorflow_hub", "imagehash", "psutil",
+	"onnxruntime",
 }

@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	ps "github.com/mitchellh/go-ps"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
@@ -613,7 +614,7 @@ func runPastelService(ctx context.Context, config *configs.Config, tool constant
 		}
 	}
 
-	isServiceRunning := checkServiceRunning(ctx, config, tool)
+	isServiceRunning := checkServiceRunning(tool)
 	if isServiceRunning {
 		log.WithContext(ctx).Infof("The %s started succesfully!", commandName)
 	} else {
@@ -1534,50 +1535,14 @@ func getMasternodeConf(ctx context.Context, config *configs.Config) (pastelid st
 	return pastelid, nil
 }
 
-func checkServiceRunning(_ context.Context, config *configs.Config, toolType constants.ToolType) bool {
-	var pID string
-	var processID int
-	execPath := ""
-	execName := ""
-
-	if toolType == constants.RQService {
-		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
-		execName = constants.PastelRQServiceExecName[utils.GetOS()]
-	} else {
-		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
-		execName = constants.PastelRQServiceExecName[utils.GetOS()]
+func checkServiceRunning(toolType constants.ToolType) bool {
+	execName := constants.ServiceName[toolType][utils.GetOS()]
+	proc, _ := ps.Processes()
+	for _, p := range proc {
+		if p.Executable() == execName {
+			return true
+		}
 	}
 
-	if utils.GetOS() == constants.Windows {
-		arg := fmt.Sprintf("IMAGENAME eq %s", execName)
-		out, err := RunCMD("tasklist", "/FI", arg)
-		cnt := strings.Count(out, ",")
-		if err != nil {
-			return false
-		}
-		if strings.Contains(out, "No tasks") || cnt == 2 {
-			return false
-		}
-
-	} else {
-		matches, _ := filepath.Glob("/proc/*/exe")
-		for _, file := range matches {
-			target, _ := os.Readlink(file)
-			if len(target) > 0 {
-				if target == execPath {
-					split := strings.Split(file, "/")
-
-					pID = split[len(split)-2]
-					processID, _ = strconv.Atoi(pID)
-					_, err := os.FindProcess(processID)
-					if err != nil {
-						return false
-					}
-				}
-			}
-		}
-
-	}
-
-	return true
+	return false
 }

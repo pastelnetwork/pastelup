@@ -67,6 +67,14 @@ const (
 	PortCheckURL string = "http://portchecker.com?q="
 )
 
+// ServiceName defines services name
+var ServiceName = map[ToolType]map[OSType]string{
+	PastelD:    PasteldName,
+	WalletNode: WalletNodeExecName,
+	SuperNode:  SuperNodeExecName,
+	RQService:  PastelRQServiceExecName,
+}
+
 // PasteldName - The name of the pasteld
 var PasteldName = map[OSType]string{
 	Windows: "pasteld.exe",
@@ -185,9 +193,6 @@ var DupeDetectionSupportDownloadURL = []string{
 	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
 }
 
-// DupeDetectionMobileNetDownloadURL - The URL of dupe detection mobile net files
-var DupeDetectionMobileNetDownloadURL = "https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip"
-
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files
 var DupeDetectionSupportFilePath = "dupe_detection_support_files"
 
@@ -240,4 +245,5 @@ var DependenciesDupeDetectionPackages = []string{
 	"scipy", "scikit-learn", "matplotlib", "watchdog",
 	"chromedriver_autoinstaller", "selenium", "Pillow",
 	"opennsfw-standalone", "tensorflow_hub", "imagehash", "psutil",
+	"onnxruntime",
 }

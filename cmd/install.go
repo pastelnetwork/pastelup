@@ -743,9 +743,9 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	}
 
 	targetDir := filepath.Join(ddBaseDir, constants.DupeDetectionSupportFilePath)
-	for index := range constants.DupeDetectionSupportDownloadURL {
-		if err = utils.DownloadFile(ctx, filepath.Join(targetDir, "temp.zip"), constants.DupeDetectionSupportDownloadURL[index]); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file : %s", constants.DupeDetectionSupportDownloadURL[index])
+	for _, url := range constants.DupeDetectionSupportDownloadURL {
+		if err = utils.DownloadFile(ctx, filepath.Join(targetDir, "temp.zip"), url); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file : %s", url)
 			return err
 		}
 
@@ -756,8 +756,8 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		}
 	}
 
-	targetDir = filepath.Join(ddBaseDir, constants.DupeDetectionSupportFilePath)
-	fileName, err := utils.CreateFile(ctx, filepath.Join(targetDir, "config.ini"), config.Force)
+	configPath := filepath.Join(targetDir, "config.ini")
+	fileName, err := utils.CreateFile(ctx, configPath, config.Force)
 	if err != nil {
 		log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", filepath.Join(targetDir, "temp.zip"))
 		return err
@@ -767,11 +767,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
-	configPath := filepath.Join(targetDir, "config.ini")
-
-	if utils.GetOS() == constants.Linux {
-		RunCMDWithInteractive("export", "DUPEDETECTIONCONFIGPATH=%s", configPath)
-	}
+	os.Setenv("DUPEDETECTIONCONFIGPATH", configPath)
 
 	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")
 	return nil

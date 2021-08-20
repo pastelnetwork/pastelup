@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -484,8 +485,9 @@ func processArchive(ctx context.Context, dstFolder string, archivePath string) e
 
 func makeExecutable(ctx context.Context, dirPath string, fileName string) error {
 	if utils.GetOS() == constants.Linux {
-		if _, err := RunCMD("chmod", "755", filepath.Join(dirPath, fileName)); err != nil {
-			log.WithContext(ctx).Errorf("Failed to make %s as executable", fileName)
+		filePath := filepath.Join(dirPath, fileName)
+		if _, err := RunCMD("chmod", "755", filePath); err != nil {
+			log.WithContext(ctx).Errorf("Failed to make %s as executable", filePath)
 			return err
 		}
 	}
@@ -504,7 +506,7 @@ func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Confi
 	}
 
 	if err = utils.WriteFile(filePath, toolConfig); err != nil {
-		log.WithContext(ctx).Errorf("Failed to write config to %s file", configFileName)
+		log.WithContext(ctx).Errorf("Failed to write config to %s file", filePath)
 		return err
 	}
 
@@ -558,62 +560,28 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	return nil
 }
 
-func updatePastelConfigFile(ctx context.Context, fileName string, config *configs.Config) error {
-	// Open file using READ & WRITE permission.
-	var file, err = os.OpenFile(fileName, os.O_RDWR, 0644)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to open %s", fileName)
-		return err
-	}
-	defer file.Close()
+func updatePastelConfigFile(ctx context.Context, filePath string, config *configs.Config) error {
+	cfgBuffer := bytes.Buffer{}
 
 	// Populate pastel.conf line-by-line to file.
-	_, err = file.WriteString("server=1\n") // creates server line
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to write into %s", fileName)
-		return err
-	}
-
-	_, err = file.WriteString("listen=1\n\n") // creates server line
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to write into %s", fileName)
-		return err
-	}
-
-	_, err = file.WriteString("rpcuser=" + config.RPCUser + "\n") // creates  rpcuser line
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to write into %s", fileName)
-		return err
-	}
-
-	_, err = file.WriteString("rpcpassword=" + config.RPCPwd + "\n") // creates rpcpassword line
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to write into %s", fileName)
-		return err
-	}
+	cfgBuffer.WriteString("server=1\n")                          // creates server line
+	cfgBuffer.WriteString("listen=1\n\n")                        // creates server line
+	cfgBuffer.WriteString("rpcuser=" + config.RPCUser + "\n")    // creates  rpcuser line
+	cfgBuffer.WriteString("rpcpassword=" + config.RPCPwd + "\n") // creates rpcpassword line
 
 	if config.Network == "testnet" {
-		_, err = file.WriteString("testnet=1\n") // creates testnet line
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to write into %s", fileName)
-			return err
-		}
+		cfgBuffer.WriteString("testnet=1\n") // creates testnet line
 	}
 
 	if config.Peers != "" {
 		nodes := strings.Split(config.Peers, ",")
 		for _, node := range nodes {
-			_, err = file.WriteString("addnode=" + node + "\n") // creates addnode line
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to write into %s", fileName)
-				return err
-			}
+			cfgBuffer.WriteString("addnode=" + node + "\n") // creates addnode line
 		}
-
 	}
 
 	// Save file changes.
-	err = file.Sync()
+	err := ioutil.WriteFile(filePath, cfgBuffer.Bytes(), 0644)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Error saving file")
 		return errors.Errorf("failed to save file changes: %v", err)

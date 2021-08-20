@@ -229,8 +229,6 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 }
 
 func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
-	var err error
-
 	// *************  1. Parse parameters  *************
 	log.WithContext(ctx).Info("Checking parameters")
 	if err := checkStartMasterNodeParams(ctx, config); err != nil {
@@ -245,13 +243,13 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Finished checking pastel config!")
 
 	// If create master node using HOT/HOT wallet
-	if _, err = getMasternodeConf(ctx, config); err != nil {
+	if _, err := getMasternodeConf(ctx, config); err != nil {
 		return err
 	}
 
 	// Get conf data from masternode.conf File
-	var nodeName, privKey, extIP, pastelID, extPort string
-	if nodeName, privKey, extIP, pastelID, extPort, err = getStartInfo(config); err != nil {
+	nodeName, privKey, extIP, pastelID, extPort, err := getStartInfo(config)
+	if err != nil {
 		return err
 	}
 
@@ -288,8 +286,22 @@ func runMasterNodOnHotHot(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
+	pastelPort, err := strconv.Atoi(pastelID)
+	if err != nil {
+		return errors.Errorf("failed to convert %s to integer, err: %v", pastelID, err)
+	}
+	toolConfig, err := utils.GetServiceConfig("supernode", configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+		PastelPort:     pastelPort,
+		PastelUserName: extIP,
+		PastelPassword: extPort,
+		RaptorqPort:    50051,
+	})
+	if err != nil {
+		return errors.Errorf("failed to get service config, err: %v", err)
+	}
+
 	// write to file
-	if err = utils.WriteFile(fileName, fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort, "50051")); err != nil {
+	if err = utils.WriteFile(fileName, toolConfig); err != nil {
 		return err
 	}
 

@@ -58,17 +58,17 @@ func TestCreateFileWithForce(t *testing.T) {
 	var force bool
 	path = "$HOME/test/createfilewithforce.txt"
 	force = true
-	fileName, err := CreateFile(cxt, path, force)
+	err := CreateFile(cxt, path, force)
 	if err != nil {
 		t.Fatalf(`CreateFolder Function Failed`)
 	} else {
-		t.Logf(fmt.Sprintf("CreateFile Function OK : %s", fileName))
+		t.Logf(fmt.Sprintf("CreateFile Function OK : %s", path))
 	}
-	newFileName, err := CreateFile(cxt, path, force)
+	err = CreateFile(cxt, path, force)
 	if err != nil {
 		t.Fatalf(`CreateFolder Function Failed`)
 	} else {
-		t.Logf(fmt.Sprintf("CreateFile Function OK : %s", newFileName))
+		t.Logf(fmt.Sprintf("CreateFile Function OK : %s", path))
 	}
 }
 
@@ -78,18 +78,18 @@ func TestCreateFileWithoutForce(t *testing.T) {
 	var force bool
 	path = "$HOME/test/createfilewithoutforce.txt"
 	force = true
-	fileName, err := CreateFile(cxt, path, force)
+	err := CreateFile(cxt, path, force)
 	if err != nil {
 		t.Fatalf(`Create Folder Failed`)
 	} else {
-		t.Logf(fmt.Sprintf("CreateFile Function OK : %s", fileName))
+		t.Logf(fmt.Sprintf("CreateFile Function OK : %s", path))
 		force = false
-		newFileName, err := CreateFile(cxt, path, force)
+		err = CreateFile(cxt, path, force)
 		var wanted = fs.ErrExist.Error()
 		if err.Error() != wanted {
 			t.Fatalf(fmt.Sprintf("%s %s", "CreateFile Function Failed", err.Error()))
 		} else {
-			t.Logf(fmt.Sprintf("Can not Create File OK : %s", newFileName))
+			t.Logf(fmt.Sprintf("Can not Create File OK : %s", path))
 		}
 	}
 }

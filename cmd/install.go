@@ -427,6 +427,9 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 			log.WithContext(ctx).Warn("Exiting...")
 			return err
 		}
+	} else if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Exiting...")
+		return err
 	}
 
 	return nil
@@ -450,23 +453,22 @@ func checkInstalledPackages(ctx context.Context, tool constants.ToolType) (err e
 }
 
 func downloadComponents(ctx context.Context, config *configs.Config, installCommand constants.ToolType, version string) (err error) {
-	commandName := strings.Split(string(installCommand), "/")[len(strings.Split(string(installCommand), "/"))-1]
+	commandName := filepath.Base(string(installCommand))
 	log.WithContext(ctx).Infof("Downloading %s...", commandName)
 
 	downloadURL, archiveName, err := config.Configurer.GetDownloadURL(version, installCommand)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed to get download url")
-		return err
+		return errors.Errorf("failed to get download url: %v", err)
 	}
 
 	if err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, archiveName), downloadURL.String()); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf(fmt.Sprintf("Failed to download pastel executable file : %s", downloadURL.String()))
-		return err
+		return errors.Errorf("failed to download executable file %s: %v", downloadURL.String(), err)
 	}
+
 	if strings.Contains(archiveName, ".zip") {
 		if err = processArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName)); err != nil {
 			//Error was logged in processArchive
-			return err
+			return errors.Errorf("failed to process downloaded file: %v", err)
 		}
 	}
 
@@ -512,14 +514,14 @@ func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Confi
 	toolName string, configFileName string, toolConfig string) error {
 
 	log.WithContext(ctx).Infof("Initialize working environment for %s", toolName)
-
-	fileName, err := utils.CreateFile(ctx, filepath.Join(config.WorkingDir, configFileName), config.Force)
+	filePath := filepath.Join(config.WorkingDir, configFileName)
+	err := utils.CreateFile(ctx, filePath, config.Force)
 	if err != nil {
-		log.WithContext(ctx).Errorf("Failed to create %s file", configFileName)
+		log.WithContext(ctx).Errorf("Failed to create %s file", filePath)
 		return err
 	}
 
-	if err = utils.WriteFile(fileName, toolConfig); err != nil {
+	if err = utils.WriteFile(filePath, toolConfig); err != nil {
 		log.WithContext(ctx).Errorf("Failed to write config to %s file", configFileName)
 		return err
 	}
@@ -544,16 +546,17 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	config.RPCPwd = utils.GenerateRandomString(15)
 
 	// create pastel.conf file
-	pastelConfPath := filepath.Join(config.WorkingDir, constants.PastelConfName)
-	f, err := utils.CreateFile(ctx, pastelConfPath, config.Force)
+
+	pastelConfigPath := filepath.Join(config.WorkingDir, constants.PastelConfName)
+	err := utils.CreateFile(ctx, pastelConfigPath, config.Force)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to create %s", pastelConfPath)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to create %s", pastelConfigPath)
 		return err
 	}
 
 	// write to file
-	if err = updatePastelConfigFile(ctx, f, config); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s", pastelConfPath)
+	if err = updatePastelConfigFile(ctx, pastelConfigPath, config); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s", pastelConfigPath)
 		return err
 	}
 
@@ -756,18 +759,18 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		}
 	}
 
-	configPath := filepath.Join(targetDir, "config.ini")
-	fileName, err := utils.CreateFile(ctx, configPath, config.Force)
+	ddConfigPath := filepath.Join(targetDir, "config.ini")
+	err = utils.CreateFile(ctx, ddConfigPath, config.Force)
 	if err != nil {
-		log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", filepath.Join(targetDir, "temp.zip"))
+		log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", ddConfigPath)
 		return err
 	}
 
-	if err = utils.WriteFile(fileName, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
+	if err = utils.WriteFile(ddConfigPath, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
 		return err
 	}
 
-	os.Setenv("DUPEDETECTIONCONFIGPATH", configPath)
+	os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 
 	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")
 	return nil

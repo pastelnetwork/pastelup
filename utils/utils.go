@@ -52,29 +52,29 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 
 // CreateFile creates pastel.conf file
 // Print success info log on successfully ran command, return error if fail
-func CreateFile(ctx context.Context, fileName string, force bool) (string, error) {
-	create := func(filename string) error {
-		file, err := os.Create(fileName)
+func CreateFile(ctx context.Context, filePath string, force bool) error {
+	create := func(filePath string) error {
+		file, err := os.Create(filePath)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Error creating file")
-			return errors.Errorf("failed to create file: %v - err: %v", fileName, err)
+			return errors.Errorf("failed to create file: %v - err: %v", filePath, err)
 		}
 		defer file.Close()
 
-		log.WithContext(ctx).Infof("File created: %s \n", fileName)
+		log.WithContext(ctx).Infof("File created: %s \n", filePath)
 		return nil
 	}
 
 	if force {
-		return fileName, create(fileName)
+		return create(filePath)
 	}
 
 	// create if not already exists
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		return fileName, create(fileName)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return create(filePath)
 	}
 
-	return fileName, fs.ErrExist
+	return fs.ErrExist
 }
 
 // GenerateRandomString is a helper func for generating
@@ -152,12 +152,12 @@ func DownloadFile(ctx context.Context, filepath string, url string) error {
 	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		return errors.Errorf("http request failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return errors.Errorf("File not found")
+		return errors.Errorf("file not found")
 	}
 
 	// Create the file, but give it a tmp file extension, this means we won't overwrite a
@@ -172,7 +172,7 @@ func DownloadFile(ctx context.Context, filepath string, url string) error {
 	counter.Context = ctx
 	if _, err = io.Copy(out, io.TeeReader(resp.Body, counter)); err != nil {
 		out.Close()
-		return err
+		return errors.Errorf("write file failed: %v", err)
 	}
 
 	// The progress use the same line so print a new line once it's finished downloading
@@ -333,32 +333,32 @@ func CheckFileExist(filepath string) bool {
 func CopyFile(ctx context.Context, src string, dstFolder string, dstFileName string) error {
 	sourceFileStat, err := os.Stat(src)
 	if err != nil {
-		log.WithContext(ctx).Error(fmt.Sprintf("%s file does not exist!!!", src))
+		log.WithContext(ctx).Errorf("%s file does not exist!!!", src)
 		return err
 	}
 
 	if !sourceFileStat.Mode().IsRegular() {
-		log.WithContext(ctx).Error(fmt.Sprintf("%s is not a regular file", src))
-		return fmt.Errorf("%s is not a regular file", src)
+		log.WithContext(ctx).Errorf("%s is not a regular file", src)
+		return errors.Errorf("%s is not a regular file", src)
 	}
 
 	source, err := os.Open(src)
 	if err != nil {
-		log.WithContext(ctx).Error(fmt.Sprintf("%s file cannot be opened!!!", src))
+		log.WithContext(ctx).Errorf("%s file cannot be opened!!!", src)
 		return err
 	}
 	defer source.Close()
 
 	if _, err := os.Stat(dstFolder); os.IsNotExist(err) {
 		if err = CreateFolder(ctx, dstFolder, true); err != nil {
-			log.WithContext(ctx).Error(fmt.Sprintf("Could not create folder on this %s", dstFolder))
+			log.WithContext(ctx).Errorf("Could not create folder on this %s", dstFolder)
 			return CreateFolder(ctx, dstFolder, true)
 		}
 	}
 
-	destination, err := os.Create(fmt.Sprintf("%s/%s", dstFolder, dstFileName))
+	destination, err := os.Create(filepath.Join(dstFolder, dstFileName))
 	if err != nil {
-		log.WithContext(ctx).Error(fmt.Sprintf("Could not copy file to %s", dstFolder))
+		log.WithContext(ctx).Errorf("Could not copy file to %s", dstFolder)
 		return err
 	}
 	defer destination.Close()
@@ -380,18 +380,18 @@ func Contains(s []string, e string) bool {
 // GetChecksum gets the checksum of file
 func GetChecksum(_ context.Context, fileName string) (checksum string, err error) {
 	if _, err := os.Stat(fileName); err != nil {
-		return "", fmt.Errorf("file missing: %s", err)
+		return "", errors.Errorf("file missing: %v", err)
 	}
 
 	f, err := os.Open(fileName)
 	if err != nil {
-		return "", fmt.Errorf("open %s", err)
+		return "", errors.Errorf("open file failed: %v", err)
 	}
 	defer f.Close()
 
 	hasher := sha256.New()
 	if _, err := io.Copy(hasher, f); err != nil {
-		return "", fmt.Errorf("copy: %s", err)
+		return "", fmt.Errorf("copy file failed: %s", err)
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil)), nil

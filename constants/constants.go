@@ -202,6 +202,7 @@ func GetVersionSubURL(version string) string {
 }
 
 // TODO: Add more dependencies for walletnode/supernode/pasteld in mac/win/linux os
+
 // DependenciesPackages defines some dependencies
 var DependenciesPackages = map[ToolType]map[OSType][]string{
 	WalletNode: DependenciesPackagesWalletNode,

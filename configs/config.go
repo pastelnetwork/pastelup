@@ -86,7 +86,7 @@ metadb:
 		// SupernodeYmlLine8 - default supernode.yml content line 8
 		SupernodeYmlLine8 = "    port: %s"*/
 
-	// RQServiceConfig - default rqserivce config
+	// RQServiceDefaultConfig - default rqserivce config
 	RQServiceDefaultConfig = `grpc-service = "{{.HostName}}:{{.Port}}"`
 
 	// ZksnarkParamsURL - url for zksnark params
@@ -120,7 +120,7 @@ type SuperNodeConfig struct {
 	RaptorqPort    int
 }
 
-// SuperNodeConfig defines configurations for rqservice
+// RQServiceConfig defines configurations for rqservice
 type RQServiceConfig struct {
 	HostName string
 	Port     int

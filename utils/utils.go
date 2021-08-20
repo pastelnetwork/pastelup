@@ -433,15 +433,16 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 	return m
 }
 
+// GetServiceConfig returns service configuration
 func GetServiceConfig(name string, format string, value interface{}) (string, error) {
 	temp, err := template.New(name).Parse(format)
 	if err != nil {
-		return "", errors.Errorf("failed to parse walletnode config template, err: %v", err)
+		return "", errors.Errorf("failed to parse service config template, err: %v", err)
 	}
 
 	var buf bytes.Buffer
 	if err = temp.Execute(&buf, value); err != nil {
-		return "", errors.Errorf("failed to execute walletnode config template, err: %+v", err)
+		return "", errors.Errorf("failed to execute service config template, err: %+v", err)
 	}
 
 	return buf.String(), nil

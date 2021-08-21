@@ -80,6 +80,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
+		cli.NewFlag("transfer-local", &config.TransferLocal).SetAliases("tflocal").
+			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
 	}
 
 	dupeFlags := []*cli.Flag{
@@ -205,7 +207,6 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
 	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
-	pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
 
 	_, err = client.Cmd(fmt.Sprintf("rm -r -f %s", pastelUtilityPath)).Output()
 	if err != nil {
@@ -213,32 +214,48 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return err
 	}
 
-	log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
-	_, err = client.Cmd(fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath)).Output()
+	// Download pastel-ultility from pastel website
+	if !config.TransferLocal {
+		pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
+		log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
+		_, err = client.Cmd(fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath)).Output()
 
-	log.WithContext(ctx).Debugf("wget -O %s  %s", pastelUtilityPath, pastelUtilityDownloadPath)
-	if err != nil {
-		log.WithContext(ctx).Error("Failed to download pastel-utility")
-		return err
+		log.WithContext(ctx).Debugf("wget -O %s  %s", pastelUtilityPath, pastelUtilityDownloadPath)
+		if err != nil {
+			log.WithContext(ctx).Error("Failed to download pastel-utility")
+			return err
+		}
+		log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
+	} else {
+		// scp pastel-ultility to remote
+		log.WithContext(ctx).Info("Transferering local Pastel-Utility Executable to remote")
+		err = client.Scp(os.Args[0], pastelUtilityPath)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to Transferering local Pastel Utility to remote")
+			return err
+		}
+
+		log.WithContext(ctx).Info("Finished Transferering local Pastel-Utility Successfully")
 	}
-
-	log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
 
 	_, err = client.Cmd(fmt.Sprintf("chmod 777 /%s", pastelUtilityPath)).Output()
 	if err != nil {
-		log.WithContext(ctx).Error("Failed to change permission of pastel-utility")
+		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
 		return err
 	}
 
 	_, err = client.Cmd(fmt.Sprintf("%s stop supernode ", pastelUtilityPath)).Output()
 	if err != nil {
-		log.WithContext(ctx).Errorf("failed to stop supernode: %v", err)
-		return err
+		if config.Force {
+			log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
+		} else {
+			log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
+			return err
+		}
 	}
 
 	log.WithContext(ctx).Info("Installing Supernode ...")
-
-	log.WithContext(ctx).Debugf("pastel-utility path: %s", pastelUtilityPath)
+	log.WithContext(ctx).Infof("pastel-utility path: %s", pastelUtilityPath)
 
 	remoteOptions := ""
 	if len(config.RemotePastelExecDir) > 0 {
@@ -663,6 +680,7 @@ func openPort(ctx context.Context, portList []string) (err error) {
 		case constants.Mac:
 			out, err = RunCMD("sudo", "ipfw", "allow", "tcp", "from", "any", "to", "any", "dst-port", portList[k])
 		}
+		log.WithContext(ctx).Info(out)
 
 		if err != nil {
 			if utils.GetOS() == constants.Windows {

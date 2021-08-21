@@ -2,13 +2,15 @@ package utils
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"os"
 
+	"github.com/pkg/errors"
+
+	scp "github.com/bramvdbogaerde/go-scp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -22,7 +24,8 @@ const (
 
 // A Client implements an SSH client that supports running commands and scripts remotely.
 type Client struct {
-	client *ssh.Client
+	client    *ssh.Client
+	scpClient *scp.Client
 }
 
 // DialWithPasswd starts a client connection to the given SSH server with passwd authmethod.
@@ -136,6 +139,41 @@ func (c *Client) Script(script string) *RemoteScript {
 		client:     c.client,
 		script:     bytes.NewBufferString(script + "\n"),
 	}
+}
+
+// implements scp commmand to copy local file to remote host
+func (c *Client) Scp(srcFile string, destFile string) error {
+	// Connect to the remote server
+	scpClient, err := scp.NewClientBySSH(c.client)
+	if err != nil {
+		return errors.Errorf("failed to create scp client: %v", err)
+	}
+	err = scpClient.Connect()
+	if err != nil {
+		return errors.Errorf("failed to connect to scp remote: %v", err)
+	}
+
+	// Close client connection after the file has been copied
+	defer scpClient.Close()
+
+	// Open a file
+	f, err := os.Open(srcFile)
+	if err != nil {
+		return errors.Errorf("failed to read %s file: %v", srcFile, err)
+	}
+	defer f.Close()
+
+	// Close the file after it has been copied
+
+	// Finaly, copy the file over
+	// Usage: CopyFile(fileReader, remotePath, permission)
+	err = scpClient.CopyFile(f, destFile, "0777")
+
+	if err != nil {
+		return errors.Errorf("failed to transfer file: %v", err)
+	}
+
+	return nil
 }
 
 // ScriptFile creates a RemoteScript that can read a local script file and run it remotely on the client.

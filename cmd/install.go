@@ -51,6 +51,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
+		cli.NewFlag("disable-port-config", &config.DisablePortConfig).
+			SetUsage(green("Optional, Disables config local port in install process or not")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -81,7 +83,7 @@ func setupSubCommand(config *configs.Config,
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
 		cli.NewFlag("transfer-local", &config.TransferLocal).SetAliases("tflocal").
-			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
+			SetUsage(yellow("Optional, pastel-utility is transferred from locally than from Pastel website")),
 	}
 
 	dupeFlags := []*cli.Flag{
@@ -278,6 +280,10 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s --peers=%s", remoteOptions, config.Peers)
 	}
 
+	// disable config ports by tool, need do it manually due to having to enter
+	// FIXME: add port config via ssh later
+	remoteOptions = fmt.Sprintf("%s --disable-port-config", remoteOptions)
+
 	stdin := bytes.NewBufferString(fmt.Sprintf("/%s install supernode%s", pastelUtilityPath, remoteOptions))
 	var stdout, stderr io.Writer
 
@@ -415,9 +421,13 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 		// Open ports
-		if err = openPort(ctx, constants.PortList); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to open ports")
-			return err
+		if !config.DisablePortConfig {
+			if err = openPort(ctx, constants.PortList); err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to open ports")
+				return err
+			}
+		} else {
+			log.WithContext(ctx).Warn("Please open ports by manually!")
 		}
 	}
 

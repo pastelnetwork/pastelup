@@ -492,7 +492,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) err
 	// --ip WAN IP address of the node - Required, WAN address of the host
 	if len(flagNodeExtIP) == 0 {
 		if flagMasterNodeColdHot {
-			err := fmt.Errorf("In 'start supernode remote' mode, the –-ip parametr is required (WAN IP address of the remote supernode)")
+			err := fmt.Errorf("in 'start supernode remote' mode, the –-ip parametr is required (WAN IP address of the remote supernode)")
 			log.WithContext(ctx).WithError(err).Error("Missing parameter --ip")
 			return err
 		}

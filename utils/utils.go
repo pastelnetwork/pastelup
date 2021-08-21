@@ -3,11 +3,13 @@ package utils
 import (
 	"archive/tar"
 	"archive/zip"
+	"bufio"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"golang.org/x/term"
 	"io"
 	"io/fs"
 	"math/rand"
@@ -17,6 +19,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -412,4 +415,41 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 		}
 	}
 	return m
+}
+
+// ReadStrings reads string???
+func ReadStrings(comment string) (string, error) {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Printf("%s-> ", comment)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(line), nil
+}
+
+// Credentials reads user credentials from standard input
+func Credentials(pwdToo bool) (string, string, error) {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enter Username: ")
+	username, err := reader.ReadString('\n')
+	if err != nil {
+		return "", "", err
+	}
+
+	password := ""
+	if pwdToo {
+		fmt.Print("Enter Password: ")
+		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return "", "", err
+		}
+		fmt.Print("\n")
+		password = string(bytePassword)
+	}
+
+	return strings.TrimSpace(username), strings.TrimSpace(password), nil
 }

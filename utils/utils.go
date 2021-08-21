@@ -3,8 +3,8 @@ package utils
 import (
 	"archive/tar"
 	"archive/zip"
-	"bytes"
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"

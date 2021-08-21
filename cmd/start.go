@@ -364,7 +364,7 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 	go RunCMD(execPath, args...)
 	time.Sleep(10000 * time.Millisecond)
 
-	isServiceRunning := CheckProcessRunning(toolFileName, execPath)
+	isServiceRunning := CheckProcessRunning(toolType)
 	if isServiceRunning {
 		log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
 	} else {
@@ -389,7 +389,6 @@ func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 }
 
 func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
-	var err error
 
 	// *************  1. Parse pastel config parameters  *************
 	log.WithContext(ctx).Info("Reading pastel.conf")
@@ -408,13 +407,13 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Finished checking arguments!")
 
 	// If create master node using HOT/HOT wallet
-	if _, err = getMasternodeConf(ctx, config); err != nil {
+	if _, err := getMasternodeConf(ctx, config); err != nil {
 		return err
 	}
 
 	// Get conf data from masternode.conf File
-	var nodeName, privKey, extIP, pastelID, extPort string
-	if nodeName, privKey, extIP, pastelID, extPort, err = getStartInfo(config); err != nil {
+	nodeName, privKey, _ /*extIP*/, pastelID, _ /*extPort*/, err := getStartInfo(config)
+	if err != nil {
 		return err
 	}
 
@@ -425,12 +424,12 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// *************  4. Wait for blockchain and masternodes sync  *************
-	if err = checkMasterNodeSync(ctx, config); err != nil {
+	if err := checkMasterNodeSync(ctx, config); err != nil {
 		return err
 	}
 
 	// *************  5. Enable Masternode  ***************
-	if err = runStartAliasMasternode(ctx, config, nodeName); err != nil {
+	if err := runStartAliasMasternode(ctx, config, nodeName); err != nil {
 		return err
 	}
 
@@ -452,7 +451,22 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// write to file
-	if err = utils.WriteFile(supernodeConfigPath, fmt.Sprintf(configs.SupernodeDefaultConfig, pastelID, extIP, extPort, "50051")); err != nil {
+	if err != nil {
+		return errors.Errorf("failed to convert %s to integer: %v", pastelID, err)
+	}
+
+	toolConfig, err := utils.GetServiceConfig("supernode", configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+		PastelPort:     config.RPCPort,
+		PastelUserName: config.RPCUser,
+		PastelPassword: config.RPCPwd,
+		PasteID:        pastelID,
+		Passphrase:     flagMasterNodePassPhrase,
+		RaptorqPort:    50051,
+	})
+	if err != nil {
+		return errors.Errorf("failed to get supernode config: %v", err)
+	}
+	if err = utils.WriteFile(supernodeConfigPath, toolConfig); err != nil {
 		return err
 	}
 

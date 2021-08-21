@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	ps "github.com/mitchellh/go-ps"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
@@ -10,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
@@ -68,40 +68,15 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 }
 
 // CheckProcessRunning checks if the process is running
-func CheckProcessRunning(toolFileName string, execPath string) bool {
-	var pID string
-	var processID int
-
-	if utils.GetOS() == constants.Windows {
-		arg := fmt.Sprintf("IMAGENAME eq %s", toolFileName)
-		out, err := RunCMD("tasklist", "/FI", arg)
-		cnt := strings.Count(out, ",")
-		if err != nil {
-			return false
-		}
-		if strings.Contains(out, "No tasks") || cnt == 2 {
-			return false
-		}
-
-	} else {
-		matches, _ := filepath.Glob("/proc/*/exe")
-		for _, file := range matches {
-			target, _ := os.Readlink(file)
-			if len(target) > 0 {
-				if target == execPath {
-					split := strings.Split(file, "/")
-
-					pID = split[len(split)-2]
-					processID, _ = strconv.Atoi(pID)
-					_, err := os.FindProcess(processID)
-					if err != nil {
-						return false
-					}
-				}
-			}
+func CheckProcessRunning(toolType constants.ToolType) bool {
+	execName := constants.ServiceName[toolType][utils.GetOS()]
+	proc, _ := ps.Processes()
+	for _, p := range proc {
+		if p.Executable() == execName {
+			return true
 		}
 
 	}
 
-	return true
+	return false
 }

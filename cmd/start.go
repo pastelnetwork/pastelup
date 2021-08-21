@@ -121,9 +121,9 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("remote supernode specific: Required, SSH address of the remote HOT node")),
 		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).
 			SetUsage(green("remote supernode specific: Optional, SSH port of the remote HOT node")).SetValue(22),
-		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).SetAliases("d").
+		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
 			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
-		cli.NewFlag("work-dir", &config.RemoteWorkingDir).SetAliases("w").
+		cli.NewFlag("work-dir", &config.RemoteWorkingDir).
 			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/pastel-utility)")),
 	}
 
@@ -340,7 +340,7 @@ func runPastelWalletNode(ctx context.Context, config *configs.Config) error {
 
 	var wnServiceArgs []string
 	wnServiceArgs = append(wnServiceArgs,
-		fmt.Sprintf("--config-file=%s", filepath.Join(config.WorkingDir, "wallet.yml")))
+		fmt.Sprintf("--config-file=%s", filepath.Join(config.WorkingDir, "walletnode.yml")))
 	if flagDevMode {
 		wnServiceArgs = append(wnServiceArgs, "--swagger")
 	}

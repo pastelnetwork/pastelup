@@ -68,11 +68,11 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 }
 
 // CheckProcessRunning checks if the process is running
-func CheckProcessRunning(ctx context.Context, toolType constants.ToolType) bool {
+func CheckProcessRunning(toolType constants.ToolType) bool {
 	execName := constants.ServiceName[toolType][utils.GetOS()]
 	proc, _ := ps.Processes()
 	for _, p := range proc {
-		if strings.Contains(execName, p.Executable())  {
+		if strings.Contains(execName, p.Executable()) {
 			return true
 		}
 

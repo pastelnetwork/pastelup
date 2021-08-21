@@ -365,7 +365,7 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 	go RunCMD(execPath, args...)
 	time.Sleep(10000 * time.Millisecond)
 
-	isServiceRunning := CheckProcessRunning(ctx, toolType)
+	isServiceRunning := CheckProcessRunning(toolType)
 	if isServiceRunning {
 		log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
 	} else {

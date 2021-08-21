@@ -680,7 +680,6 @@ func openPort(ctx context.Context, portList []string) (err error) {
 		case constants.Mac:
 			out, err = RunCMD("sudo", "ipfw", "allow", "tcp", "from", "any", "to", "any", "dst-port", portList[k])
 		}
-		log.WithContext(ctx).Info(out)
 
 		if err != nil {
 			if utils.GetOS() == constants.Windows {

@@ -123,7 +123,7 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("remote supernode specific: Optional, SSH port of the remote HOT node")).SetValue(22),
 		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
 			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
-		cli.NewFlag("work-dir", &config.RemoteWorkingDir).
+		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
 			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/pastel-utility)")),
 	}
 

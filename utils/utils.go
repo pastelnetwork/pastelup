@@ -3,12 +3,14 @@ package utils
 import (
 	"archive/tar"
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"golang.org/x/term"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -19,6 +21,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"text/template"
 	"time"
 
@@ -446,4 +449,41 @@ func GetServiceConfig(name string, format string, value interface{}) (string, er
 	}
 
 	return buf.String(), nil
+}
+
+// ReadStrings reads string???
+func ReadStrings(comment string) (string, error) {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Printf("%s-> ", comment)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(line), nil
+}
+
+// Credentials reads user credentials from standard input
+func Credentials(pwdToo bool) (string, string, error) {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enter Username: ")
+	username, err := reader.ReadString('\n')
+	if err != nil {
+		return "", "", err
+	}
+
+	password := ""
+	if pwdToo {
+		fmt.Print("Enter Password: ")
+		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return "", "", err
+		}
+		fmt.Print("\n")
+		password = string(bytePassword)
+	}
+
+	return strings.TrimSpace(username), strings.TrimSpace(password), nil
 }

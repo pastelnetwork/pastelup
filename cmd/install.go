@@ -65,7 +65,7 @@ func setupSubCommand(config *configs.Config,
 	} else {
 		dirsFlags = []*cli.Flag{
 			cli.NewFlag("dir", &config.RemotePastelExecDir).SetAliases("d").
-				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
+				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/.pastel)")),
 			cli.NewFlag("work-dir", &config.RemoteWorkingDir).SetAliases("w").
 				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/pastel-utility)")),
 		}
@@ -189,10 +189,10 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	var client *utils.Client
 	log.WithContext(ctx).Infof("Connecting to SSH Hot node wallet -> %s:%d...", sshIP, sshPort)
 	if len(sshKey) == 0 {
-		username, password, _ := credentials(true)
+		username, password, _ := utils.Credentials(true)
 		client, err = utils.DialWithPasswd(fmt.Sprintf("%s:%d", sshIP, sshPort), username, password)
 	} else {
-		username, _, _ := credentials(false)
+		username, _, _ := utils.Credentials(false)
 		client, err = utils.DialWithKey(fmt.Sprintf("%s:%d", sshIP, sshPort), username, sshKey)
 	}
 	if err != nil {

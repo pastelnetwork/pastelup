@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-errors/errors"
@@ -234,7 +235,7 @@ func processKill(toolType constants.ToolType) error {
 	}
 	pid := 0
 	for _, p := range proc {
-		if p.Executable() == execName {
+		if strings.Contains(execName, p.Executable()) {
 			pid = p.Pid()
 			break
 		}

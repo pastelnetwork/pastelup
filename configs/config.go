@@ -43,8 +43,8 @@ pastel-api:
   username: "{{.PastelUserName}}"
   password: "{{.PastelPassword}}"
 node:
-  pastel_id: jXXzhJJnfEk4cfJWeyX3t6o6EGBaCKsp6Qn38BUX62gHbBB325t1JqrkisKJGLopZ6QjzfeAmE623oK7GqS3sw 
-  pass_phrase: "passphrase"
+  pastel_id: {{.PasteID}} 
+  pass_phrase: {{.Passphrase}}
   preburnt_tx_min_confirmation: 3
   # Timeout in minutes
   preburnt_tx_confirmation_timeout: 8 
@@ -117,6 +117,8 @@ type SuperNodeConfig struct {
 	PastelPort     int
 	PastelUserName string
 	PastelPassword string
+	PasteID        string
+	Passphrase     string
 	RaptorqPort    int
 }
 

@@ -336,6 +336,7 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 func runPastelWalletNode(ctx context.Context, config *configs.Config) error {
 
 	walletnodeExecName := constants.WalletNodeExecName[utils.GetOS()]
+	log.WithContext(ctx).Infof("Starting walletnode - %s", walletnodeExecName)
 
 	var wnServiceArgs []string
 	wnServiceArgs = append(wnServiceArgs,
@@ -344,7 +345,7 @@ func runPastelWalletNode(ctx context.Context, config *configs.Config) error {
 		wnServiceArgs = append(wnServiceArgs, "--swagger")
 	}
 
-	if err := runPastelService(ctx, config, constants.RQService, walletnodeExecName, wnServiceArgs...); err != nil {
+	if err := runPastelService(ctx, config, constants.WalletNode, walletnodeExecName, wnServiceArgs...); err != nil {
 		log.WithContext(ctx).WithError(err).Error("walletnode failed")
 		return err
 	}
@@ -364,12 +365,12 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 	go RunCMD(execPath, args...)
 	time.Sleep(10000 * time.Millisecond)
 
-	isServiceRunning := CheckProcessRunning(toolType)
+	isServiceRunning := CheckProcessRunning(ctx, toolType)
 	if isServiceRunning {
 		log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
 	} else {
 		if output, err := RunCMD(execPath, args...); err != nil {
-			log.WithContext(ctx).Errorf("%s start was failed! : %s", toolType, output)
+			log.WithContext(ctx).Errorf("%s start failed! : %s", toolType, output)
 			return err
 		}
 	}

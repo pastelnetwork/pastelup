@@ -15,7 +15,7 @@ type Init struct {
 	RemotePastelExecDir    string `json:"remotepastelexecdir,omitempty"`
 	RemotePastelUtilityDir string `json:"remotepastelutilitydir,omitempty"`
 	DisableTransferLocal   bool   `json:"disable-transfer-local,omitempty"`
-	StartedRemote      bool   `json:"started-remote,omitempty"`
+	StartedRemote          bool   `json:"started-remote,omitempty"`
 }
 
 /*

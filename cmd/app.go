@@ -89,10 +89,10 @@ func RunCMD(command string, args ...string) (string, error) {
 
 	// Execute the command
 	if err := cmd.Run(); err != nil {
-		return string(stdBuffer.Bytes()), err
+		return stdBuffer.String(), err
 	}
 
-	return string(stdBuffer.Bytes()), nil
+	return stdBuffer.String(), nil
 }
 
 // RunCMDWithInteractive runs shell command with interactive

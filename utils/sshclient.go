@@ -2,12 +2,14 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"os"
 
+	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pkg/errors"
 
 	scp "github.com/bramvdbogaerde/go-scp"
@@ -185,6 +187,24 @@ func (c *Client) ScriptFile(fname string) *RemoteScript {
 	}
 }
 
+// Shell create a noninteractive shell on client.
+func (c *Client) Shell() *RemoteShell {
+	return &RemoteShell{
+		client:     c.client,
+		requestPty: false,
+	}
+}
+
+func (c *Client) ShellCmd(ctx context.Context, cmd string) error {
+	log.WithContext(ctx).Infof("Remote Command: %s started", cmd)
+	defer log.WithContext(ctx).Infof("Remote Command: %s finished", cmd)
+
+	stdin := bytes.NewBufferString(cmd)
+	var stdout, stderr io.Writer
+
+	return c.Shell().SetStdio(stdin, stdout, stderr).Start()
+}
+
 // A RemoteScript represents script that can be run remotely.
 type RemoteScript struct {
 	client     *ssh.Client
@@ -356,14 +376,6 @@ func (c *Client) Terminal(config *TerminalConfig) *RemoteShell {
 		client:         c.client,
 		terminalConfig: config,
 		requestPty:     true,
-	}
-}
-
-// Shell create a noninteractive shell on client.
-func (c *Client) Shell() *RemoteShell {
-	return &RemoteShell{
-		client:     c.client,
-		requestPty: false,
 	}
 }
 

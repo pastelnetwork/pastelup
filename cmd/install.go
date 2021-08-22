@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -210,7 +209,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
 	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
 
-	_, err = client.Cmd(fmt.Sprintf("rm -r -f %s", pastelUtilityPath)).Output()
+	err = client.ShellCmd(ctx, fmt.Sprintf("rm -r -f %s", pastelUtilityPath))
 	if err != nil {
 		log.WithContext(ctx).Error("Failed to delete pastel-utility file")
 		return err
@@ -220,7 +219,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	if config.DisableTransferLocal {
 		pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
 		log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
-		_, err = client.Cmd(fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath)).Output()
+		err = client.ShellCmd(ctx, fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath))
 
 		log.WithContext(ctx).Debugf("wget -O %s  %s", pastelUtilityPath, pastelUtilityDownloadPath)
 		if err != nil {
@@ -240,13 +239,15 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		log.WithContext(ctx).Info("Finished Transferering local Pastel-Utility Successfully")
 	}
 
-	_, err = client.Cmd(fmt.Sprintf("chmod 777 /%s", pastelUtilityPath)).Output()
+	err = client.ShellCmd(ctx, fmt.Sprintf("chmod 777 /%s", pastelUtilityPath))
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
 		return err
 	}
 
-	_, err = client.Cmd(fmt.Sprintf("%s stop supernode ", pastelUtilityPath)).Output()
+	log.WithContext(ctx).Info("Stopping supernode...")
+	stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", pastelUtilityPath)
+	err = client.ShellCmd(ctx, stopSuperNodeCmd)
 	if err != nil {
 		if config.Force {
 			log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
@@ -254,6 +255,8 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 			log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
 			return err
 		}
+	} else {
+		log.WithContext(ctx).Info("Finished Stopping supernode")
 	}
 
 	log.WithContext(ctx).Info("Installing Supernode ...")
@@ -284,10 +287,8 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	// FIXME: add port config via ssh later
 	remoteOptions = fmt.Sprintf("%s --started-remote", remoteOptions)
 
-	stdin := bytes.NewBufferString(fmt.Sprintf("/%s install supernode%s", pastelUtilityPath, remoteOptions))
-	var stdout, stderr io.Writer
-
-	err = client.Shell().SetStdio(stdin, stdout, stderr).Start()
+	installSuperNodeCmd := fmt.Sprintf("/%s install supernode%s", pastelUtilityPath, remoteOptions)
+	err = client.ShellCmd(ctx, installSuperNodeCmd)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to Installing Supernode")
 		return err

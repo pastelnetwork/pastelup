@@ -680,6 +680,11 @@ func openPort(ctx context.Context, portList []string) (err error) {
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Installing dd-service...")
 
+	if err := checkInstalledPackages(ctx, constants.DDService); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing packages...")
+		return err
+	}
+
 	subCmd := []string{"-m", "pip", "install"}
 	subCmd = append(subCmd, constants.DependenciesDupeDetectionPackages...)
 	log.WithContext(ctx).Info("Installing Pip...")

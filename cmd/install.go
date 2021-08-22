@@ -64,9 +64,9 @@ func setupSubCommand(config *configs.Config,
 		}
 	} else {
 		dirsFlags = []*cli.Flag{
-			cli.NewFlag("dir", &config.RemotePastelExecDir).SetAliases("d").
+			cli.NewFlag("remote-dir", &config.RemotePastelExecDir).SetAliases("d").
 				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/.pastel)")),
-			cli.NewFlag("work-dir", &config.RemoteWorkingDir).SetAliases("w").
+			cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).SetAliases("w").
 				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/pastel-utility)")),
 		}
 	}

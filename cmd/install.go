@@ -66,9 +66,9 @@ func setupSubCommand(config *configs.Config,
 		}
 	} else {
 		dirsFlags = []*cli.Flag{
-			cli.NewFlag("dir", &config.RemotePastelExecDir).SetAliases("d").
+			cli.NewFlag("remote-dir", &config.RemotePastelExecDir).SetAliases("d").
 				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/.pastel)")),
-			cli.NewFlag("work-dir", &config.RemoteWorkingDir).SetAliases("w").
+			cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).SetAliases("w").
 				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/pastel-utility)")),
 		}
 	}
@@ -509,19 +509,17 @@ func downloadComponents(ctx context.Context, config *configs.Config, installComm
 func processArchive(ctx context.Context, dstFolder string, archivePath string) error {
 	log.WithContext(ctx).Debugf("Extracting archive files from %s to %s", archivePath, dstFolder)
 
-	file, err := os.Open(archivePath)
-	if err != nil {
+	if _, err := os.Stat(archivePath); os.IsNotExist(err) {
 		log.WithContext(ctx).WithError(err).Errorf("Not found archive file - %s", archivePath)
 		return err
 	}
-	defer file.Close()
-	_, err = utils.Unzip(archivePath, dstFolder)
-	if err != nil {
+
+	if _, err := utils.Unzip(archivePath, dstFolder); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to extract executables from %s", archivePath)
 		return err
 	}
 	log.WithContext(ctx).Debug("Delete archive files")
-	if err = utils.DeleteFile(archivePath); err != nil {
+	if err := utils.DeleteFile(archivePath); err != nil {
 		log.WithContext(ctx).Errorf("Failed to delete archive file : %s", archivePath)
 		return err
 	}

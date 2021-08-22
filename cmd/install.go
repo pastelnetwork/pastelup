@@ -287,7 +287,16 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	stdin := bytes.NewBufferString(fmt.Sprintf("/%s install supernode%s", pastelUtilityPath, remoteOptions))
 	var stdout, stderr io.Writer
 
-	return client.Shell().SetStdio(stdin, stdout, stderr).Start()
+	err = client.Shell().SetStdio(stdin, stdout, stderr).Start()
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to Installing Supernode")
+		return err
+	}
+
+	log.WithContext(ctx).Info("Finished Installing Supernode Successfully, but not at all ^^")
+	log.WithContext(ctx).Warn("Please manualy install chrome & config ports by yourself  as following:")
+	showUserInstallGuideline(ctx, config)
+	return nil
 }
 
 func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) error {
@@ -702,6 +711,21 @@ func openPort(ctx context.Context, portList []string) (err error) {
 	return nil
 }
 
+func showOpenPortGuideline(ctx context.Context, portList []string) {
+	log.WithContext(ctx).Warn(" - Open ports:")
+
+	for k := range portList {
+		switch utils.GetOS() {
+		case constants.Linux:
+			log.WithContext(ctx).Warnf("   sudo ufw allow %s", portList[k])
+		case constants.Windows:
+			log.WithContext(ctx).Warnf("   netsh advfirewall firewall add rule name=TCP Port %s dir=in action=allow protocol=TCP localport=%s", portList[k], portList[k])
+		case constants.Mac:
+			log.WithContext(ctx).Warnf("   sudo ipfw allow tcp from any to any dest-port %s", portList[k])
+		}
+	}
+}
+
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Installing dd-service...")
 
@@ -719,8 +743,11 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	}
 	log.WithContext(ctx).Info("Pip install finished")
 
-	if err = installChrome(ctx, config); err != nil {
-		return err
+	// need to install manual by user
+	if !config.StartedRemote {
+		if err = installChrome(ctx, config); err != nil {
+			return err
+		}
 	}
 
 	if err = downloadComponents(ctx, config, constants.DDService, config.Version); err != nil {
@@ -801,4 +828,17 @@ func installChrome(ctx context.Context, config *configs.Config) (err error) {
 		utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
 	}
 	return nil
+}
+
+func showInstallChromeGuideline(ctx context.Context, _ *configs.Config) {
+	if utils.GetOS() == constants.Linux {
+		log.WithContext(ctx).Warn(" - Install chrome:")
+		log.WithContext(ctx).Warnf("   wget %s", constants.ChromeDownloadURL[utils.GetOS()])
+		log.WithContext(ctx).Warnf("   sudo dpkg -i %s", constants.ChromeExecFileName[utils.GetOS()])
+	}
+}
+
+func showUserInstallGuideline(ctx context.Context, config *configs.Config) {
+	showInstallChromeGuideline(ctx, config)
+	showOpenPortGuideline(ctx, constants.PortList)
 }

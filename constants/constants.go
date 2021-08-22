@@ -218,7 +218,7 @@ var DependenciesPackages = map[ToolType]map[OSType][]string{
 	DDService:  DependenciesPackagesWalletDDService,
 }
 
-// DependenciesPackagesWalletNode defines some dependencies for walletnode
+// DependenciesPackagesWalletDDService defines some dependencies for walletnode
 var DependenciesPackagesWalletDDService = map[OSType][]string{
 	Linux:   {"wget", "curl", "python3-pip"},
 	Mac:     {},

@@ -195,6 +195,7 @@ func (c *Client) Shell() *RemoteShell {
 	}
 }
 
+// ShellCmd executes a remote command, and also print log of it
 func (c *Client) ShellCmd(ctx context.Context, cmd string) error {
 	log.WithContext(ctx).Infof("Remote Command: %s started", cmd)
 	defer log.WithContext(ctx).Infof("Remote Command: %s finished", cmd)

@@ -24,8 +24,7 @@ const (
 
 // A Client implements an SSH client that supports running commands and scripts remotely.
 type Client struct {
-	client    *ssh.Client
-	scpClient *scp.Client
+	client *ssh.Client
 }
 
 // DialWithPasswd starts a client connection to the given SSH server with passwd authmethod.
@@ -141,13 +140,14 @@ func (c *Client) Script(script string) *RemoteScript {
 	}
 }
 
-// implements scp commmand to copy local file to remote host
+// Scp implements scp commmand to copy local file to remote host
 func (c *Client) Scp(srcFile string, destFile string) error {
 	// Connect to the remote server
 	scpClient, err := scp.NewClientBySSH(c.client)
 	if err != nil {
 		return errors.Errorf("failed to create scp client: %v", err)
 	}
+
 	err = scpClient.Connect()
 	if err != nil {
 		return errors.Errorf("failed to connect to scp remote: %v", err)

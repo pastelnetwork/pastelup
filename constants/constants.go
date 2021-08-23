@@ -215,6 +215,15 @@ var DependenciesPackages = map[ToolType]map[OSType][]string{
 	WalletNode: DependenciesPackagesWalletNode,
 	SuperNode:  DependenciesPackagesSuperNode,
 	PastelD:    DependenciesPackagesPastelD,
+	DDService:  DependenciesPackagesWalletDDService,
+}
+
+// DependenciesPackagesWalletDDService defines some dependencies for walletnode
+var DependenciesPackagesWalletDDService = map[OSType][]string{
+	Linux:   {"wget", "curl", "python3-pip"},
+	Mac:     {},
+	Windows: {},
+	Unknown: {},
 }
 
 // DependenciesPackagesWalletNode defines some dependencies for walletnode

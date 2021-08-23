@@ -2,13 +2,17 @@ package utils
 
 import (
 	"bytes"
-	"errors"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"os"
 
+	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pkg/errors"
+
+	scp "github.com/bramvdbogaerde/go-scp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -138,6 +142,42 @@ func (c *Client) Script(script string) *RemoteScript {
 	}
 }
 
+// Scp implements scp commmand to copy local file to remote host
+func (c *Client) Scp(srcFile string, destFile string) error {
+	// Connect to the remote server
+	scpClient, err := scp.NewClientBySSH(c.client)
+	if err != nil {
+		return errors.Errorf("failed to create scp client: %v", err)
+	}
+
+	err = scpClient.Connect()
+	if err != nil {
+		return errors.Errorf("failed to connect to scp remote: %v", err)
+	}
+
+	// Close client connection after the file has been copied
+	defer scpClient.Close()
+
+	// Open a file
+	f, err := os.Open(srcFile)
+	if err != nil {
+		return errors.Errorf("failed to read %s file: %v", srcFile, err)
+	}
+	defer f.Close()
+
+	// Close the file after it has been copied
+
+	// Finaly, copy the file over
+	// Usage: CopyFile(fileReader, remotePath, permission)
+	err = scpClient.CopyFile(f, destFile, "0777")
+
+	if err != nil {
+		return errors.Errorf("failed to transfer file: %v", err)
+	}
+
+	return nil
+}
+
 // ScriptFile creates a RemoteScript that can read a local script file and run it remotely on the client.
 func (c *Client) ScriptFile(fname string) *RemoteScript {
 	return &RemoteScript{
@@ -145,6 +185,25 @@ func (c *Client) ScriptFile(fname string) *RemoteScript {
 		client:     c.client,
 		scriptFile: fname,
 	}
+}
+
+// Shell create a noninteractive shell on client.
+func (c *Client) Shell() *RemoteShell {
+	return &RemoteShell{
+		client:     c.client,
+		requestPty: false,
+	}
+}
+
+// ShellCmd executes a remote command, and also print log of it
+func (c *Client) ShellCmd(ctx context.Context, cmd string) error {
+	log.WithContext(ctx).Infof("Remote Command: %s started", cmd)
+	defer log.WithContext(ctx).Infof("Remote Command: %s finished", cmd)
+
+	stdin := bytes.NewBufferString(cmd)
+	var stdout, stderr io.Writer
+
+	return c.Shell().SetStdio(stdin, stdout, stderr).Start()
 }
 
 // A RemoteScript represents script that can be run remotely.
@@ -318,14 +377,6 @@ func (c *Client) Terminal(config *TerminalConfig) *RemoteShell {
 		client:         c.client,
 		terminalConfig: config,
 		requestPty:     true,
-	}
-}
-
-// Shell create a noninteractive shell on client.
-func (c *Client) Shell() *RemoteShell {
-	return &RemoteShell{
-		client:     c.client,
-		requestPty: false,
 	}
 }
 

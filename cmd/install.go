@@ -84,7 +84,9 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
-		cli.NewFlag("disable-transfer-local", &config.DisableTransferLocal).
+		cli.NewFlag("download-utility", &config.DownloadUtility).
+			SetUsage(yellow("Optional, pastel-utility on remote is downloaded from Pastel website than from locally ")),
+		cli.NewFlag("copy-utility", &config.CopyUtility).
 			SetUsage(yellow("Optional, pastel-utility on remote is downloaded from Pastel website than from locally ")),
 	}
 
@@ -219,7 +221,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	}
 
 	// Download pastel-ultility from pastel website
-	if config.DisableTransferLocal {
+	if config.DownloadUtility {
 		pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
 		log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
 		err = client.ShellCmd(ctx, fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath))
@@ -230,16 +232,16 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 			return err
 		}
 		log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
-	} else {
+	} else if config.CopyUtility{
 		// scp pastel-ultility to remote
-		log.WithContext(ctx).Info("Transferring local Pastel-Utility Executable to remote")
+		log.WithContext(ctx).Infof("Transferring local Pastel-Utility Executable to remote - %s", os.Args[0])
 		err = client.Scp(os.Args[0], pastelUtilityPath)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to transfer local Pastel Utility to remote")
 			return err
 		}
 
-		log.WithContext(ctx).Info("Successfully transferred local Pastel-Utility to remote host")
+		log.WithContext(ctx).Info("Successfully transferred local Pastel-Utility to remote host, ")
 	}
 
 	err = client.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", pastelUtilityPath))

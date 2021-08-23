@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"io/ioutil"
@@ -80,12 +81,18 @@ func configureLogging(ctx context.Context, logPrefix string, config *configs.Con
 func RunCMD(command string, args ...string) (string, error) {
 	cmd := exec.Command(command, args...)
 
-	stdout, err := cmd.Output()
+	var stdBuffer bytes.Buffer
+	mw := io.MultiWriter(os.Stdout, &stdBuffer)
 
-	if err != nil {
-		return "", err
+	cmd.Stdout = mw
+	cmd.Stderr = mw
+
+	// Execute the command
+	if err := cmd.Run(); err != nil {
+		return stdBuffer.String(), err
 	}
-	return string(stdout), nil
+
+	return stdBuffer.String(), nil
 }
 
 // RunCMDWithInteractive runs shell command with interactive

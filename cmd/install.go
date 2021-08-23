@@ -239,7 +239,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		log.WithContext(ctx).Info("Finished Transferering local Pastel-Utility Successfully")
 	}
 
-	err = client.ShellCmd(ctx, fmt.Sprintf("chmod 777 %s", pastelUtilityPath))
+	err = client.ShellCmd(ctx, fmt.Sprintf("chmod 777 /%s", pastelUtilityPath))
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
 		return err

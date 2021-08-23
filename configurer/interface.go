@@ -10,6 +10,8 @@ import (
 type IConfigurer interface {
 	GetHomeDir() string
 	DefaultWorkingDir() string
+	DefaultSuperNodeLogFile() string
+	DefaultWalletNodeLogFile() string
 	DefaultZksnarkDir() string
 	DefaultPastelExecutableDir() string
 	GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error)

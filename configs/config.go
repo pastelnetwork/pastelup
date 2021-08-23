@@ -95,12 +95,12 @@ metadb:
 	//DupeDetectionConfig - default config for dupedecteion
 	DupeDetectionConfig = `
 [DUPEDETECTIONCONFIG]
-input_files_path = %s
-support_files_path = %s
-output_files_path = %s
-processed_files_path = %s
-internet_rareness_downloaded_images_path = %s
-nsfw_model_path = %s
+input_files_path = %s/
+support_files_path = %s/
+output_files_path = %s/
+processed_files_path = %s/
+internet_rareness_downloaded_images_path = %s/
+nsfw_model_path = %s/
 `
 )
 

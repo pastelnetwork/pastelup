@@ -11,7 +11,7 @@ import (
 )
 
 func setupUpdateCommand() *cli.Command {
-	config := configs.GetConfig()
+	config := configs.InitConfig()
 
 	// define flags here
 	var updateFlag string

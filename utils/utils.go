@@ -465,17 +465,21 @@ func ReadStrings(comment string) (string, error) {
 }
 
 // Credentials reads user credentials from standard input
-func Credentials(pwdToo bool) (string, string, error) {
+func Credentials(userName string, needPassword bool) (string, string, error) {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Enter Username: ")
-	username, err := reader.ReadString('\n')
-	if err != nil {
-		return "", "", err
+	var err error
+	username := userName
+	if len(userName) == 0 {
+		fmt.Print("Enter Username: ")
+		username, err = reader.ReadString('\n')
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	password := ""
-	if pwdToo {
+	if needPassword {
 		fmt.Print("Enter Password: ")
 		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 		if err != nil {

@@ -18,7 +18,7 @@ var (
 )
 
 func setupInfoCommand() *cli.Command {
-	config := configs.GetConfig()
+	config := configs.InitConfig()
 
 	infoCommand := cli.NewCommand("info")
 	infoCommand.SetUsage("usage")

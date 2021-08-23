@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/go-errors/errors"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/configs"
@@ -69,14 +70,42 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 
 // CheckProcessRunning checks if the process is running
 func CheckProcessRunning(toolType constants.ToolType) bool {
+	if pid, _ := GetRunningProcessPid(toolType); pid != 0 {
+		return true
+	}
+	return false
+}
+
+func GetRunningProcessPid(toolType constants.ToolType) (int, error) {
 	execName := constants.ServiceName[toolType][utils.GetOS()]
-	proc, _ := ps.Processes()
+	proc, err := ps.Processes()
+	if err != nil {
+		return 0, errors.Errorf("failed to get list process: %v", err)
+	}
+	pid := 0
 	for _, p := range proc {
 		if strings.Contains(execName, p.Executable()) {
-			return true
+			pid = p.Pid()
+			break
 		}
-
 	}
 
-	return false
+	return pid, nil
+}
+
+func KillProcess(ctx context.Context, toolType constants.ToolType) error {
+
+	if pid, err := GetRunningProcessPid(toolType); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to check running processes")
+		return err
+	} else if pid != 0 {
+		process, err := os.FindProcess(pid)
+		if err != nil {
+			return errors.Errorf("failed to kill process - %d: %v", pid, err)
+		}
+		return process.Kill()
+	}
+
+	log.WithContext(ctx).Infof("Service %s is not running", toolType)
+	return nil
 }

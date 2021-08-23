@@ -104,21 +104,3 @@ func RunCMDWithInteractive(command string, args ...string) error {
 
 	return cmd.Run()
 }
-
-// CreateUtilityConfigFile - Initialize the function
-func CreateUtilityConfigFile(ctx context.Context, config *configs.Config) (err error) {
-	configJSON, err := config.String()
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Bad config")
-		return err
-	}
-
-	if err = config.SaveConfig(); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to save pastel-utility config file")
-		return err
-	}
-
-	log.WithContext(ctx).Infof("Config: %s", configJSON)
-
-	return nil
-}

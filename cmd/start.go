@@ -192,7 +192,7 @@ func setupStartSubCommand(config *configs.Config,
 }
 
 func setupStartCommand() *cli.Command {
-	config := configs.GetConfig()
+	config := configs.InitConfig()
 
 	startNodeSubCommand := setupStartSubCommand(config, nodeStart, runStartNodeSubCommand)
 	startWalletSubCommand := setupStartSubCommand(config, walletStart, runStartWalletSubCommand)
@@ -388,7 +388,7 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 	go RunCMD(execPath, args...)
 	time.Sleep(10000 * time.Millisecond)
 
-	isServiceRunning := CheckProcessRunning(toolType)
+	isServiceRunning, _, _ := CheckProcessRunning(ctx, toolType)
 	if isServiceRunning {
 		log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
 	} else {
@@ -480,9 +480,6 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	toolConfig, err := utils.GetServiceConfig("supernode", configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-		PastelPort:     config.RPCPort,
-		PastelUserName: config.RPCUser,
-		PastelPassword: config.RPCPwd,
 		PasteID:        pastelID,
 		Passphrase:     flagMasterNodePassPhrase,
 		RaptorqPort:    50051,
@@ -895,7 +892,7 @@ func runMasterNodeOnColdHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// ***************  4. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
-	username, password, _ := utils.Credentials(true)
+	username, password, _ := utils.Credentials("", true)
 
 	if err = remoteHotNodeCtrl(ctx, config, username, password); err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("%s\n", err))

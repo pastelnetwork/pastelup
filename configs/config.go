@@ -2,11 +2,7 @@ package configs
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
-
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/utils"
 
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/configurer"
@@ -15,11 +11,6 @@ import (
 const (
 	// WalletDefaultConfig - default config for walletnode
 	WalletDefaultConfig = `
-pastel-api:
-  hostname: "localhost"
-  port: {{.PastelPort}}
-  username: "{{.PastelUserName}}"
-  password: "{{.PastelPassword}}"
 node:
   api:
     hostname: "localhost"
@@ -37,11 +28,6 @@ raptorq:
 
 	// SupernodeDefaultConfig - default config for supernode
 	SupernodeDefaultConfig = `
-pastel-api:
-  hostname: "localhost"
-  port: {{.PastelPort}}
-  username: "{{.PastelUserName}}"
-  password: "{{.PastelPassword}}"
 node:
   pastel_id: {{.PasteID}} 
   pass_phrase: {{.Passphrase}}
@@ -69,23 +55,6 @@ metadb:
   data_dir: "metadb-4444"
 `
 
-	/*	// SupernodeYmlLine1 - default supernode.yml content line 1
-		SupernodeYmlLine1 = "node:"
-		// SupernodeYmlLine2 - default supernode.yml content line 2
-		SupernodeYmlLine2 = "  # ` + `pastel_id` + ` must match to active ` + `PastelID` + ` from masternode."
-		// SupernodeYmlLine3 - default supernode.yml content line 3
-		SupernodeYmlLine3 = "  # To check it out first get the active outpoint from ` + `masteronde status` + `, then filter the result of ` + `tickets list id mine` + ` by this outpoint."
-		// SupernodeYmlLine4 - default supernode.yml content line 4
-		SupernodeYmlLine4 = "  pastel_id: %s"
-		// SupernodeYmlLine5 - default supernode.yml content line 5
-		SupernodeYmlLine5 = "  server:"
-		// SupernodeYmlLine6 - default supernode.yml content line 6
-		SupernodeYmlLine6 = `    # ` + `listen_address` + ` and ` + `port` + ` must match to ` + `extAddress` + ` from masternode.conf`
-		// SupernodeYmlLine7 - default supernode.yml content line 7
-		SupernodeYmlLine7 = "    listen_addresses: %s"
-		// SupernodeYmlLine8 - default supernode.yml content line 8
-		SupernodeYmlLine8 = "    port: %s"*/
-
 	// RQServiceDefaultConfig - default rqserivce config
 	RQServiceDefaultConfig = `grpc-service = "{{.HostName}}:{{.Port}}"`
 
@@ -106,17 +75,11 @@ nsfw_model_path = %s/
 
 // WalletNodeConfig defines configurations for walletnode
 type WalletNodeConfig struct {
-	PastelPort     int
-	PastelUserName string
-	PastelPassword string
 	RaptorqPort    int
 }
 
 // SuperNodeConfig defines configurations for supernode
 type SuperNodeConfig struct {
-	PastelPort     int
-	PastelUserName string
-	PastelPassword string
 	PasteID        string
 	Passphrase     string
 	RaptorqPort    int
@@ -157,34 +120,6 @@ func (config *Config) String() (string, error) {
 	return string(data), nil
 }
 
-// SaveConfig : save pastel-utility config
-func (config *Config) SaveConfig() error {
-	data, err := config.String()
-
-	if err != nil {
-		return err
-	}
-
-	if ioutil.WriteFile(constants.PastelUtilityConfigFilePath, []byte(data), 0644) != nil {
-		return err
-	}
-	return nil
-}
-
-// LoadConfig : load the config from config file
-func LoadConfig() (cofig *Config, err error) {
-	data, err := ioutil.ReadFile(constants.PastelUtilityConfigFilePath)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var dataConf Config
-	err = json.Unmarshal(data, &dataConf)
-
-	return &dataConf, err
-}
-
 // New returns a new Config instance
 func New() *Config {
 	return &Config{
@@ -192,19 +127,9 @@ func New() *Config {
 	}
 }
 
-// GetConfig : Get the config from config file. If there is no config file then create a new config.
-func GetConfig() *Config {
-	var config *Config
-	var err error
-	if utils.CheckFileExist(constants.PastelUtilityConfigFilePath) {
-		config, err = LoadConfig()
-		if err != nil {
-			log.Errorf("the pastel-utility.conf file is not correct: %v", err)
-			os.Exit(-1)
-		}
-	} else {
-		config = New()
-	}
+// InitConfig : Get the config from config file. If there is no config file then create a new config.
+func InitConfig() *Config {
+	var config = New()
 
 	c, err := configurer.NewConfigurer()
 	if err != nil {

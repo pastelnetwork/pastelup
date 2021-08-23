@@ -54,6 +54,10 @@ var (
 	flagMasterNodeColdHot    bool
 	flagMasterNodeSSHIP      string
 	flagMasterNodeSSHPort    int
+
+	// path of log file
+	flagLogFile  string
+	flagLogLevel string
 )
 
 type startCommand uint8
@@ -83,6 +87,10 @@ func setupStartSubCommand(config *configs.Config,
 
 	walletNodeFlags := []*cli.Flag{
 		cli.NewFlag("development-mode", &flagDevMode),
+		cli.NewFlag("log-file", &flagLogFile).
+			SetUsage(green("Optional, location of log file")).SetValue(config.Configurer.DefaultWalletNodeLogFile()),
+		cli.NewFlag("log-level", &flagLogLevel).
+			SetUsage(green("Optional, log level")).SetValue(""),
 	}
 
 	superNodeFlags := []*cli.Flag{
@@ -115,6 +123,11 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Kademlia IP address - Optional, if omitted, value passed to --ip will be used")),
 		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort).
 			SetUsage(green("Kademlia port - Optional, default - 4445 (14445 for Testnet)")),
+
+		cli.NewFlag("log-file", &flagLogFile).
+			SetUsage(green("Optional, location of log file")).SetValue(config.Configurer.DefaultSuperNodeLogFile()),
+		cli.NewFlag("log-level", &flagLogLevel).
+			SetUsage(green("Optional, log level")).SetValue(""),
 
 		cli.NewFlag("remote", &flagMasterNodeColdHot),
 		cli.NewFlag("ssh-ip", &flagMasterNodeSSHIP).
@@ -345,6 +358,16 @@ func runPastelWalletNode(ctx context.Context, config *configs.Config) error {
 		wnServiceArgs = append(wnServiceArgs, "--swagger")
 	}
 
+	wnServiceArgs = append(wnServiceArgs,
+		fmt.Sprintf("--log-file=%s", flagLogFile))
+
+	if len(flagLogLevel) > 0 {
+		wnServiceArgs = append(wnServiceArgs,
+			fmt.Sprintf("--log-level=%s", flagLogLevel))
+
+	}
+
+	log.WithContext(ctx).Infof("Options : %s", wnServiceArgs)
 	if err := runPastelService(ctx, config, constants.WalletNode, walletnodeExecName, wnServiceArgs...); err != nil {
 		log.WithContext(ctx).WithError(err).Error("walletnode failed")
 		return err
@@ -473,8 +496,14 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 
 	log.WithContext(ctx).Info("Configuring supernode was finished")
 
+	logLevelOption := ""
+	if len(flagLogFile) > 0 {
+		logLevelOption = fmt.Sprintf("--log-level=%s", flagLogLevel)
+	}
 	go RunCMD(filepath.Join(config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()]),
-		fmt.Sprintf("--config-file=%s", filepath.Join(config.WorkingDir, "supernode", "supernode.yml")))
+		fmt.Sprintf("--config-file=%s", filepath.Join(config.WorkingDir, "supernode", "supernode.yml")),
+		fmt.Sprintf("--log-file=%s", flagLogFile), logLevelOption)
+
 	log.WithContext(ctx).Info("Waiting for supernode started...")
 	time.Sleep(10000 * time.Millisecond)
 
@@ -1106,7 +1135,15 @@ func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *uti
 
 	log.WithContext(ctx).Infof("Remote:::Start supernode command : %s", fmt.Sprintf("%s %s", remoteSupernodeExecFile, fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath)))
 
-	go client.Cmd(fmt.Sprintf("%s %s", remoteSupernodeExecFile, fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath))).Run()
+	logLevelOption := ""
+	if len(flagLogFile) > 0 {
+		logLevelOption = fmt.Sprintf("--log-level=%s", flagLogLevel)
+	}
+
+	go client.Cmd(fmt.Sprintf("%s %s %s %s", remoteSupernodeExecFile,
+		fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath),
+		fmt.Sprintf("--log-file=%s", flagLogFile),
+		logLevelOption)).Run()
 
 	defer client.Close()
 

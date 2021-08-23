@@ -18,6 +18,8 @@ const (
 
 type configurer struct {
 	workingDir          string
+	superNodeLogFile    string
+	walletNodeLogFile   string
 	zksnarkDir          string
 	pastelExecutableDir string
 	homeDir             string
@@ -36,6 +38,16 @@ func (c *configurer) DefaultWorkingDir() string {
 		return filepath.Join(c.homeDir, filepath.FromSlash(getAppDir()), c.workingDir)
 	}
 	return filepath.Join(c.homeDir, c.workingDir)
+}
+
+// DefaultSuperNodeLogFile returns the default supernode log file
+func (c *configurer) DefaultSuperNodeLogFile() string {
+	return filepath.Join(c.DefaultWorkingDir(), c.superNodeLogFile)
+}
+
+// DefaultWalletNodeLogFile returns the default supernode log file
+func (c *configurer) DefaultWalletNodeLogFile() string {
+	return filepath.Join(c.DefaultWorkingDir(), c.walletNodeLogFile)
 }
 
 // DefaultZksnarkDir returns the default config path.
@@ -92,6 +104,8 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 func newLinuxConfigurer(homeDir string) IConfigurer {
 	return &configurer{
 		workingDir:          ".pastel",
+		superNodeLogFile:    "supernode.log",
+		walletNodeLogFile:   "walletnode.log",
 		zksnarkDir:          ".pastel-params",
 		pastelExecutableDir: "pastel",
 		homeDir:             homeDir,
@@ -103,6 +117,8 @@ func newLinuxConfigurer(homeDir string) IConfigurer {
 func newDarwinConfigurer(homeDir string) IConfigurer {
 	return &configurer{
 		workingDir:          "Pastel",
+		superNodeLogFile:    "supernode.log",
+		walletNodeLogFile:   "walletnode.log",
 		zksnarkDir:          "PastelParams",
 		pastelExecutableDir: "Pastel",
 		homeDir:             homeDir,
@@ -114,6 +130,8 @@ func newDarwinConfigurer(homeDir string) IConfigurer {
 func newWindowsConfigurer(homeDir string) IConfigurer {
 	return &configurer{
 		workingDir:          "Pastel",
+		superNodeLogFile:    "supernode.log",
+		walletNodeLogFile:   "walletnode.log",
 		zksnarkDir:          "PastelParams",
 		pastelExecutableDir: "PastelWallet",
 		homeDir:             homeDir,

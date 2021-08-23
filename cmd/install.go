@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -51,6 +50,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
+		cli.NewFlag("started-remote", &config.StartedRemote).
+			SetUsage(green("Optional, means that this command is executed remotely via ssh shell")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -80,6 +81,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
+		cli.NewFlag("disable-transfer-local", &config.DisableTransferLocal).
+			SetUsage(yellow("Optional, pastel-utility on remote is downloaded from Pastel website than from locally ")),
 	}
 
 	dupeFlags := []*cli.Flag{
@@ -205,40 +208,59 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
 	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
-	pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
 
-	_, err = client.Cmd(fmt.Sprintf("rm -r -f %s", pastelUtilityPath)).Output()
+	err = client.ShellCmd(ctx, fmt.Sprintf("rm -r -f %s", pastelUtilityPath))
 	if err != nil {
 		log.WithContext(ctx).Error("Failed to delete pastel-utility file")
 		return err
 	}
 
-	log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
-	_, err = client.Cmd(fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath)).Output()
+	// Download pastel-ultility from pastel website
+	if config.DisableTransferLocal {
+		pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
+		log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
+		err = client.ShellCmd(ctx, fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath))
 
-	log.WithContext(ctx).Debugf("wget -O %s  %s", pastelUtilityPath, pastelUtilityDownloadPath)
+		log.WithContext(ctx).Debugf("wget -O %s  %s", pastelUtilityPath, pastelUtilityDownloadPath)
+		if err != nil {
+			log.WithContext(ctx).Error("Failed to download pastel-utility")
+			return err
+		}
+		log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
+	} else {
+		// scp pastel-ultility to remote
+		log.WithContext(ctx).Info("Transferering local Pastel-Utility Executable to remote")
+		err = client.Scp(os.Args[0], pastelUtilityPath)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to Transferering local Pastel Utility to remote")
+			return err
+		}
+
+		log.WithContext(ctx).Info("Finished Transferering local Pastel-Utility Successfully")
+	}
+
+	err = client.ShellCmd(ctx, fmt.Sprintf("chmod 777 /%s", pastelUtilityPath))
 	if err != nil {
-		log.WithContext(ctx).Error("Failed to download pastel-utility")
+		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
 		return err
 	}
 
-	log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
-
-	_, err = client.Cmd(fmt.Sprintf("chmod 777 /%s", pastelUtilityPath)).Output()
+	log.WithContext(ctx).Info("Stopping supernode...")
+	stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", pastelUtilityPath)
+	err = client.ShellCmd(ctx, stopSuperNodeCmd)
 	if err != nil {
-		log.WithContext(ctx).Error("Failed to change permission of pastel-utility")
-		return err
-	}
-
-	_, err = client.Cmd(fmt.Sprintf("%s stop supernode ", pastelUtilityPath)).Output()
-	if err != nil {
-		log.WithContext(ctx).Errorf("failed to stop supernode: %v", err)
-		return err
+		if config.Force {
+			log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
+		} else {
+			log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
+			return err
+		}
+	} else {
+		log.WithContext(ctx).Info("Finished Stopping supernode")
 	}
 
 	log.WithContext(ctx).Info("Installing Supernode ...")
-
-	log.WithContext(ctx).Debugf("pastel-utility path: %s", pastelUtilityPath)
+	log.WithContext(ctx).Infof("pastel-utility path: %s", pastelUtilityPath)
 
 	remoteOptions := ""
 	if len(config.RemotePastelExecDir) > 0 {
@@ -261,10 +283,21 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s --peers=%s", remoteOptions, config.Peers)
 	}
 
-	stdin := bytes.NewBufferString(fmt.Sprintf("/%s install supernode%s", pastelUtilityPath, remoteOptions))
-	var stdout, stderr io.Writer
+	// disable config ports by tool, need do it manually due to having to enter
+	// FIXME: add port config via ssh later
+	remoteOptions = fmt.Sprintf("%s --started-remote", remoteOptions)
 
-	return client.Shell().SetStdio(stdin, stdout, stderr).Start()
+	installSuperNodeCmd := fmt.Sprintf("%s install supernode%s", pastelUtilityPath, remoteOptions)
+	err = client.ShellCmd(ctx, installSuperNodeCmd)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to Installing Supernode")
+		return err
+	}
+
+	log.WithContext(ctx).Info("Finished Installing Supernode Successfully, but not at all ^^")
+	log.WithContext(ctx).Warn("Please manualy install chrome & config ports by yourself  as following:")
+	showUserInstallGuideline(ctx, config)
+	return nil
 }
 
 func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) error {
@@ -398,9 +431,13 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 		// Open ports
-		if err = openPort(ctx, constants.PortList); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to open ports")
-			return err
+		if !config.StartedRemote {
+			if err = openPort(ctx, constants.PortList); err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to open ports")
+				return err
+			}
+		} else {
+			log.WithContext(ctx).Warn("Please open ports by manually!")
 		}
 	}
 
@@ -675,6 +712,21 @@ func openPort(ctx context.Context, portList []string) (err error) {
 	return nil
 }
 
+func showOpenPortGuideline(ctx context.Context, portList []string) {
+	log.WithContext(ctx).Warn(" - Open ports:")
+
+	for k := range portList {
+		switch utils.GetOS() {
+		case constants.Linux:
+			log.WithContext(ctx).Warnf("   sudo ufw allow %s", portList[k])
+		case constants.Windows:
+			log.WithContext(ctx).Warnf("   netsh advfirewall firewall add rule name=TCP Port %s dir=in action=allow protocol=TCP localport=%s", portList[k], portList[k])
+		case constants.Mac:
+			log.WithContext(ctx).Warnf("   sudo ipfw allow tcp from any to any dest-port %s", portList[k])
+		}
+	}
+}
+
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Installing dd-service...")
 
@@ -697,8 +749,11 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	}
 	log.WithContext(ctx).Info("Pip install finished")
 
-	if err = installChrome(ctx, config); err != nil {
-		return err
+	// need to install manual by user
+	if !config.StartedRemote {
+		if err = installChrome(ctx, config); err != nil {
+			return err
+		}
 	}
 
 	if err = downloadComponents(ctx, config, constants.DDService, config.Version); err != nil {
@@ -779,4 +834,17 @@ func installChrome(ctx context.Context, config *configs.Config) (err error) {
 		utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
 	}
 	return nil
+}
+
+func showInstallChromeGuideline(ctx context.Context, _ *configs.Config) {
+	if utils.GetOS() == constants.Linux {
+		log.WithContext(ctx).Warn(" - Install chrome:")
+		log.WithContext(ctx).Warnf("   wget %s", constants.ChromeDownloadURL[utils.GetOS()])
+		log.WithContext(ctx).Warnf("   sudo dpkg -i %s", constants.ChromeExecFileName[utils.GetOS()])
+	}
+}
+
+func showUserInstallGuideline(ctx context.Context, config *configs.Config) {
+	showInstallChromeGuideline(ctx, config)
+	showOpenPortGuideline(ctx, constants.PortList)
 }

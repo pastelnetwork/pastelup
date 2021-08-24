@@ -7,7 +7,7 @@ import (
 // OSType - Windows, Linux, MAC, Unknown
 type OSType string
 
-// ToolType - gonode, pasteld, dd-service, rq-service
+// ToolType - gonode, pasteld, ddservice, rqservice
 type ToolType string
 
 // ArchitectureType - amd64

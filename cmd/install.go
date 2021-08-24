@@ -102,11 +102,11 @@ func setupSubCommand(config *configs.Config,
 		commandMessage = "Install node"
 	case walletInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
-		commandName = "walletnode"
+		commandName = string(constants.WalletNode)
 		commandMessage = "Install walletnode"
 	case superNodeInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
-		commandName = "supernode"
+		commandName = string(constants.SuperNode)
 		commandMessage = "Install supernode"
 	case remoteInstall:
 		commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
@@ -298,6 +298,10 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s --peers=%s", remoteOptions, config.Peers)
 	}
 
+	if config.Network == "testnet" {
+		remoteOptions = fmt.Sprintf("%s -n=testnet", remoteOptions)
+	}
+
 	// disable config ports by tool, need do it manually due to having to enter
 	// FIXME: add port config via ssh later
 	remoteOptions = fmt.Sprintf("%s --started-remote", remoteOptions)
@@ -357,12 +361,12 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 	}
-	// install rq-service and its config
+	// install rqservice and its config
 	if installCommand == constants.WalletNode ||
 		installCommand == constants.SuperNode {
 
 		toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
-		toolConfig, err := utils.GetServiceConfig("rqservice", configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
+		toolConfig, err := utils.GetServiceConfig(constants.RQService, configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
 			HostName: "127.0.0.1",
 			Port:     50051,
 		})
@@ -379,7 +383,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 
-		if err = setupComponentWorkingEnvironment(ctx, config, "rqservice", "rqservice.toml", toolConfig); err != nil {
+		if err = setupComponentWorkingEnvironment(ctx, config,
+			string(constants.RQService),
+			config.Configurer.GetRQServiceConfFile(config.WorkingDir),
+			toolConfig); err != nil {
+
 			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
@@ -387,7 +395,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	// install WalletNode and its config
 	if installCommand == constants.WalletNode {
 		toolPath := constants.WalletNodeExecName[utils.GetOS()]
-		toolConfig, err := utils.GetServiceConfig("walletnode", configs.WalletDefaultConfig, &configs.WalletNodeConfig{
+		toolConfig, err := utils.GetServiceConfig(constants.WalletNode, configs.WalletDefaultConfig, &configs.WalletNodeConfig{
 			RaptorqPort: 50051,
 		})
 		if err != nil {
@@ -402,7 +410,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
 			return err
 		}
-		if err = setupComponentWorkingEnvironment(ctx, config, "walletnode", "walletnode.yml", toolConfig); err != nil {
+		if err = setupComponentWorkingEnvironment(ctx, config,
+			string(constants.WalletNode),
+			config.Configurer.GetWalletNodeConfFile(config.WorkingDir),
+			toolConfig); err != nil {
+
 			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
@@ -410,7 +422,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	// install SuperNode, dd-service and their configs; open ports
 	if installCommand == constants.SuperNode {
 		toolPath := constants.SuperNodeExecName[utils.GetOS()]
-		toolConfig, err := utils.GetServiceConfig("supernode", configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+		toolConfig, err := utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
 			RaptorqPort: 50051,
 		})
 		if err != nil {
@@ -425,7 +437,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
 			return err
 		}
-		if err = setupComponentWorkingEnvironment(ctx, config, "supernode", "supernode.yml", toolConfig); err != nil {
+		if err = setupComponentWorkingEnvironment(ctx, config,
+			string(constants.SuperNode),
+			config.Configurer.GetSuperNodeConfFile(config.WorkingDir),
+			toolConfig); err != nil {
+
 			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
@@ -546,18 +562,17 @@ func makeExecutable(ctx context.Context, dirPath string, fileName string) error 
 }
 
 func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Config,
-	toolName string, configFileName string, toolConfig string) error {
+	toolName string, configFilePath string, toolConfig string) error {
 
 	log.WithContext(ctx).Infof("Initialize working environment for %s", toolName)
-	filePath := filepath.Join(config.WorkingDir, configFileName)
-	err := utils.CreateFile(ctx, filePath, config.Force)
+	err := utils.CreateFile(ctx, configFilePath, config.Force)
 	if err != nil {
-		log.WithContext(ctx).Errorf("Failed to create %s file", filePath)
+		log.WithContext(ctx).Errorf("Failed to create %s file", configFilePath)
 		return err
 	}
 
-	if err = utils.WriteFile(filePath, toolConfig); err != nil {
-		log.WithContext(ctx).Errorf("Failed to write config to %s file", filePath)
+	if err = utils.WriteFile(configFilePath, toolConfig); err != nil {
+		log.WithContext(ctx).Errorf("Failed to write config to %s file", configFilePath)
 		return err
 	}
 

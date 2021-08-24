@@ -40,10 +40,10 @@ func setupStopSubCommand(config *configs.Config,
 		commandName = "node"
 		commandMessage = "Stop node"
 	case walletStop:
-		commandName = "walletnode"
+		commandName = string(constants.WalletNode)
 		commandMessage = "Stop walletnode"
 	case superNodeStop:
-		commandName = "supernode"
+		commandName = string(constants.SuperNode)
 		commandMessage = "Stop supernode"
 	case allStop:
 		commandName = "all"

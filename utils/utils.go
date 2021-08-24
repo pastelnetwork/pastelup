@@ -437,8 +437,8 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 }
 
 // GetServiceConfig returns service configuration
-func GetServiceConfig(name string, format string, value interface{}) (string, error) {
-	temp, err := template.New(name).Parse(format)
+func GetServiceConfig(toolType constants.ToolType, format string, value interface{}) (string, error) {
+	temp, err := template.New(string(toolType)).Parse(format)
 	if err != nil {
 		return "", errors.Errorf("failed to parse service config template: %v", err)
 	}

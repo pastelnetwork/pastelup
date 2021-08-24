@@ -10,9 +10,12 @@ import (
 type IConfigurer interface {
 	GetHomeDir() string
 	DefaultWorkingDir() string
-	DefaultSuperNodeLogFile() string
-	DefaultWalletNodeLogFile() string
 	DefaultZksnarkDir() string
 	DefaultPastelExecutableDir() string
+	GetSuperNodeLogFile(workingDir string) string
+	GetWalletNodeLogFile(workingDir string) string
+	GetSuperNodeConfFile(workingDir string) string
+	GetWalletNodeConfFile(workingDir string) string
+	GetRQServiceConfFile(workingDir string) string
 	GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error)
 }

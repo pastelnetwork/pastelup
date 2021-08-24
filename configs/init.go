@@ -14,8 +14,7 @@ type Init struct {
 	RemoteWorkingDir       string `json:"remoteworkingdir,omitempty"`
 	RemotePastelExecDir    string `json:"remotepastelexecdir,omitempty"`
 	RemotePastelUtilityDir string `json:"remotepastelutilitydir,omitempty"`
-	DownloadUtility   	   bool   `json:"download-utility,omitempty"`
-	CopyUtility   		   bool   `json:"copy-utility,omitempty"`
+	CopyUtilityPath        string `json:"copy-utility,omitempty"`
 	StartedRemote          bool   `json:"started-remote,omitempty"`
 }
 

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"github.com/go-errors/errors"
@@ -10,6 +11,7 @@ import (
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,13 +33,26 @@ func checkPastelFilePath(ctx context.Context, dirPath string, filePath string) (
 
 // GetExternalIPAddress runs shell command and returns external IP address
 func GetExternalIPAddress() (externalIP string, err error) {
-	return RunCMD("curl", "ipinfo.io/ip")
+
+	resp, err := http.Get("http://ipinfo.io/ip")
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(body), nil
 }
 
 // ParsePastelConf parse configuration of pasteld.
 func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 
-	pastelConfPath := filepath.Join(config.PastelExecDir, constants.PastelConfName)
+	pastelConfPath := filepath.Join(config.WorkingDir, constants.PastelConfName)
 	if _, err := os.Stat(pastelConfPath); os.IsNotExist(err) {
 		log.WithContext(ctx).WithError(err).Errorf("Could not find pastel config - %s", pastelConfPath)
 		return err
@@ -70,12 +85,13 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 
 // CheckProcessRunning checks if the process is running
 func CheckProcessRunning(toolType constants.ToolType) bool {
-	if pid, _ := GetRunningProcessPid(toolType); pid != 0 {
+	if pid, err := GetRunningProcessPid(toolType); pid != 0 && err == nil {
 		return true
 	}
 	return false
 }
 
+// GetRunningProcessPid returns process id, if the pastel service is running
 func GetRunningProcessPid(toolType constants.ToolType) (int, error) {
 	execName := constants.ServiceName[toolType][utils.GetOS()]
 	proc, err := ps.Processes()
@@ -84,7 +100,12 @@ func GetRunningProcessPid(toolType constants.ToolType) (int, error) {
 	}
 	pid := 0
 	for _, p := range proc {
-		if strings.Contains(execName, p.Executable()) {
+		length := len(p.Executable())
+		if length > (len(execName)) {
+			length = len(execName)
+		}
+		nameForTest := execName[:length]
+		if nameForTest == p.Executable() {
 			pid = p.Pid()
 			break
 		}
@@ -93,6 +114,7 @@ func GetRunningProcessPid(toolType constants.ToolType) (int, error) {
 	return pid, nil
 }
 
+// KillProcess kills pastel service if it is running
 func KillProcess(ctx context.Context, toolType constants.ToolType) error {
 
 	if pid, err := GetRunningProcessPid(toolType); err != nil {
@@ -108,4 +130,37 @@ func KillProcess(ctx context.Context, toolType constants.ToolType) error {
 
 	log.WithContext(ctx).Infof("Service %s is not running", toolType)
 	return nil
+}
+
+// AskUserToContinue ask user interactively  Yes or No question
+func AskUserToContinue(ctx context.Context, question string) bool {
+
+	log.WithContext(ctx).Warn(red(question))
+
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Something went wrong...")
+		return false
+	}
+
+	if strings.TrimSpace(line) == "Y" || strings.TrimSpace(line) == "y" {
+		return true
+	}
+
+	return false
+}
+
+// RunPastelCLI runs pastel-cli commands
+func RunPastelCLI(ctx context.Context, config *configs.Config, args ...string) (output string, err error) {
+	var pastelCliPath string
+
+	if pastelCliPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PastelCliName[utils.GetOS()]); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Could not find pastel-cli at %s (PastelExecDir is %s)", pastelCliPath, config.PastelExecDir)
+		return "", err
+	}
+
+	args = append([]string{fmt.Sprintf("--datadir=%s", config.WorkingDir)}, args...)
+
+	return RunCMD(pastelCliPath, args...)
 }

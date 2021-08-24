@@ -26,7 +26,12 @@ func setupStopSubCommand(config *configs.Config,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 
-	commonFlags := []*cli.Flag{}
+	commonFlags := []*cli.Flag{
+		cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
+			SetUsage(green("Optional, Location of pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
+		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+			SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
+	}
 
 	var commandName, commandMessage string
 
@@ -212,10 +217,9 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 }
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) (output string, err error) {
-	if _, err = runPastelCLI(ctx, config, "stop"); err != nil {
+	if _, err = RunPastelCLI(ctx, config, "stop"); err != nil {
 		return "", err
 	}
 
 	return "", nil
 }
-

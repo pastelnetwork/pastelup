@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -24,7 +23,7 @@ var (
 	sshIP   string
 	sshPort int
 	sshKey  string
-	sshUser  string
+	sshUser string
 )
 
 type installCommand uint8
@@ -84,10 +83,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
-		cli.NewFlag("download-utility", &config.DownloadUtility).
-			SetUsage(yellow("Optional, pastel-utility on remote is downloaded from Pastel website than from locally ")),
-		cli.NewFlag("copy-utility", &config.CopyUtility).
-			SetUsage(yellow("Optional, pastel-utility on remote is downloaded from Pastel website than from locally ")),
+		cli.NewFlag("utility-path-to-copy", &config.CopyUtilityPath).
+			SetUsage(yellow("Optional, path to the local pastel-utility file to copy to remote host")),
 	}
 
 	dupeFlags := []*cli.Flag{
@@ -197,10 +194,10 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	var client *utils.Client
 	log.WithContext(ctx).Infof("Connecting to remote host -> %s:%d...", sshIP, sshPort)
 	if len(sshKey) == 0 {
-		username, password, _ := utils.Credentials(sshUser,true)
+		username, password, _ := utils.Credentials(sshUser, true)
 		client, err = utils.DialWithPasswd(fmt.Sprintf("%s:%d", sshIP, sshPort), username, password)
 	} else {
-		username, _, _ := utils.Credentials(sshUser,false)
+		username, _, _ := utils.Credentials(sshUser, false)
 		client, err = utils.DialWithKey(fmt.Sprintf("%s:%d", sshIP, sshPort), username, sshKey)
 	}
 	if err != nil {
@@ -220,8 +217,8 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return err
 	}
 
-	// Download pastel-ultility from pastel website
-	if config.DownloadUtility {
+	// Download pastel-utility from pastel website
+	if len(config.CopyUtilityPath) == 0 {
 		pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
 		log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
 		err = client.ShellCmd(ctx, fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath))
@@ -232,41 +229,48 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 			return err
 		}
 		log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
-	} else if config.CopyUtility{
-		// scp pastel-ultility to remote
-		log.WithContext(ctx).Infof("Transferring local Pastel-Utility Executable to remote - %s", os.Args[0])
-		err = client.Scp(os.Args[0], pastelUtilityPath)
+	} else {
+		// scp pastel-utility to remote
+		log.WithContext(ctx).Infof("Copying local pastel-utility executable to remote host - %s", config.CopyUtilityPath)
+
+		err = client.Scp(config.CopyUtilityPath, pastelUtilityPath)
 		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to transfer local Pastel Utility to remote")
+			log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
 			return err
 		}
 
-		log.WithContext(ctx).Info("Successfully transferred local Pastel-Utility to remote host, ")
+		log.WithContext(ctx).Info("Successfully copied pastel-utility executable to remote host")
 	}
 
-	err = client.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", pastelUtilityPath))
-	if err != nil {
+	if err = client.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", pastelUtilityPath)); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
 		return err
 	}
 
-	if CheckProcessRunning(constants.SuperNode) ||
-		CheckProcessRunning(constants.RQService) ||
-		CheckProcessRunning(constants.DDService) ||
-		CheckProcessRunning(constants.PastelD) {
+	checkIfRunningCommand := "ps afx | grep -E 'pasteld|rq-service|dd-service|supernode' | grep -v grep"
+	if out, _ := client.Cmd(checkIfRunningCommand).Output(); len(out) != 0 {
+		log.WithContext(ctx).Info("Supernode is running on remote host")
 
-		log.WithContext(ctx).Info("Stopping supernode...")
-		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", pastelUtilityPath)
-		err = client.ShellCmd(ctx, stopSuperNodeCmd)
-		if err != nil {
-			if config.Force {
-				log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
+		if AskUserToContinue(ctx,
+			"Do you want to stop it and continue? Y/N") {
+
+			log.WithContext(ctx).Info("Stopping supernode services...")
+
+			stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", pastelUtilityPath)
+			err = client.ShellCmd(ctx, stopSuperNodeCmd)
+			if err != nil {
+				if config.Force {
+					log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
+				} else {
+					log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
+					return err
+				}
 			} else {
-				log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
-				return err
+				log.WithContext(ctx).Info("Supernode stopped")
 			}
 		} else {
-			log.WithContext(ctx).Info("Finished Stopping supernode")
+			log.WithContext(ctx).Warn("Exiting...")
+			return fmt.Errorf("user terminated installation")
 		}
 	}
 
@@ -384,7 +388,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	if installCommand == constants.WalletNode {
 		toolPath := constants.WalletNodeExecName[utils.GetOS()]
 		toolConfig, err := utils.GetServiceConfig("walletnode", configs.WalletDefaultConfig, &configs.WalletNodeConfig{
-			RaptorqPort:    50051,
+			RaptorqPort: 50051,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get walletnode config: %v", err)
@@ -407,7 +411,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	if installCommand == constants.SuperNode {
 		toolPath := constants.SuperNodeExecName[utils.GetOS()]
 		toolConfig, err := utils.GetServiceConfig("supernode", configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			RaptorqPort:    50051,
+			RaptorqPort: 50051,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get supernode config: %v", err)
@@ -448,15 +452,8 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 	defer log.WithContext(ctx).Infof("Install path is %s", installPath)
 
 	if err := utils.CreateFolder(ctx, installPath, config.Force); os.IsExist(err) {
-		log.WithContext(ctx).Warnf("%s - %s. Do you want continue to install? Y/N", err.Error(), installPath)
-		reader := bufio.NewReader(os.Stdin)
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Exiting...")
-			return err
-		}
 
-		if strings.TrimSpace(line) == "Y" || strings.TrimSpace(line) == "y" {
+		if AskUserToContinue(ctx, fmt.Sprintf("%s - %s. Do you want continue to install? Y/N", err.Error(), installPath)) {
 			config.Force = true
 			if err = utils.CreateFolder(ctx, installPath, config.Force); err != nil {
 				log.WithContext(ctx).WithError(err).Error("Exiting...")
@@ -464,7 +461,7 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 			}
 		} else {
 			log.WithContext(ctx).Warn("Exiting...")
-			return fmt.Errorf("fser terminated install")
+			return fmt.Errorf("user terminated installation")
 		}
 	} else if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Exiting...")

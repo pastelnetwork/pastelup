@@ -142,7 +142,7 @@ func (c *Client) Script(script string) *RemoteScript {
 	}
 }
 
-// Scp implements scp commmand to copy local file to remote host
+// Scp implements scp command to copy local file to remote host
 func (c *Client) Scp(srcFile string, destFile string) error {
 	// Connect to the remote server
 	scpClient, err := scp.NewClientBySSH(c.client)

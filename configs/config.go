@@ -75,14 +75,14 @@ nsfw_model_path = %s/
 
 // WalletNodeConfig defines configurations for walletnode
 type WalletNodeConfig struct {
-	RaptorqPort    int
+	RaptorqPort int
 }
 
 // SuperNodeConfig defines configurations for supernode
 type SuperNodeConfig struct {
-	PasteID        string
-	Passphrase     string
-	RaptorqPort    int
+	PasteID     string
+	Passphrase  string
+	RaptorqPort int
 }
 
 // RQServiceConfig defines configurations for rqservice

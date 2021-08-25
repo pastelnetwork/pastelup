@@ -67,8 +67,7 @@ const (
 	nodeStart startCommand = iota
 	walletStart
 	superNodeStart
-	//remoteStart
-	//highLevel
+	ddService
 )
 
 func setupStartSubCommand(config *configs.Config,
@@ -154,6 +153,10 @@ func setupStartSubCommand(config *configs.Config,
 		commandFlags = append(superNodeFlags, commonFlags[:]...)
 		commandName = string(constants.SuperNode)
 		commandMessage = "Start supernode"
+	case ddService:
+		commandFlags = commonFlags
+		commandName = string(constants.DDService)
+		commandMessage = "Start dupe detection service"
 	default:
 		commandFlags = append(append(walletNodeFlags, commonFlags[:]...), superNodeFlags[:]...)
 	}
@@ -196,11 +199,15 @@ func setupStartCommand() *cli.Command {
 	startWalletSubCommand := setupStartSubCommand(config, walletStart, runStartWalletSubCommand)
 	startSuperNodeSubCommand := setupStartSubCommand(config, superNodeStart, runStartSuperNodeSubCommand)
 
+	startDDServiceCommand := setupStartSubCommand(config, ddService, runDDService)
+
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
 	startCommand.AddSubcommands(startNodeSubCommand)
 	startCommand.AddSubcommands(startWalletSubCommand)
 	startCommand.AddSubcommands(startSuperNodeSubCommand)
+
+	startCommand.AddSubcommands(startDDServiceCommand)
 
 	return startCommand
 
@@ -344,41 +351,32 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-/*func runDDService(ctx context.Context , config *configs.Config) (err error) {
+func runDDService(ctx context.Context , config *configs.Config) (err error) {
 	log.WithContext(ctx).Infof("Starting dupe detection service")
 
-		var execPath string
-		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.DupeDetectionExecName); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
-			return err
-		}
+	var execPath string
+	if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.DupeDetectionExecName); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
+		return err
+	}
 
-		go RunCMD(execPath, args...)
-		time.Sleep(10000 * time.Millisecond)
+	ddCommand := fmt.Sprintf("export DUPEDETECTIONCONFIGPATH=/home/$USER/pastel_dupe_detection_service/dupe_detection_support_files/config.ini; python3 %s", execPath)
 
-		isServiceRunning := CheckProcessRunning(toolType)
-		if isServiceRunning {
-			log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
-		} else {
-			if output, err := RunCMD(execPath, args...); err != nil {
-				log.WithContext(ctx).Errorf("%s start failed! : %s", toolType, output)
-				return err
-			}
-		}
+	go RunCMD(ddCommand)
+	time.Sleep(10000 * time.Millisecond)
 
-		return nil
-
-
-		var rqServiceArgs []string
-		rqServiceArgs = append(rqServiceArgs,
-			fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir)))
-
-		if err := runPastelService(ctx, config, constants.RQService, rqExecName, rqServiceArgs...); err != nil {
-			log.WithContext(ctx).WithError(err).Error("rqservice failed")
-			return err
-		}
+	checkIfRunningCommand := "ps afx | grep pastel_dupe_detection_daemon_v4.py | grep -v grep"
+	if out, err := RunCMD(checkIfRunningCommand); len(out) != 0 {
+		err = errors.Errorf("dd-service failed to start")
+		log.WithContext(ctx).WithError(err).Error("dd-service failed to start")
+		return err
+	} else if err != nil {
+		log.WithContext(ctx).WithError(err).Warn("Cannot test if dd-service is running or not")
+	} else {
+		log.WithContext(ctx).WithError(err).Info("dd-service is successfully started")
+	}
 	return nil
-}*/
+}
 
 func runPastelWalletNode(ctx context.Context, config *configs.Config) error {
 
@@ -511,10 +509,10 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// *************  6. Start dd-servce    *************
-	//if err := runRQService(ctx, config); err != nil {
-	//	log.WithContext(ctx).WithError(err).Error("rqservice failed to start")
-	//	return err
-	//}
+	if err := runDDService(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("ddservice failed to start")
+		return err
+	}
 
 	// *************  7. Start supernode  **************
 	log.WithContext(ctx).Infof("Updating supernode config...")

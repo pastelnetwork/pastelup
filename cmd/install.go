@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -24,6 +23,7 @@ var (
 	sshIP   string
 	sshPort int
 	sshKey  string
+	sshUser string
 )
 
 type installCommand uint8
@@ -74,15 +74,17 @@ func setupSubCommand(config *configs.Config,
 
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &sshIP).
-			SetUsage(yellow("Required, SSH address of the remote host")).SetRequired(),
+			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
 		cli.NewFlag("ssh-port", &sshPort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
+		cli.NewFlag("ssh-user", &sshUser).
+			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-key", &sshKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
-		cli.NewFlag("disable-transfer-local", &config.DisableTransferLocal).
-			SetUsage(yellow("Optional, pastel-utility on remote is downloaded from Pastel website than from locally ")),
+		cli.NewFlag("utility-path-to-copy", &config.CopyUtilityPath).
+			SetUsage(yellow("Optional, path to the local pastel-utility file to copy to remote host")),
 	}
 
 	dupeFlags := []*cli.Flag{
@@ -100,11 +102,11 @@ func setupSubCommand(config *configs.Config,
 		commandMessage = "Install node"
 	case walletInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
-		commandName = "walletnode"
+		commandName = string(constants.WalletNode)
 		commandMessage = "Install walletnode"
 	case superNodeInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
-		commandName = "supernode"
+		commandName = string(constants.SuperNode)
 		commandMessage = "Install supernode"
 	case remoteInstall:
 		commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
@@ -149,7 +151,7 @@ func setupSubCommand(config *configs.Config,
 }
 
 func setupInstallCommand() *cli.Command {
-	config := configs.GetConfig()
+	config := configs.InitConfig()
 
 	installNodeSubCommand := setupSubCommand(config, nodeInstall, runInstallNodeSubCommand)
 	installWalletSubCommand := setupSubCommand(config, walletInstall, runInstallWalletSubCommand)
@@ -190,12 +192,12 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	}
 
 	var client *utils.Client
-	log.WithContext(ctx).Infof("Connecting to SSH Hot node wallet -> %s:%d...", sshIP, sshPort)
+	log.WithContext(ctx).Infof("Connecting to remote host -> %s:%d...", sshIP, sshPort)
 	if len(sshKey) == 0 {
-		username, password, _ := utils.Credentials(true)
+		username, password, _ := utils.Credentials(sshUser, true)
 		client, err = utils.DialWithPasswd(fmt.Sprintf("%s:%d", sshIP, sshPort), username, password)
 	} else {
-		username, _, _ := utils.Credentials(false)
+		username, _, _ := utils.Credentials(sshUser, false)
 		client, err = utils.DialWithKey(fmt.Sprintf("%s:%d", sshIP, sshPort), username, sshKey)
 	}
 	if err != nil {
@@ -215,8 +217,8 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return err
 	}
 
-	// Download pastel-ultility from pastel website
-	if config.DisableTransferLocal {
+	// Download pastel-utility from pastel website
+	if len(config.CopyUtilityPath) == 0 {
 		pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
 		log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
 		err = client.ShellCmd(ctx, fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath))
@@ -228,35 +230,47 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		}
 		log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
 	} else {
-		// scp pastel-ultility to remote
-		log.WithContext(ctx).Info("Transferering local Pastel-Utility Executable to remote")
-		err = client.Scp(os.Args[0], pastelUtilityPath)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to Transferering local Pastel Utility to remote")
+		// scp pastel-utility to remote
+		log.WithContext(ctx).Infof("Copying local pastel-utility executable to remote host - %s", config.CopyUtilityPath)
+
+		if err := client.Scp(config.CopyUtilityPath, pastelUtilityPath); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
 			return err
 		}
 
-		log.WithContext(ctx).Info("Finished Transferering local Pastel-Utility Successfully")
+		log.WithContext(ctx).Info("Successfully copied pastel-utility executable to remote host")
 	}
 
-	err = client.ShellCmd(ctx, fmt.Sprintf("chmod 777 /%s", pastelUtilityPath))
-	if err != nil {
+	if err = client.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", pastelUtilityPath)); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
 		return err
 	}
 
-	log.WithContext(ctx).Info("Stopping supernode...")
-	stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", pastelUtilityPath)
-	err = client.ShellCmd(ctx, stopSuperNodeCmd)
-	if err != nil {
-		if config.Force {
-			log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
+	checkIfRunningCommand := "ps afx | grep -E 'pasteld|rq-service|dd-service|supernode' | grep -v grep"
+	if out, _ := client.Cmd(checkIfRunningCommand).Output(); len(out) != 0 {
+		log.WithContext(ctx).Info("Supernode is running on remote host")
+
+		if AskUserToContinue(ctx,
+			"Do you want to stop it and continue? Y/N") {
+
+			log.WithContext(ctx).Info("Stopping supernode services...")
+
+			stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", pastelUtilityPath)
+			err = client.ShellCmd(ctx, stopSuperNodeCmd)
+			if err != nil {
+				if config.Force {
+					log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
+				} else {
+					log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
+					return err
+				}
+			} else {
+				log.WithContext(ctx).Info("Supernode stopped")
+			}
 		} else {
-			log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
-			return err
+			log.WithContext(ctx).Warn("Exiting...")
+			return fmt.Errorf("user terminated installation")
 		}
-	} else {
-		log.WithContext(ctx).Info("Finished Stopping supernode")
 	}
 
 	log.WithContext(ctx).Info("Installing Supernode ...")
@@ -283,6 +297,10 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s --peers=%s", remoteOptions, config.Peers)
 	}
 
+	if config.Network == "testnet" {
+		remoteOptions = fmt.Sprintf("%s -n=testnet", remoteOptions)
+	}
+
 	// disable config ports by tool, need do it manually due to having to enter
 	// FIXME: add port config via ssh later
 	remoteOptions = fmt.Sprintf("%s --started-remote", remoteOptions)
@@ -305,11 +323,6 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 }
 
 func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
-
-	if err := CreateUtilityConfigFile(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to create pastel-utility config file")
-		return err
-	}
 
 	// create installation directory, example ~/pastel
 	if err := createInstallDir(ctx, config, config.PastelExecDir); err != nil {
@@ -347,12 +360,12 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 	}
-	// install rq-service and its config
+	// install rqservice and its config
 	if installCommand == constants.WalletNode ||
 		installCommand == constants.SuperNode {
 
 		toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
-		toolConfig, err := utils.GetServiceConfig("rqservice", configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
+		toolConfig, err := utils.GetServiceConfig(constants.RQService, configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
 			HostName: "127.0.0.1",
 			Port:     50051,
 		})
@@ -369,7 +382,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 
-		if err = setupComponentWorkingEnvironment(ctx, config, "rqservice", "rqservice.toml", toolConfig); err != nil {
+		if err = setupComponentWorkingEnvironment(ctx, config,
+			string(constants.RQService),
+			config.Configurer.GetRQServiceConfFile(config.WorkingDir),
+			toolConfig); err != nil {
+
 			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
@@ -377,11 +394,8 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	// install WalletNode and its config
 	if installCommand == constants.WalletNode {
 		toolPath := constants.WalletNodeExecName[utils.GetOS()]
-		toolConfig, err := utils.GetServiceConfig("walletnode", configs.WalletDefaultConfig, &configs.WalletNodeConfig{
-			PastelPort:     config.RPCPort,
-			PastelUserName: config.RPCUser,
-			PastelPassword: config.RPCPwd,
-			RaptorqPort:    50051,
+		toolConfig, err := utils.GetServiceConfig(constants.WalletNode, configs.WalletDefaultConfig, &configs.WalletNodeConfig{
+			RaptorqPort: 50051,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get walletnode config: %v", err)
@@ -395,7 +409,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
 			return err
 		}
-		if err = setupComponentWorkingEnvironment(ctx, config, "walletnode", "walletnode.yml", toolConfig); err != nil {
+		if err = setupComponentWorkingEnvironment(ctx, config,
+			string(constants.WalletNode),
+			config.Configurer.GetWalletNodeConfFile(config.WorkingDir),
+			toolConfig); err != nil {
+
 			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
@@ -403,11 +421,8 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	// install SuperNode, dd-service and their configs; open ports
 	if installCommand == constants.SuperNode {
 		toolPath := constants.SuperNodeExecName[utils.GetOS()]
-		toolConfig, err := utils.GetServiceConfig("supernode", configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			PastelPort:     config.RPCPort,
-			PastelUserName: config.RPCUser,
-			PastelPassword: config.RPCPwd,
-			RaptorqPort:    50051,
+		toolConfig, err := utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+			RaptorqPort: 50051,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get supernode config: %v", err)
@@ -421,7 +436,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
 			return err
 		}
-		if err = setupComponentWorkingEnvironment(ctx, config, "supernode", "supernode.yml", toolConfig); err != nil {
+		if err = setupComponentWorkingEnvironment(ctx, config,
+			string(constants.SuperNode),
+			config.Configurer.GetSuperNodeConfFile(config.WorkingDir),
+			toolConfig); err != nil {
+
 			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
@@ -448,27 +467,20 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 	defer log.WithContext(ctx).Infof("Install path is %s", installPath)
 
 	if err := utils.CreateFolder(ctx, installPath, config.Force); os.IsExist(err) {
-		reader := bufio.NewReader(os.Stdin)
-		log.WithContext(ctx).Warnf("%s. Do you want continue to install? Y/N", err.Error())
-		line, readErr := reader.ReadString('\n')
-		if readErr != nil {
-			log.WithContext(ctx).WithError(readErr).Error("Exiting...")
-			return readErr
-		}
 
-		if strings.TrimSpace(line) == "Y" || strings.TrimSpace(line) == "y" {
+		if AskUserToContinue(ctx, fmt.Sprintf("%s - %s. Do you want continue to install? Y/N", err.Error(), installPath)) {
 			config.Force = true
 			if err = utils.CreateFolder(ctx, installPath, config.Force); err != nil {
 				log.WithContext(ctx).WithError(err).Error("Exiting...")
-				return err
+				return fmt.Errorf("failed to create install directory - %s (%v)", installPath, err)
 			}
 		} else {
 			log.WithContext(ctx).Warn("Exiting...")
-			return err
+			return fmt.Errorf("user terminated installation")
 		}
 	} else if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Exiting...")
-		return err
+		return fmt.Errorf("failed to create install directory - %s (%v)", installPath, err)
 	}
 
 	return nil
@@ -549,18 +561,17 @@ func makeExecutable(ctx context.Context, dirPath string, fileName string) error 
 }
 
 func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Config,
-	toolName string, configFileName string, toolConfig string) error {
+	toolName string, configFilePath string, toolConfig string) error {
 
 	log.WithContext(ctx).Infof("Initialize working environment for %s", toolName)
-	filePath := filepath.Join(config.WorkingDir, configFileName)
-	err := utils.CreateFile(ctx, filePath, config.Force)
+	err := utils.CreateFile(ctx, configFilePath, config.Force)
 	if err != nil {
-		log.WithContext(ctx).Errorf("Failed to create %s file", filePath)
+		log.WithContext(ctx).Errorf("Failed to create %s file", configFilePath)
 		return err
 	}
 
-	if err = utils.WriteFile(filePath, toolConfig); err != nil {
-		log.WithContext(ctx).Errorf("Failed to write config to %s file", filePath)
+	if err = utils.WriteFile(configFilePath, toolConfig); err != nil {
+		log.WithContext(ctx).Errorf("Failed to write config to %s file", configFilePath)
 		return err
 	}
 
@@ -589,26 +600,26 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	err := utils.CreateFile(ctx, pastelConfigPath, config.Force)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to create %s", pastelConfigPath)
-		return err
+		return fmt.Errorf("failed to create %s - %v", pastelConfigPath, err)
 	}
 
 	// write to file
 	if err = updatePastelConfigFile(ctx, pastelConfigPath, config); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s", pastelConfigPath)
-		return err
+		return fmt.Errorf("failed to update %s - %v", pastelConfigPath, err)
 	}
 
 	// create zksnark parameters path
 	if err := utils.CreateFolder(ctx, config.Configurer.DefaultZksnarkDir(), config.Force); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update folder %s", config.Configurer.DefaultZksnarkDir())
-		return err
+		return fmt.Errorf("failed to update folder %s - %v", config.Configurer.DefaultZksnarkDir(), err)
 	}
 
 	// download zksnark params
 	if err := downloadZksnarkParams(ctx, config.Configurer.DefaultZksnarkDir(), config.Force); err != nil &&
 		!(os.IsExist(err) && !config.Force) {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download Zksnark parameters into folder %s", config.Configurer.DefaultZksnarkDir())
-		return err
+		return fmt.Errorf("failed to download Zksnark parameters into folder %s - %v", config.Configurer.DefaultZksnarkDir(), err)
 	}
 
 	return nil

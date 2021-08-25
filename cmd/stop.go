@@ -3,17 +3,13 @@ package cmd
 import (
 	"context"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/go-errors/errors"
-	ps "github.com/mitchellh/go-ps"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 type stopCommand uint8
@@ -32,23 +28,22 @@ func setupStopSubCommand(config *configs.Config,
 
 	commonFlags := []*cli.Flag{
 		cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-			SetUsage(green("Location where to create pastel node directory")).SetValue(config.PastelExecDir),
+			SetUsage(green("Optional, Location of pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-			SetUsage(green("Location where to create working directory")).SetValue(config.WorkingDir),
+			SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
 	}
 
 	var commandName, commandMessage string
-	var commandFlags []*cli.Flag = commonFlags
 
 	switch stopCommand {
 	case nodeStop:
 		commandName = "node"
 		commandMessage = "Stop node"
 	case walletStop:
-		commandName = "walletnode"
+		commandName = string(constants.WalletNode)
 		commandMessage = "Stop walletnode"
 	case superNodeStop:
-		commandName = "supernode"
+		commandName = string(constants.SuperNode)
 		commandMessage = "Stop supernode"
 	case allStop:
 		commandName = "all"
@@ -61,7 +56,7 @@ func setupStopSubCommand(config *configs.Config,
 
 	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))
-	subCommand.AddFlags(commandFlags...)
+	subCommand.AddFlags(commonFlags...)
 	if f != nil {
 		subCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 			ctx, err := configureLogging(ctx, commandMessage, config)
@@ -90,7 +85,7 @@ func setupStopSubCommand(config *configs.Config,
 }
 
 func setupStopCommand() *cli.Command {
-	config := configs.GetConfig()
+	config := configs.InitConfig()
 
 	stopNodeSubCommand := setupStopSubCommand(config, nodeStop, runStopNodeSubCommand)
 	stopWalletSubCommand := setupStopSubCommand(config, walletStop, runStopWalletSubCommand)
@@ -112,21 +107,21 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
 	var err error
 	// *************  Kill process super node  *************
 	log.WithContext(ctx).Info("Start stopping supernode process")
-	if err = processKill(constants.SuperNode); err != nil {
+	if err = KillProcess(ctx, constants.SuperNode); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("The Supernode stopped.")
 
 	// *************  Kill process wallet node  *************
 	log.WithContext(ctx).Info("Start stopping walletnode process")
-	if err = processKill(constants.WalletNode); err != nil {
+	if err = KillProcess(ctx, constants.WalletNode); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("The Walletnode stopped.")
 
 	// *************  Kill process wallet node  *************
 	log.WithContext(ctx).Info("Start stopping rqservice process")
-	if err = processKill(constants.RQService); err != nil {
+	if err = KillProcess(ctx, constants.RQService); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("The rqservice stopped.")
@@ -164,22 +159,24 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error 
 	// *************  Kill process wallet node  *************
 	log.WithContext(ctx).Info("Start stopping Walletnode process")
 
-	if err = processKill(constants.WalletNode); err != nil {
+	if err = KillProcess(ctx, constants.WalletNode); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to stop walletnode service.")
 		return err
 	}
 	log.WithContext(ctx).Info("Walletnode process ended.")
 
 	// *************  Kill process rqservice  *************
 	log.WithContext(ctx).Info("Start stopping rqservice process")
-	if err = processKill(constants.RQService); err != nil {
+	if err = KillProcess(ctx, constants.RQService); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to stop rqservice.")
 		return err
 	}
 	log.WithContext(ctx).Info("The rqservice process ended.")
 
 	// *************  Stop pasteld  *************
 	log.WithContext(ctx).Info("Start stopping Pasteld process")
-
 	if _, err = stopPatelCLI(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to stop pasteld.")
 		return err
 	}
 	log.WithContext(ctx).Info("Pasteld process ended.")
@@ -195,7 +192,7 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 	// *************  Kill process super node  *************
 	log.WithContext(ctx).Info("Start stopping Supernode process")
 
-	if err = processKill(constants.SuperNode); err != nil {
+	if err = KillProcess(ctx, constants.SuperNode); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("Supernode process ended.")
@@ -203,7 +200,7 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 	// *************  Kill process rqservice  *************
 	log.WithContext(ctx).Info("Start stopping rqservice process")
 
-	if err = processKill(constants.RQService); err != nil {
+	if err = KillProcess(ctx, constants.RQService); err != nil {
 		return err
 	}
 	log.WithContext(ctx).Info("The rqservice process ended.")
@@ -220,32 +217,9 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 }
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) (output string, err error) {
-	if _, err = runPastelCLI(ctx, config, "stop"); err != nil {
+	if _, err = RunPastelCLI(ctx, config, "stop"); err != nil {
 		return "", err
 	}
 
 	return "", nil
-}
-
-func processKill(toolType constants.ToolType) error {
-	execName := constants.ServiceName[toolType][utils.GetOS()]
-	proc, err := ps.Processes()
-	if err != nil {
-		return errors.Errorf("failed to get list process: %v", err)
-	}
-	pid := 0
-	for _, p := range proc {
-		if strings.Contains(execName, p.Executable()) {
-			pid = p.Pid()
-			break
-		}
-	}
-
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return errors.Errorf("failed to find %s process: %v", execName, err)
-	}
-
-	process.Kill()
-	return nil
 }

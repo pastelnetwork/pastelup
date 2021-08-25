@@ -437,8 +437,8 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 }
 
 // GetServiceConfig returns service configuration
-func GetServiceConfig(name string, format string, value interface{}) (string, error) {
-	temp, err := template.New(name).Parse(format)
+func GetServiceConfig(toolType constants.ToolType, format string, value interface{}) (string, error) {
+	temp, err := template.New(string(toolType)).Parse(format)
 	if err != nil {
 		return "", errors.Errorf("failed to parse service config template: %v", err)
 	}
@@ -465,17 +465,21 @@ func ReadStrings(comment string) (string, error) {
 }
 
 // Credentials reads user credentials from standard input
-func Credentials(pwdToo bool) (string, string, error) {
+func Credentials(userName string, needPassword bool) (string, string, error) {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Enter Username: ")
-	username, err := reader.ReadString('\n')
-	if err != nil {
-		return "", "", err
+	var err error
+	username := userName
+	if len(userName) == 0 {
+		fmt.Print("Enter Username: ")
+		username, err = reader.ReadString('\n')
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	password := ""
-	if pwdToo {
+	if needPassword {
 		fmt.Print("Enter Password: ")
 		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 		if err != nil {

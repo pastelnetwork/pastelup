@@ -20,6 +20,9 @@ type configurer struct {
 	workingDir          string
 	superNodeLogFile    string
 	walletNodeLogFile   string
+	superNodeConfFile   string
+	walletNodeConfFile  string
+	rqServiceConfFile   string
 	zksnarkDir          string
 	pastelExecutableDir string
 	homeDir             string
@@ -41,13 +44,28 @@ func (c *configurer) DefaultWorkingDir() string {
 }
 
 // DefaultSuperNodeLogFile returns the default supernode log file
-func (c *configurer) DefaultSuperNodeLogFile() string {
-	return filepath.Join(c.DefaultWorkingDir(), c.superNodeLogFile)
+func (c *configurer) GetSuperNodeLogFile(workingDir string) string {
+	return filepath.Join(workingDir, c.superNodeLogFile)
 }
 
 // DefaultWalletNodeLogFile returns the default supernode log file
-func (c *configurer) DefaultWalletNodeLogFile() string {
-	return filepath.Join(c.DefaultWorkingDir(), c.walletNodeLogFile)
+func (c *configurer) GetWalletNodeLogFile(workingDir string) string {
+	return filepath.Join(workingDir, c.walletNodeLogFile)
+}
+
+// DefaultSuperNodeConfFile returns the default supernode log file
+func (c *configurer) GetSuperNodeConfFile(workingDir string) string {
+	return filepath.Join(workingDir, c.superNodeConfFile)
+}
+
+// DefaultWalletNodeConfFile returns the default supernode log file
+func (c *configurer) GetWalletNodeConfFile(workingDir string) string {
+	return filepath.Join(workingDir, c.walletNodeConfFile)
+}
+
+// GetRQServiceConfFile returns the default supernode log file
+func (c *configurer) GetRQServiceConfFile(workingDir string) string {
+	return filepath.Join(workingDir, c.rqServiceConfFile)
 }
 
 // DefaultZksnarkDir returns the default config path.
@@ -106,6 +124,9 @@ func newLinuxConfigurer(homeDir string) IConfigurer {
 		workingDir:          ".pastel",
 		superNodeLogFile:    "supernode.log",
 		walletNodeLogFile:   "walletnode.log",
+		superNodeConfFile:   "supernode.yml",
+		walletNodeConfFile:  "walletnode.yml",
+		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          ".pastel-params",
 		pastelExecutableDir: "pastel",
 		homeDir:             homeDir,
@@ -119,6 +140,9 @@ func newDarwinConfigurer(homeDir string) IConfigurer {
 		workingDir:          "Pastel",
 		superNodeLogFile:    "supernode.log",
 		walletNodeLogFile:   "walletnode.log",
+		superNodeConfFile:   "supernode.yml",
+		walletNodeConfFile:  "walletnode.yml",
+		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          "PastelParams",
 		pastelExecutableDir: "Pastel",
 		homeDir:             homeDir,
@@ -132,6 +156,9 @@ func newWindowsConfigurer(homeDir string) IConfigurer {
 		workingDir:          "Pastel",
 		superNodeLogFile:    "supernode.log",
 		walletNodeLogFile:   "walletnode.log",
+		superNodeConfFile:   "supernode.yml",
+		walletNodeConfFile:  "walletnode.yml",
+		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          "PastelParams",
 		pastelExecutableDir: "PastelWallet",
 		homeDir:             homeDir,

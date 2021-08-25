@@ -43,7 +43,7 @@ raptorq:
 dupe-detection:
   input_dir: "input"
   output_dir: "output"
-  data_file: "dupe_detection_image_fingerprint_database.sqlite"
+  data_file: "dupe_detection_support_files/dupe_detection_image_fingerprint_database.sqlite"
 p2p:
   listen_address: "0.0.0.0"
   port: 6000

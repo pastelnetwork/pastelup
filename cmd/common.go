@@ -34,7 +34,7 @@ func checkPastelFilePath(ctx context.Context, dirPath string, filePath string) (
 // GetExternalIPAddress runs shell command and returns external IP address
 func GetExternalIPAddress() (externalIP string, err error) {
 
-	resp, err := http.Get("http://ipinfo.io/ip")
+	resp, err := http.Get(constants.IPCheckURL)
 	if err != nil {
 		return "", err
 	}
@@ -144,11 +144,7 @@ func AskUserToContinue(ctx context.Context, question string) bool {
 		return false
 	}
 
-	if strings.TrimSpace(line) == "Y" || strings.TrimSpace(line) == "y" {
-		return true
-	}
-
-	return false
+	return strings.EqualFold(strings.TrimSpace(line), "y")
 }
 
 // RunPastelCLI runs pastel-cli commands

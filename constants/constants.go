@@ -65,6 +65,8 @@ const (
 	DupeDetectionExecName = "pastel_dupe_detection_daemon_v4.py"
 	// PortCheckURL is URL of port checker service
 	PortCheckURL string = "http://portchecker.com?q="
+	// IPCheckURL is URL of IP checker service
+	IPCheckURL string = "http://ipinfo.io/ip"
 )
 
 // ServiceName defines services name

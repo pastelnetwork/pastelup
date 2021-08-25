@@ -22,7 +22,7 @@ type configurer struct {
 	walletNodeLogFile   string
 	superNodeConfFile   string
 	walletNodeConfFile  string
-	rqServiceConfFile	string
+	rqServiceConfFile   string
 	zksnarkDir          string
 	pastelExecutableDir string
 	homeDir             string
@@ -125,8 +125,8 @@ func newLinuxConfigurer(homeDir string) IConfigurer {
 		superNodeLogFile:    "supernode.log",
 		walletNodeLogFile:   "walletnode.log",
 		superNodeConfFile:   "supernode.yml",
-		walletNodeConfFile:	 "walletnode.yml",
-		rqServiceConfFile:	 "rqservice.toml",
+		walletNodeConfFile:  "walletnode.yml",
+		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          ".pastel-params",
 		pastelExecutableDir: "pastel",
 		homeDir:             homeDir,
@@ -141,8 +141,8 @@ func newDarwinConfigurer(homeDir string) IConfigurer {
 		superNodeLogFile:    "supernode.log",
 		walletNodeLogFile:   "walletnode.log",
 		superNodeConfFile:   "supernode.yml",
-		walletNodeConfFile:	 "walletnode.yml",
-		rqServiceConfFile:	 "rqservice.toml",
+		walletNodeConfFile:  "walletnode.yml",
+		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          "PastelParams",
 		pastelExecutableDir: "Pastel",
 		homeDir:             homeDir,
@@ -157,8 +157,8 @@ func newWindowsConfigurer(homeDir string) IConfigurer {
 		superNodeLogFile:    "supernode.log",
 		walletNodeLogFile:   "walletnode.log",
 		superNodeConfFile:   "supernode.yml",
-		walletNodeConfFile:	 "walletnode.yml",
-		rqServiceConfFile:	 "rqservice.toml",
+		walletNodeConfFile:  "walletnode.yml",
+		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          "PastelParams",
 		pastelExecutableDir: "PastelWallet",
 		homeDir:             homeDir,

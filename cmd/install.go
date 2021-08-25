@@ -233,8 +233,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		// scp pastel-utility to remote
 		log.WithContext(ctx).Infof("Copying local pastel-utility executable to remote host - %s", config.CopyUtilityPath)
 
-		err = client.Scp(config.CopyUtilityPath, pastelUtilityPath)
-		if err != nil {
+		if err := client.Scp(config.CopyUtilityPath, pastelUtilityPath); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
 			return err
 		}

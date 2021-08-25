@@ -344,41 +344,41 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func runDDService(ctx context.Context, config *configs.Config) (err error) {
+/*func runDDService(ctx context.Context , config *configs.Config) (err error) {
 	log.WithContext(ctx).Infof("Starting dupe detection service")
 
-	var execPath string
-	if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.DupeDetectionExecName); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
-		return err
-	}
-
-	go RunCMD(execPath, args...)
-	time.Sleep(10000 * time.Millisecond)
-
-	isServiceRunning := CheckProcessRunning(toolType)
-	if isServiceRunning {
-		log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
-	} else {
-		if output, err := RunCMD(execPath, args...); err != nil {
-			log.WithContext(ctx).Errorf("%s start failed! : %s", toolType, output)
+		var execPath string
+		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.DupeDetectionExecName); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
 			return err
 		}
-	}
 
+		go RunCMD(execPath, args...)
+		time.Sleep(10000 * time.Millisecond)
+
+		isServiceRunning := CheckProcessRunning(toolType)
+		if isServiceRunning {
+			log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
+		} else {
+			if output, err := RunCMD(execPath, args...); err != nil {
+				log.WithContext(ctx).Errorf("%s start failed! : %s", toolType, output)
+				return err
+			}
+		}
+
+		return nil
+
+
+		var rqServiceArgs []string
+		rqServiceArgs = append(rqServiceArgs,
+			fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir)))
+
+		if err := runPastelService(ctx, config, constants.RQService, rqExecName, rqServiceArgs...); err != nil {
+			log.WithContext(ctx).WithError(err).Error("rqservice failed")
+			return err
+		}
 	return nil
-
-
-	var rqServiceArgs []string
-	rqServiceArgs = append(rqServiceArgs,
-		fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir)))
-
-	if err := runPastelService(ctx, config, constants.RQService, rqExecName, rqServiceArgs...); err != nil {
-		log.WithContext(ctx).WithError(err).Error("rqservice failed")
-		return err
-	}
-	return nil
-}
+}*/
 
 func runPastelWalletNode(ctx context.Context, config *configs.Config) error {
 
@@ -511,10 +511,10 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// *************  6. Start dd-servce    *************
-	if err := runRQService(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("rqservice failed to start")
-		return err
-	}
+	//if err := runRQService(ctx, config); err != nil {
+	//	log.WithContext(ctx).WithError(err).Error("rqservice failed to start")
+	//	return err
+	//}
 
 	// *************  7. Start supernode  **************
 	log.WithContext(ctx).Infof("Updating supernode config...")
@@ -718,7 +718,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) err
 
 func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (err error) {
 
-	bReIndex := true	// if masternode.conf exist pasteld MUST be start with reindex flag
+	bReIndex := true // if masternode.conf exist pasteld MUST be start with reindex flag
 	if flagMasterNodeIsCreate {
 		if _, _, err = backupConfFile(config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to backup masternode.conf")

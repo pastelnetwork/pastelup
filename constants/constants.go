@@ -277,6 +277,7 @@ var DependenciesDupeDetectionPackages = []string{
 	"onnxruntime",
 }
 
+// NetworkModes are valid network nmodes
 var NetworkModes = []string{
 	NetworkMainnet,
 	NetworkTestnet,

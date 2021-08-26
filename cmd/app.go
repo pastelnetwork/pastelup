@@ -1,19 +1,15 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
-	"io"
-	"io/ioutil"
-	"os"
-	"os/exec"
-
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/gonode/common/version"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pkg/errors"
+	"io"
+	"io/ioutil"
 )
 
 const (
@@ -75,32 +71,4 @@ func configureLogging(ctx context.Context, logPrefix string, config *configs.Con
 		return nil, errors.Errorf("--log-level %q, %v", config.LogLevel, err)
 	}
 	return ctx, nil
-}
-
-// RunCMD runs shell command and returns output and error
-func RunCMD(command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...)
-
-	var stdBuffer bytes.Buffer
-	mw := io.MultiWriter(os.Stdout, &stdBuffer)
-
-	cmd.Stdout = mw
-	cmd.Stderr = mw
-
-	// Execute the command
-	if err := cmd.Run(); err != nil {
-		return stdBuffer.String(), err
-	}
-
-	return stdBuffer.String(), nil
-}
-
-// RunCMDWithInteractive runs shell command with interactive
-func RunCMDWithInteractive(command string, args ...string) error {
-	cmd := exec.Command(command, args...)
-
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-
-	return cmd.Run()
 }

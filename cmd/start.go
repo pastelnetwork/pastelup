@@ -351,7 +351,7 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func runDDService(ctx context.Context , config *configs.Config) (err error) {
+func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Infof("Starting dupe detection service")
 
 	var execPath string
@@ -360,21 +360,27 @@ func runDDService(ctx context.Context , config *configs.Config) (err error) {
 		return err
 	}
 
-	ddCommand := fmt.Sprintf("export DUPEDETECTIONCONFIGPATH=/home/$USER/pastel_dupe_detection_service/dupe_detection_support_files/config.ini; python3 %s", execPath)
+	ddConfigFilePath := filepath.Join(config.Configurer.GetHomeDir(),
+		"pastel_dupe_detection_service",
+		"dupe_detection_support_files",
+		"config.ini")
 
-	go RunCMD(ddCommand)
+	go RunCMDWithEnvVariable("python3",
+		"DUPEDETECTIONCONFIGPATH",
+		ddConfigFilePath,
+		execPath)
 	time.Sleep(10000 * time.Millisecond)
 
-	checkIfRunningCommand := "ps afx | grep pastel_dupe_detection_daemon_v4.py | grep -v grep"
-	if out, err := RunCMD(checkIfRunningCommand); len(out) != 0 {
+	if output, err := FindRunningProcess(constants.DupeDetectionExecName); len(output) == 0 {
 		err = errors.Errorf("dd-service failed to start")
 		log.WithContext(ctx).WithError(err).Error("dd-service failed to start")
 		return err
 	} else if err != nil {
-		log.WithContext(ctx).WithError(err).Warn("Cannot test if dd-service is running or not")
+		log.WithContext(ctx).WithError(err).Error("failed to test if dd-servise is running")
 	} else {
-		log.WithContext(ctx).WithError(err).Info("dd-service is successfully started")
+		log.WithContext(ctx).Info("dd-service is successfully started")
 	}
+
 	return nil
 }
 
@@ -524,11 +530,24 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to create new supernode.yml file at - %s", supernodeConfigPath)
 			return err
 		}
+
+		portList := GetSNPortList(config)
+
+		//FIXME: this has to be from command line parameters
+		p2pDataPath := filepath.Join(config.WorkingDir, "p2pdata")
+		mdlDataPath := filepath.Join(config.WorkingDir, "mdldata")
+
 		var toolConfig string
 		toolConfig, err = utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			PasteID:     pastelID,
-			Passphrase:  flagMasterNodePassPhrase,
-			RaptorqPort: 50051,
+			PasteID:        pastelID,
+			Passphrase:     flagMasterNodePassPhrase,
+			SuperNodePort:  portList[constants.SNPort],
+			P2PPort:        portList[constants.P2PPort],
+			P2PPortDataDir: p2pDataPath,
+			MDLPort:        portList[constants.MDLPort],
+			RAFTPort:       portList[constants.RAFTPort],
+			MDLDataDir:     mdlDataPath,
+			RaptorqPort:    50051,
 		})
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
@@ -672,45 +691,26 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) err
 		return flagMasterNodeP2PIP
 	}()
 
-	if config.Network == "testnet" {
-		flagMasterNodePort = func() int {
-			if flagMasterNodePort == 0 {
-				return 19933
-			}
-			return flagMasterNodePort
-		}()
-		flagMasterNodeRPCPort = func() int {
-			if flagMasterNodeRPCPort == 0 {
-				return 14444
-			}
-			return flagMasterNodeRPCPort
-		}()
-		flagMasterNodeP2PPort = func() int {
-			if flagMasterNodeP2PPort == 0 {
-				return 14445
-			}
-			return flagMasterNodeP2PPort
-		}()
-	} else {
-		flagMasterNodePort = func() int {
-			if flagMasterNodePort == 0 {
-				return 9933
-			}
-			return flagMasterNodePort
-		}()
-		flagMasterNodeRPCPort = func() int {
-			if flagMasterNodeRPCPort == 0 {
-				return 4444
-			}
-			return flagMasterNodeRPCPort
-		}()
-		flagMasterNodeP2PPort = func() int {
-			if flagMasterNodeP2PPort == 0 {
-				return 4445
-			}
-			return flagMasterNodeP2PPort
-		}()
-	}
+	portList := GetSNPortList(config)
+
+	flagMasterNodePort = func() int {
+		if flagMasterNodePort == 0 {
+			return portList[constants.NodePort]
+		}
+		return flagMasterNodePort
+	}()
+	flagMasterNodeRPCPort = func() int {
+		if flagMasterNodeRPCPort == 0 {
+			return portList[constants.SNPort]
+		}
+		return flagMasterNodeRPCPort
+	}()
+	flagMasterNodeP2PPort = func() int {
+		if flagMasterNodeP2PPort == 0 {
+			return portList[constants.P2PPort]
+		}
+		return flagMasterNodeP2PPort
+	}()
 	return nil
 }
 

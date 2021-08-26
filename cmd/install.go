@@ -418,11 +418,24 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 	}
-	// install SuperNode, dd-service and their configs; open ports
+
 	if installCommand == constants.SuperNode {
+		// install SuperNode, dd-service and their configs; open ports
+		portList := GetSNPortList(config)
+
+		//FIXME: this has to be from command line parameters
+		p2pDataPath := filepath.Join(config.WorkingDir, "p2pdata")
+		mdlDataPath := filepath.Join(config.WorkingDir, "mdldata")
+
 		toolPath := constants.SuperNodeExecName[utils.GetOS()]
 		toolConfig, err := utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			RaptorqPort: 50051,
+			SuperNodePort:  portList[constants.SNPort],
+			P2PPort:        portList[constants.P2PPort],
+			P2PPortDataDir: p2pDataPath,
+			MDLPort:        portList[constants.MDLPort],
+			RAFTPort:       portList[constants.RAFTPort],
+			MDLDataDir:     mdlDataPath,
+			RaptorqPort:    50051,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get supernode config: %v", err)
@@ -449,9 +462,20 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
 			return err
 		}
+
+		if err := utils.CreateFolder(ctx, p2pDataPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", p2pDataPath)
+			return err
+		}
+
+		if err := utils.CreateFolder(ctx, mdlDataPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", mdlDataPath)
+			return err
+		}
+
 		// Open ports
 		if !config.StartedRemote {
-			if err = openPort(ctx, constants.PortList); err != nil {
+			if err = openPort(ctx, portList); err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed to open ports")
 				return err
 			}
@@ -581,16 +605,13 @@ func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Confi
 func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Config) error {
 	// create working dir
 	if err := utils.CreateFolder(ctx, config.WorkingDir, config.Force); err != nil {
-		if config.WorkingDir != config.PastelExecDir {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", config.WorkingDir)
-			return err
-		}
+		log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", config.WorkingDir)
+		return err
 	}
 
-	config.RPCPort = 9932
-	if config.Network == "testnet" {
-		config.RPCPort = 19932
-	}
+	portList := GetSNPortList(config)
+	config.RPCPort = portList[constants.NodePort]
+
 	config.RPCUser = utils.GenerateRandomString(8)
 	config.RPCPwd = utils.GenerateRandomString(15)
 
@@ -696,18 +717,19 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 
 }
 
-func openPort(ctx context.Context, portList []string) (err error) {
+func openPort(ctx context.Context, portList []int) (err error) {
 	var out string
 	for k := range portList {
-		log.WithContext(ctx).Infof("Opening port: %s", portList[k])
+		log.WithContext(ctx).Infof("Opening port: %d", portList[k])
 
+		portStr := fmt.Sprintf("%d", portList[k])
 		switch utils.GetOS() {
 		case constants.Linux:
-			out, err = RunCMD("sudo", "ufw", "allow", portList[k])
+			out, err = RunCMD("sudo", "ufw", "allow", portStr)
 		case constants.Windows:
-			out, err = RunCMD("netsh", "advfirewall", "firewall", "add", "rule", "name=TCP Port "+portList[k], "dir=in", "action=allow", "protocol=TCP", "localport="+portList[k])
+			out, err = RunCMD("netsh", "advfirewall", "firewall", "add", "rule", "name=TCP Port "+portStr, "dir=in", "action=allow", "protocol=TCP", "localport="+portStr)
 		case constants.Mac:
-			out, err = RunCMD("sudo", "ipfw", "allow", "tcp", "from", "any", "to", "any", "dst-port", portList[k])
+			out, err = RunCMD("sudo", "ipfw", "allow", "tcp", "from", "any", "to", "any", "dst-port", portStr)
 		}
 
 		if err != nil {
@@ -723,17 +745,17 @@ func openPort(ctx context.Context, portList []string) (err error) {
 	return nil
 }
 
-func showOpenPortGuideline(ctx context.Context, portList []string) {
+func showOpenPortGuideline(ctx context.Context, portList []int) {
 	log.WithContext(ctx).Warn(" - Open ports:")
 
 	for k := range portList {
 		switch utils.GetOS() {
 		case constants.Linux:
-			log.WithContext(ctx).Warnf("   sudo ufw allow %s", portList[k])
+			log.WithContext(ctx).Warnf("   sudo ufw allow %d", portList[k])
 		case constants.Windows:
-			log.WithContext(ctx).Warnf("   netsh advfirewall firewall add rule name=TCP Port %s dir=in action=allow protocol=TCP localport=%s", portList[k], portList[k])
+			log.WithContext(ctx).Warnf("   netsh advfirewall firewall add rule name=TCP Port %d dir=in action=allow protocol=TCP localport=%d", portList[k], portList[k])
 		case constants.Mac:
-			log.WithContext(ctx).Warnf("   sudo ipfw allow tcp from any to any dest-port %s", portList[k])
+			log.WithContext(ctx).Warnf("   sudo ipfw allow tcp from any to any dest-port %d", portList[k])
 		}
 	}
 }
@@ -857,5 +879,6 @@ func showInstallChromeGuideline(ctx context.Context, _ *configs.Config) {
 
 func showUserInstallGuideline(ctx context.Context, config *configs.Config) {
 	showInstallChromeGuideline(ctx, config)
-	showOpenPortGuideline(ctx, constants.PortList)
+	portList := GetSNPortList(config)
+	showOpenPortGuideline(ctx, portList)
 }

@@ -297,7 +297,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s --peers=%s", remoteOptions, config.Peers)
 	}
 
-	if config.Network == "testnet" {
+	if config.Network == constants.NetworkTestnet {
 		remoteOptions = fmt.Sprintf("%s -n=testnet", remoteOptions)
 	}
 
@@ -323,6 +323,10 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 }
 
 func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
+	if !utils.IsValidNetworkOpt(config.Network) {
+		return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
+	}
+	log.WithContext(ctx).Infof("initiaing in %s mode", config.Network)
 
 	// create installation directory, example ~/pastel
 	if err := createInstallDir(ctx, config, config.PastelExecDir); err != nil {
@@ -655,7 +659,7 @@ func updatePastelConfigFile(ctx context.Context, filePath string, config *config
 	cfgBuffer.WriteString("rpcuser=" + config.RPCUser + "\n")    // creates  rpcuser line
 	cfgBuffer.WriteString("rpcpassword=" + config.RPCPwd + "\n") // creates rpcpassword line
 
-	if config.Network == "testnet" {
+	if config.Network == constants.NetworkTestnet {
 		cfgBuffer.WriteString("testnet=1\n") // creates testnet line
 	}
 

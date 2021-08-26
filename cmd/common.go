@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -117,6 +118,20 @@ func GetRunningProcessPid(toolType constants.ToolType) (int, error) {
 	return pid, nil
 }
 
+// KillProcessByPid kills process by its pid
+func KillProcessByPid(ctx context.Context, pid int) error {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to find process by pid = %d", pid)
+		return err
+	}
+	if err := process.Kill(); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to kill process with pid = %d", pid)
+		return err
+	}
+	return nil
+}
+
 // KillProcess kills pastel service if it is running
 func KillProcess(ctx context.Context, toolType constants.ToolType) error {
 
@@ -124,11 +139,10 @@ func KillProcess(ctx context.Context, toolType constants.ToolType) error {
 		log.WithContext(ctx).WithError(err).Error("Failed to check running processes")
 		return err
 	} else if pid != 0 {
-		process, err := os.FindProcess(pid)
-		if err != nil {
-			return errors.Errorf("failed to kill process - %d: %v", pid, err)
+		if err := KillProcessByPid(ctx, pid); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to kill service - %s", toolType)
+			return err
 		}
-		return process.Kill()
 	}
 
 	log.WithContext(ctx).Infof("Service %s is not running", toolType)
@@ -202,7 +216,24 @@ func RunCMDWithInteractive(command string, args ...string) error {
 	return cmd.Run()
 }
 
-// FindRunningProcess runs shell command with interactive
+// FindRunningProcessPid search in the ps list using search term
+func FindRunningProcessPid(searchTerm string) (int, error) {
+
+	if output, err := FindRunningProcess(searchTerm); len(output) != 0 {
+		items := strings.Split(output, " ")
+		if len(items) > 2 {
+			if pid, err := strconv.Atoi(items[1]); err == nil {
+				return pid, nil
+			}
+		}
+	} else if err != nil {
+		return 0, err
+	}
+
+	return 0, errors.Errorf("Cannot find running process using search term = %s", searchTerm)
+}
+
+// FindRunningProcess search in the ps list using search term
 func FindRunningProcess(searchTerm string) (string, error) {
 
 	c1 := exec.Command("ps", "afx")

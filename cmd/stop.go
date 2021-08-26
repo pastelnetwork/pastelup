@@ -2,14 +2,13 @@ package cmd
 
 import (
 	"context"
-	"os"
-	"time"
-
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
+	"os"
+	"time"
 )
 
 type stopCommand uint8
@@ -102,124 +101,106 @@ func setupStopCommand() *cli.Command {
 	return stopCommand
 }
 
-func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
-
-	var err error
-	// *************  Kill process super node  *************
-	log.WithContext(ctx).Info("Start stopping supernode process")
-	if err = KillProcess(ctx, constants.SuperNode); err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("The Supernode stopped.")
-
-	// *************  Kill process wallet node  *************
-	log.WithContext(ctx).Info("Start stopping walletnode process")
-	if err = KillProcess(ctx, constants.WalletNode); err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("The Walletnode stopped.")
-
-	// *************  Kill process wallet node  *************
-	log.WithContext(ctx).Info("Start stopping rqservice process")
-	if err = KillProcess(ctx, constants.RQService); err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("The rqservice stopped.")
-
-	// TODO: Implement Stop node command
-	log.WithContext(ctx).Info("Pasteld process kill starting.")
-	if _, err = stopPatelCLI(ctx, config); err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Pasteld process ended.")
-
-	time.Sleep(10000 * time.Millisecond)
-
-	log.WithContext(ctx).Info("End successfully")
-
-	return nil
-}
-
 func runStopNodeSubCommand(ctx context.Context, config *configs.Config) error {
 
-	log.WithContext(ctx).Info("Start stopping Pasteld process")
-	if _, err := stopPatelCLI(ctx, config); err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Pasteld process ended.")
-	log.WithContext(ctx).Info("End successfully")
+	stopPatelCLI(ctx, config)
 
+	log.WithContext(ctx).Info("End successfully")
 	return nil
 }
 
 func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error {
 
-	var err error
-
 	// *************  Kill process wallet node  *************
-	log.WithContext(ctx).Info("Start stopping Walletnode process")
-
-	if err = KillProcess(ctx, constants.WalletNode); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to stop walletnode service.")
-		return err
-	}
-	log.WithContext(ctx).Info("Walletnode process ended.")
+	stopService(ctx, constants.WalletNode)
 
 	// *************  Kill process rqservice  *************
-	log.WithContext(ctx).Info("Start stopping rqservice process")
-	if err = KillProcess(ctx, constants.RQService); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to stop rqservice.")
-		return err
-	}
-	log.WithContext(ctx).Info("The rqservice process ended.")
+	stopService(ctx, constants.RQService)
 
-	// *************  Stop pasteld  *************
-	log.WithContext(ctx).Info("Start stopping Pasteld process")
-	if _, err = stopPatelCLI(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to stop pasteld.")
-		return err
-	}
-	log.WithContext(ctx).Info("Pasteld process ended.")
+	// *************  Stop pasteld node  *************
+	stopPatelCLI(ctx, config)
 
-	log.WithContext(ctx).Info("End successfully")
-
+	log.WithContext(ctx).Info("Walletnode stopped successfully")
 	return nil
 }
 
 func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
-	var err error
 
 	// *************  Kill process super node  *************
-	log.WithContext(ctx).Info("Start stopping Supernode process")
-
-	if err = KillProcess(ctx, constants.SuperNode); err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Supernode process ended.")
+	stopService(ctx, constants.SuperNode)
 
 	// *************  Kill process rqservice  *************
-	log.WithContext(ctx).Info("Start stopping rqservice process")
+	stopService(ctx, constants.RQService)
 
-	if err = KillProcess(ctx, constants.RQService); err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("The rqservice process ended.")
+	// *************  Kill process dd-service  *************
+	stopDDService(ctx)
 
-	// *************  Stop pastel super node   *************
-	log.WithContext(ctx).Info("Start stopping Pasteld process")
+	// *************  Stop pasteld node  *************
+	stopPatelCLI(ctx, config)
 
-	if _, err = stopPatelCLI(ctx, config); err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Pasteld process ended.")
+	log.WithContext(ctx).Info("Suppernode stopped successfully")
+	return nil
+}
+
+func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
+
+	// *************  Kill process super node  *************
+	stopService(ctx, constants.SuperNode)
+
+	// *************  Kill process wallet node  *************
+	stopService(ctx, constants.WalletNode)
+
+	// *************  Kill process rqservice  *************
+	stopService(ctx, constants.RQService)
+
+	// *************  Kill process dd-service  *************
+	stopDDService(ctx)
+
+	// *************  Stop pasteld node  *************
+	stopPatelCLI(ctx, config)
+
+	log.WithContext(ctx).Info("All stopped successfully")
 
 	return nil
 }
 
-func stopPatelCLI(ctx context.Context, config *configs.Config) (output string, err error) {
-	if _, err = RunPastelCLI(ctx, config, "stop"); err != nil {
-		return "", err
+func stopPatelCLI(ctx context.Context, config *configs.Config) {
+	log.WithContext(ctx).Info("Stopping Pasteld")
+	if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
+	}
+	time.Sleep(1000 * time.Millisecond)
+	if CheckProcessRunning(constants.PastelD) {
+		log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
+	} else {
+		log.WithContext(ctx).Info("Pasteld stopped")
+	}
+}
+
+func stopService(ctx context.Context, tool constants.ToolType) {
+
+	log.WithContext(ctx).Infof("Stopping %s process", tool)
+	if err := KillProcess(ctx, tool); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to kill %s", tool)
+	}
+	if CheckProcessRunning(tool) {
+		log.WithContext(ctx).Warnf("Failed to kill %s, it is still running", tool)
+	} else {
+		log.WithContext(ctx).Infof("%s stopped", tool)
 	}
 
-	return "", nil
+	log.WithContext(ctx).Infof("The %s process ended", tool)
+}
+
+func stopDDService(ctx context.Context) {
+	log.WithContext(ctx).Info("Stopping dd-service process")
+	if pid, err := FindRunningProcessPid(constants.DupeDetectionExecName); err != nil {
+		log.WithContext(ctx).Infof("dd-service is not running")
+	} else if pid != 0 {
+		if err := KillProcessByPid(ctx, pid); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to kill dd-service'")
+		} else {
+			log.WithContext(ctx).Info("The dd-service process ended.")
+		}
+	}
 }

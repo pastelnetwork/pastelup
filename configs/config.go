@@ -32,27 +32,38 @@ node:
   pastel_id: {{.PasteID}} 
   pass_phrase: {{.Passphrase}}
   preburnt_tx_min_confirmation: 3
-  # Timeout in minutes
   preburnt_tx_confirmation_timeout: 8 
   server:
     listen_addresses: "0.0.0.0"
-    port: 4444
+    port: {{.SuperNodePort}}
+  userdata_process:
+    number_super_nodes: 3
+    minimal_node_confirm_success: 2
+
+p2p:
+  listen_address: "0.0.0.0"
+  port: {{.P2PPort}}
+  data_dir: {{.P2PPortDataDir}}
+
+metadb:
+  listen_address: "0.0.0.0"
+  http_port: {{.MDLPort}}
+  raft_port: {{.RAFTPort}}
+  data_dir: {{.MDLDataDir}}
+
+userdb:
+  schema-path: {{.MDLDataDir}}/schema_v1.sql
+  write-template-path: {{.MDLDataDir}}/user_info_write.tmpl
+  query-template-path: {{.MDLDataDir}}/user_info_query.tmpl
+
 raptorq:
   hostname: "localhost"
   port: {{.RaptorqPort}}
+
 dupe-detection:
   input_dir: "input"
   output_dir: "output"
   data_file: "dupe_detection_support_files/dupe_detection_image_fingerprint_database.sqlite"
-p2p:
-  listen_address: "0.0.0.0"
-  port: 6000
-  data_dir: "p2p-localnet-6000"
-metadb:
-  listen_address: "0.0.0.0"
-  http_port: 4041
-  raft_port: 4042
-  data_dir: "metadb-4444"
 `
 
 	// RQServiceDefaultConfig - default rqserivce config
@@ -80,9 +91,15 @@ type WalletNodeConfig struct {
 
 // SuperNodeConfig defines configurations for supernode
 type SuperNodeConfig struct {
-	PasteID     string
-	Passphrase  string
-	RaptorqPort int
+	PasteID        string
+	Passphrase     string
+	SuperNodePort  int
+	P2PPort        int
+	P2PPortDataDir string
+	MDLPort        int
+	RAFTPort       int
+	MDLDataDir     string
+	RaptorqPort    int
 }
 
 // RQServiceConfig defines configurations for rqservice

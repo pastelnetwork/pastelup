@@ -67,8 +67,7 @@ const (
 	nodeStart startCommand = iota
 	walletStart
 	superNodeStart
-	//remoteStart
-	//highLevel
+	ddService
 )
 
 func setupStartSubCommand(config *configs.Config,
@@ -154,6 +153,10 @@ func setupStartSubCommand(config *configs.Config,
 		commandFlags = append(superNodeFlags, commonFlags[:]...)
 		commandName = string(constants.SuperNode)
 		commandMessage = "Start supernode"
+	case ddService:
+		commandFlags = commonFlags
+		commandName = string(constants.DDService)
+		commandMessage = "Start dupe detection service"
 	default:
 		commandFlags = append(append(walletNodeFlags, commonFlags[:]...), superNodeFlags[:]...)
 	}
@@ -196,11 +199,15 @@ func setupStartCommand() *cli.Command {
 	startWalletSubCommand := setupStartSubCommand(config, walletStart, runStartWalletSubCommand)
 	startSuperNodeSubCommand := setupStartSubCommand(config, superNodeStart, runStartSuperNodeSubCommand)
 
+	startDDServiceCommand := setupStartSubCommand(config, ddService, runDDService)
+
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
 	startCommand.AddSubcommands(startNodeSubCommand)
 	startCommand.AddSubcommands(startWalletSubCommand)
 	startCommand.AddSubcommands(startSuperNodeSubCommand)
+
+	startCommand.AddSubcommands(startDDServiceCommand)
 
 	return startCommand
 
@@ -344,41 +351,38 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-/*func runDDService(ctx context.Context , config *configs.Config) (err error) {
+func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Infof("Starting dupe detection service")
 
-		var execPath string
-		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.DupeDetectionExecName); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
-			return err
-		}
+	var execPath string
+	if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.DupeDetectionExecName); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
+		return err
+	}
 
-		go RunCMD(execPath, args...)
-		time.Sleep(10000 * time.Millisecond)
+	ddConfigFilePath := filepath.Join(config.Configurer.GetHomeDir(),
+		"pastel_dupe_detection_service",
+		"dupe_detection_support_files",
+		"config.ini")
 
-		isServiceRunning := CheckProcessRunning(toolType)
-		if isServiceRunning {
-			log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
-		} else {
-			if output, err := RunCMD(execPath, args...); err != nil {
-				log.WithContext(ctx).Errorf("%s start failed! : %s", toolType, output)
-				return err
-			}
-		}
+	go RunCMDWithEnvVariable("python3",
+		"DUPEDETECTIONCONFIGPATH",
+		ddConfigFilePath,
+		execPath)
+	time.Sleep(10000 * time.Millisecond)
 
-		return nil
+	if output, err := FindRunningProcess(constants.DupeDetectionExecName); len(output) == 0 {
+		err = errors.Errorf("dd-service failed to start")
+		log.WithContext(ctx).WithError(err).Error("dd-service failed to start")
+		return err
+	} else if err != nil {
+		log.WithContext(ctx).WithError(err).Error("failed to test if dd-servise is running")
+	} else {
+		log.WithContext(ctx).Info("dd-service is successfully started")
+	}
 
-
-		var rqServiceArgs []string
-		rqServiceArgs = append(rqServiceArgs,
-			fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir)))
-
-		if err := runPastelService(ctx, config, constants.RQService, rqExecName, rqServiceArgs...); err != nil {
-			log.WithContext(ctx).WithError(err).Error("rqservice failed")
-			return err
-		}
 	return nil
-}*/
+}
 
 func runPastelWalletNode(ctx context.Context, config *configs.Config) error {
 
@@ -511,10 +515,10 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// *************  6. Start dd-servce    *************
-	//if err := runRQService(ctx, config); err != nil {
-	//	log.WithContext(ctx).WithError(err).Error("rqservice failed to start")
-	//	return err
-	//}
+	if err := runDDService(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("ddservice failed to start")
+		return err
+	}
 
 	// *************  7. Start supernode  **************
 	log.WithContext(ctx).Infof("Updating supernode config...")
@@ -526,11 +530,24 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to create new supernode.yml file at - %s", supernodeConfigPath)
 			return err
 		}
+
+		portList := GetSNPortList(config)
+
+		//FIXME: this has to be from command line parameters
+		p2pDataPath := filepath.Join(config.WorkingDir, "p2pdata")
+		mdlDataPath := filepath.Join(config.WorkingDir, "mdldata")
+
 		var toolConfig string
 		toolConfig, err = utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			PasteID:     pastelID,
-			Passphrase:  flagMasterNodePassPhrase,
-			RaptorqPort: 50051,
+			PasteID:        pastelID,
+			Passphrase:     flagMasterNodePassPhrase,
+			SuperNodePort:  portList[constants.SNPort],
+			P2PPort:        portList[constants.P2PPort],
+			P2PPortDataDir: p2pDataPath,
+			MDLPort:        portList[constants.MDLPort],
+			RAFTPort:       portList[constants.RAFTPort],
+			MDLDataDir:     mdlDataPath,
+			RaptorqPort:    50051,
 		})
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
@@ -674,45 +691,26 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) err
 		return flagMasterNodeP2PIP
 	}()
 
-	if config.Network == "testnet" {
-		flagMasterNodePort = func() int {
-			if flagMasterNodePort == 0 {
-				return 19933
-			}
-			return flagMasterNodePort
-		}()
-		flagMasterNodeRPCPort = func() int {
-			if flagMasterNodeRPCPort == 0 {
-				return 14444
-			}
-			return flagMasterNodeRPCPort
-		}()
-		flagMasterNodeP2PPort = func() int {
-			if flagMasterNodeP2PPort == 0 {
-				return 14445
-			}
-			return flagMasterNodeP2PPort
-		}()
-	} else {
-		flagMasterNodePort = func() int {
-			if flagMasterNodePort == 0 {
-				return 9933
-			}
-			return flagMasterNodePort
-		}()
-		flagMasterNodeRPCPort = func() int {
-			if flagMasterNodeRPCPort == 0 {
-				return 4444
-			}
-			return flagMasterNodeRPCPort
-		}()
-		flagMasterNodeP2PPort = func() int {
-			if flagMasterNodeP2PPort == 0 {
-				return 4445
-			}
-			return flagMasterNodeP2PPort
-		}()
-	}
+	portList := GetSNPortList(config)
+
+	flagMasterNodePort = func() int {
+		if flagMasterNodePort == 0 {
+			return portList[constants.NodePort]
+		}
+		return flagMasterNodePort
+	}()
+	flagMasterNodeRPCPort = func() int {
+		if flagMasterNodeRPCPort == 0 {
+			return portList[constants.SNPort]
+		}
+		return flagMasterNodeRPCPort
+	}()
+	flagMasterNodeP2PPort = func() int {
+		if flagMasterNodeP2PPort == 0 {
+			return portList[constants.P2PPort]
+		}
+		return flagMasterNodeP2PPort
+	}()
 	return nil
 }
 

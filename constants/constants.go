@@ -158,8 +158,20 @@ var ChromeExecFileName = map[OSType]string{
 	Unknown: "",
 }
 
-// PortList - PortList to open in install supernode
-var PortList = []string{"9933", "19933", "4444", "14444"}
+// MainnetPortList - PortList of supernode
+var MainnetPortList = []int{9933, 4444, 4445, 4446, 4447}
+
+// TestnetPortList - PortList of supernode
+var TestnetPortList = []int{19933, 14444, 14445, 14446, 14447}
+
+// Ports mapping
+const (
+	NodePort int = 0
+	SNPort   int = 1
+	P2PPort  int = 2
+	MDLPort  int = 3
+	RAFTPort int = 4
+)
 
 // PastelRQServiceArchiveName - The name of the pastel rqservice files
 var PastelRQServiceArchiveName = map[OSType]string{

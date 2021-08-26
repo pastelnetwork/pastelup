@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/go-errors/errors"
@@ -10,9 +11,11 @@ import (
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -159,4 +162,94 @@ func RunPastelCLI(ctx context.Context, config *configs.Config, args ...string) (
 	args = append([]string{fmt.Sprintf("--datadir=%s", config.WorkingDir)}, args...)
 
 	return RunCMD(pastelCliPath, args...)
+}
+
+// RunCMD runs shell command and returns output and error
+func RunCMD(command string, args ...string) (string, error) {
+	return RunCMDWithEnvVariable(command, "", "", args...)
+}
+
+// RunCMDWithEnvVariable runs shell command with environmental variable and returns output and error
+func RunCMDWithEnvVariable(command string, evName string, evValue string, args ...string) (string, error) {
+	cmd := exec.Command(command, args...)
+
+	if len(evName) != 0 && len(evValue) != 0 {
+		additionalEnv := fmt.Sprintf("%s=%s", evName, evValue)
+		cmd.Env = append(os.Environ(), additionalEnv)
+	}
+
+	var stdBuffer bytes.Buffer
+	mw := io.MultiWriter(os.Stdout, &stdBuffer)
+
+	cmd.Stdout = mw
+	cmd.Stderr = mw
+
+	// Execute the command
+	if err := cmd.Run(); err != nil {
+		return stdBuffer.String(), err
+	}
+
+	return stdBuffer.String(), nil
+}
+
+// RunCMDWithInteractive runs shell command with interactive
+func RunCMDWithInteractive(command string, args ...string) error {
+	cmd := exec.Command(command, args...)
+
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	return cmd.Run()
+}
+
+// FindRunningProcess runs shell command with interactive
+func FindRunningProcess(searchTerm string) (string, error) {
+
+	c1 := exec.Command("ps", "afx")
+	c2 := exec.Command("grep", searchTerm)
+	c3 := exec.Command("grep", "-v", "grep")
+
+	r1, w1 := io.Pipe()
+	r2, w2 := io.Pipe()
+
+	c1.Stdout = w1
+	c2.Stdin = r1
+	c2.Stdout = w2
+	c3.Stdin = r2
+
+	var stdBuffer bytes.Buffer
+	mw := io.MultiWriter(os.Stdout, &stdBuffer)
+	c3.Stdout = mw
+	c1.Stderr = mw
+	c2.Stderr = mw
+	c3.Stderr = mw
+
+	var err error
+	if err = c1.Start(); err == nil {
+		if err = c2.Start(); err == nil {
+			if err = c3.Start(); err == nil {
+				if err = c1.Wait(); err == nil {
+					if err = w1.Close(); err == nil {
+						if err = c2.Wait(); err == nil {
+							if err = w2.Close(); err == nil {
+								if err = c3.Wait(); err == nil {
+									return stdBuffer.String(), nil
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return "", err
+}
+
+// GetSNPortList returns array of SuperNode ports for network
+func GetSNPortList(config *configs.Config) []int {
+	if config.Network == "testnet" {
+		return constants.TestnetPortList
+	}
+	return constants.MainnetPortList
 }

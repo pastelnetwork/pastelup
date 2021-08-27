@@ -8,6 +8,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/tj/assert"
 )
 
 func TestCreateFolderWithForce(t *testing.T) {
@@ -259,4 +262,33 @@ func TestCopyFile(t *testing.T) {
 	} else {
 		t.Logf("CopyFile Function OK")
 	}
+}
+
+func TestIsValidNetworkMode(t *testing.T) {
+	testCases := map[string]struct {
+		validList []string
+		pass      bool
+	}{
+		"success": {
+			validList: constants.NetworkModes,
+			pass:      true,
+		},
+		"failure": {
+			validList: []string{"teestnet", "mainnnet", "invalid-input"},
+			pass:      false,
+		},
+	}
+
+	for name, tc := range testCases {
+		tc := tc
+
+		t.Run(fmt.Sprintf("testCase-%v", name), func(t *testing.T) {
+			t.Parallel()
+			for _, val := range tc.validList {
+				got := IsValidNetworkOpt(val)
+				assert.Equal(t, tc.pass, got)
+			}
+		})
+	}
+
 }

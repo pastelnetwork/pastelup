@@ -6,13 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-errors/errors"
-	ps "github.com/mitchellh/go-ps"
-	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/structure"
-	"github.com/pastelnetwork/pastel-utility/utils"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -21,6 +14,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/go-errors/errors"
+	ps "github.com/mitchellh/go-ps"
+	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastel-utility/structure"
+	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 func checkPastelFilePath(ctx context.Context, dirPath string, filePath string) (fullPath string, err error) {
@@ -81,9 +82,9 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 	}
 
 	if strings.Contains(string(configure), "testnet=1") {
-		config.Network = "testnet"
+		config.Network = constants.NetworkTestnet
 	} else {
-		config.Network = "mainnet"
+		config.Network = constants.NetworkMainnet
 	}
 
 	return nil
@@ -281,7 +282,7 @@ func FindRunningProcess(searchTerm string) (string, error) {
 
 // GetSNPortList returns array of SuperNode ports for network
 func GetSNPortList(config *configs.Config) []int {
-	if config.Network == "testnet" {
+	if config.Network == constants.NetworkTestnet {
 		return constants.TestnetPortList
 	}
 	return constants.MainnetPortList

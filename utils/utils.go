@@ -10,7 +10,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"golang.org/x/term"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -24,6 +23,8 @@ import (
 	"syscall"
 	"text/template"
 	"time"
+
+	"golang.org/x/term"
 
 	"github.com/dustin/go-humanize"
 	"github.com/pastelnetwork/gonode/common/log"
@@ -490,4 +491,16 @@ func Credentials(userName string, needPassword bool) (string, string, error) {
 	}
 
 	return strings.TrimSpace(username), strings.TrimSpace(password), nil
+}
+
+// IsValidNetworkOpt does a lookup in constants.NetworkModes
+func IsValidNetworkOpt(val string) bool {
+	val = strings.TrimSpace(val)
+	for _, n := range constants.NetworkModes {
+		if strings.EqualFold(n, val) {
+			return true
+		}
+	}
+
+	return false
 }

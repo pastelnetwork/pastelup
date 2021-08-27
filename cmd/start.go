@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
@@ -661,7 +662,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 	}
 	if !flagMasterNodeIsCreate { // if we don't create new masternode.conf - it must exist!
 		var masternodeConfPath string
-		if config.Network == "testnet" {
+		if config.Network == constants.NetworkTestnet {
 			masternodeConfPath = filepath.Join("testnet3", "masternode.conf")
 		} else {
 			masternodeConfPath = "masternode.conf"
@@ -867,7 +868,7 @@ func createConfFile(confData []byte, config *configs.Config) (err error) {
 func backupConfFile(config *configs.Config) (masternodeConfPath string, masternodeConfPathBackup string, err error) {
 	workDirPath := config.WorkingDir
 
-	if config.Network == "testnet" {
+	if config.Network == constants.NetworkTestnet {
 		masternodeConfPath = filepath.Join(workDirPath, "testnet3", "masternode.conf")
 		masternodeConfPathBackup = filepath.Join(workDirPath, "testnet3", "masternode_%s.conf")
 	} else {
@@ -895,7 +896,7 @@ func updateMasternodeConfFile(confData map[string]interface{}, config *configs.C
 	workDirPath := config.WorkingDir
 	var masternodeConfPath string
 
-	if config.Network == "testnet" {
+	if config.Network == constants.NetworkTestnet {
 		masternodeConfPath = filepath.Join(workDirPath, "testnet3", "masternode.conf")
 	} else {
 		masternodeConfPath = filepath.Join(workDirPath, "masternode.conf")
@@ -987,7 +988,7 @@ func getStartInfo(ctx context.Context, config *configs.Config, mnName string) (p
 
 	var masternodeConfPath string
 
-	if config.Network == "testnet" {
+	if config.Network == constants.NetworkTestnet {
 		masternodeConfPath = filepath.Join(config.WorkingDir, "testnet3", "masternode.conf")
 	} else {
 		masternodeConfPath = filepath.Join(config.WorkingDir, "masternode.conf")
@@ -1135,7 +1136,7 @@ func runMasterNodeOnColdHotSubCommand(ctx context.Context, config *configs.Confi
 }
 
 func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, username string, password string) error {
-	var pastelCliPath string
+	var pastelCliPath, testnetOption string
 	log.WithContext(ctx).Infof("Connecting to SSH Hot node wallet -> %s:%d...", flagMasterNodeSSHIP, flagMasterNodeSSHPort)
 	client, err := utils.DialWithPasswd(fmt.Sprintf("%s:%d", flagMasterNodeSSHIP, flagMasterNodeSSHPort), username, password)
 	if err != nil {
@@ -1143,8 +1144,7 @@ func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, username str
 	}
 	defer client.Close()
 
-	testnetOption := ""
-	if config.Network == "testnet" {
+	if config.Network == constants.NetworkTestnet {
 		testnetOption = " --testnet"
 	}
 

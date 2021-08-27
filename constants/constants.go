@@ -64,9 +64,13 @@ const (
 	// DupeDetectionExecName is execution file name
 	DupeDetectionExecName = "pastel_dupe_detection_daemon_v4.py"
 	// PortCheckURL is URL of port checker service
-	PortCheckURL string = "http://portchecker.com?q="
+	PortCheckURL = "http://portchecker.com?q="
 	// IPCheckURL is URL of IP checker service
-	IPCheckURL string = "http://ipinfo.io/ip"
+	IPCheckURL = "http://ipinfo.io/ip"
+	// NetworkTestnet defines testnet network mode
+	NetworkTestnet = "testnet"
+	// NetworkMainnet defines mainnet network mode
+	NetworkMainnet = "mainnet"
 )
 
 // ServiceName defines services name
@@ -271,4 +275,10 @@ var DependenciesDupeDetectionPackages = []string{
 	"chromedriver_autoinstaller", "selenium", "Pillow",
 	"opennsfw-standalone", "tensorflow_hub", "imagehash", "psutil",
 	"onnxruntime",
+}
+
+// NetworkModes are valid network nmodes
+var NetworkModes = []string{
+	NetworkMainnet,
+	NetworkTestnet,
 }

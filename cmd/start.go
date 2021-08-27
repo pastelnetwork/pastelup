@@ -39,6 +39,8 @@ var (
 	flagDevMode bool
 
 	// masternode flags
+	flagMasterNodeIsActivate bool
+
 	flagMasterNodeName       string
 	flagMasterNodeIsCreate   bool
 	flagMasterNodeIsUpdate   bool
@@ -52,9 +54,9 @@ var (
 	flagMasterNodeRPCPort    int
 	flagMasterNodeP2PIP      string
 	flagMasterNodeP2PPort    int
-	flagMasterNodeColdHot    bool
-	flagMasterNodeSSHIP      string
-	flagMasterNodeSSHPort    int
+
+	flagMasterNodeSSHIP   string
+	flagMasterNodeSSHPort int
 
 	// path of log file
 	flagLogFile  string
@@ -67,6 +69,7 @@ const (
 	nodeStart startCommand = iota
 	walletStart
 	superNodeStart
+	superNodeColdHotStart
 	ddService
 )
 
@@ -96,10 +99,10 @@ func setupStartSubCommand(config *configs.Config,
 
 	superNodeFlags := []*cli.Flag{
 
+		cli.NewFlag("activate", &flagMasterNodeIsActivate).
+			SetUsage(green("Optional, if specified, will try to enable node as Masternode (start-alias).")),
 		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage(red("Required, name of the Masternode to start and create in the masternode.conf if --create or --update are specified")).SetRequired(),
-		cli.NewFlag("port", &flagMasterNodePort).
-			SetUsage(green("Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet)")),
+			SetUsage(yellow("Required (only if --activate, --update or --create specified), name of the Masternode to start and create in the masternode.conf if --create or --update are specified")),
 		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
 			SetUsage(green("Optional, Masternode private key, if omitted, new masternode private key will be created")),
 
@@ -107,15 +110,16 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Optional, if specified, will create Masternode record in the masternode.conf.")),
 		cli.NewFlag("update", &flagMasterNodeIsUpdate).
 			SetUsage(green("Optional, if specified, will update Masternode record in the masternode.conf.")),
-
 		cli.NewFlag("txid", &flagMasterNodeTxID).
-			SetUsage(red("Required (only if --update or --create specified), collateral payment txid , transaction id of 5M collateral MN payment")),
+			SetUsage(yellow("Required (only if --update or --create specified), collateral payment txid , transaction id of 5M collateral MN payment")),
 		cli.NewFlag("ind", &flagMasterNodeIND).
-			SetUsage(red("Required (only if --update or --create specified), collateral payment output index , output index in the transaction of 5M collateral MN payment")),
+			SetUsage(yellow("Required (only if --update or --create specified), collateral payment output index , output index in the transaction of 5M collateral MN payment")),
 		cli.NewFlag("pastelid", &flagMasterNodePastelID).
 			SetUsage(green("Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered")),
 		cli.NewFlag("passphrase", &flagMasterNodePassPhrase).
-			SetUsage(red("Required (only if --update or --create specified), passphrase to pastelid private key")),
+			SetUsage(yellow("Required (only if --update or --create specified), passphrase to pastelid private key")),
+		cli.NewFlag("port", &flagMasterNodePort).
+			SetUsage(green("Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet)")),
 		cli.NewFlag("rpc-ip", &flagMasterNodeRPCIP).
 			SetUsage(green("Optional, supernode IP address. If omitted, value passed to --ip will be used")),
 		cli.NewFlag("rpc-port", &flagMasterNodeRPCPort).
@@ -124,9 +128,9 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Kademlia IP address, if omitted, value passed to --ip will be used")),
 		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort).
 			SetUsage(green("Optional, Kademlia port, default - 4445 (14445 for Testnet)")),
+	}
 
-		cli.NewFlag("remote", &flagMasterNodeColdHot).
-			SetUsage(red("Optional, perform COLD/HOT supernode startup - with local computer being COLD and remote being HOT nodes")),
+	superNodeColdHotFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &flagMasterNodeSSHIP).
 			SetUsage(red("Required (only if --remote specified), remote supernode specific, SSH address of the remote HOT node")),
 		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).
@@ -153,6 +157,10 @@ func setupStartSubCommand(config *configs.Config,
 		commandFlags = append(superNodeFlags, commonFlags[:]...)
 		commandName = string(constants.SuperNode)
 		commandMessage = "Start supernode"
+	case superNodeColdHotStart:
+		commandFlags = append(append(superNodeFlags, commonFlags[:]...), superNodeColdHotFlags[:]...)
+		commandName = string(constants.SuperNode)
+		commandMessage = "Start supernode in Cold/Hod mode"
 	case ddService:
 		commandFlags = commonFlags
 		commandName = string(constants.DDService)
@@ -197,8 +205,8 @@ func setupStartCommand() *cli.Command {
 
 	startNodeSubCommand := setupStartSubCommand(config, nodeStart, runStartNodeSubCommand)
 	startWalletSubCommand := setupStartSubCommand(config, walletStart, runStartWalletSubCommand)
-	startSuperNodeSubCommand := setupStartSubCommand(config, superNodeStart, runStartSuperNodeSubCommand)
-
+	startSuperNodeSubCommand := setupStartSubCommand(config, superNodeStart, runMasterNodeOnHotHotSubCommand)
+	startSuperNodeCOldHotSubCommand := setupStartSubCommand(config, superNodeColdHotStart, runMasterNodeOnColdHotSubCommand)
 	startDDServiceCommand := setupStartSubCommand(config, ddService, runDDService)
 
 	startCommand := cli.NewCommand("start")
@@ -206,6 +214,7 @@ func setupStartCommand() *cli.Command {
 	startCommand.AddSubcommands(startNodeSubCommand)
 	startCommand.AddSubcommands(startWalletSubCommand)
 	startCommand.AddSubcommands(startSuperNodeSubCommand)
+	startCommand.AddSubcommands(startSuperNodeCOldHotSubCommand)
 
 	startCommand.AddSubcommands(startDDServiceCommand)
 
@@ -442,18 +451,7 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 	return nil
 }
 
-func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
-	if len(flagMasterNodeSSHIP) != 0 {
-		flagMasterNodeColdHot = true
-	}
-
-	if flagMasterNodeColdHot {
-		return runMasterNodeOnColdHot(ctx, config)
-	}
-	return runMasterNodeOnHotHot(ctx, config)
-}
-
-func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
+func runMasterNodeOnHotHotSubCommand(ctx context.Context, config *configs.Config) error {
 
 	// *************  1. Parse pastel config parameters  *************
 	log.WithContext(ctx).Info("Reading pastel.conf")
@@ -465,31 +463,39 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 
 	// *************  2. Parse parameters  *************
 	log.WithContext(ctx).Info("Checking arguments")
-	if err := checkStartMasterNodeParams(ctx, config); err != nil {
+	if err := checkStartMasterNodeParams(ctx, config, false); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to validate input arguments")
 		return err
 	}
 	log.WithContext(ctx).Info("Finished checking arguments!")
 
-	log.WithContext(ctx).Info("Prepare mastenode parameters")
-	if err := prepareMasterNodeParameters(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
-		return err
-	}
-	if err := createOrUpdateMasternodeConf(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
-		return err
+	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
+		log.WithContext(ctx).Info("Prepare masternode parameters")
+		if err := prepareMasterNodeParameters(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
+			return err
+		}
+		if err := createOrUpdateMasternodeConf(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
+			return err
+		}
 	}
 
 	// Get conf data from masternode.conf File
-	nodeName, privKey, _ /*extIP*/, pastelID, _ /*extPort*/, err := getStartInfo(ctx, config)
+	privKey, extIP, _ /*extPort*/, pastelID, err := getStartInfo(ctx, config, flagMasterNodeName)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get masternode details from masternode.conf")
 		return err
 	}
 
+	if extIP != flagNodeExtIP {
+		err := errors.Errorf("External IP address in masternode.conf MUST match WAN address of the node! IP in masternode.conf - %s, WAN IP passed or identified - %s", extIP, flagNodeExtIP)
+		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
+		return err
+	}
+
 	// *************  3. Start Node as Masternode  *************
-	log.WithContext(ctx).Infof("Starting pasteld as masternode: nodeName: %s; mnPrivKey: %s; pastelID: %s;", nodeName, privKey, pastelID)
+	log.WithContext(ctx).Infof("Starting pasteld as masternode: nodeName: %s; mnPrivKey: %s; pastelID: %s;", flagMasterNodeName, privKey, pastelID)
 	if err := runPastelNode(ctx, config, true, flagNodeExtIP, privKey); err != nil { //in masternode mode pasteld MUST be started with reindex flag
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 		return err
@@ -502,10 +508,12 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	// *************  5. Enable Masternode  ***************
-	log.WithContext(ctx).Infof("Starting MN alias - %s", nodeName)
-	if err := runStartAliasMasternode(ctx, config, nodeName); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to start alias - %s", nodeName)
-		return err
+	if flagMasterNodeIsActivate {
+		log.WithContext(ctx).Infof("Starting MN alias - %s", flagMasterNodeName)
+		if err := runStartAliasMasternode(ctx, config, flagMasterNodeName); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to start alias - %s", flagMasterNodeName)
+			return err
+		}
 	}
 
 	// *************  6. Start rq-servce    *************
@@ -608,24 +616,19 @@ func runMasterNodeOnHotHot(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) error {
+func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, coldHot bool) error {
 
 	// --name supernode name - Required, name of the Masternode to start and create in the masternode.conf if --create or --update are specified
-	if len(flagMasterNodeName) == 0 {
-		err := fmt.Errorf("required --name, name of the Masternode to start and create in the masternode.conf if `--create` or `--update` are specified")
+	if (flagMasterNodeIsActivate || flagMasterNodeIsCreate || flagMasterNodeIsUpdate) && len(flagMasterNodeName) == 0 {
+		err := fmt.Errorf("required if --activate, --create or --update specified: --name, name of the Masternode to start and create in the masternode.conf if `--create` or `--update` are specified")
 		log.WithContext(ctx).WithError(err).Error("Missing parameter --name")
 		return err
 	}
 
 	// --ip WAN IP address of the node - Required, WAN address of the host
-	if len(flagNodeExtIP) == 0 {
-		if flagMasterNodeColdHot {
-			err := fmt.Errorf("in 'start supernode remote' mode, the –-ip parametr is required (WAN IP address of the remote supernode)")
-			log.WithContext(ctx).WithError(err).Error("Missing parameter --ip")
-			return err
-		}
+	if len(flagNodeExtIP) == 0 && !coldHot { //coldHot will try to get WAN address in the step that is executed on remote host
 
-		log.WithContext(ctx).Info("Trying to get our WAN IP address")
+		log.WithContext(ctx).Info("--ip flag is ommited, trying to get our WAN IP address")
 		externalIP, err := GetExternalIPAddress()
 		if err != nil {
 			err := fmt.Errorf("cannot get external ip address")
@@ -670,7 +673,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) err
 		}
 	}
 
-	if flagMasterNodeColdHot {
+	if coldHot {
 		if len(flagMasterNodeSSHIP) == 0 {
 			err := fmt.Errorf("required if --coldhot is specified, –-ssh-ip, SSH address of the remote HOT node")
 			log.WithContext(ctx).WithError(err).Error("Missing parameter --ssh-ip")
@@ -715,6 +718,11 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config) err
 }
 
 func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (err error) {
+
+	// this function must only be called when --create or --update
+	if !flagMasterNodeIsCreate && !flagMasterNodeIsUpdate {
+		return nil
+	}
 
 	bReIndex := true // if masternode.conf exist pasteld MUST be start with reindex flag
 	if flagMasterNodeIsCreate {
@@ -801,6 +809,11 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 }
 
 func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) (err error) {
+
+	// this function must only be called when --create or --update
+	if !flagMasterNodeIsCreate && !flagMasterNodeIsUpdate {
+		return nil
+	}
 
 	confData := map[string]interface{}{
 		flagMasterNodeName: map[string]string{
@@ -935,22 +948,17 @@ func stopPastelDAndWait(ctx context.Context, config *configs.Config) (err error)
 }
 
 func checkMasterNodeSync(ctx context.Context, config *configs.Config) (err error) {
-	var mnstatus structure.RPCPastelMSStatus
-	var output string
 	for {
-		if output, err = RunPastelCLI(ctx, config, "mnsync", "status"); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to get mnsync status from pasteld")
-			return err
-		}
 
-		// Master Node Output
-		if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
+		mnstatus, err := GetMNSyncInfo(ctx, config)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("master node mnsync status call has failed")
 			return err
 		}
 
 		if mnstatus.AssetName == "Initial" {
 			if _, err = RunPastelCLI(ctx, config, "mnsync", "reset"); err != nil {
-				log.WithContext(ctx).WithError(err).Error("master node reset was failed")
+				log.WithContext(ctx).WithError(err).Error("master node reset has failed")
 				return err
 			}
 			time.Sleep(10000 * time.Millisecond)
@@ -960,14 +968,22 @@ func checkMasterNodeSync(ctx context.Context, config *configs.Config) (err error
 			break
 		}
 		log.WithContext(ctx).Info("Waiting for sync...")
+
+		getinfo, err := GetPastelInfo(ctx, config)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("master node getinfo call has failed")
+			return err
+		}
+		log.WithContext(ctx).Infof("Loading blocks - block #%d; Node has %d connection", getinfo.Blocks, getinfo.Connections)
+
 		time.Sleep(10000 * time.Millisecond)
 	}
 
 	return nil
 }
 
-func getStartInfo(ctx context.Context, config *configs.Config) (string,
-	string, string, string, string, error) {
+func getStartInfo(ctx context.Context, config *configs.Config, mnName string) (privKey string,
+	extAddr string, extPort string, extkey string, err error) {
 
 	var masternodeConfPath string
 
@@ -981,24 +997,30 @@ func getStartInfo(ctx context.Context, config *configs.Config) (string,
 	confFile, err := ioutil.ReadFile(masternodeConfPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to read masternode.conf at %s", masternodeConfPath)
-		return "", "", "", "", "", err
+		return "", "", "", "", err
 	}
 
 	var conf map[string]interface{}
 	if err := json.Unmarshal([]byte(confFile), &conf); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to parse masternode.conf json %s", confFile)
-		return "", "", "", "", "", err
+		return "", "", "", "", err
 	}
 
-	var nodeName string
-	for key := range conf {
-		nodeName = key // get Node Name
+	mnNode, ok := conf[mnName]
+	if !ok {
+		err := errors.Errorf("masternode.conf doesn't have node with name - %s", mnName)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to parse masternode.conf json %s", confFile)
+		return "", "", "", "", err
 	}
-	confData := conf[nodeName].(map[string]interface{})
-	extAddr := strings.Split(confData["mnAddress"].(string), ":") // get Ext IP
+
+	confData := mnNode.(map[string]interface{})
+	privKey = confData["mnPrivKey"].(string)
+	extAddrPort := strings.Split(confData["mnAddress"].(string), ":")
+	extAddr = extAddrPort[0] // get Ext IP and Port
+	extPort = extAddrPort[1] // get Ext IP and Port
 	extKey := confData["extKey"].(string)
 
-	return nodeName, confData["mnPrivKey"].(string), extAddr[0], extKey, extAddr[1], nil
+	return privKey, extAddr, extPort, extKey, nil
 }
 
 func runStartAliasMasternode(ctx context.Context, config *configs.Config, masternodeName string) (err error) {
@@ -1022,7 +1044,7 @@ func runStartAliasMasternode(ctx context.Context, config *configs.Config, master
 }
 
 //FIXME: ColdNot
-func runMasterNodeOnColdHot(ctx context.Context, config *configs.Config) error {
+func runMasterNodeOnColdHotSubCommand(ctx context.Context, config *configs.Config) error {
 	//var pastelid string
 	var err error
 
@@ -1031,7 +1053,7 @@ func runMasterNodeOnColdHot(ctx context.Context, config *configs.Config) error {
 	}
 
 	log.WithContext(ctx).Info("Checking parameters...")
-	if err := checkStartMasterNodeParams(ctx, config); err != nil {
+	if err := checkStartMasterNodeParams(ctx, config, true); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Checking parameters failed")
 		return err
 	}
@@ -1044,14 +1066,16 @@ func runMasterNodeOnColdHot(ctx context.Context, config *configs.Config) error {
 	}
 	log.WithContext(ctx).Info("Finished checking pastel config!")
 
-	log.WithContext(ctx).Info("Prepare mastenode parameters")
-	if err := prepareMasterNodeParameters(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
-		return err
-	}
-	if err := createOrUpdateMasternodeConf(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
-		return err
+	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
+		log.WithContext(ctx).Info("Prepare mastenode parameters")
+		if err := prepareMasterNodeParameters(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
+			return err
+		}
+		if err := createOrUpdateMasternodeConf(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
+			return err
+		}
 	}
 
 	// ***************  4. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
@@ -1065,7 +1089,7 @@ func runMasterNodeOnColdHot(ctx context.Context, config *configs.Config) error {
 	// ***************  5. Enable Masternode  ***************
 	// Get conf data from masternode.conf File
 	var extIP string
-	if _, _, extIP, _, _, err = getStartInfo(ctx, config); err != nil {
+	if _, extIP, _, _, err = getStartInfo(ctx, config, flagMasterNodeName); err != nil {
 		return err
 	}
 
@@ -1079,8 +1103,10 @@ func runMasterNodeOnColdHot(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	if err = runStartAliasMasternode(ctx, config, flagMasterNodeName); err != nil {
-		return err
+	if flagMasterNodeIsActivate {
+		if err = runStartAliasMasternode(ctx, config, flagMasterNodeName); err != nil {
+			return err
+		}
 	}
 
 	// ***************  6. Stop Cold Node  ***************

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,6 +20,7 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastel-utility/structure"
 	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
@@ -284,4 +286,36 @@ func GetSNPortList(config *configs.Config) []int {
 		return constants.TestnetPortList
 	}
 	return constants.MainnetPortList
+}
+
+// GetMNSyncInfo gets result of "mnsync status"
+func GetMNSyncInfo(ctx context.Context, config *configs.Config) (structure.RPCPastelMSStatus, error) {
+	var mnstatus structure.RPCPastelMSStatus
+
+	output, err := RunPastelCLI(ctx, config, "mnsync", "status")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to get mnsync status from pasteld")
+		return mnstatus, err
+	}
+	if err := json.Unmarshal([]byte(output), &mnstatus); err != nil {
+		return mnstatus, err
+	}
+	return mnstatus, nil
+}
+
+// GetPastelInfo gets result of "getinfo"
+func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGetInfo, error) {
+	var getifno structure.RPCGetInfo
+
+	output, err := RunPastelCLI(ctx, config, "getinfo")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to getinfo from pasteld")
+		return getifno, err
+	}
+
+	// Master Node Output
+	if err = json.Unmarshal([]byte(output), &getifno); err != nil {
+		return getifno, err
+	}
+	return getifno, nil
 }

@@ -472,7 +472,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 
 		// Open ports
 		if !config.StartedRemote {
-			if err = openPort(ctx, portList); err != nil {
+			if err = openPorts(ctx, portList); err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed to open ports")
 				return err
 			}
@@ -714,7 +714,8 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 
 }
 
-func openPort(ctx context.Context, portList []int) (err error) {
+func openPorts(ctx context.Context, portList []int) (err error) {
+	// only open ports on SuperNode and this is only on Linux!!!
 	var out string
 	for k := range portList {
 		log.WithContext(ctx).Infof("Opening port: %d", portList[k])
@@ -723,10 +724,11 @@ func openPort(ctx context.Context, portList []int) (err error) {
 		switch utils.GetOS() {
 		case constants.Linux:
 			out, err = RunCMD("sudo", "ufw", "allow", portStr)
-		case constants.Windows:
-			out, err = RunCMD("netsh", "advfirewall", "firewall", "add", "rule", "name=TCP Port "+portStr, "dir=in", "action=allow", "protocol=TCP", "localport="+portStr)
-		case constants.Mac:
-			out, err = RunCMD("sudo", "ipfw", "allow", "tcp", "from", "any", "to", "any", "dst-port", portStr)
+			/*		case constants.Windows:
+						out, err = RunCMD("netsh", "advfirewall", "firewall", "add", "rule", "name=TCP Port "+portStr, "dir=in", "action=allow", "protocol=TCP", "localport="+portStr)
+					case constants.Mac:
+						out, err = RunCMD("sudo", "ipfw", "allow", "tcp", "from", "any", "to", "any", "dst-port", portStr)
+			*/
 		}
 
 		if err != nil {

@@ -524,8 +524,26 @@ func checkInstalledPackages(ctx context.Context, tool constants.ToolType) (err e
 		}
 	}
 
-	if len(notInstall) > 0 {
-		return errors.New(strings.Join(notInstall, ", ") + " is missing from your OS, which is required for running, please install them")
+	if len(notInstall) > 0 && utils.GetOS() != constants.Linux {
+		log.WithContext(ctx).WithField("missing-packages", strings.Join(notInstall, ",")).
+			WithError(errors.New("missing required pkgs")).
+			Error("automatic install for required pkgs only set up for linux")
+
+		return fmt.Errorf("missing required pkgs: %s", strings.Join(notInstall, ","))
+	}
+
+	// install missing packages [only for linux at this time]
+	// TODO: devise a mechanism for installing pkgs for mac & windows
+	for _, pkg := range notInstall {
+		args := []string{"install", "-y", pkg}
+		out, err := RunCMD("apt", args...)
+		if err != nil {
+			log.WithContext(ctx).
+				WithFields(log.Fields{"message": out, "package": pkg, "missing-packages": strings.Join(notInstall, ",")}).
+				WithError(err).Error("unable to install required package")
+
+			return fmt.Errorf("err installing required pkg : %s - err: %s", pkg, err)
+		}
 	}
 
 	return nil

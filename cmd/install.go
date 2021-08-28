@@ -208,7 +208,8 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	log.WithContext(ctx).Info("Connected successfully")
 
-	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
+	pastelUtilityFile := "pastel-utility"
+	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, pastelUtilityFile)
 	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
 
 	err = client.ShellCmd(ctx, fmt.Sprintf("rm -r -f %s", pastelUtilityPath))
@@ -217,29 +218,21 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return err
 	}
 
-	// Download pastel-utility from pastel website
-	if len(config.CopyUtilityPath) == 0 {
-		pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
-		log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
-		err = client.ShellCmd(ctx, fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath))
-
-		log.WithContext(ctx).Debugf("wget -O %s  %s", pastelUtilityPath, pastelUtilityDownloadPath)
-		if err != nil {
-			log.WithContext(ctx).Error("Failed to download pastel-utility")
-			return err
-		}
-		log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
-	} else {
-		// scp pastel-utility to remote
-		log.WithContext(ctx).Infof("Copying local pastel-utility executable to remote host - %s", config.CopyUtilityPath)
-
-		if err := client.Scp(config.CopyUtilityPath, pastelUtilityPath); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
-			return err
-		}
-
-		log.WithContext(ctx).Info("Successfully copied pastel-utility executable to remote host")
+	// Transfer pastel utility to remote
+	copyUtilityPath := config.CopyUtilityPath
+	if len(copyUtilityPath) == 0 {
+		copyUtilityPath = os.Args[0]
 	}
+
+	// scp pastel-utility to remote
+	log.WithContext(ctx).Infof("Copying local pastel-utility executable to remote host - %s", copyUtilityPath)
+
+	if err := client.Scp(copyUtilityPath, pastelUtilityPath); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
+		return err
+	}
+
+	log.WithContext(ctx).Info("Successfully copied pastel-utility executable to remote host")
 
 	if err = client.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", pastelUtilityPath)); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")

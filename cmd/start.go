@@ -106,7 +106,7 @@ func setupStartSubCommand(config *configs.Config,
 		cli.NewFlag("activate", &flagMasterNodeIsActivate).
 			SetUsage(green("Optional, if specified, will try to enable node as Masternode (start-alias).")),
 		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage(yellow("Required (only if --activate, --update or --create specified), name of the Masternode to start and create in the masternode.conf if --create or --update are specified")),
+			SetUsage(yellow("Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)")).SetRequired(),
 		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
 			SetUsage(green("Optional, Masternode private key, if omitted, new masternode private key will be created")),
 
@@ -569,8 +569,8 @@ func runMasterNodeOnHotHotSubCommand(ctx context.Context, config *configs.Config
 func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, coldHot bool) error {
 
 	// --name supernode name - Required, name of the Masternode to start and create in the masternode.conf if --create or --update are specified
-	if (flagMasterNodeIsActivate || flagMasterNodeIsCreate || flagMasterNodeIsUpdate) && len(flagMasterNodeName) == 0 {
-		err := fmt.Errorf("required if --activate, --create or --update specified: --name, name of the Masternode to start and create in the masternode.conf if `--create` or `--update` are specified")
+	if len(flagMasterNodeName) == 0 {
+		err := fmt.Errorf("required: --name, name of the Masternode to start")
 		log.WithContext(ctx).WithError(err).Error("Missing parameter --name")
 		return err
 	}

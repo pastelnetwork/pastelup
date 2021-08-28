@@ -546,7 +546,7 @@ func installMissingReqPackagesLinux(pkgs []string) error {
 		Info("system will now install missing packages")
 
 	for _, pkg := range pkgs {
-		out, err := RunCMD("apt", "install", "-y", pkg)
+		out, err := RunCMD("sudo", "apt", "install", "-y", pkg)
 		if err != nil {
 			log.WithFields(log.Fields{"message": out, "package": pkg}).
 				WithError(err).Error("unable to install required package")

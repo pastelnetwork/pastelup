@@ -208,7 +208,8 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	log.WithContext(ctx).Info("Connected successfully")
 
-	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
+	pastelUtilityFile := "pastel-utility"
+	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, pastelUtilityFile)
 	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
 
 	err = client.ShellCmd(ctx, fmt.Sprintf("rm -r -f %s", pastelUtilityPath))
@@ -217,17 +218,29 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return err
 	}
 
-	// Download pastel-utility from pastel website
+	// Download latest pastel-utility from pastel website
 	if len(config.CopyUtilityPath) == 0 {
-		pastelUtilityDownloadPath := constants.PastelUtilityDownloadURL
-		log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
-		err = client.ShellCmd(ctx, fmt.Sprintf("wget -O %s %s", pastelUtilityPath, pastelUtilityDownloadPath))
+		pastelUtilityTmpFile := pastelUtilityFile + ".tmp"
+		downloadPath := constants.PastelUtilityDownloadURL
 
-		log.WithContext(ctx).Debugf("wget -O %s  %s", pastelUtilityPath, pastelUtilityDownloadPath)
-		if err != nil {
-			log.WithContext(ctx).Error("Failed to download pastel-utility")
+		log.WithContext(ctx).Info("Downloading Pastel-Utility Executable...")
+		if err = utils.DownloadFile(ctx, pastelUtilityTmpFile, downloadPath); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download latest pastel-utility file from %s", downloadPath)
 			return err
 		}
+
+		// clean downloaded file
+		defer func() {
+			os.RemoveAll(pastelUtilityTmpFile)
+		}()
+
+		log.WithContext(ctx).Infof("Copying downloaded pastel-utility executable to remote host - %s", pastelUtilityTmpFile)
+
+		if err := client.Scp(pastelUtilityTmpFile, pastelUtilityPath); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to copy downloaded pastel-utility executable to remote host")
+			return err
+		}
+
 		log.WithContext(ctx).Info("Finished Downloading Pastel-Utility Successfully")
 	} else {
 		// scp pastel-utility to remote

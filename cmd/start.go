@@ -71,7 +71,10 @@ const (
 	walletStart
 	superNodeStart
 	superNodeColdHotStart
+	rqService
 	ddService
+	wnService
+	snService
 )
 
 func setupStartSubCommand(config *configs.Config,
@@ -160,12 +163,24 @@ func setupStartSubCommand(config *configs.Config,
 		commandMessage = "Start supernode"
 	case superNodeColdHotStart:
 		commandFlags = append(append(superNodeFlags, commonFlags[:]...), superNodeColdHotFlags[:]...)
-		commandName = string(constants.SuperNode)
+		commandName = string(constants.SuperNode)+"-coldhot"
 		commandMessage = "Start supernode in Cold/Hod mode"
+	case rqService:
+		commandFlags = commonFlags
+		commandName = string(constants.RQService)
+		commandMessage = "Start RaptorQ service only"
 	case ddService:
 		commandFlags = commonFlags
 		commandName = string(constants.DDService)
-		commandMessage = "Start dupe detection service"
+		commandMessage = "Start dupe detection service only"
+	case wnService:
+		commandFlags = commonFlags
+		commandName = string(constants.WalletNode)+"-service"
+		commandMessage = "Start WalletNode service only"
+	case snService:
+		commandFlags = commonFlags
+		commandName = string(constants.SuperNode)+"-service"
+		commandMessage = "Start SuperNode service only"
 	default:
 		commandFlags = append(append(walletNodeFlags, commonFlags[:]...), superNodeFlags[:]...)
 	}
@@ -208,7 +223,11 @@ func setupStartCommand() *cli.Command {
 	startWalletSubCommand := setupStartSubCommand(config, walletStart, runStartWalletSubCommand)
 	startSuperNodeSubCommand := setupStartSubCommand(config, superNodeStart, runMasterNodeOnHotHotSubCommand)
 	startSuperNodeCOldHotSubCommand := setupStartSubCommand(config, superNodeColdHotStart, runMasterNodeOnColdHotSubCommand)
+
+	startRQServiceCommand := setupStartSubCommand(config, rqService, runRQService)
 	startDDServiceCommand := setupStartSubCommand(config, ddService, runDDService)
+	startWNServiceCommand := setupStartSubCommand(config, wnService, runWalletNodeService)
+	startSNServiceCommand := setupStartSubCommand(config, snService, runSuperNodeService)
 
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
@@ -217,7 +236,10 @@ func setupStartCommand() *cli.Command {
 	startCommand.AddSubcommands(startSuperNodeSubCommand)
 	startCommand.AddSubcommands(startSuperNodeCOldHotSubCommand)
 
+	startCommand.AddSubcommands(startRQServiceCommand)
 	startCommand.AddSubcommands(startDDServiceCommand)
+	startCommand.AddSubcommands(startWNServiceCommand)
+	startCommand.AddSubcommands(startSNServiceCommand)
 
 	return startCommand
 
@@ -245,7 +267,7 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 	}
 
 	// *************  3. Start wallet node  *************
-	if err := runPastelWalletNode(ctx, config); err != nil {
+	if err := runWalletNodeService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("walletnode failed to start")
 		return err
 	}
@@ -394,10 +416,10 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	return nil
 }
 
-func runPastelWalletNode(ctx context.Context, config *configs.Config) error {
+func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 
 	walletnodeExecName := constants.WalletNodeExecName[utils.GetOS()]
-	log.WithContext(ctx).Infof("Starting walletnode - %s", walletnodeExecName)
+	log.WithContext(ctx).Infof("Starting walletnode service - %s", walletnodeExecName)
 
 	var wnServiceArgs []string
 	wnServiceArgs = append(wnServiceArgs,
@@ -420,7 +442,7 @@ func runPastelWalletNode(ctx context.Context, config *configs.Config) error {
 
 	log.WithContext(ctx).Infof("Options : %s", wnServiceArgs)
 	if err := runPastelService(ctx, config, constants.WalletNode, walletnodeExecName, wnServiceArgs...); err != nil {
-		log.WithContext(ctx).WithError(err).Error("walletnode failed")
+		log.WithContext(ctx).WithError(err).Error("walletnode service failed")
 		return err
 	}
 	return nil
@@ -439,6 +461,7 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 	go RunCMD(execPath, args...)
 	time.Sleep(10000 * time.Millisecond)
 
+	log.WithContext(ctx).Infof("Check %s is running...", toolType)
 	isServiceRunning := CheckProcessRunning(toolType)
 	if isServiceRunning {
 		log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
@@ -483,7 +506,7 @@ func runMasterNodeOnHotHotSubCommand(ctx context.Context, config *configs.Config
 	}
 
 	// Get conf data from masternode.conf File
-	privKey, extIP, _ /*extPort*/, pastelID, err := getStartInfo(ctx, config, flagMasterNodeName)
+	privKey, extIP, _ /*extPort*/, pastelID, err := getMasternodeConfData(ctx, config, flagMasterNodeName)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get masternode details from masternode.conf")
 		return err
@@ -530,89 +553,15 @@ func runMasterNodeOnHotHotSubCommand(ctx context.Context, config *configs.Config
 	}
 
 	// *************  7. Start supernode  **************
-	log.WithContext(ctx).Infof("Updating supernode config...")
-	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
-
-	if _, err := os.Stat(supernodeConfigPath); os.IsNotExist(err) {
-		// create new
-		if err = utils.CreateFile(ctx, supernodeConfigPath, true); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create new supernode.yml file at - %s", supernodeConfigPath)
-			return err
-		}
-
-		portList := GetSNPortList(config)
-
-		//FIXME: this has to be from command line parameters
-		p2pDataPath := filepath.Join(config.WorkingDir, "p2pdata")
-		mdlDataPath := filepath.Join(config.WorkingDir, "mdldata")
-
-		var toolConfig string
-		toolConfig, err = utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			PasteID:        pastelID,
-			Passphrase:     flagMasterNodePassPhrase,
-			SuperNodePort:  portList[constants.SNPort],
-			P2PPort:        portList[constants.P2PPort],
-			P2PPortDataDir: p2pDataPath,
-			MDLPort:        portList[constants.MDLPort],
-			RAFTPort:       portList[constants.RAFTPort],
-			MDLDataDir:     mdlDataPath,
-			RaptorqPort:    50051,
-		})
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
-			return err
-		}
-		if err = utils.WriteFile(supernodeConfigPath, toolConfig); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to update new supernode.yml file at - %s", supernodeConfigPath)
-			return err
-		}
-
-	} else if err == nil {
-		//update existing
-		var snConfFile []byte
-		snConfFile, err = ioutil.ReadFile(supernodeConfigPath)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to open existing supernode.yml file at - %s", supernodeConfigPath)
-			return err
-		}
-		snConf := make(map[interface{}]map[interface{}]interface{})
-		if err = yaml.Unmarshal(snConfFile, &snConf); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to parse existing supernode.yml file at - %s", supernodeConfigPath)
-			return err
-		}
-		snConf["node"]["pastel_id"] = pastelID
-		snConf["node"]["pass_phrase"] = flagMasterNodePassPhrase
-
-		var snConfFileUpdated []byte
-		if snConfFileUpdated, err = yaml.Marshal(&snConf); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for supernode.yml file at - %s", supernodeConfigPath)
-			return err
-		}
-		if ioutil.WriteFile(supernodeConfigPath, snConfFileUpdated, 0644) != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to update supernode.yml file at - %s", supernodeConfigPath)
-			return err
-		}
-	} else {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to update or create supernode.yml file at - %s", supernodeConfigPath)
+	if err := updateSuperNodeConfig(ctx, config, pastelID); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
 		return err
 	}
-	log.WithContext(ctx).Info("Supernode config updated")
 
-	log.WithContext(ctx).Info("Starting Supernode...")
-	logLevelOption := ""
-	if len(flagLogLevel) > 0 {
-		logLevelOption = fmt.Sprintf("--log-level=%s", flagLogLevel)
+	if err := runSuperNodeService(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to start supernode service")
+		return err
 	}
-	if len(flagLogFile) == 0 {
-		flagLogFile = config.Configurer.GetSuperNodeLogFile(config.WorkingDir)
-	}
-
-	go RunCMD(filepath.Join(config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()]),
-		fmt.Sprintf("--config-file=%s", supernodeConfigPath),
-		fmt.Sprintf("--log-file=%s", flagLogFile), logLevelOption)
-
-	log.WithContext(ctx).Info("Waiting for supernode started...")
-	time.Sleep(10000 * time.Millisecond)
 
 	return nil
 }
@@ -983,7 +932,7 @@ func checkMasterNodeSync(ctx context.Context, config *configs.Config) (err error
 	return nil
 }
 
-func getStartInfo(ctx context.Context, config *configs.Config, mnName string) (privKey string,
+func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string) (privKey string,
 	extAddr string, extPort string, extkey string, err error) {
 
 	var masternodeConfPath string
@@ -1044,6 +993,105 @@ func runStartAliasMasternode(ctx context.Context, config *configs.Config, master
 	return nil
 }
 
+func updateSuperNodeConfig(ctx context.Context, config *configs.Config, pastelID string) error {
+
+	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
+	log.WithContext(ctx).Infof("Updating supernode config - %s", supernodeConfigPath)
+
+	if _, err := os.Stat(supernodeConfigPath); os.IsNotExist(err) {
+		// create new
+		if err = utils.CreateFile(ctx, supernodeConfigPath, true); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create new supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+
+		portList := GetSNPortList(config)
+
+		//FIXME: this has to be from command line parameters
+		p2pDataPath := filepath.Join(config.WorkingDir, "p2pdata")
+		mdlDataPath := filepath.Join(config.WorkingDir, "mdldata")
+
+		var toolConfig string
+		toolConfig, err = utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+			PasteID:        pastelID,
+			Passphrase:     flagMasterNodePassPhrase,
+			SuperNodePort:  portList[constants.SNPort],
+			P2PPort:        portList[constants.P2PPort],
+			P2PPortDataDir: p2pDataPath,
+			MDLPort:        portList[constants.MDLPort],
+			RAFTPort:       portList[constants.RAFTPort],
+			MDLDataDir:     mdlDataPath,
+			RaptorqPort:    50051,
+		})
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
+			return err
+		}
+		if err = utils.WriteFile(supernodeConfigPath, toolConfig); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to update new supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+
+	} else if err == nil {
+		//update existing
+		var snConfFile []byte
+		snConfFile, err = ioutil.ReadFile(supernodeConfigPath)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to open existing supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+		snConf := make(map[interface{}]map[interface{}]interface{})
+		if err = yaml.Unmarshal(snConfFile, &snConf); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to parse existing supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+		snConf["node"]["pastel_id"] = pastelID
+		snConf["node"]["pass_phrase"] = flagMasterNodePassPhrase
+
+		var snConfFileUpdated []byte
+		if snConfFileUpdated, err = yaml.Marshal(&snConf); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+		if ioutil.WriteFile(supernodeConfigPath, snConfFileUpdated, 0644) != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to update supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+	} else {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update or create supernode.yml file at - %s", supernodeConfigPath)
+		return err
+	}
+	log.WithContext(ctx).Info("Supernode config updated")
+	return nil
+}
+
+func runSuperNodeService(ctx context.Context, config *configs.Config) error {
+
+	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
+	supernodeExecName := constants.SuperNodeExecName[utils.GetOS()]
+	log.WithContext(ctx).Infof("Starting Supernode service - %s", supernodeExecName)
+
+	var snServiceArgs []string
+	snServiceArgs = append(snServiceArgs,
+		fmt.Sprintf("--config-file=%s", supernodeConfigPath))
+
+	if len(flagLogLevel) > 0 {
+		snServiceArgs = append(snServiceArgs,
+			fmt.Sprintf("--log-level=%s", flagLogLevel))
+	}
+	if len(flagLogFile) == 0 {
+		snServiceArgs = append(snServiceArgs,
+			fmt.Sprintf("--log-file=%s", config.Configurer.GetSuperNodeLogFile(config.WorkingDir)))
+	}
+
+	log.WithContext(ctx).Infof("Options : %s", snServiceArgs)
+	if err := runPastelService(ctx, config, constants.SuperNode, supernodeExecName, snServiceArgs...); err != nil {
+		log.WithContext(ctx).WithError(err).Error("supernode failed")
+		return err
+	}
+	return nil
+}
+
 //FIXME: ColdNot
 func runMasterNodeOnColdHotSubCommand(ctx context.Context, config *configs.Config) error {
 	//var pastelid string
@@ -1090,7 +1138,7 @@ func runMasterNodeOnColdHotSubCommand(ctx context.Context, config *configs.Confi
 	// ***************  5. Enable Masternode  ***************
 	// Get conf data from masternode.conf File
 	var extIP string
-	if _, extIP, _, _, err = getStartInfo(ctx, config, flagMasterNodeName); err != nil {
+	if _, extIP, _, _, err = getMasternodeConfData(ctx, config, flagMasterNodeName); err != nil {
 		return err
 	}
 

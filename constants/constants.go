@@ -247,7 +247,7 @@ var DependenciesPackagesWalletDDService = map[OSType][]string{
 // DependenciesPackagesWalletNode defines some dependencies for walletnode
 var DependenciesPackagesWalletNode = map[OSType][]string{
 	Linux:   {"wget", "curl", "libgomp1"},
-	Mac:     {"wget", "curl"},
+	Mac:     {},
 	Windows: {},
 	Unknown: {},
 }
@@ -255,7 +255,7 @@ var DependenciesPackagesWalletNode = map[OSType][]string{
 // DependenciesPackagesSuperNode defines some dependencies for supernode
 var DependenciesPackagesSuperNode = map[OSType][]string{
 	Linux:   {"wget", "curl", "libgomp1", "ufw", "python3-pip"},
-	Mac:     {"wget", "curl", "ipfw"},
+	Mac:     {},
 	Windows: {},
 	Unknown: {},
 }
@@ -263,7 +263,7 @@ var DependenciesPackagesSuperNode = map[OSType][]string{
 // DependenciesPackagesPastelD defines some dependencies for pasteld
 var DependenciesPackagesPastelD = map[OSType][]string{
 	Linux:   {"wget", "curl", "libgomp1"},
-	Mac:     {"wget", "curl"},
+	Mac:     {},
 	Windows: {},
 	Unknown: {},
 }

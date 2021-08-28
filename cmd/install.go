@@ -538,17 +538,17 @@ func checkInstalledPackages(ctx context.Context, tool constants.ToolType) (err e
 		return fmt.Errorf("missing required pkgs: %s", pkgsStr)
 	}
 
-	return installMissingReqPackagesLinux(notInstall)
+	return installMissingReqPackagesLinux(ctx, notInstall)
 }
 
-func installMissingReqPackagesLinux(pkgs []string) error {
-	log.WithField("packages", strings.Join(pkgs, ",")).
+func installMissingReqPackagesLinux(ctx context.Context, pkgs []string) error {
+	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
 		Info("system will now install missing packages")
 
 	for _, pkg := range pkgs {
 		out, err := RunCMD("sudo", "apt", "install", "-y", pkg)
 		if err != nil {
-			log.WithFields(log.Fields{"message": out, "package": pkg}).
+			log.WithContext(ctx).WithFields(log.Fields{"message": out, "package": pkg}).
 				WithError(err).Error("unable to install required package")
 
 			return fmt.Errorf("err installing required pkg : %s - err: %s", pkg, err)

@@ -163,7 +163,7 @@ func setupStartSubCommand(config *configs.Config,
 		commandMessage = "Start supernode"
 	case superNodeColdHotStart:
 		commandFlags = append(append(superNodeFlags, commonFlags[:]...), superNodeColdHotFlags[:]...)
-		commandName = string(constants.SuperNode)+"-coldhot"
+		commandName = string(constants.SuperNode) + "-coldhot"
 		commandMessage = "Start supernode in Cold/Hod mode"
 	case rqService:
 		commandFlags = commonFlags
@@ -175,11 +175,11 @@ func setupStartSubCommand(config *configs.Config,
 		commandMessage = "Start dupe detection service only"
 	case wnService:
 		commandFlags = commonFlags
-		commandName = string(constants.WalletNode)+"-service"
+		commandName = string(constants.WalletNode) + "-service"
 		commandMessage = "Start WalletNode service only"
 	case snService:
 		commandFlags = commonFlags
-		commandName = string(constants.SuperNode)+"-service"
+		commandName = string(constants.SuperNode) + "-service"
 		commandMessage = "Start SuperNode service only"
 	default:
 		commandFlags = append(append(walletNodeFlags, commonFlags[:]...), superNodeFlags[:]...)

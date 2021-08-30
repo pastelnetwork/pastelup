@@ -64,7 +64,7 @@ func setupPingCommand() *cli.Command {
 	return pingCommand
 }
 
-func runPingSuperNode(ctx context.Context, config *configs.Config) error {
+func runPingSuperNode(ctx context.Context, _ *configs.Config) error {
 
 	if len(superNodeIP) == 0 {
 		return fmt.Errorf("--ip <IP address> - Required, ip address of service")
@@ -89,21 +89,19 @@ func runPingSuperNode(ctx context.Context, config *configs.Config) error {
 	}
 	defer conn.Close()
 	client := pb.NewHealthCheckClient(conn)
-
 	log.WithContext(ctx).Info("Connected successful to supernode service ")
 
-	log.WithContext(ctx).Info("Sending ping command...")
 	// Send ping request
+	log.WithContext(ctx).Info("Sending ping command...")
+
 	subCtx, cancel = context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	res, err := client.Ping(subCtx, &pb.PingRequest{Msg: "hello"})
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to send ping command ")
 		return err
-	} else {
-		log.WithContext(ctx).Infof("Ping sucessfully, received reply: %s", res.Reply)
 	}
+	log.WithContext(ctx).Infof("Ping sucessfully, received reply: %s", res.Reply)
 
 	return nil
-
 }

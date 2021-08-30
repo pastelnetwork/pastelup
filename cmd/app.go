@@ -2,14 +2,15 @@ package cmd
 
 import (
 	"context"
+	"io"
+	"io/ioutil"
+
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/gonode/common/version"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pkg/errors"
-	"io"
-	"io/ioutil"
 )
 
 const (
@@ -39,6 +40,7 @@ func NewApp() *cli.App {
 		setupShowCommand(),
 		setupUpdateCommand(),
 		setupInfoCommand(),
+		setupPingCommand(),
 	)
 
 	return app

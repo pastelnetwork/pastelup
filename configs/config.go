@@ -11,59 +11,56 @@ import (
 const (
 	// WalletDefaultConfig - default config for walletnode
 	WalletDefaultConfig = `
+log-level: {{.LogLevel}}
+log-file: {{.LogFilePath}}
+quiet: true
+temp-dir: {{.WNTempDir}}
+work-dir: {{.WNWorkDir}}
+rq-files-dir: {{.RQDir}}
+
 node:
   api:
     hostname: "localhost"
     port: 8080
-  reg_art_tx_min_confirmations: 10
-  # Timeout waiting for 
-  reg_art_tx_timeout: 26
-  reg_act_tx_min_confirmations: 5 
-  # Timeout waiting for 
-  reg_act_tx_timeout: 13
+  burn_address: {{.BurnAddress}} 
 raptorq:
-  hostname: "localhost"
+  host: "localhost"
   port: {{.RaptorqPort}}
 `
 
 	// SupernodeDefaultConfig - default config for supernode
 	SupernodeDefaultConfig = `
+log-level: {{.LogLevel}}
+log-file: {{.LogFilePath}}
+quiet: true
+temp-dir: {{.SNTempDir}}
+work-dir: {{.SNWorkDir}}
+rq-files-dir: {{.RQDir}}
+dd-service-dir: {{.DDDir}}
+
 node:
   pastel_id: {{.PasteID}} 
   pass_phrase: {{.Passphrase}}
-  preburnt_tx_min_confirmation: 3
-  preburnt_tx_confirmation_timeout: 8 
   server:
     listen_addresses: "0.0.0.0"
     port: {{.SuperNodePort}}
-  userdata_process:
-    number_super_nodes: 3
-    minimal_node_confirm_success: 2
 
 p2p:
   listen_address: "0.0.0.0"
   port: {{.P2PPort}}
-  data_dir: {{.P2PPortDataDir}}
+  data_dir: {{.P2PDataDir}}
 
 metadb:
+  # is_leader: false
+  # none_voter: true
   listen_address: "0.0.0.0"
   http_port: {{.MDLPort}}
   raft_port: {{.RAFTPort}}
   data_dir: {{.MDLDataDir}}
 
-userdb:
-  schema-path: {{.MDLDataDir}}/schema_v1.sql
-  write-template-path: {{.MDLDataDir}}/user_info_write.tmpl
-  query-template-path: {{.MDLDataDir}}/user_info_query.tmpl
-
 raptorq:
-  hostname: "localhost"
+  host: "localhost"
   port: {{.RaptorqPort}}
-
-dupe-detection:
-  input_dir: "input"
-  output_dir: "output"
-  data_file: "dupe_detection_support_files/dupe_detection_image_fingerprint_database.sqlite"
 `
 
 	// RQServiceDefaultConfig - default rqserivce config
@@ -86,20 +83,32 @@ nsfw_model_path = %s/
 
 // WalletNodeConfig defines configurations for walletnode
 type WalletNodeConfig struct {
+	LogLevel    string
+	LogFilePath string
+	WNTempDir   string
+	WNWorkDir   string
+	RQDir       string
 	RaptorqPort int
+	BurnAddress string
 }
 
 // SuperNodeConfig defines configurations for supernode
 type SuperNodeConfig struct {
-	PasteID        string
-	Passphrase     string
-	SuperNodePort  int
-	P2PPort        int
-	P2PPortDataDir string
-	MDLPort        int
-	RAFTPort       int
-	MDLDataDir     string
-	RaptorqPort    int
+	LogLevel      string
+	LogFilePath   string
+	SNTempDir     string
+	SNWorkDir     string
+	RQDir         string
+	DDDir         string
+	PasteID       string
+	Passphrase    string
+	SuperNodePort int
+	P2PPort       int
+	P2PDataDir    string
+	MDLPort       int
+	RAFTPort      int
+	MDLDataDir    string
+	RaptorqPort   int
 }
 
 // RQServiceConfig defines configurations for rqservice

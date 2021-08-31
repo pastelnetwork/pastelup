@@ -11,13 +11,20 @@ import (
 const (
 	// WalletDefaultConfig - default config for walletnode
 	WalletDefaultConfig = `
+log-level: {{.LogLevel}}
+log-file: {{.LogFilePath}}
+quiet: true
+temp-dir: {{.WNTempDir}}
+work-dir: {{.WNWorkDir}}
+rq-files-dir: {{.RQDir}}
+
 node:
   api:
     hostname: "localhost"
     port: 8080
-  	burn_address: {{.BurnAddress}} 
+  burn_address: {{.BurnAddress}} 
 raptorq:
-  hostname: "localhost"
+  host: "localhost"
   port: {{.RaptorqPort}}
 `
 
@@ -76,6 +83,11 @@ nsfw_model_path = %s/
 
 // WalletNodeConfig defines configurations for walletnode
 type WalletNodeConfig struct {
+	LogLevel      string
+	LogFilePath   string
+	WNTempDir     string
+	WNWorkDir     string
+	RQDir         string
 	RaptorqPort int
 	BurnAddress string
 }

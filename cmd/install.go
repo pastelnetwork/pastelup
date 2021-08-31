@@ -397,7 +397,15 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			burnAddress = constants.BurnAddressTestnet
 		}
 
+		wnTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
+		rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
+
 		toolConfig, err := utils.GetServiceConfig(constants.WalletNode, configs.WalletDefaultConfig, &configs.WalletNodeConfig{
+			LogLevel: constants.WalletNodeDefaultLogLevel,
+			LogFilePath: config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
+			WNTempDir: wnTempDirPath,
+			WNWorkDir: config.WorkingDir,
+			RQDir: rqWorkDirPath,
 			BurnAddress: burnAddress,
 			RaptorqPort: constants.RRServiceDefaultPort,
 		})

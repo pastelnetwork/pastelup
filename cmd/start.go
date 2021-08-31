@@ -23,14 +23,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	// errSubCommandRequired             = fmt.Errorf("subcommand is required")
-	errNotFoundPastelCli              = fmt.Errorf("cannot find pastel-cli on SSH server")
-	errNotFoundRemotePastelUtilityDir = fmt.Errorf("cannot find remote pastel-utility dir")
-	errNotStartPasteld                = fmt.Errorf("pasteld was not started")
-	errMasternodeStartAlias           = fmt.Errorf("masternode start alias failed")
-)
-
 /*var (
 	wg sync.WaitGroup
 )
@@ -314,8 +306,9 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 	go RunCMD(pastelDPath, pasteldArgs...)
 
 	if !checkPastelDRunning(ctx, config) {
+		err = fmt.Errorf("pasteld was not started")
 		log.WithContext(ctx).WithError(err).Error("pasteld didn't start")
-		return errNotStartPasteld
+		return err
 	}
 
 	return nil
@@ -974,8 +967,9 @@ func runStartAliasMasternode(ctx context.Context, config *configs.Config, master
 	}
 
 	if aliasStatus["result"] == "failed" {
-		log.WithContext(ctx).Error(aliasStatus["errorMessage"])
-		return errMasternodeStartAlias
+		err = fmt.Errorf("masternode start alias failed")
+		log.WithContext(ctx).WithError(err).Error(aliasStatus["errorMessage"])
+		return err
 	}
 
 	log.WithContext(ctx).Infof("masternode alias status = %s\n", output)
@@ -1086,7 +1080,9 @@ func runMasterNodeOnColdHotSubCommand(ctx context.Context, config *configs.Confi
 	var err error
 
 	if len(config.RemotePastelUtilityDir) == 0 {
-		return errNotFoundRemotePastelUtilityDir
+		err = fmt.Errorf("cannot find remote pastel-utility dir")
+		log.WithContext(ctx).WithError(err).Error("Remote configuration error")
+		return err
 	}
 
 	log.WithContext(ctx).Info("Checking parameters...")
@@ -1236,7 +1232,9 @@ func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, username str
 	pastelCliPaths := strings.Split(string(out), "\n")
 
 	if len(pastelCliPaths) == 0 {
-		return errNotFoundPastelCli
+		err = fmt.Errorf("cannot find pastel-cli on SSH server")
+		log.WithContext(ctx).WithError(err).Error("Remote configuration error")
+		return err
 	}
 
 	pastelCliPath = pastelCliPaths[0]

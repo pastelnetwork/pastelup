@@ -364,7 +364,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
 		toolConfig, err := utils.GetServiceConfig(constants.RQService, configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
 			HostName: "127.0.0.1",
-			Port:     50051,
+			Port:     constants.RRServiceDefaultPort,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get rqservice config: %v", err)
@@ -391,8 +391,15 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	// install WalletNode and its config
 	if installCommand == constants.WalletNode {
 		toolPath := constants.WalletNodeExecName[utils.GetOS()]
+
+		burnAddress := constants.BurnAddressMainnet
+		if config.Network == constants.NetworkTestnet {
+			burnAddress = constants.BurnAddressTestnet
+		}
+
 		toolConfig, err := utils.GetServiceConfig(constants.WalletNode, configs.WalletDefaultConfig, &configs.WalletNodeConfig{
-			RaptorqPort: 50051,
+			BurnAddress: burnAddress,
+			RaptorqPort: constants.RRServiceDefaultPort,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get walletnode config: %v", err)
@@ -420,23 +427,31 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		// install SuperNode, dd-service and their configs; open ports
 		portList := GetSNPortList(config)
 
-		//FIXME: this has to be from command line parameters
-		p2pDataPath := filepath.Join(config.WorkingDir, "p2pdata")
-		mdlDataPath := filepath.Join(config.WorkingDir, "mdldata")
+		snTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
+		rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
+		p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
+		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
 
-		toolPath := constants.SuperNodeExecName[utils.GetOS()]
 		toolConfig, err := utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			SuperNodePort:  portList[constants.SNPort],
-			P2PPort:        portList[constants.P2PPort],
-			P2PPortDataDir: p2pDataPath,
-			MDLPort:        portList[constants.MDLPort],
-			RAFTPort:       portList[constants.RAFTPort],
-			MDLDataDir:     mdlDataPath,
-			RaptorqPort:    50051,
+			LogLevel:      constants.SuperNodeDefaultLogLevel,
+			LogFilePath:   config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
+			SNTempDir:     snTempDirPath,
+			SNWorkDir:     config.WorkingDir,
+			RQDir:         rqWorkDirPath,
+			DDDir:         filepath.Join(config.Configurer.GetHomeDir(), constants.DupeDetectionServiceDir),
+			SuperNodePort: portList[constants.SNPort],
+			P2PPort:       portList[constants.P2PPort],
+			P2PDataDir:    p2pDataPath,
+			MDLPort:       portList[constants.MDLPort],
+			RAFTPort:      portList[constants.RAFTPort],
+			MDLDataDir:    mdlDataPath,
+			RaptorqPort:   constants.RRServiceDefaultPort,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get supernode config: %v", err)
 		}
+
+		toolPath := constants.SuperNodeExecName[utils.GetOS()]
 
 		if err = downloadComponents(ctx, config, constants.SuperNode, config.Version); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
@@ -457,6 +472,16 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 
 		if err = installDupeDetection(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
+			return err
+		}
+
+		if err := utils.CreateFolder(ctx, snTempDirPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", snTempDirPath)
+			return err
+		}
+
+		if err := utils.CreateFolder(ctx, rqWorkDirPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", rqWorkDirPath)
 			return err
 		}
 
@@ -820,7 +845,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
-	ddBaseDir := filepath.Join(config.Configurer.GetHomeDir(), "pastel_dupe_detection_service")
+	ddBaseDir := filepath.Join(config.Configurer.GetHomeDir(), constants.DupeDetectionServiceDir)
 	var pathList []interface{}
 	for _, configItem := range constants.DupeDetectionConfigs {
 		dupeDetectionDirPath := filepath.Join(ddBaseDir, configItem)

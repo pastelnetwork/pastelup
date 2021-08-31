@@ -71,6 +71,30 @@ const (
 	NetworkTestnet = "testnet"
 	// NetworkMainnet defines mainnet network mode
 	NetworkMainnet = "mainnet"
+	// BurnAddressTestnet defines testnet burn address
+	BurnAddressTestnet = "tPpasteLBurnAddressXXXXXXXXXXX3wy7u"
+	// BurnAddressMainnet defines mainnet burn address
+	BurnAddressMainnet = "PtpasteLBurnAddressXXXXXXXXXXbJ5ndd"
+	// DupeDetectionServiceDir defines location for dupe detection service
+	DupeDetectionServiceDir = "pastel_dupe_detection_service"
+
+	// RQServiceDir defines location for rq-service file exchange dir
+	RQServiceDir = "rqfiles"
+	// P2PDataDir defines location for p2p data dir
+	P2PDataDir = "p2pdata"
+	// MDLDataDir defines location for MDL data dir
+	MDLDataDir = "mdldata"
+
+	// SuperNodeDefaultLogLevel defines supernode log level
+	SuperNodeDefaultLogLevel = "error"
+	// WalletNodeDefaultLogLevel defines walletnode log level
+	WalletNodeDefaultLogLevel = "info"
+
+	// RRServiceDefaultPort defines rqservice port
+	RRServiceDefaultPort = 50051
+
+	// TempDir defines temporary directory
+	TempDir = "tmp"
 )
 
 // ServiceName defines services name
@@ -270,7 +294,7 @@ var DependenciesPackagesPastelD = map[OSType][]string{
 
 // DependenciesDupeDetectionPackages is dependencies for dupe detection service
 var DependenciesDupeDetectionPackages = []string{
-	"xgboost", "hyppo", "zstandard", "tensorflow", "pandas",
+	"xgboost", "numpy==1.19.2", "hyppo", "zstandard", "tensorflow", "pandas",
 	"scipy", "scikit-learn", "matplotlib", "watchdog",
 	"chromedriver_autoinstaller", "selenium", "Pillow",
 	"opennsfw-standalone", "tensorflow_hub", "imagehash", "psutil",

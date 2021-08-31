@@ -52,7 +52,7 @@ metadb:
   data_dir: {{.MDLDataDir}}
 
 raptorq:
-  hostname: "localhost"
+  host: "localhost"
   port: {{.RaptorqPort}}
 `
 

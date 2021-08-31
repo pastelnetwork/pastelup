@@ -401,11 +401,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
 
 		toolConfig, err := utils.GetServiceConfig(constants.WalletNode, configs.WalletDefaultConfig, &configs.WalletNodeConfig{
-			LogLevel: constants.WalletNodeDefaultLogLevel,
+			LogLevel:    constants.WalletNodeDefaultLogLevel,
 			LogFilePath: config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
-			WNTempDir: wnTempDirPath,
-			WNWorkDir: config.WorkingDir,
-			RQDir: rqWorkDirPath,
+			WNTempDir:   wnTempDirPath,
+			WNWorkDir:   config.WorkingDir,
+			RQDir:       rqWorkDirPath,
 			BurnAddress: burnAddress,
 			RaptorqPort: constants.RRServiceDefaultPort,
 		})

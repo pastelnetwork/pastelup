@@ -83,11 +83,11 @@ nsfw_model_path = %s/
 
 // WalletNodeConfig defines configurations for walletnode
 type WalletNodeConfig struct {
-	LogLevel      string
-	LogFilePath   string
-	WNTempDir     string
-	WNWorkDir     string
-	RQDir         string
+	LogLevel    string
+	LogFilePath string
+	WNTempDir   string
+	WNWorkDir   string
+	RQDir       string
 	RaptorqPort int
 	BurnAddress string
 }

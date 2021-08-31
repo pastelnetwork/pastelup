@@ -34,10 +34,10 @@ func setupPingCommand() *cli.Command {
 			SetUsage(red("Required, port of service")).SetRequired(),
 	}
 
-	superPingCommand := cli.NewCommand("supernode")
-	superPingCommand.SetUsage(cyan("check supernode healthcheck"))
-	superPingCommand.AddFlags(pingSuperCommandFlags...)
-	superPingCommand.SetActionFunc(func(ctx context.Context, _ []string) error {
+	pingSuperCommand := cli.NewCommand("supernode")
+	pingSuperCommand.SetUsage(cyan("check supernode healthcheck"))
+	pingSuperCommand.AddFlags(pingSuperCommandFlags...)
+	pingSuperCommand.SetActionFunc(func(ctx context.Context, _ []string) error {
 		ctx, err := configureLogging(ctx, "ping ", config)
 		if err != nil {
 			//Logger doesn't exist
@@ -60,7 +60,7 @@ func setupPingCommand() *cli.Command {
 		return nil
 	})
 
-	pingCommand.AddSubcommands(superPingCommand)
+	pingCommand.AddSubcommands(pingSuperCommand)
 	return pingCommand
 }
 

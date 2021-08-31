@@ -631,7 +631,8 @@ func processArchive(ctx context.Context, dstFolder string, archivePath string) e
 }
 
 func makeExecutable(ctx context.Context, dirPath string, fileName string) error {
-	if utils.GetOS() == constants.Linux {
+	if utils.GetOS() == constants.Linux ||
+		utils.GetOS() == constants.Mac {
 		filePath := filepath.Join(dirPath, fileName)
 		if _, err := RunCMD("chmod", "755", filePath); err != nil {
 			log.WithContext(ctx).Errorf("Failed to make %s as executable", filePath)

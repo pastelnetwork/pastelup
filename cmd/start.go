@@ -765,10 +765,10 @@ func checkCollateral(ctx context.Context, config *configs.Config) (err error) {
 					arr = append(arr, txid)
 					n++
 				}
-				_, strNum := AskUserToContinue(ctx, fmt.Sprintf("Enter number to use, or N to exit"))
+				_, strNum := AskUserToContinue(ctx, "Enter number to use, or N to exit")
 				dNum, err := strconv.Atoi(strNum)
-				if err != nil || dNum < 0 || dNum >= n  {
-					err = fmt.Errorf("User terminated - no collateral funds")
+				if err != nil || dNum < 0 || dNum >= n {
+					err = fmt.Errorf("user terminated - no collateral funds")
 					log.WithContext(ctx).WithError(err).Error("No collateral funds - exiting")
 					return err
 				}

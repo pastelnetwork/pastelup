@@ -223,10 +223,13 @@ func RunCMDWithInteractive(command string, args ...string) error {
 func FindRunningProcessPid(searchTerm string) (int, error) {
 
 	if output, err := FindRunningProcess(searchTerm); len(output) != 0 {
+		output = strings.Trim(output, " ")
 		items := strings.Split(output, " ")
-		if len(items) > 2 {
-			if pid, err := strconv.Atoi(items[1]); err == nil {
-				return pid, nil
+		for i := 0; i < 3; i++ {
+			if len(items) > i {
+				if pid, err := strconv.Atoi(items[i]); err == nil {
+					return pid, nil
+				}
 			}
 		}
 	} else if err != nil {

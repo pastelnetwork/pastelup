@@ -638,7 +638,7 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 
 	bReIndex := true // if masternode.conf exist pasteld MUST be start with reindex flag
 	if flagMasterNodeIsCreate {
-		if _, _, err = backupConfFile(config); err != nil {
+		if _, err = backupConfFile(config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to backup masternode.conf")
 			return err
 		}
@@ -789,7 +789,7 @@ func getCollateral(ctx context.Context, config *configs.Config) error {
 }
 
 ///// masternode.conf helpers
-func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) (err error) {
+func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) error {
 
 	// this function must only be called when --create or --update
 	if !flagMasterNodeIsCreate && !flagMasterNodeIsUpdate {
@@ -808,46 +808,59 @@ func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) (
 			"extKey":     flagMasterNodePastelID,
 		},
 	}
+	data, err := json.Marshal(confData)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Invalid new masternode.conf data")
+		return err
+	}
 
 	if flagMasterNodeIsCreate {
-		data, _ := json.Marshal(confData)
 		// Create masternode.conf file
-		if err = createConfFile(data, config); err != nil {
+		if err := createConfFile(ctx, config, data); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to create new masternode.conf file")
 			return err
 		}
 	} else if flagMasterNodeIsUpdate {
 		// Create masternode.conf file
-		if _, err = updateMasternodeConfFile(confData, config); err != nil {
+		if err := updateMasternodeConfFile(ctx, confData, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to update existing masternode.conf file")
 			return err
 		}
 	}
 
-	data, _ := json.Marshal(confData)
 	log.WithContext(ctx).Infof("masternode.conf = %s", string(data))
 
 	return nil
 }
 
-func createConfFile(confData []byte, config *configs.Config) (err error) {
+func createConfFile(ctx context.Context, config *configs.Config, confData []byte) error {
 
-	var masternodeConfPath string
-	if masternodeConfPath, _, err = backupConfFile(config); err != nil {
+	masternodeConfPath, err := backupConfFile(config)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to backup previous masternode.conf file")
 		return err
 	}
 
 	confFile, err := os.Create(masternodeConfPath)
-	confFile.Write(confData)
 	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to create new masternode.conf file")
 		return err
 	}
 	defer confFile.Close()
 
+	_, err = confFile.Write(confData)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to write data in the new masternode.conf file")
+		return err
+	}
+
 	return nil
 }
 
-func backupConfFile(config *configs.Config) (masternodeConfPath string, masternodeConfPathBackup string, err error) {
+func backupConfFile(config *configs.Config) (masternodeConfPath string, err error) {
 	workDirPath := config.WorkingDir
 
+	var masternodeConfPathBackup string
 	if config.Network == constants.NetworkTestnet {
 		masternodeConfPath = filepath.Join(workDirPath, "testnet3", "masternode.conf")
 		masternodeConfPathBackup = filepath.Join(workDirPath, "testnet3", "masternode_%s.conf")
@@ -860,19 +873,19 @@ func backupConfFile(config *configs.Config) (masternodeConfPath string, masterno
 		currentTime := time.Now()
 		backupFileName := fmt.Sprintf(masternodeConfPathBackup, currentTime.Format("2021-01-01-23-59-59"))
 		if err := os.Rename(oldFileName, backupFileName); err != nil {
-			return "", "", err
+			return "", err
 		}
 		if _, err := os.Stat(masternodeConfPath); err == nil { // delete after back up if still exist
 			if err = os.Remove(masternodeConfPath); err != nil {
-				return "", "", err
+				return "", err
 			}
 		}
 	}
 
-	return masternodeConfPath, masternodeConfPathBackup, nil
+	return masternodeConfPath, nil
 }
 
-func updateMasternodeConfFile(confData map[string]interface{}, config *configs.Config) (result bool, err error) {
+func updateMasternodeConfFile(ctx context.Context, confData map[string]interface{}, config *configs.Config) error {
 	workDirPath := config.WorkingDir
 	var masternodeConfPath string
 
@@ -885,12 +898,17 @@ func updateMasternodeConfFile(confData map[string]interface{}, config *configs.C
 	// Read ConfData from masternode.conf
 	confFile, err := ioutil.ReadFile(masternodeConfPath)
 	if err != nil {
-		return false, err
+		log.WithContext(ctx).WithError(err).Errorf("Failed to read existing masternode.conf file - %s", masternodeConfPath)
+		return err
 	}
 
 	var conf map[string]interface{}
 
-	json.Unmarshal([]byte(confFile), &conf)
+	err = json.Unmarshal(confFile, &conf)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Invalid updated masternode.conf file - %s", masternodeConfPath)
+		return err
+	}
 
 	for k := range confData {
 		if conf[k] != nil {
@@ -899,7 +917,6 @@ func updateMasternodeConfFile(confData map[string]interface{}, config *configs.C
 			for itemKey := range confDataValue {
 				if len(confDataValue[itemKey]) != 0 {
 					confValue[itemKey] = confDataValue[itemKey]
-
 				}
 			}
 		}
@@ -907,14 +924,16 @@ func updateMasternodeConfFile(confData map[string]interface{}, config *configs.C
 
 	var updatedConf []byte
 	if updatedConf, err = json.Marshal(conf); err != nil {
-		return false, err
+		log.WithContext(ctx).WithError(err).Error("Invalid masternode.conf data")
+		return err
 	}
 
 	if ioutil.WriteFile(masternodeConfPath, updatedConf, 0644) != nil {
-		return false, err
+		log.WithContext(ctx).WithError(err).Error("Failed to write masternode.conf")
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
 func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string) (privKey string,

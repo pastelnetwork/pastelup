@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	errors2 "github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-errors/errors"
 	ps "github.com/mitchellh/go-ps"
@@ -321,4 +323,98 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 		return getifno, err
 	}
 	return getifno, nil
+}
+
+// CheckPastelDRunning whether pasteld is running
+func CheckPastelDRunning(ctx context.Context, config *configs.Config) (ret bool) {
+	var failCnt = 0
+	var err error
+
+	log.WithContext(ctx).Info("Waiting the pasteld to be started...")
+
+	for {
+		if _, err = RunPastelCLI(ctx, config, "getinfo"); err != nil {
+			time.Sleep(10000 * time.Millisecond)
+			failCnt++
+			if failCnt == 10 {
+				return false
+			}
+		} else {
+			break
+		}
+	}
+
+	log.WithContext(ctx).Info("pasteld was started successfully")
+	return true
+}
+
+// StopPastelDAndWait sends stop command to pasteld and waits 10 seconds
+func StopPastelDAndWait(ctx context.Context, config *configs.Config) (err error) {
+	log.WithContext(ctx).Info("Stopping pasteld...")
+	if _, err = RunPastelCLI(ctx, config, "stop"); err != nil {
+		return err
+	}
+
+	time.Sleep(10000 * time.Millisecond)
+	log.WithContext(ctx).Info("Stopped pasteld")
+	return nil
+}
+
+// CheckMasterNodeSync checks and waits until mnsync is "Finished"
+func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (err error) {
+	for {
+
+		mnstatus, err := GetMNSyncInfo(ctx, config)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("master node mnsync status call has failed")
+			return err
+		}
+
+		if mnstatus.AssetName == "Initial" {
+			if _, err = RunPastelCLI(ctx, config, "mnsync", "reset"); err != nil {
+				log.WithContext(ctx).WithError(err).Error("master node reset has failed")
+				return err
+			}
+			time.Sleep(10000 * time.Millisecond)
+		}
+		if mnstatus.IsSynced {
+			log.WithContext(ctx).Info("master node was synced!")
+			break
+		}
+		log.WithContext(ctx).Info("Waiting for sync...")
+
+		getinfo, err := GetPastelInfo(ctx, config)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("master node getinfo call has failed")
+			return err
+		}
+		log.WithContext(ctx).Infof("Loading blocks - block #%d; Node has %d connection", getinfo.Blocks, getinfo.Connections)
+
+		time.Sleep(10000 * time.Millisecond)
+	}
+
+	return nil
+}
+
+// CheckZksnarkParams validates Zksnark files
+func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Checking pastel param files...")
+
+	zksnarkPath := config.Configurer.DefaultZksnarkDir()
+
+	for _, zksnarkParamsName := range configs.ZksnarkParamsNames {
+		zksnarkParamsPath := filepath.Join(zksnarkPath, zksnarkParamsName)
+
+		log.WithContext(ctx).Infof("Checking pastel param file : %s", zksnarkParamsPath)
+		checkSum, err := utils.GetChecksum(ctx, zksnarkParamsPath)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to check param file : %s", zksnarkParamsPath)
+			return err
+		} else if checkSum != constants.PastelParamsCheckSums[zksnarkParamsName] {
+			log.WithContext(ctx).Errorf("Wrong checksum of the pastel param file: %s", zksnarkParamsPath)
+			return errors2.Errorf("Wrong checksum of the pastel param file: %s", zksnarkParamsPath)
+		}
+	}
+
+	return nil
 }

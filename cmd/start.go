@@ -706,9 +706,10 @@ func checkMasternodePrivKey(ctx context.Context, config *configs.Config) error {
 func checkPassphrase(ctx context.Context) error {
 	if len(flagMasterNodePassPhrase) == 0 {
 
-		var yes bool
-		if yes, flagMasterNodePassPhrase = AskUserToContinue(ctx, "No --passphrase provided."+
-			"Please type new passphrase and press Enter. Or N to exit"); !yes {
+		_, flagMasterNodePassPhrase = AskUserToContinue(ctx, "No --passphrase provided."+
+			" Please type new passphrase and press Enter. Or N to exit")
+		if strings.EqualFold(flagMasterNodePassPhrase, "n") ||
+			len(flagMasterNodePassPhrase) == 0 {
 
 			flagMasterNodePassPhrase = ""
 			err := fmt.Errorf("required parameter if --create or --update specified: --passphrase <passphrase to pastelid private key>")
@@ -716,11 +717,69 @@ func checkPassphrase(ctx context.Context) error {
 			return err
 		}
 	}
-	log.WithContext(ctx).Infof(red("passphrase - %s", flagMasterNodePassPhrase))
+	log.WithContext(ctx).Infof(red(fmt.Sprintf("passphrase - %s", flagMasterNodePassPhrase)))
 	return nil
 }
 
-func checkCollateral(ctx context.Context, config *configs.Config) error {
+func getMasternodeOutputs(ctx context.Context, config *configs.Config) (map[string]string, error) {
+
+	var mnOutputs map[string]string
+	outputs, err := RunPastelCLI(ctx, config, "masternode", "outputs")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to get masternode outputs from pasteld")
+		return nil, err
+	}
+	if len(outputs) != 0 {
+		if err := json.Unmarshal([]byte(outputs), &mnOutputs); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to parse masternode outputs json")
+			return nil, err
+		}
+	}
+	return mnOutputs, nil
+}
+
+func checkCollateral(ctx context.Context, config *configs.Config) (err error) {
+
+	var address string
+
+	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
+
+		log.WithContext(ctx).Warn(red("No collateral --txid and/or --ind provided"))
+		yes, _ := AskUserToContinue(ctx, "Search existing masternode collateral ready transaction in the wallet? Y/N")
+
+		if yes {
+
+			var mnOutputs map[string]string
+			mnOutputs, err = getMasternodeOutputs(ctx, config)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed")
+				return err
+			}
+
+			if len(mnOutputs) > 0 {
+
+				n := 0
+				arr := []string{}
+				for txid, txind := range mnOutputs {
+					log.WithContext(ctx).Warn(red(fmt.Sprintf("%d - %s:%s", n, txid, txind)))
+					arr = append(arr, txid)
+					n++
+				}
+				_, strNum := AskUserToContinue(ctx, fmt.Sprintf("Enter number to use, or N to exit"))
+				dNum, err := strconv.Atoi(strNum)
+				if err != nil || dNum < 0 || dNum >= n  {
+					err = fmt.Errorf("User terminated - no collateral funds")
+					log.WithContext(ctx).WithError(err).Error("No collateral funds - exiting")
+					return err
+				}
+
+				flagMasterNodeTxID = arr[dNum]
+				flagMasterNodeInd = mnOutputs[flagMasterNodeTxID]
+			} else {
+				log.WithContext(ctx).Warn(red("No existing collateral ready transactions"))
+			}
+		}
+	}
 
 	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
 
@@ -731,51 +790,46 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 			collateralCoins = "LSP"
 		}
 
-		log.WithContext(ctx).Warn(red("No collateral --txid and/or --ind provided"))
-		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Do you want to generate new local address and send %sM %s to it from another wallet? Y/N",
-			collateralAmount, collateralCoins)); !yes {
+		yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Do you want to generate new local address and send %sM %s to it from another wallet? Y/N",
+			collateralAmount, collateralCoins))
 
-			err := fmt.Errorf("no collateral funds")
+		if !yes {
+			err = fmt.Errorf("no collateral funds")
 			log.WithContext(ctx).WithError(err).Error("No collateral funds - exiting")
 			return err
 		}
-		address, err := RunPastelCLI(ctx, config, "getnewaddress")
+		address, err = RunPastelCLI(ctx, config, "getnewaddress")
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get new address")
 			return err
 		}
-		log.WithContext(ctx).Warnf(red("Your new address for collateral payment is [%s]", address))
-		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Use another wallet to send exactly %sM %s to that address. Press Y to continue when ready and N to exit - Y/N",
-			collateralAmount, collateralCoins)); !yes {
-
-			err := fmt.Errorf("user terminated")
-			log.WithContext(ctx).WithError(err).Error("Exiting")
-			return err
-		}
+		address = strings.Trim(address, "\n")
+		log.WithContext(ctx).Warnf(red(fmt.Sprintf("Your new address for collateral payment is %s", address)))
+		log.WithContext(ctx).Warnf(red(fmt.Sprintf("Use another wallet to send exactly %sM %s to that address.", collateralAmount, collateralCoins)))
+		_, newTxid := AskUserToContinue(ctx, "Enter txid of the send and press Enter to continue when ready")
+		flagMasterNodeTxID = strings.Trim(newTxid, "\n")
 	}
 
-	var mnOutputs map[string]string
 	for i := 1; i <= 10; i++ {
-		outputs, err := RunPastelCLI(ctx, config, "masternode", "outputs")
+
+		var mnOutputs map[string]string
+		mnOutputs, err = getMasternodeOutputs(ctx, config)
 		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to get masternode outputs from pasteld")
+			log.WithContext(ctx).WithError(err).Error("Failed")
 			return err
 		}
-		if len(outputs) != 0 {
-			if err := json.Unmarshal([]byte(outputs), &mnOutputs); err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to parse masternode outputs json")
-				return err
-			}
-			for txid, txind := range mnOutputs {
-				flagMasterNodeTxID = txid
-				flagMasterNodeInd = txind
-			}
+
+		txind, ok := mnOutputs[flagMasterNodeTxID]
+		if ok {
+			flagMasterNodeInd = txind
 			break
 		}
+
 		log.WithContext(ctx).Info("Waiting for transaction...")
 		time.Sleep(10000 * time.Millisecond)
 		if i == 10 {
-			if yes, _ := AskUserToContinue(ctx, "Still no collateral transaction. Continue? - Y/N"); !yes {
+			yes, _ := AskUserToContinue(ctx, "Still no collateral transaction. Continue? - Y/N")
+			if !yes {
 				err := fmt.Errorf("user terminated")
 				log.WithContext(ctx).WithError(err).Error("Exiting")
 				return err
@@ -784,8 +838,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 		}
 	}
 
-	ind, exist := mnOutputs[flagMasterNodeTxID]
-	if !exist || ind != flagMasterNodeInd {
+	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
 
 		err := errors.Errorf("Cannot find masternode outputs = %s:%s", flagMasterNodeTxID, flagMasterNodeInd)
 		log.WithContext(ctx).WithError(err).Error("Try again after some time")
@@ -793,7 +846,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 	}
 
 	// if receives PSL go to next step
-	log.WithContext(ctx).Infof(red("masternode outputs = %s, %s", flagMasterNodeTxID, flagMasterNodeInd))
+	log.WithContext(ctx).Infof(red(fmt.Sprintf("masternode outputs = %s, %s", flagMasterNodeTxID, flagMasterNodeInd)))
 	return nil
 }
 

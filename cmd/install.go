@@ -243,26 +243,24 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	if out, _ := client.Cmd(checkIfRunningCommand).Output(); len(out) != 0 {
 		log.WithContext(ctx).Info("Supernode is running on remote host")
 
-		if AskUserToContinue(ctx,
-			"Do you want to stop it and continue? Y/N") {
-
-			log.WithContext(ctx).Info("Stopping supernode services...")
-
-			stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", pastelUtilityPath)
-			err = client.ShellCmd(ctx, stopSuperNodeCmd)
-			if err != nil {
-				if config.Force {
-					log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
-				} else {
-					log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
-					return err
-				}
-			} else {
-				log.WithContext(ctx).Info("Supernode stopped")
-			}
-		} else {
+		if yes, _ := AskUserToContinue(ctx,
+			"Do you want to stop it and continue? Y/N"); !yes {
 			log.WithContext(ctx).Warn("Exiting...")
 			return fmt.Errorf("user terminated installation")
+		}
+
+		log.WithContext(ctx).Info("Stopping supernode services...")
+		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", pastelUtilityPath)
+		err = client.ShellCmd(ctx, stopSuperNodeCmd)
+		if err != nil {
+			if config.Force {
+				log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
+			} else {
+				log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
+				return err
+			}
+		} else {
+			log.WithContext(ctx).Info("Supernode stopped")
 		}
 	}
 
@@ -522,15 +520,17 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 
 	if err := utils.CreateFolder(ctx, installPath, config.Force); os.IsExist(err) {
 
-		if AskUserToContinue(ctx, fmt.Sprintf("%s - %s. Do you want continue to install? Y/N", err.Error(), installPath)) {
-			config.Force = true
-			if err = utils.CreateFolder(ctx, installPath, config.Force); err != nil {
-				log.WithContext(ctx).WithError(err).Error("Exiting...")
-				return fmt.Errorf("failed to create install directory - %s (%v)", installPath, err)
-			}
-		} else {
+		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("%s - %s. Do you want continue to install? Y/N",
+			err.Error(), installPath)); !yes {
+
 			log.WithContext(ctx).Warn("Exiting...")
 			return fmt.Errorf("user terminated installation")
+		}
+
+		config.Force = true
+		if err = utils.CreateFolder(ctx, installPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Exiting...")
+			return fmt.Errorf("failed to create install directory - %s (%v)", installPath, err)
 		}
 	} else if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Exiting...")

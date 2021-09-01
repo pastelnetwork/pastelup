@@ -552,20 +552,13 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 
 	// –create | –update - Optional, if specified, will create or update Masternode record in the masternode.conf. Following are the parameters of --create and/or --update:
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
-		if len(flagMasterNodeTxID) == 0 {
-			err := fmt.Errorf("required if create or update specified: --txid, transaction id of 5M collateral MN payment")
-			log.WithContext(ctx).WithError(err).Error("Missing parameter --txid")
+
+		if err := checkCollateral(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Missing collateral or parameters --txid or --ind")
 			return err
 		}
 
-		if len(flagMasterNodeInd) == 0 {
-			err := fmt.Errorf("required if create or update specified: --ind, output index in the transaction of 5M collateral MN payment")
-			log.WithContext(ctx).WithError(err).Error("Missing parameter --ind")
-			return err
-		}
-
-		if len(flagMasterNodePassPhrase) == 0 {
-			err := fmt.Errorf("required parameter if --create or --update specified: --passphrase <passphrase to pastelid private key>")
+		if err := checkPassphrase(ctx); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Missing parameter --passphrase")
 			return err
 		}
@@ -638,7 +631,7 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 
 	bReIndex := true // if masternode.conf exist pasteld MUST be start with reindex flag
 	if flagMasterNodeIsCreate {
-		if _, err = backupConfFile(config); err != nil {
+		if _, err = backupConfFile(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to backup masternode.conf")
 			return err
 		}
@@ -720,63 +713,88 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 	return StopPastelDAndWait(ctx, config)
 }
 
-func getCollateral(ctx context.Context, config *configs.Config) error {
+func checkPassphrase(ctx context.Context) error {
+	if len(flagMasterNodePassPhrase) == 0 {
 
-	var mnOutputs map[string]interface{}
+		var yes bool
+		if yes, flagMasterNodePassPhrase = AskUserToContinue(ctx, "No --passphrase provided."+
+			"Please type new passphrase and press Enter. Or N to exit"); !yes {
+
+			flagMasterNodePassPhrase = ""
+			err := fmt.Errorf("required parameter if --create or --update specified: --passphrase <passphrase to pastelid private key>")
+			log.WithContext(ctx).WithError(err).Error("User terminated - exiting")
+			return err
+		}
+	}
+	return nil
+}
+
+func checkCollateral(ctx context.Context, config *configs.Config) error {
+
 	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
 
+		collateralAmount := "5"
+		collateralCoins := "PSL"
+		if config.Network == constants.NetworkTestnet {
+			collateralAmount = "1"
+			collateralCoins = "LSP"
+		}
+
+		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("No collateral --txid and/or --ind provided."+
+			"Do you want to generate new local address and send %sM %s to it from another wallet? Y/N",
+			collateralAmount, collateralCoins)); !yes {
+
+			err := fmt.Errorf("no collateral funds")
+			log.WithContext(ctx).WithError(err).Error("No collateral funds - exiting")
+			return err
+		}
+		address, err := RunPastelCLI(ctx, config, "getnewaddress")
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to get new address")
+			return err
+		}
+		log.WithContext(ctx).Infof("Your new address for collateral payment is [%s]", address)
+		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Use another wallet to sent exactly %sM %s to that address. Press Y to continue when ready and N to exit - Y/N",
+			collateralAmount, collateralCoins)); !yes {
+
+			err := fmt.Errorf("user terminated")
+			log.WithContext(ctx).WithError(err).Error("Exiting")
+			return err
+		}
+	}
+
+	var mnOutputs map[string]string
+	for i := 1; i <= 10; i++ {
 		outputs, err := RunPastelCLI(ctx, config, "masternode", "outputs")
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get masternode outputs from pasteld")
 			return err
 		}
-		if len(outputs) == 0 {
-			collateralAmount := "5"
-			collateralCoins := "PSL"
-			if config.Network == constants.NetworkTestnet {
-				collateralAmount = "1"
-				collateralCoins = "LSP"
-			}
-
-			if !AskUserToContinue(ctx, fmt.Sprintf("No collateral transcations found"+
-				"Do you want to geenrate new local address and send %sM %s to it from another wallet? Y/N",
-				collateralAmount, collateralCoins)) {
-
-				log.WithContext(ctx).WithError(err).Error("No collateral funds - exiting")
-				return fmt.Errorf("No collateral funds")
-			}
-			address, err := RunPastelCLI(ctx, config, "getnewaddress")
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to get new address")
+		if len(outputs) != 0 {
+			if err := json.Unmarshal([]byte(outputs), &mnOutputs); err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to parse masternode outputs json")
 				return err
 			}
-			log.WithContext(ctx).Infof("Your new address for collateral payment is [%s]", address)
-			if AskUserToContinue(ctx, fmt.Sprintf("Use another wallet to sent exactly %sM %s to that address. Press Y to continue when ready and N to exit - Y/N",
-				collateralAmount, collateralCoins)) {
-
-				for i := 1; i < 10; i++ {
-					outputs, err = RunPastelCLI(ctx, config, "masternode", "outputs")
-					if err != nil {
-						log.WithContext(ctx).WithError(err).Error("Failed to get masternode outputs from pasteld")
-						return err
-					}
-					if len(outputs) != 0 {
-						break
-					}
-					log.WithContext(ctx).Info("Waiting for transaction...")
-					time.Sleep(10000 * time.Millisecond)
-				}
+			for txid, txind := range mnOutputs {
+				flagMasterNodeTxID = txid
+				flagMasterNodeInd = txind
 			}
+			break
 		}
-		if err := json.Unmarshal([]byte(outputs), &mnOutputs); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to parse masternode outputs json")
-			return err
+		log.WithContext(ctx).Info("Waiting for transaction...")
+		time.Sleep(10000 * time.Millisecond)
+		if i == 10 {
+			if yes, _ := AskUserToContinue(ctx, "Still no collateral transaction. Continue? - Y/N"); !yes {
+				err := fmt.Errorf("user terminated")
+				log.WithContext(ctx).WithError(err).Error("Exiting")
+				return err
+			}
+			i = 1
 		}
 	}
 
-	if len(mnOutputs) == 0 ||
-		mnOutputs[flagMasterNodeTxID] == nil ||
-		mnOutputs[flagMasterNodeTxID] != flagMasterNodeInd {
+	ind, exist := mnOutputs[flagMasterNodeTxID]
+	if !exist || ind != flagMasterNodeInd {
 
 		err := errors.Errorf("Cannot find masternode outputs = %s:%s", flagMasterNodeTxID, flagMasterNodeInd)
 		log.WithContext(ctx).WithError(err).Error("Try again after some time")
@@ -835,7 +853,7 @@ func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) e
 
 func createConfFile(ctx context.Context, config *configs.Config, confData []byte) error {
 
-	masternodeConfPath, err := backupConfFile(config)
+	masternodeConfPath, err := backupConfFile(ctx, config)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to backup previous masternode.conf file")
 		return err
@@ -857,7 +875,7 @@ func createConfFile(ctx context.Context, config *configs.Config, confData []byte
 	return nil
 }
 
-func backupConfFile(config *configs.Config) (masternodeConfPath string, err error) {
+func backupConfFile(ctx context.Context, config *configs.Config) (masternodeConfPath string, err error) {
 	workDirPath := config.WorkingDir
 
 	var masternodeConfPathBackup string
@@ -869,14 +887,24 @@ func backupConfFile(config *configs.Config) (masternodeConfPath string, err erro
 		masternodeConfPathBackup = filepath.Join(workDirPath, "masternode_%s.conf")
 	}
 	if _, err := os.Stat(masternodeConfPath); err == nil { // if masternode.conf File exists , backup
+
+		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Previous masternode.conf found at - %s. "+
+			"Do you want to back it up and continue? Y/N", masternodeConfPath)); !yes {
+
+			log.WithContext(ctx).WithError(err).Error("masternode.conf already exists - exiting")
+			return "", fmt.Errorf("masternode.conf already exists - %s", masternodeConfPath)
+		}
+
 		oldFileName := masternodeConfPath
 		currentTime := time.Now()
 		backupFileName := fmt.Sprintf(masternodeConfPathBackup, currentTime.Format("2021-01-01-23-59-59"))
 		if err := os.Rename(oldFileName, backupFileName); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to rename %s to %s", oldFileName, backupFileName)
 			return "", err
 		}
-		if _, err := os.Stat(masternodeConfPath); err == nil { // delete after back up if still exist
-			if err = os.Remove(masternodeConfPath); err != nil {
+		if _, err := os.Stat(oldFileName); err == nil { // delete after back up if still exist
+			if err = os.Remove(oldFileName); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to remove %s", oldFileName)
 				return "", err
 			}
 		}

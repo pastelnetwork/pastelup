@@ -155,7 +155,7 @@ func KillProcess(ctx context.Context, toolType constants.ToolType) error {
 }
 
 // AskUserToContinue ask user interactively  Yes or No question
-func AskUserToContinue(ctx context.Context, question string) bool {
+func AskUserToContinue(ctx context.Context, question string) (bool, string) {
 
 	log.WithContext(ctx).Warn(red(question))
 
@@ -163,10 +163,11 @@ func AskUserToContinue(ctx context.Context, question string) bool {
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Something went wrong...")
-		return false
+		return false, ""
 	}
 
-	return strings.EqualFold(strings.TrimSpace(line), "y")
+	input := strings.TrimSpace(line)
+	return strings.EqualFold(input, "y"), input
 }
 
 // RunPastelCLI runs pastel-cli commands

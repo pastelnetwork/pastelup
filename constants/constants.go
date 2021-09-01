@@ -86,9 +86,9 @@ const (
 	MDLDataDir = "mdldata"
 
 	// SuperNodeDefaultLogLevel defines supernode log level
-	SuperNodeDefaultLogLevel = "error"
+	SuperNodeDefaultLogLevel = "debug"
 	// WalletNodeDefaultLogLevel defines walletnode log level
-	WalletNodeDefaultLogLevel = "info"
+	WalletNodeDefaultLogLevel = "debug"
 
 	// RRServiceDefaultPort defines rqservice port
 	RRServiceDefaultPort = 50051

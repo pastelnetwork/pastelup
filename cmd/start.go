@@ -550,19 +550,6 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 		log.WithContext(ctx).Infof("WAN IP address - %s", flagNodeExtIP)
 	}
 
-	// –create | –update - Optional, if specified, will create or update Masternode record in the masternode.conf. Following are the parameters of --create and/or --update:
-	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
-
-		if err := checkCollateral(ctx, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Missing collateral or parameters --txid or --ind")
-			return err
-		}
-
-		if err := checkPassphrase(ctx); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Missing parameter --passphrase")
-			return err
-		}
-	}
 	if !flagMasterNodeIsCreate { // if we don't create new masternode.conf - it must exist!
 		var masternodeConfPath string
 		if config.Network == constants.NetworkTestnet {
@@ -650,41 +637,30 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 		return err
 	}
 
-	// Search collateral transaction
-	var outputs string
-	if outputs, err = RunPastelCLI(ctx, config, "masternode", "outputs"); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to get masternode outputs from pasteld")
-		return err
-	}
-	var mnOutputs map[string]interface{}
-	if err := json.Unmarshal([]byte(outputs), &mnOutputs); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to parse masternode outputs json")
-		return err
-	}
-	if len(mnOutputs) == 0 ||
-		mnOutputs[flagMasterNodeTxID] == nil ||
-		mnOutputs[flagMasterNodeTxID] != flagMasterNodeInd {
-
-		err = errors.Errorf("Cannot find masternode outputs = %s:%s", flagMasterNodeTxID, flagMasterNodeInd)
-		log.WithContext(ctx).WithError(err).Error("Try again after some time")
+	if err := checkCollateral(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing collateral transaction")
 		return err
 	}
 
-	// if receives PSL go to next step
-	log.WithContext(ctx).Infof("masternode outputs = %s, %s", flagMasterNodeTxID, flagMasterNodeInd)
-
-	// Create new MN private key
-	if len(flagMasterNodePrivateKey) == 0 {
-		var mnPrivKey string
-		if mnPrivKey, err = RunPastelCLI(ctx, config, "masternode", "genkey"); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to generate new masternode private key")
-			return err
-		}
-		flagMasterNodePrivateKey = strings.TrimSuffix(mnPrivKey, "\n")
+	if err := checkPassphrase(ctx); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing passphrase")
+		return err
 	}
-	log.WithContext(ctx).Infof("masternode private key = %s", flagMasterNodePrivateKey)
 
-	// Create new pastelid
+	if err := checkMasternodePrivKey(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing masternode private key")
+		return err
+	}
+
+	if err := checkPastelID(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing masternode PastelID")
+		return err
+	}
+
+	return StopPastelDAndWait(ctx, config)
+}
+
+func checkPastelID(ctx context.Context, config *configs.Config) error {
 	if len(flagMasterNodePastelID) == 0 {
 
 		log.WithContext(ctx).Info("Masternode PastelID is empty - will create new one")
@@ -695,8 +671,8 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 			return err
 		}
 
-		var pastelid string
-		if pastelid, err = RunPastelCLI(ctx, config, "pastelid", "newkey", flagMasterNodePassPhrase); err != nil {
+		pastelid, err := RunPastelCLI(ctx, config, "pastelid", "newkey", flagMasterNodePassPhrase)
+		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
 			return err
 		}
@@ -709,8 +685,22 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 		flagMasterNodePastelID = pastelidSt.Pastelid
 	}
 	log.WithContext(ctx).Infof("Masternode pastelid = %s", flagMasterNodePastelID)
+	return nil
+}
 
-	return StopPastelDAndWait(ctx, config)
+func checkMasternodePrivKey(ctx context.Context, config *configs.Config) error {
+	if len(flagMasterNodePrivateKey) == 0 {
+		log.WithContext(ctx).Info("Masternode private key is empty - will create new one")
+
+		mnPrivKey, err := RunPastelCLI(ctx, config, "masternode", "genkey")
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to generate new masternode private key")
+			return err
+		}
+		flagMasterNodePrivateKey = strings.TrimSuffix(mnPrivKey, "\n")
+	}
+	log.WithContext(ctx).Infof("masternode private key = %s", flagMasterNodePrivateKey)
+	return nil
 }
 
 func checkPassphrase(ctx context.Context) error {
@@ -726,6 +716,7 @@ func checkPassphrase(ctx context.Context) error {
 			return err
 		}
 	}
+	log.WithContext(ctx).Infof(red("passphrase - %s", flagMasterNodePassPhrase))
 	return nil
 }
 
@@ -740,8 +731,8 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 			collateralCoins = "LSP"
 		}
 
-		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("No collateral --txid and/or --ind provided."+
-			"Do you want to generate new local address and send %sM %s to it from another wallet? Y/N",
+		log.WithContext(ctx).Warn(red("No collateral --txid and/or --ind provided"))
+		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Do you want to generate new local address and send %sM %s to it from another wallet? Y/N",
 			collateralAmount, collateralCoins)); !yes {
 
 			err := fmt.Errorf("no collateral funds")
@@ -753,8 +744,8 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).WithError(err).Error("Failed to get new address")
 			return err
 		}
-		log.WithContext(ctx).Infof("Your new address for collateral payment is [%s]", address)
-		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Use another wallet to sent exactly %sM %s to that address. Press Y to continue when ready and N to exit - Y/N",
+		log.WithContext(ctx).Warnf(red("Your new address for collateral payment is [%s]", address))
+		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Use another wallet to send exactly %sM %s to that address. Press Y to continue when ready and N to exit - Y/N",
 			collateralAmount, collateralCoins)); !yes {
 
 			err := fmt.Errorf("user terminated")
@@ -802,7 +793,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 	}
 
 	// if receives PSL go to next step
-	log.WithContext(ctx).Infof("masternode outputs = %s, %s", flagMasterNodeTxID, flagMasterNodeInd)
+	log.WithContext(ctx).Infof(red("masternode outputs = %s, %s", flagMasterNodeTxID, flagMasterNodeInd))
 	return nil
 }
 

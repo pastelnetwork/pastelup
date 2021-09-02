@@ -393,7 +393,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 		"DUPEDETECTIONCONFIGPATH",
 		ddConfigFilePath,
 		execPath)
-	time.Sleep(10000 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 
 	if output, err := FindRunningProcess(constants.DupeDetectionExecName); len(output) == 0 {
 		err = errors.Errorf("dd-service failed to start")
@@ -510,7 +510,7 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 	}
 
 	go RunCMD(execPath, args...)
-	time.Sleep(10000 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 
 	log.WithContext(ctx).Infof("Check %s is running...", toolType)
 	isServiceRunning := CheckProcessRunning(toolType)
@@ -826,7 +826,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) (err error) {
 		}
 
 		log.WithContext(ctx).Info("Waiting for transaction...")
-		time.Sleep(10000 * time.Millisecond)
+		time.Sleep(10 * time.Second)
 		if i == 10 {
 			yes, _ := AskUserToContinue(ctx, "Still no collateral transaction. Continue? - Y/N")
 			if !yes {
@@ -903,16 +903,9 @@ func createConfFile(ctx context.Context, config *configs.Config, confData []byte
 		return err
 	}
 
-	confFile, err := os.Create(masternodeConfPath)
+	err = ioutil.WriteFile(masternodeConfPath, confData, 0644)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to create new masternode.conf file")
-		return err
-	}
-	defer confFile.Close()
-
-	_, err = confFile.Write(confData)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to write data in the new masternode.conf file")
+		log.WithContext(ctx).WithError(err).Error("Failed to create and write new masternode.conf file")
 		return err
 	}
 
@@ -1320,7 +1313,7 @@ func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, username str
 
 	go client.Cmd(fmt.Sprintf("%s --reindex --externalip=%s --daemon%s", pasteldPath, flagNodeExtIP, testnetOption)).Run()
 
-	time.Sleep(10000 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 
 	if err = checkMasterNodeSyncRemote(ctx, config, client, pastelCliPath); err != nil {
 		log.WithContext(ctx).Error("Remote::Master node sync failed")
@@ -1332,13 +1325,13 @@ func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, username str
 		return err
 	}
 
-	time.Sleep(5000 * time.Millisecond)
+	time.Sleep(5 * time.Second)
 
 	cmdLine := fmt.Sprintf("%s --masternode --txindex=1 --reindex --masternodeprivkey=%s --externalip=%s%s --daemon", pasteldPath, flagMasterNodePrivateKey, flagNodeExtIP, testnetOption)
 	log.WithContext(ctx).Infof("%s\n", cmdLine)
 	go client.Cmd(cmdLine).Run()
 
-	time.Sleep(10000 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 
 	if err = checkMasterNodeSyncRemote(ctx, config, client, pastelCliPath); err != nil {
 		log.WithContext(ctx).Error("Remote::Master node sync failed")
@@ -1368,7 +1361,7 @@ func runPastelServiceRemote(ctx context.Context, config *configs.Config, tool co
 
 		go client.Cmd(fmt.Sprintf("%s %s", pastelRqServicePath, fmt.Sprintf("--config-file=%s", remoteRQServiceConfigFilePath))).Run()
 
-		time.Sleep(10000 * time.Millisecond)
+		time.Sleep(10 * time.Second)
 
 	}
 
@@ -1396,7 +1389,7 @@ func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *uti
 	remoteSupernodeExecFile = filepath.Join(string(remotePastelExecPath), constants.SuperNodeExecName[constants.OSType(string(remoteOsType))])
 	remoteSupernodeExecFile = strings.ReplaceAll(remoteSupernodeExecFile, "\\", "/")
 
-	time.Sleep(5000 * time.Millisecond)
+	time.Sleep(5 * time.Second)
 
 	log.WithContext(ctx).Infof("Remote:::Start supernode command : %s", fmt.Sprintf("%s %s", remoteSupernodeExecFile, fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath)))
 
@@ -1406,7 +1399,7 @@ func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *uti
 	defer client.Close()
 
 	log.WithContext(ctx).Info("Remote:::Waiting for supernode started...")
-	time.Sleep(5000 * time.Millisecond)
+	time.Sleep(5 * time.Second)
 
 	log.WithContext(ctx).Info("Remote:::Supernode was started successfully")
 	return nil
@@ -1430,14 +1423,14 @@ func checkMasterNodeSyncRemote(ctx context.Context, _ *configs.Config, client *u
 				log.WithContext(ctx).Error("Remote:::master node reset was failed")
 				return err
 			}
-			time.Sleep(10000 * time.Millisecond)
+			time.Sleep(10 * time.Second)
 		}
 		if mnstatus.IsSynced {
 			log.WithContext(ctx).Info("Remote:::master node was synced!")
 			break
 		}
 		log.WithContext(ctx).Info("Remote:::Waiting for sync...")
-		time.Sleep(10000 * time.Millisecond)
+		time.Sleep(10 * time.Second)
 	}
 	return nil
 }

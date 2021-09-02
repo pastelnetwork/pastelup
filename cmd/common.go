@@ -335,7 +335,7 @@ func CheckPastelDRunning(ctx context.Context, config *configs.Config) (ret bool)
 
 	for {
 		if _, err = RunPastelCLI(ctx, config, "getinfo"); err != nil {
-			time.Sleep(10000 * time.Millisecond)
+			time.Sleep(10 * time.Second)
 			failCnt++
 			if failCnt == 10 {
 				return false
@@ -356,7 +356,7 @@ func StopPastelDAndWait(ctx context.Context, config *configs.Config) (err error)
 		return err
 	}
 
-	time.Sleep(10000 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 	log.WithContext(ctx).Info("Stopped pasteld")
 	return nil
 }
@@ -376,7 +376,7 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (err error
 				log.WithContext(ctx).WithError(err).Error("master node reset has failed")
 				return err
 			}
-			time.Sleep(10000 * time.Millisecond)
+			time.Sleep(10 * time.Second)
 		}
 		if mnstatus.IsSynced {
 			log.WithContext(ctx).Info("master node was synced!")
@@ -391,7 +391,7 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (err error
 		}
 		log.WithContext(ctx).Infof("Loading blocks - block #%d; Node has %d connection", getinfo.Blocks, getinfo.Connections)
 
-		time.Sleep(10000 * time.Millisecond)
+		time.Sleep(10 * time.Second)
 	}
 
 	return nil

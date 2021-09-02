@@ -3,5 +3,9 @@
 package configurer
 
 func getAppDir() string {
-	return ""
+	return "Application"
+}
+
+func getAppDataDir() string {
+	return "Library/Application Support/"
 }

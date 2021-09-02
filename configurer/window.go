@@ -2,19 +2,10 @@
 
 package configurer
 
-import "syscall"
-
-const (
-	beforeVistaAppDirWindows = "Application Data"
-	sinceVistaAppDirWindows  = "AppData/Roaming"
-)
-
 func getAppDir() string {
-	appDir := beforeVistaAppDirWindows
+	return ""
+}
 
-	v, _ := syscall.GetVersion()
-	if v&0xff > 5 {
-		appDir = sinceVistaAppDirWindows
-	}
-	return appDir
+func getAppDataDir() {
+	return "AppData\\Local"
 }

@@ -298,7 +298,8 @@ func runLocalSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 		if err := createOrUpdateSuperNodeConfig(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
 			return err
-		}	}
+		}
+	}
 
 	// Get conf data from masternode.conf File
 	privKey, extIP, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName)

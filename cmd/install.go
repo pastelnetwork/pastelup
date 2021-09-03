@@ -659,13 +659,13 @@ func downloadGitComponents(ctx context.Context, config *configs.Config, installC
 
 	// Download checksum file
 	log.WithContext(ctx).Infof("Downloading checksum file of %s...", commandName)
-	checkSumUrl, checkSumName, err := config.Configurer.GetDownloadGitCheckSumURL(version, installCommand)
+	checkSumURL, checkSumName, err := config.Configurer.GetDownloadGitcheckSumURL(version, installCommand)
 	if err != nil {
 		return errors.Errorf("failed to get checksum url: %v", err)
 	}
 
-	if err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, checkSumName), checkSumUrl.String()); err != nil {
-		return errors.Errorf("failed to download checksum file %s: %v", checkSumUrl.String(), err)
+	if err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, checkSumName), checkSumURL.String()); err != nil {
+		return errors.Errorf("failed to download checksum file %s: %v", checkSumURL.String(), err)
 	}
 
 	// verify check sum

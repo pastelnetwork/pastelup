@@ -126,7 +126,7 @@ func (c *configurer) getDownloadGitPath(version string, tool constants.ToolType)
 	case constants.WalletNode:
 		name = constants.WalletNodeExecName[c.osType]
 		tool = constants.GoNode
-		baseLink = constants.GitReposUrlBase[constants.WalletNode]
+		baseLink = constants.GitReposURLBase[constants.WalletNode]
 	case constants.RQService:
 		return "", "", errors.New("not yet supported")
 	case constants.PastelD:
@@ -134,7 +134,7 @@ func (c *configurer) getDownloadGitPath(version string, tool constants.ToolType)
 	case constants.SuperNode:
 		name = constants.SuperNodeExecName[c.osType]
 		tool = constants.GoNode
-		baseLink = constants.GitReposUrlBase[constants.SuperNode]
+		baseLink = constants.GitReposURLBase[constants.SuperNode]
 	case constants.DDService:
 		return "", "", errors.New("not yet supported")
 	default:
@@ -169,8 +169,8 @@ func (c *configurer) GetDownloadGitURL(version string, tool constants.ToolType) 
 	return url, tokens[len(tokens)-1], nil
 }
 
-// GetDownloadGitCheckSumURL returns checksum url of the pastel executable in git
-func (c *configurer) GetDownloadGitCheckSumURL(version string, tool constants.ToolType) (*url.URL, string, error) {
+// GetDownloadGitcheckSumURL returns checksum url of the pastel executable in git
+func (c *configurer) GetDownloadGitcheckSumURL(version string, tool constants.ToolType) (*url.URL, string, error) {
 	urlBase, name, err := c.getDownloadGitPath(version, tool)
 	if err != nil {
 		return nil, "", errors.Errorf("get path failed : %v", err)
@@ -190,14 +190,14 @@ func (c *configurer) GetDownloadGitCheckSumURL(version string, tool constants.To
 			name)
 	}
 
-	checkSumUrl, err := url.Parse(urlCheckSumString)
+	checkSumURL, err := url.Parse(urlCheckSumString)
 	if err != nil {
 		return nil, "", errors.Errorf("failed to parse checksum url: %v", err)
 	}
 
 	tokens := strings.Split(urlCheckSumString, "/")
 
-	return checkSumUrl, tokens[len(tokens)-1], nil
+	return checkSumURL, tokens[len(tokens)-1], nil
 }
 
 func newLinuxConfigurer(homeDir string) IConfigurer {

@@ -121,8 +121,8 @@ var PastelCliName = map[OSType]string{
 	Unknown: "",
 }
 
-// GitReposUrlBase - contains git base url to download tool
-var GitReposUrlBase = map[ToolType]string{
+// GitReposURLBase - contains git base url to download tool
+var GitReposURLBase = map[ToolType]string{
 	WalletNode: "https://github.com/pastelnetwork/gonode/releases/download",
 	SuperNode:  "https://github.com/pastelnetwork/gonode/releases/download",
 }

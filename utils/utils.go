@@ -422,7 +422,7 @@ func readCheckSum(path string) (string, error) {
 	return tokens[0], nil
 }
 
-// GetChecksum gets the checksum of file
+// VerifyChecksum to verify the checksum of file
 func VerifyChecksum(ctx context.Context, fileName, checkSumFile string) (err error) {
 	calculatedHash, err := GetChecksum(ctx, fileName)
 	if err != nil {

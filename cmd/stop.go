@@ -169,7 +169,7 @@ func stopPatelCLI(ctx context.Context, config *configs.Config) {
 	if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
 	}
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 	if CheckProcessRunning(constants.PastelD) {
 		log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
 	} else {

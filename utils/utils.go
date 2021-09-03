@@ -405,7 +405,7 @@ func readCheckSum(path string) (string, error) {
 	b, err := ioutil.ReadFile(path)
 
 	if err != nil {
-		return "", errors.Errorf("failed to read file: %w", err)
+		return "", errors.Errorf("failed to read file: %v", err)
 	}
 
 	lines := strings.Split(string(b), "\n")

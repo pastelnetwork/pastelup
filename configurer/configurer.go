@@ -119,6 +119,87 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 	return url, tokens[len(tokens)-1], nil
 }
 
+func (c *configurer) getDownloadGitPath(version string, tool constants.ToolType) (string, string, error) {
+	var name string
+	var baseLink string
+	switch tool {
+	case constants.WalletNode:
+		name = constants.WalletNodeExecName[c.osType]
+		tool = constants.GoNode
+		baseLink = constants.GitReposUrlBase[constants.WalletNode]
+	case constants.RQService:
+		return "", "", errors.New("not yet supported")
+	case constants.PastelD:
+		return "", "", errors.New("not yet supported")
+	case constants.SuperNode:
+		name = constants.SuperNodeExecName[c.osType]
+		tool = constants.GoNode
+		baseLink = constants.GitReposUrlBase[constants.SuperNode]
+	case constants.DDService:
+		return "", "", errors.New("not yet supported")
+	default:
+		return "", "", errors.Errorf("unknow tool: %s", tool)
+	}
+
+	urlStringBase := fmt.Sprintf(
+		"%s/%s",
+		baseLink,
+		version)
+	return urlStringBase, name, nil
+}
+
+// GetDownloadGitURL returns download url of the pastel executables in git
+func (c *configurer) GetDownloadGitURL(version string, tool constants.ToolType) (*url.URL, string, error) {
+	urlBase, name, err := c.getDownloadGitPath(version, tool)
+	if err != nil {
+		return nil, "", errors.Errorf("get path failed : %v", err)
+	}
+
+	urlString := fmt.Sprintf(
+		"%s/%s",
+		urlBase,
+		name)
+	url, err := url.Parse(urlString)
+	if err != nil {
+		return nil, "", errors.Errorf("failed to parse url: %v", err)
+	}
+
+	tokens := strings.Split(urlString, "/")
+
+	return url, tokens[len(tokens)-1], nil
+}
+
+// GetDownloadGitCheckSumURL returns checksum url of the pastel executable in git
+func (c *configurer) GetDownloadGitCheckSumURL(version string, tool constants.ToolType) (*url.URL, string, error) {
+	urlBase, name, err := c.getDownloadGitPath(version, tool)
+	if err != nil {
+		return nil, "", errors.Errorf("get path failed : %v", err)
+	}
+
+	var urlCheckSumString string
+	if !strings.Contains(name, ".exe") {
+		urlCheckSumString = fmt.Sprintf(
+			"%s/%s",
+			urlBase,
+			name+".sha256")
+	} else {
+		name = strings.Replace(name, ".exe", ".sha256", -1)
+		urlCheckSumString = fmt.Sprintf(
+			"%s/%s",
+			version,
+			name)
+	}
+
+	checkSumUrl, err := url.Parse(urlCheckSumString)
+	if err != nil {
+		return nil, "", errors.Errorf("failed to parse checksum url: %v", err)
+	}
+
+	tokens := strings.Split(urlCheckSumString, "/")
+
+	return checkSumUrl, tokens[len(tokens)-1], nil
+}
+
 func newLinuxConfigurer(homeDir string) IConfigurer {
 	return &configurer{
 		workingDir:          ".pastel",

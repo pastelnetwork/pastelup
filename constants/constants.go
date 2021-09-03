@@ -121,6 +121,12 @@ var PastelCliName = map[OSType]string{
 	Unknown: "",
 }
 
+// GitReposUrlBase - contains git base url to download tool
+var GitReposUrlBase = map[ToolType]string{
+	WalletNode: "https://github.com/pastelnetwork/gonode/releases/download",
+	SuperNode:  "https://github.com/pastelnetwork/gonode/releases/download",
+}
+
 // WalletNodeExecName - The name of the wallet node
 var WalletNodeExecName = map[OSType]string{
 	Windows: "walletnode-win-amd64.exe",

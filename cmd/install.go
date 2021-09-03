@@ -72,6 +72,18 @@ func setupSubCommand(config *configs.Config,
 		}
 	}
 
+	var gitFlags []*cli.Flag
+	if installCommand == walletInstall || installCommand == superNodeInstall {
+		gitFlags = []*cli.Flag{
+			cli.NewFlag("use-git", &config.GitEnabled).
+				SetUsage(green("Optional, Enable download supernode/wallnode from git")),
+			cli.NewFlag("git-release", &config.GitReleaseVersion).
+				SetUsage(green("Optional, Specify version on git")),
+		}
+	} else {
+		gitFlags = []*cli.Flag{}
+	}
+
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &sshIP).
 			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
@@ -102,10 +114,12 @@ func setupSubCommand(config *configs.Config,
 		commandMessage = "Install node"
 	case walletInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
+		commandFlags = append(gitFlags, commonFlags[:]...)
 		commandName = string(constants.WalletNode)
 		commandMessage = "Install walletnode"
 	case superNodeInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
+		commandFlags = append(gitFlags, commonFlags[:]...)
 		commandName = string(constants.SuperNode)
 		commandMessage = "Install supernode"
 	case remoteInstall:
@@ -317,6 +331,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	if !utils.IsValidNetworkOpt(config.Network) {
 		return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
 	}
+
+	if config.GitEnabled && len(config.GitReleaseVersion) == 0 {
+		return fmt.Errorf("--git-release <git release tag> - Required, specify version on git")
+	}
+
 	log.WithContext(ctx).Infof("initiaing in %s mode", config.Network)
 
 	// create installation directory, example ~/pastel
@@ -411,10 +430,18 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return errors.Errorf("failed to get walletnode config: %v", err)
 		}
 
-		if err = downloadComponents(ctx, config, constants.WalletNode, config.Version); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
-			return err
+		if config.GitEnabled {
+			if err = downloadGitComponents(ctx, config, constants.WalletNode, config.GitReleaseVersion); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to download from git %s", toolPath)
+				return err
+			}
+		} else {
+			if err = downloadComponents(ctx, config, constants.WalletNode, config.Version); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to download from pastel %s", toolPath)
+				return err
+			}
 		}
+
 		if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
 			return err
@@ -459,9 +486,16 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 
 		toolPath := constants.SuperNodeExecName[utils.GetOS()]
 
-		if err = downloadComponents(ctx, config, constants.SuperNode, config.Version); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
-			return err
+		if config.GitEnabled {
+			if err = downloadComponents(ctx, config, constants.SuperNode, config.Version); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+				return err
+			}
+		} else {
+			if err = downloadGitComponents(ctx, config, constants.SuperNode, config.GitReleaseVersion); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+				return err
+			}
 		}
 		if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
@@ -595,6 +629,48 @@ func downloadComponents(ctx context.Context, config *configs.Config, installComm
 
 	if err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, archiveName), downloadURL.String()); err != nil {
 		return errors.Errorf("failed to download executable file %s: %v", downloadURL.String(), err)
+	}
+
+	if strings.Contains(archiveName, ".zip") {
+		if err = processArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName)); err != nil {
+			//Error was logged in processArchive
+			return errors.Errorf("failed to process downloaded file: %v", err)
+		}
+	}
+
+	log.WithContext(ctx).Infof("%s downloaded successfully", commandName)
+
+	return nil
+}
+
+func downloadGitComponents(ctx context.Context, config *configs.Config, installCommand constants.ToolType, version string) (err error) {
+	commandName := filepath.Base(string(installCommand))
+	log.WithContext(ctx).Infof("Downloading %s...", commandName)
+
+	// Download main file
+	downloadURL, archiveName, err := config.Configurer.GetDownloadGitURL(version, installCommand)
+	if err != nil {
+		return errors.Errorf("failed to get download url: %v", err)
+	}
+
+	if err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, archiveName), downloadURL.String()); err != nil {
+		return errors.Errorf("failed to download executable file %s: %v", downloadURL.String(), err)
+	}
+
+	// Download checksum file
+	log.WithContext(ctx).Infof("Downloading checksum file of %s...", commandName)
+	checkSumUrl, checkSumName, err := config.Configurer.GetDownloadGitCheckSumURL(version, installCommand)
+	if err != nil {
+		return errors.Errorf("failed to get checksum url: %v", err)
+	}
+
+	if err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, checkSumName), checkSumUrl.String()); err != nil {
+		return errors.Errorf("failed to download checksum file %s: %v", checkSumUrl.String(), err)
+	}
+
+	// verify check sum
+	if err := utils.VerifyChecksum(ctx, filepath.Join(config.PastelExecDir, archiveName), filepath.Join(config.PastelExecDir, checkSumName)); err != nil {
+		return errors.Errorf("failed to verify checksum: %v", err)
 	}
 
 	if strings.Contains(archiveName, ".zip") {

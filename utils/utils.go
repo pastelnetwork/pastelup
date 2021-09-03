@@ -401,6 +401,46 @@ func GetChecksum(_ context.Context, fileName string) (checksum string, err error
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
+func readCheckSum(path string) (string, error) {
+	b, err := ioutil.ReadFile(path)
+
+	if err != nil {
+		return "", errors.Errorf("failed to read file: %w", err)
+	}
+
+	lines := strings.Split(string(b), "\n")
+
+	if len(lines) == 0 {
+		return "", errors.Errorf("empty checksum file")
+	}
+
+	tokens := strings.Split(lines[0], " ")
+	if len(tokens) == 0 {
+		return "", errors.Errorf("empty checksum line")
+	}
+
+	return tokens[0], nil
+}
+
+// GetChecksum gets the checksum of file
+func VerifyChecksum(ctx context.Context, fileName, checkSumFile string) (err error) {
+	calculatedHash, err := GetChecksum(ctx, fileName)
+	if err != nil {
+		return errors.Errorf("calculate hash of file failed: %v", err)
+	}
+
+	expectedHash, err := readCheckSum(checkSumFile)
+	if err != nil {
+		return errors.Errorf("read checksum file failed: %v", err)
+	}
+
+	if calculatedHash != expectedHash {
+		return errors.New("invalid checksum")
+	}
+
+	return nil
+}
+
 // GetInstalledPackages returns a map which contains install packages
 func GetInstalledPackages(ctx context.Context) map[string]bool {
 	m := make(map[string]bool)

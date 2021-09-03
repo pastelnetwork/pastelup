@@ -485,14 +485,10 @@ func runMasterNodeOnHotHotSubCommand(ctx context.Context, config *configs.Config
 			log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
 			return err
 		}
-		if err := createOrUpdateSuperNodeConfig(ctx, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
-			return err
-		}
 	}
 
 	// Get conf data from masternode.conf File
-	privKey, extIP, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName)
+	privKey, extIP, _ /*extPort*/, pastelID, err := getMasternodeConfData(ctx, config, flagMasterNodeName)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get masternode details from masternode.conf")
 		return err
@@ -505,9 +501,9 @@ func runMasterNodeOnHotHotSubCommand(ctx context.Context, config *configs.Config
 	}
 
 	// *************  3. Start Node as Masternode  *************
-	log.WithContext(ctx).Infof("Starting pasteld as masternode: nodeName: %s; mnPrivKey: %s", flagMasterNodeName, privKey)
+	log.WithContext(ctx).Infof("Starting pasteld as masternode: nodeName: %s; mnPrivKey: %s; pastelID: %s;", flagMasterNodeName, privKey, pastelID)
 	if err := runPastelNode(ctx, config, true, flagNodeExtIP, privKey); err != nil { //in masternode mode pasteld MUST be started with reindex flag
-		log.WithContext(ctx).WithError(err).Error("pasteld failed to start as masternode")
+		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 		return err
 	}
 
@@ -539,6 +535,11 @@ func runMasterNodeOnHotHotSubCommand(ctx context.Context, config *configs.Config
 	}
 
 	// *************  7. Start supernode  **************
+	if err := updateSuperNodeConfig(ctx, config, pastelID); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
+		return err
+	}
+
 	if err := runSuperNodeService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to start supernode service")
 		return err
@@ -914,7 +915,7 @@ func checkMasterNodeSync(ctx context.Context, config *configs.Config) (err error
 }
 
 func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string) (privKey string,
-	extAddr string, extPort string, err error) {
+	extAddr string, extPort string, extkey string, err error) {
 
 	var masternodeConfPath string
 
@@ -928,20 +929,20 @@ func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName s
 	confFile, err := ioutil.ReadFile(masternodeConfPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to read masternode.conf at %s", masternodeConfPath)
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
 	var conf map[string]interface{}
 	if err := json.Unmarshal([]byte(confFile), &conf); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to parse masternode.conf json %s", confFile)
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
 	mnNode, ok := conf[mnName]
 	if !ok {
 		err := errors.Errorf("masternode.conf doesn't have node with name - %s", mnName)
 		log.WithContext(ctx).WithError(err).Errorf("Failed to parse masternode.conf json %s", confFile)
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
 	confData := mnNode.(map[string]interface{})
@@ -949,8 +950,9 @@ func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName s
 	extAddrPort := strings.Split(confData["mnAddress"].(string), ":")
 	extAddr = extAddrPort[0] // get Ext IP and Port
 	extPort = extAddrPort[1] // get Ext IP and Port
+	extKey := confData["extKey"].(string)
 
-	return privKey, extAddr, extPort, nil
+	return privKey, extAddr, extPort, extKey, nil
 }
 
 func runStartAliasMasternode(ctx context.Context, config *configs.Config, masternodeName string) (err error) {
@@ -974,7 +976,7 @@ func runStartAliasMasternode(ctx context.Context, config *configs.Config, master
 	return nil
 }
 
-func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) error {
+func updateSuperNodeConfig(ctx context.Context, config *configs.Config, pastelID string) error {
 
 	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
 	log.WithContext(ctx).Infof("Updating supernode config - %s", supernodeConfigPath)
@@ -1033,7 +1035,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 
 		node := snConf["node"].(map[interface{}]interface{})
 
-		node["pastel_id"] = flagMasterNodePastelID
+		node["pastel_id"] = pastelID
 		node["pass_phrase"] = flagMasterNodePassPhrase
 
 		var snConfFileUpdated []byte
@@ -1120,7 +1122,7 @@ func runMasterNodeOnColdHotSubCommand(ctx context.Context, config *configs.Confi
 	// ***************  5. Enable Masternode  ***************
 	// Get conf data from masternode.conf File
 	var extIP string
-	if _, extIP, _, err = getMasternodeConfData(ctx, config, flagMasterNodeName); err != nil {
+	if _, extIP, _, _, err = getMasternodeConfData(ctx, config, flagMasterNodeName); err != nil {
 		return err
 	}
 

@@ -114,12 +114,12 @@ func setupSubCommand(config *configs.Config,
 		commandMessage = "Install node"
 	case walletInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
-		commandFlags = append(gitFlags, commonFlags[:]...)
+		commandFlags = append(gitFlags, commandFlags[:]...)
 		commandName = string(constants.WalletNode)
 		commandMessage = "Install walletnode"
 	case superNodeInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
-		commandFlags = append(gitFlags, commonFlags[:]...)
+		commandFlags = append(gitFlags, commandFlags[:]...)
 		commandName = string(constants.SuperNode)
 		commandMessage = "Install supernode"
 	case remoteInstall:
@@ -487,12 +487,12 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		toolPath := constants.SuperNodeExecName[utils.GetOS()]
 
 		if config.GitEnabled {
-			if err = downloadComponents(ctx, config, constants.SuperNode, config.Version); err != nil {
+			if err = downloadGitComponents(ctx, config, constants.SuperNode, config.GitReleaseVersion); err != nil {
 				log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
 				return err
 			}
 		} else {
-			if err = downloadGitComponents(ctx, config, constants.SuperNode, config.GitReleaseVersion); err != nil {
+			if err = downloadComponents(ctx, config, constants.SuperNode, config.Version); err != nil {
 				log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
 				return err
 			}

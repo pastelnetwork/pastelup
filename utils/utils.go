@@ -38,7 +38,7 @@ func CreateFolder(ctx context.Context, path string, force bool) error {
 	create := func(path string) error {
 		if err := os.MkdirAll(path, 0755); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Error creating directory")
-			return errors.Errorf("Failed to create directory: %v", err)
+			return errors.Errorf("Failed to create directory(%s): %v", path, err)
 		}
 		log.WithContext(ctx).Infof("Directory created on %s", path)
 		return nil

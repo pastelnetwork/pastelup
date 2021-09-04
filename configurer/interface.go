@@ -18,6 +18,7 @@ type IConfigurer interface {
 	GetWalletNodeConfFile(workingDir string) string
 	GetRQServiceConfFile(workingDir string) string
 	GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error)
+	GetDownloadChecksumURL(version string, tool constants.ToolType) (*url.URL, string, error)
 	GetDownloadGitURL(version string, tool constants.ToolType) (*url.URL, string, error)
 	GetDownloadGitChecksumURL(version string, tool constants.ToolType) (*url.URL, string, error)
 }

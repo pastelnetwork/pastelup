@@ -62,7 +62,8 @@ const (
 	// AMD64 is architecture type
 	AMD64 ArchitectureType = "amd64"
 	// DupeDetectionExecName is execution file name
-	DupeDetectionExecName = "pastel_dupe_detection_daemon_v4.py"
+	DupeDetectionExecName         = "pastel_dupe_detection_daemon_v4.py"
+	DupeDetectionExecChecksumName = "pastel_dupe_detection_daemon_v4.sha256"
 	// PortCheckURL is URL of port checker service
 	PortCheckURL = "http://portchecker.com?q="
 	// IPCheckURL is URL of IP checker service
@@ -167,6 +168,14 @@ var PastelExecArchiveName = map[OSType]string{
 	Unknown: "",
 }
 
+// PastelExecArchiveChecksumName - The name of checksum of the pastel executable files
+var PastelExecArchiveChecksumName = map[OSType]string{
+	Windows: "pastel-win-amd64.sha256",
+	Linux:   "pastel-ubuntu20.04-amd64.sha256",
+	Mac:     "pastel-darwin-amd64.sha256",
+	Unknown: "",
+}
+
 // WalletNodeExecArchiveName - The download url of the  wallet node file
 var WalletNodeExecArchiveName = map[OSType]string{
 	Windows: "walletnode-windows-amd64.zip",
@@ -236,6 +245,14 @@ var PastelRQServiceExecName = map[OSType]string{
 	Windows: "rq-service-win-amd64.exe",
 	Linux:   "rq-service-ubuntu20.04-x64",
 	Mac:     "rq-service-darwin-amd64",
+	Unknown: "",
+}
+
+// PastelRQServiceExecChecksumName - the name of checksum file of rqservice executable files
+var PastelRQServiceExecChecksumName = map[OSType]string{
+	Windows: "rq-service-win-amd64.sha256",
+	Linux:   "rq-service-ubuntu20.04-x64.sha256",
+	Mac:     "rq-service-darwin-amd64.sha256",
 	Unknown: "",
 }
 

@@ -120,6 +120,41 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 	return url, tokens[len(tokens)-1], nil
 }
 
+// GetDownloadChecksumURL returns checksum url of the pastel executable.
+func (c *configurer) GetDownloadChecksumURL(version string, tool constants.ToolType) (*url.URL, string, error) {
+	var name string
+	switch tool {
+	case constants.WalletNode:
+		name = constants.WalletNodeExecChecksumName[c.osType]
+		tool = constants.GoNode
+	case constants.RQService:
+		name = constants.PastelRQServiceExecChecksumName[c.osType]
+	case constants.PastelD:
+		name = constants.PastelExecArchiveChecksumName[c.osType]
+	case constants.SuperNode:
+		name = constants.SuperNodeExecChecksumName[c.osType]
+		tool = constants.GoNode
+	case constants.DDService:
+		name = constants.DupeDetectionExecChecksumName
+	default:
+		return nil, "", errors.Errorf("unknow tool: %s", tool)
+	}
+
+	urlString := fmt.Sprintf(
+		templateDownloadURL,
+		constants.GetVersionSubURL(version),
+		tool,
+		name)
+
+	url, err := url.Parse(urlString)
+	if err != nil {
+		return nil, "", errors.Errorf("failed to parse url: %v", err)
+	}
+	tokens := strings.Split(urlString, "/")
+
+	return url, tokens[len(tokens)-1], nil
+}
+
 // GetDownloadGitURL returns download url of the pastel executables in git
 func (c *configurer) GetDownloadGitURL(version string, tool constants.ToolType) (*url.URL, string, error) {
 	var name string

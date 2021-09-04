@@ -10,7 +10,7 @@ import (
 	"github.com/tj/assert"
 )
 
-func TestGetDownloadUrl(t *testing.T) {
+func TestGetDownloadURL(t *testing.T) {
 	testConfigurer, _ := NewConfigurer()
 	downloadURL, fileName, _ := testConfigurer.GetDownloadURL("beta", constants.WalletNode)
 	assert.Equal(t, constants.WalletNodeExecName[utils.GetOS()], fileName)

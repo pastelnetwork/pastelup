@@ -659,7 +659,7 @@ func downloadGitComponents(ctx context.Context, config *configs.Config, installC
 
 	// Download checksum file
 	log.WithContext(ctx).Infof("Downloading checksum file of %s...", commandName)
-	checkSumURL, checkSumName, err := config.Configurer.GetDownloadGitcheckSumURL(version, installCommand)
+	checkSumURL, checkSumName, err := config.Configurer.GetDownloadGitChecksumURL(version, installCommand)
 	if err != nil {
 		return errors.Errorf("failed to get checksum url: %v", err)
 	}

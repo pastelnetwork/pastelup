@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	templateDownloadURL = constants.DownloadBaseURL + "/%s/%s/%s"
+	templateDownloadURL     = constants.DownloadBaseURL + "/%s/%s/%s"
+	templateDownloadURLBase = constants.DownloadBaseURL + "/%s/%s"
 )
 
 type configurer struct {
@@ -119,7 +120,8 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 	return url, tokens[len(tokens)-1], nil
 }
 
-func (c *configurer) getDownloadGitPath(version string, tool constants.ToolType) (string, string, error) {
+// GetDownloadGitURL returns download url of the pastel executables in git
+func (c *configurer) GetDownloadGitURL(version string, tool constants.ToolType) (*url.URL, string, error) {
 	var name string
 	var baseLink string
 	switch tool {
@@ -128,37 +130,25 @@ func (c *configurer) getDownloadGitPath(version string, tool constants.ToolType)
 		tool = constants.GoNode
 		baseLink = constants.GitReposURLBase[constants.WalletNode]
 	case constants.RQService:
-		return "", "", errors.New("not yet supported")
+		return nil, "", errors.New("not yet supported")
 	case constants.PastelD:
-		return "", "", errors.New("not yet supported")
+		return nil, "", errors.New("not yet supported")
 	case constants.SuperNode:
 		name = constants.SuperNodeExecName[c.osType]
 		tool = constants.GoNode
 		baseLink = constants.GitReposURLBase[constants.SuperNode]
 	case constants.DDService:
-		return "", "", errors.New("not yet supported")
+		return nil, "", errors.New("not yet supported")
 	default:
-		return "", "", errors.Errorf("unknow tool: %s", tool)
-	}
-
-	urlStringBase := fmt.Sprintf(
-		"%s/%s",
-		baseLink,
-		version)
-	return urlStringBase, name, nil
-}
-
-// GetDownloadGitURL returns download url of the pastel executables in git
-func (c *configurer) GetDownloadGitURL(version string, tool constants.ToolType) (*url.URL, string, error) {
-	urlBase, name, err := c.getDownloadGitPath(version, tool)
-	if err != nil {
-		return nil, "", errors.Errorf("get path failed : %v", err)
+		return nil, "", errors.Errorf("unknow tool: %s", tool)
 	}
 
 	urlString := fmt.Sprintf(
-		"%s/%s",
-		urlBase,
+		"%s/%s/%s",
+		baseLink,
+		version,
 		name)
+
 	url, err := url.Parse(urlString)
 	if err != nil {
 		return nil, "", errors.Errorf("failed to parse url: %v", err)
@@ -169,26 +159,32 @@ func (c *configurer) GetDownloadGitURL(version string, tool constants.ToolType) 
 	return url, tokens[len(tokens)-1], nil
 }
 
-// GetDownloadGitcheckSumURL returns checksum url of the pastel executable in git
-func (c *configurer) GetDownloadGitcheckSumURL(version string, tool constants.ToolType) (*url.URL, string, error) {
-	urlBase, name, err := c.getDownloadGitPath(version, tool)
-	if err != nil {
-		return nil, "", errors.Errorf("get path failed : %v", err)
+// GetDownloadGitChecksumURL returns checksum url of the pastel executable in git
+func (c *configurer) GetDownloadGitChecksumURL(version string, tool constants.ToolType) (*url.URL, string, error) {
+	var name string
+	var baseLink string
+	switch tool {
+	case constants.WalletNode:
+		name = constants.WalletNodeExecChecksumName[c.osType]
+		baseLink = constants.GitReposURLBase[constants.WalletNode]
+	case constants.RQService:
+		return nil, "", errors.New("not yet supported")
+	case constants.PastelD:
+		return nil, "", errors.New("not yet supported")
+	case constants.SuperNode:
+		name = constants.SuperNodeExecChecksumName[c.osType]
+		baseLink = constants.GitReposURLBase[constants.SuperNode]
+	case constants.DDService:
+		return nil, "", errors.New("not yet supported")
+	default:
+		return nil, "", errors.Errorf("unknow tool: %s", tool)
 	}
 
-	var urlCheckSumString string
-	if !strings.Contains(name, ".exe") {
-		urlCheckSumString = fmt.Sprintf(
-			"%s/%s",
-			urlBase,
-			name+".sha256")
-	} else {
-		name = strings.Replace(name, ".exe", ".sha256", -1)
-		urlCheckSumString = fmt.Sprintf(
-			"%s/%s",
-			version,
-			name)
-	}
+	urlCheckSumString := fmt.Sprintf(
+		"%s/%s/%s",
+		baseLink,
+		version,
+		name)
 
 	checkSumURL, err := url.Parse(urlCheckSumString)
 	if err != nil {

@@ -135,10 +135,26 @@ var WalletNodeExecName = map[OSType]string{
 	Unknown: "",
 }
 
-// SuperNodeExecName - The name of the pastel wallet node
+// WalletNodeExecChecksumName - The name of the wallet node's checksum
+var WalletNodeExecChecksumName = map[OSType]string{
+	Windows: "walletnode-win-amd64.sha256",
+	Linux:   "walletnode-ubuntu20.04-amd64.sha256",
+	Mac:     "walletnode-darwin-amd64.sha256",
+	Unknown: "",
+}
+
+// SuperNodeExecName - The name of the pastel super node
 var SuperNodeExecName = map[OSType]string{
 	Windows: "",
 	Linux:   "supernode-ubuntu20.04-amd64",
+	Mac:     "",
+	Unknown: "",
+}
+
+// SuperNodeExecChecksumName - The name of the pastel super node's checksum
+var SuperNodeExecChecksumName = map[OSType]string{
+	Windows: "",
+	Linux:   "supernode-ubuntu20.04-amd64.sha256",
 	Mac:     "",
 	Unknown: "",
 }

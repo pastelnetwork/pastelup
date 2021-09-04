@@ -89,7 +89,8 @@ func setupStartSubCommand(config *configs.Config,
 	}
 
 	superNodeFlags := []*cli.Flag{
-
+		cli.NewFlag("network", &config.Network).SetAliases("n").
+			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 		cli.NewFlag("activate", &flagMasterNodeIsActivate).
 			SetUsage(green("Optional, if specified, will try to enable node as Masternode (start-alias).")),
 		cli.NewFlag("name", &flagMasterNodeName).

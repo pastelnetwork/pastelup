@@ -62,7 +62,8 @@ const (
 	// AMD64 is architecture type
 	AMD64 ArchitectureType = "amd64"
 	// DupeDetectionExecName is execution file name
-	DupeDetectionExecName         = "pastel_dupe_detection_daemon_v4.py"
+	DupeDetectionExecName = "pastel_dupe_detection_daemon_v4.py"
+	// DupeDetectionExecChecksumName is checksum file name of DupeDetectionExecName
 	DupeDetectionExecChecksumName = "pastel_dupe_detection_daemon_v4.sha256"
 	// PortCheckURL is URL of port checker service
 	PortCheckURL = "http://portchecker.com?q="

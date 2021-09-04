@@ -1,11 +1,11 @@
-//go:build linux
+//go:build darwin
 
 package configurer
 
 func getAppDir() string {
-	return ""
+	return "Application"
 }
 
 func getAppDataDir() string {
-	return ""
+	return "Library/Application Support/"
 }

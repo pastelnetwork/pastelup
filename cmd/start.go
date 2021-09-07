@@ -130,6 +130,10 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
 		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
 			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/pastel-utility)")),
+		cli.NewFlag("ssh-key", &sshKey).
+			SetUsage(yellow("Optional, Path to SSH private key")),
+		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
+			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
 	}
 
 	var commandName, commandMessage string
@@ -604,6 +608,38 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 		}
 		return flagMasterNodeP2PPort
 	}()
+	return nil
+}
+
+func handleCreateUpdateStartColdHot(ctx context.Context, config *configs.Config) (err error) {
+
+	if err := checkCollateral(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing collateral transaction")
+		return err
+	}
+
+	if err := checkPassphrase(ctx); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing passphrase")
+		return err
+	}
+
+	if err := checkMasternodePrivKey(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing masternode private key")
+		return err
+	}
+
+	if err := checkPastelID(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing masternode PastelID")
+		return err
+	}
+
+	if flagMasterNodeIsCreate {
+		if _, err = backupConfFile(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to backup masternode.conf")
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -1167,9 +1203,17 @@ func runRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Config) e
 	}
 	log.WithContext(ctx).Info("Finished checking pastel config!")
 
+	// ***************  1. Start the local Pastel Network Node ***************
+	log.WithContext(ctx).Infof("Starting pasteld")
+	if err = runPastelNode(ctx, config, true, flagNodeExtIP, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
+		return err
+	}
+
+	// ***************  2. If flag --create or --update is provided ***************
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
 		log.WithContext(ctx).Info("Prepare mastenode parameters")
-		if err := prepareMasterNodeParameters(ctx, config); err != nil {
+		if err := handleCreateUpdateStartColdHot(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
 			return err
 		}
@@ -1179,15 +1223,31 @@ func runRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Config) e
 		}
 	}
 
-	// ***************  4. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
-	username, password, _ := utils.Credentials("", true)
+	addr := fmt.Sprintf("%s:%d", flagMasterNodeSSHIP, flagMasterNodeSSHPort)
+	log.WithContext(ctx).Infof("Connecting to SSH Hot node wallet -> %s...", addr)
+	var client *utils.Client
+	log.WithContext(ctx).Infof("Connecting to remote host -> %s:%d...", sshIP, sshPort)
+	if len(sshKey) == 0 {
+		username, password, _ := utils.Credentials(sshUser, true)
+		client, err = utils.DialWithPasswd(addr, username, password)
+	} else {
+		username, _, _ := utils.Credentials(sshUser, false)
+		client, err = utils.DialWithKey(addr, username, sshKey)
+	}
+	if err != nil {
+		return err
+	}
 
-	if err = remoteHotNodeCtrl(ctx, config, username, password); err != nil {
+	defer client.Close()
+
+	// ***************  3. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
+
+	if err = remoteHotNodeCtrl(ctx, config, client); err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("%s\n", err))
 		return err
 	}
 	log.WithContext(ctx).Info("The hot wallet node has been successfully launched!")
-	// ***************  5. Enable Masternode  ***************
+
 	// Get conf data from masternode.conf File
 	var extIP string
 	if _, extIP, _, err = getMasternodeConfData(ctx, config, flagMasterNodeName); err != nil {
@@ -1204,28 +1264,26 @@ func runRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Config) e
 		return err
 	}
 
+	// ***************  4. If --activate are provided, ***************
 	if flagMasterNodeIsActivate {
+		log.WithContext(ctx).Info("--activate is on, activating mn...")
 		if err = runStartAliasMasternode(ctx, config, flagMasterNodeName); err != nil {
 			return err
 		}
 	}
 
-	// ***************  6. Stop Cold Node  ***************
+	log.WithContext(ctx).Info("stopping cold node..")
+	// ***************  5. Stop Cold Node  ***************
 	if _, err = RunPastelCLI(ctx, config, "stop"); err != nil {
 		return err
 	}
 
-	client, err := utils.DialWithPasswd(fmt.Sprintf("%s:%d", flagMasterNodeSSHIP, flagMasterNodeSSHPort), username, password)
-	if err != nil {
-		return err
-	}
-
-	// *************  7. Start rq-servce    *************
+	// *************  6. Start rq-servce    *************
 	if err = runPastelServiceRemote(ctx, config, constants.RQService, client); err != nil {
 		return err
 	}
 
-	// ***************  8. Start supernode  **************
+	// ***************  7. Start supernode  **************
 
 	err = runSuperNodeRemote(ctx, config, client /*, extIP, pastelid*/)
 	if err != nil {
@@ -1235,15 +1293,8 @@ func runRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Config) e
 	return nil
 }
 
-func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, username string, password string) error {
+func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, client *utils.Client) error {
 	var pastelCliPath, testnetOption string
-	log.WithContext(ctx).Infof("Connecting to SSH Hot node wallet -> %s:%d...", flagMasterNodeSSHIP, flagMasterNodeSSHPort)
-	client, err := utils.DialWithPasswd(fmt.Sprintf("%s:%d", flagMasterNodeSSHIP, flagMasterNodeSSHPort), username, password)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
 	if config.Network == constants.NetworkTestnet {
 		testnetOption = " --testnet"
 	}

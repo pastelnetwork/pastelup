@@ -70,10 +70,7 @@ func (c *configurer) GetRQServiceConfFile(workingDir string) string {
 
 // DefaultZksnarkDir returns the default config path.
 func (c *configurer) DefaultZksnarkDir() string {
-	if c.osType == constants.Windows {
-		return filepath.Join(c.homeDir, filepath.FromSlash(getAppDir()), c.zksnarkDir)
-	}
-	return filepath.Join(c.homeDir, c.zksnarkDir)
+	return filepath.Join(c.homeDir, filepath.FromSlash(getAppDataDir()), c.zksnarkDir)
 }
 
 // DefaultPastelExecutableDir returns the default pastel executable path.

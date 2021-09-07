@@ -6,6 +6,6 @@ func getAppDir() string {
 	return ""
 }
 
-func getAppDataDir() {
-	return "AppData\\Local"
+func getAppDataDir() string {
+	return "AppData\\Roaming"
 }

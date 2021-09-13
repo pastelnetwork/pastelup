@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/pastelnetwork/gonode/common/log"
@@ -26,8 +25,9 @@ type ColdHotRunnerOpts struct {
 	testnetOption string
 
 	// remote paths
-	remotePasteld   string
-	remotePastelCli string
+	remotePastelUtility string
+	remotePasteld       string
+	remotePastelCli     string
 }
 
 type ColdHotRunner struct {
@@ -76,7 +76,7 @@ func (r *ColdHotRunner) HandleArgs() (err error) {
 
 	r.opts.remotePastelCli = filepath.Join(r.config.RemotePastelExecDir, constants.PastelCliName[utils.GetOS()])
 	r.opts.remotePasteld = filepath.Join(r.config.RemotePastelExecDir, constants.PasteldName[utils.GetOS()])
-
+	r.opts.remotePastelUtility = filepath.Join(r.config.RemotePastelUtilityDir, "pastel-utility")
 	return nil
 }
 
@@ -120,6 +120,7 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		if err := createOrUpdateMasternodeConf(ctx, r.config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
 			return err
+
 		}
 	}
 
@@ -143,8 +144,8 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		return fmt.Errorf("run remote as masternode: %s", err)
 	}
 
-	/*// TBD --- Not sure When to register..
-	if err := r.registerTicketPastelID(ctx); err != nil {
+	// (TBD) when to run register ticket step
+	/*if err := r.registerTicketPastelID(ctx); err != nil {
 		log.WithContext(ctx).WithError(err).Error("unable to register pastelID ticket")
 		return err
 	}*/
@@ -164,14 +165,14 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	}
 
 	// *************  6. Start rq-servce    *************
-	if err = runPastelServiceRemote(ctx, r.config, constants.RQService, r.sshClient); err != nil {
-		return err
+	if err = r.runServiceRemote(ctx, string(constants.RQService)); err != nil {
+		return fmt.Errorf("failed to start rq-service on hot node: %s", err)
 	}
 
 	// ***************  7. Start supernode  **************
-	err = runSuperNodeRemote(ctx, r.config, r.sshClient /*, extIP, pastelid*/)
-	if err != nil {
-		return err
+	snService := fmt.Sprintf("%s-%s", string(constants.SuperNode), "service")
+	if err = r.runServiceRemote(ctx, snService); err != nil {
+		return fmt.Errorf("failed to start supernode-service on hot node: %s", err)
 	}
 
 	return nil
@@ -183,8 +184,11 @@ func (r *ColdHotRunner) runRemoteNodeAsMasterNode(ctx context.Context) error {
 	log.WithContext(ctx).Infof("%s\n", cmdLine)
 	go r.sshClient.Cmd(cmdLine).Run()
 
-	// TODO (Matee): check pastelD running on remote instead of wait
-	time.Sleep(10 * time.Second)
+	if !CheckPastelDRunningRemote(ctx, r.sshClient, r.opts.remotePastelCli, true) {
+		err := fmt.Errorf("unable to start pasteld on remote")
+		log.WithContext(ctx).WithError(err).Error("run remote as master failed")
+		return err
+	}
 
 	if err := checkMasterNodeSyncRemote(ctx, r.config, r.sshClient, r.opts.remotePastelCli); err != nil {
 		log.WithContext(ctx).Error("Remote::Master node sync failed")
@@ -211,8 +215,9 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context, conf
 		}
 	}()
 
-	// TODO (Matee): check pastelD running on remote instead of wait
-	time.Sleep(10 * time.Second)
+	if !CheckPastelDRunningRemote(ctx, r.sshClient, r.opts.remotePastelCli, true) {
+		return fmt.Errorf("unable to start pasteld on remote: %s", err)
+	}
 
 	if err := checkMasternodePrivKey(ctx, r.config, r.sshClient); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing masternode private key")
@@ -229,8 +234,9 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context, conf
 		return err
 	}
 
-	// TODO (Matee): check pastelD NOT running on remote instead of wait
-	time.Sleep(5 * time.Second)
+	if !CheckPastelDRunningRemote(ctx, r.sshClient, r.opts.remotePastelCli, false) {
+		return fmt.Errorf("unable to start pasteld on remote: %s", err)
+	}
 
 	if flagMasterNodeIsCreate {
 		if _, err = backupConfFile(ctx, r.config); err != nil {
@@ -242,70 +248,22 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context, conf
 	return nil
 }
 
-// Not yet tested
-func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *utils.Client /*, extIP string, pastelid string*/) (err error) {
-	log.WithContext(ctx).Info("Remote:::Starting supernode")
-	log.WithContext(ctx).Debug("Remote:::Configure supernode setting")
+func (r *ColdHotRunner) runServiceRemote(ctx context.Context, service string) (err error) {
+	log.WithContext(ctx).WithField("service", service).Info("starting service on remote")
 
-	log.WithContext(ctx).Info("Remote:::Configuring supernode was finished")
-	log.WithContext(ctx).Info("Remote:::Start supernode")
+	cmd := fmt.Sprintf("%s %s %s", r.opts.remotePastelUtility, "start", service)
+	if r.config.RemoteWorkingDir != "" {
+		cmd = fmt.Sprintf("%s --work-dir=%s", cmd, r.config.RemoteWorkingDir)
+	}
 
-	remoteWorkDirPath, remotePastelExecPath, remoteOsType, err := getRemoteInfo(config, client)
+	out, err := r.sshClient.Cmd(cmd).Output()
 	if err != nil {
-		return err
+		log.WithContext(ctx).WithField("service", service).WithField("out", string(out)).WithField("cmd", cmd).
+			WithError(err).Error("failed to start service on remote")
+		return fmt.Errorf("failed to start service on remote: %s", err.Error())
 	}
 
-	remoteSuperNodeConfigFilePath := config.Configurer.GetSuperNodeConfFile(string(remoteWorkDirPath))
-
-	var remoteSupernodeExecFile string
-
-	remoteSuperNodeConfigFilePath = strings.ReplaceAll(remoteSuperNodeConfigFilePath, "\\", "/")
-	remoteSupernodeExecFile = filepath.Join(string(remotePastelExecPath), constants.SuperNodeExecName[constants.OSType(string(remoteOsType))])
-	remoteSupernodeExecFile = strings.ReplaceAll(remoteSupernodeExecFile, "\\", "/")
-
-	time.Sleep(5 * time.Second)
-
-	log.WithContext(ctx).Infof("Remote:::Start supernode command : %s", fmt.Sprintf("%s %s", remoteSupernodeExecFile, fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath)))
-
-	go client.Cmd(fmt.Sprintf("%s %s", remoteSupernodeExecFile,
-		fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath))).Run()
-
-	defer client.Close()
-
-	log.WithContext(ctx).Info("Remote:::Waiting for supernode started...")
-	time.Sleep(5 * time.Second)
-
-	log.WithContext(ctx).Info("Remote:::Supernode was started successfully")
-	return nil
-}
-
-// not yet tested
-func runPastelServiceRemote(ctx context.Context, config *configs.Config, tool constants.ToolType, client *utils.Client) (err error) {
-	commandName := filepath.Base(string(tool))
-	log.WithContext(ctx).Infof("Remote:::Starting %s", commandName)
-
-	remoteWorkDirPath, remotePastelExecPath, remoteOsType, err := getRemoteInfo(config, client)
-	if err != nil {
-		return err
-	}
-
-	switch tool {
-	case constants.RQService:
-		remoteRQServiceConfigFilePath := config.Configurer.GetRQServiceConfFile(string(remoteWorkDirPath))
-
-		remoteRQServiceConfigFilePath = strings.ReplaceAll(remoteRQServiceConfigFilePath, "\\", "/")
-
-		pastelRqServicePath := filepath.Join(string(remotePastelExecPath), constants.PastelRQServiceExecName[constants.OSType(string(remoteOsType))])
-		pastelRqServicePath = strings.ReplaceAll(pastelRqServicePath, "\\", "/")
-
-		go client.Cmd(fmt.Sprintf("%s %s", pastelRqServicePath, fmt.Sprintf("--config-file=%s", remoteRQServiceConfigFilePath))).Run()
-
-		time.Sleep(10 * time.Second)
-
-	}
-
-	log.WithContext(ctx).Infof("Remote:::The %s started succesfully!", commandName)
-	return nil
+	return err
 }
 
 func (r *ColdHotRunner) registerTicketPastelID(ctx context.Context) (err error) {
@@ -327,4 +285,32 @@ func (r *ColdHotRunner) registerTicketPastelID(ctx context.Context) (err error) 
 
 	log.WithContext(ctx).Infof("Register ticket pastelid result = %s", string(out))
 	return nil
+}
+
+// CheckPastelDRunningRemote whether pasteld is running
+func CheckPastelDRunningRemote(ctx context.Context, client *utils.Client, cliPath string, want bool) (ret bool) {
+	var failCnt = 0
+	var err error
+
+	log.WithContext(ctx).Info("Waiting the pasteld to be started...")
+
+	for {
+		if _, err = client.Cmd(fmt.Sprintf("%s %s", cliPath, "getinfo")).Output(); err != nil {
+			if !want {
+				log.WithContext(ctx).Info("remote pasteld stopped.")
+				return true
+			}
+
+			time.Sleep(5 * time.Second)
+			failCnt++
+			if failCnt == 12 {
+				return false
+			}
+		} else {
+			break
+		}
+	}
+
+	log.WithContext(ctx).Info("remote pasteld started successfully")
+	return true
 }

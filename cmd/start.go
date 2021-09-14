@@ -129,7 +129,7 @@ func setupStartSubCommand(config *configs.Config,
 		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
 			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
 		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
-			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/pastel-utility)")),
+			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel")).SetValue("$HOME/.pastel"),
 		cli.NewFlag("ssh-key", &sshKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
@@ -1199,76 +1199,6 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 		return err
 	}
 	log.WithContext(ctx).Info("Supernode config updated")
-	return nil
-}
-
-func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, client *utils.Client) error {
-	var pastelCliPath, testnetOption string
-	if config.Network == constants.NetworkTestnet {
-		testnetOption = " --testnet"
-	}
-	pastelCliPath = filepath.Join(config.RemotePastelExecDir, constants.PastelCliName[utils.GetOS()])
-	pasteldPath := filepath.Join(config.RemotePastelExecDir, constants.PasteldName[utils.GetOS()])
-
-	go func() {
-		if err := client.Cmd(fmt.Sprintf("%s --reindex --externalip=%s --daemon %s",
-			pasteldPath, flagNodeExtIP, testnetOption)).Run(); err != nil {
-			fmt.Println("pasteld run err: ", err.Error())
-		}
-	}()
-
-	time.Sleep(10 * time.Second)
-
-	if err := checkMasterNodeSyncRemote(ctx, config, client, pastelCliPath); err != nil {
-		log.WithContext(ctx).Error("Remote::Master node sync failed")
-		return err
-	}
-
-	if _, err := client.Cmd(fmt.Sprintf("%s stop", pastelCliPath)).Output(); err != nil {
-		log.WithContext(ctx).Error("Error - stopping on pasteld")
-		return err
-	}
-
-	time.Sleep(5 * time.Second)
-
-	return nil
-}
-
-func checkMasterNodeSyncRemote(ctx context.Context, _ *configs.Config, client *utils.Client, pastelCliPath string) (err error) {
-	var mnstatus structure.RPCPastelMSStatus
-	var output []byte
-
-	for {
-		if output, err = client.Cmd(fmt.Sprintf("%s mnsync status", pastelCliPath)).Output(); err != nil {
-			log.WithContext(ctx).WithField("out", string(output)).WithError(err).
-				Error("Remote:::failed to get mnsync status")
-
-			return err
-		}
-		// Master Node Output
-		if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
-			log.WithContext(ctx).WithField("payload", string(output)).WithError(err).
-				Error("Remote:::failed to unmarshal mnsync status")
-
-			return err
-		}
-
-		if mnstatus.AssetName == "Initial" {
-			if out, err := client.Cmd(fmt.Sprintf("%s mnsync reset", pastelCliPath)).Output(); err != nil {
-				log.WithContext(ctx).WithField("out", string(out)).WithError(err).
-					Error("Remote:::master node reset was failed")
-
-				return err
-			}
-			time.Sleep(10 * time.Second)
-		}
-		if mnstatus.IsSynced {
-			log.WithContext(ctx).Info("Remote:::master node was synced!")
-			break
-		}
-		log.WithContext(ctx).Info("Remote:::Waiting for sync...")
-		time.Sleep(10 * time.Second)
-	}
 	return nil
 }
 

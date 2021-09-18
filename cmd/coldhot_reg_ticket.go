@@ -37,8 +37,8 @@ func (r *ColdHotRunner) getBalance(ctx context.Context, cold bool) (balance floa
 }
 
 func (r *ColdHotRunner) getRemotePastelAddr(ctx context.Context) (addr string, err error) {
-	cmd := fmt.Sprintf("%s %s", r.opts.remotePastelCli, "getaccountaddress")
-	out, err := r.sshClient.Cmd(cmd).Output()
+	cmd := fmt.Sprintf("%s %s", r.opts.remotePastelCli, `getaccountaddress ""`)
+	out, err := r.sshClient.Cmd(cmd).SmartOutput()
 	if err != nil {
 		log.WithContext(ctx).WithError(err).WithField("out", string(out)).
 			Error("Failed to get remote addr")
@@ -60,7 +60,7 @@ func (r *ColdHotRunner) sendAmountToAddrFromLocal(ctx context.Context, zcashAddr
 	return strings.TrimSpace(strings.Trim(string(out), "\n")), nil
 }
 
-func (r *ColdHotRunner) handleWaitForBalance(ctx context.Context, remoteBalance float64, localBalance float64, address string) (bool, error) {
+func (r *ColdHotRunner) handleAskForBalance(ctx context.Context, remoteBalance float64, localBalance float64, address string) (bool, error) {
 	if ok, _ := AskUserToContinue(ctx, fmt.Sprintf(` Neither remote (%v PSL) nor
 	local (%v PSL)  has enough balance.\n Would you like to trasnfer balance from any of your wallet to an address & continue? Y/N`,
 		remoteBalance, localBalance)); !ok {
@@ -72,6 +72,10 @@ func (r *ColdHotRunner) handleWaitForBalance(ctx context.Context, remoteBalance 
 		return false, nil
 	}
 
+	return r.handleWaitForBalance(ctx)
+}
+
+func (r *ColdHotRunner) handleWaitForBalance(ctx context.Context) (bool, error) {
 	i := 0
 	for {
 		fmt.Println("checking remote for balance...")
@@ -144,7 +148,7 @@ func (r *ColdHotRunner) registerTicketPastelID(ctx context.Context) (err error) 
 	var balanceEnough bool
 	var txid string
 	if remoteBalance < minBalanceForTicketReg && localBalance < minBalanceForTicketReg {
-		balanceEnough, err = r.handleWaitForBalance(ctx, remoteBalance, localBalance, addr)
+		balanceEnough, err = r.handleAskForBalance(ctx, remoteBalance, localBalance, addr)
 		if err != nil {
 			return fmt.Errorf("handleWaitForBalance: %s", err)
 		}
@@ -152,6 +156,11 @@ func (r *ColdHotRunner) registerTicketPastelID(ctx context.Context) (err error) 
 		txid, err = r.handleTransferBalance(ctx, remoteBalance, localBalance, addr)
 		if err != nil {
 			return fmt.Errorf("handleTransferBalance: %s", err)
+		}
+
+		balanceEnough, err = r.handleWaitForBalance(ctx)
+		if err != nil {
+			return fmt.Errorf("handleWaitForBalance after transfer: %s", err)
 		}
 	} else {
 		balanceEnough = true

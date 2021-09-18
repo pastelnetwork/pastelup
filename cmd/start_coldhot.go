@@ -112,6 +112,7 @@ func (r *ColdHotRunner) HandleConfigs(ctx context.Context) error {
 }
 
 func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
+
 	// ***************  1. Start the local Pastel Network Node ***************
 	log.WithContext(ctx).Infof("Starting pasteld")
 	if err = runPastelNode(ctx, r.config, true, "", ""); err != nil {

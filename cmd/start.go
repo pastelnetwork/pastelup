@@ -1202,7 +1202,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 	return nil
 }
 
-func getRemoteInfo(config *configs.Config, client *utils.Client) (remoteWorkDirPath []byte, remotePastelExecPath []byte, remoteOsType []byte, err error) {
+/*func getRemoteInfo(config *configs.Config, client *utils.Client) (remoteWorkDirPath []byte, remotePastelExecPath []byte, remoteOsType []byte, err error) {
 
 	remotePastelUtilityExec := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
 	remotePastelUtilityExec = strings.ReplaceAll(remotePastelUtilityExec, "\\", "/")
@@ -1227,3 +1227,4 @@ func getRemoteInfo(config *configs.Config, client *utils.Client) (remoteWorkDirP
 
 	return remoteWorkDirPath, remotePastelExecPath, remoteOsType, nil
 }
+*/

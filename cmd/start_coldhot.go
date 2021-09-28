@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pastelnetwork/gonode/common/errors"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
@@ -18,6 +19,7 @@ import (
 // TODO: Remove the use of shadowing global variables and decouple
 // this part from rest of the code for better maintenance of codebase
 
+// ColdHotRunnerOpts defines opts for ColdHotRunner
 type ColdHotRunnerOpts struct {
 	// ssh params
 	sshUser string
@@ -33,18 +35,20 @@ type ColdHotRunnerOpts struct {
 	remotePastelCli     string
 }
 
+// ColdHotRunner starts sn in coldhot mode
 type ColdHotRunner struct {
 	sshClient *utils.Client
 	config    *configs.Config
 	opts      *ColdHotRunnerOpts
 }
 
+// Init initiates coldhot runner
 func (r *ColdHotRunner) Init(ctx context.Context) error {
-	if err := r.HandleArgs(); err != nil {
+	if err := r.handleArgs(); err != nil {
 		return fmt.Errorf("parse args: %s", err)
 	}
 
-	if err := r.HandleConfigs(ctx); err != nil {
+	if err := r.handleConfigs(ctx); err != nil {
 		return fmt.Errorf("parse args: %s", err)
 	}
 
@@ -68,7 +72,7 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 	return nil
 }
 
-func (r *ColdHotRunner) HandleArgs() (err error) {
+func (r *ColdHotRunner) handleArgs() (err error) {
 	if len(r.config.RemotePastelUtilityDir) == 0 {
 		return fmt.Errorf("cannot find remote pastel-utility dir")
 	}
@@ -89,7 +93,7 @@ func (r *ColdHotRunner) HandleArgs() (err error) {
 	return nil
 }
 
-func (r *ColdHotRunner) HandleConfigs(ctx context.Context) error {
+func (r *ColdHotRunner) handleConfigs(ctx context.Context) error {
 	log.WithContext(ctx).Infof("reading pastel.conf")
 	// Check pastel config for testnet option and set config.Network
 	if err := ParsePastelConf(ctx, r.config); err != nil {
@@ -111,6 +115,7 @@ func (r *ColdHotRunner) HandleConfigs(ctx context.Context) error {
 	return nil
 }
 
+// Run starts coldhot runner
 func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 
 	// ***************  1. Start the local Pastel Network Node ***************
@@ -123,7 +128,7 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	// ***************  2. If flag --create or --update is provided ***************
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
 		log.WithContext(ctx).Info("Prepare mastenode parameters")
-		if err := r.handleCreateUpdateStartColdHot(ctx, r.config, r.sshClient); err != nil {
+		if err := r.handleCreateUpdateStartColdHot(ctx); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
 			return err
 		}
@@ -260,7 +265,7 @@ func (r *ColdHotRunner) runRemoteNodeAsMasterNode(ctx context.Context) error {
 	return nil
 }
 
-func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context, config *configs.Config, client *utils.Client) (err error) {
+func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context) error {
 	if err := checkCollateral(ctx, r.config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing collateral transaction")
 		return err
@@ -274,12 +279,12 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context, conf
 	go func() {
 		if err := r.sshClient.Cmd(fmt.Sprintf("%s --reindex --externalip=%s --data-dir=%s --daemon %s",
 			r.opts.remotePasteld, flagNodeExtIP, r.config.RemoteWorkingDir, r.opts.testnetOption)).Run(); err != nil {
-			fmt.Println("pasteld run err: ", err.Error())
+			log.WithContext(ctx).WithError(err).Error("unable to start pasteld on remote")
 		}
 	}()
 
 	if !CheckPastelDRunningRemote(ctx, r.sshClient, r.opts.remotePastelCli, true) {
-		return fmt.Errorf("unable to start pasteld on remote: %s", err)
+		return errors.New("unable to start pasteld on remote")
 	}
 
 	if err := checkMasternodePrivKey(ctx, r.config, r.sshClient); err != nil {
@@ -300,7 +305,7 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context, conf
 	time.Sleep(5 * time.Second)
 
 	if flagMasterNodeIsCreate {
-		if _, err = backupConfFile(ctx, r.config); err != nil {
+		if _, err := backupConfFile(ctx, r.config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to backup masternode.conf")
 			return err
 		}

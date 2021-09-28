@@ -18,11 +18,15 @@ const (
 	walletStop
 	superNodeStop
 	allStop
+	rqServiceStop
+	ddServiceStop
+	wnServiceStop
+	snServiceStop
 )
 
 func setupStopSubCommand(config *configs.Config,
 	stopCommand stopCommand,
-	f func(context.Context, *configs.Config) error,
+	f func(context.Context, *configs.Config),
 ) *cli.Command {
 
 	commonFlags := []*cli.Flag{
@@ -48,6 +52,19 @@ func setupStopSubCommand(config *configs.Config,
 		commandName = "all"
 		commandMessage = "Stop all"
 
+	case rqServiceStop:
+		commandName = "rq-service"
+		commandMessage = "Stop rq-service"
+	case ddServiceStop:
+		commandName = "dd-service"
+		commandMessage = "Stop dd-service"
+	case wnServiceStop:
+		commandName = "walletnode-service"
+		commandMessage = "Stop walletnode service"
+	case snServiceStop:
+		commandName = "supernode-service"
+		commandMessage = "Stop supernode service"
+
 	default:
 		commandName = "all"
 		commandMessage = "Stop all"
@@ -72,10 +89,7 @@ func setupStopSubCommand(config *configs.Config,
 			})
 
 			log.WithContext(ctx).Info("Stopping...")
-			err = f(ctx, config)
-			if err != nil {
-				return err
-			}
+			f(ctx, config)
 			log.WithContext(ctx).Info("Finished successfully!")
 			return nil
 		})
@@ -91,6 +105,11 @@ func setupStopCommand() *cli.Command {
 	stopSuperNodeSubCommand := setupStopSubCommand(config, superNodeStop, runStopSuperNodeSubCommand)
 	stopallSubCommand := setupStopSubCommand(config, allStop, runStopAllSubCommand)
 
+	stopRQSubCommand := setupStopSubCommand(config, rqServiceStop, stopRQServiceSubCommand)
+	stopDDSubCommand := setupStopSubCommand(config, ddServiceStop, stopDDServiceSubCommand)
+	stopWNSubCommand := setupStopSubCommand(config, wnServiceStop, stopWNServiceSubCommand)
+	stopSNSubCommand := setupStopSubCommand(config, snServiceStop, stopSNServiceSubCommand)
+
 	stopCommand := cli.NewCommand("stop")
 	stopCommand.SetUsage(blue("Performs stop of the system for both WalletNode and SuperNodes"))
 	stopCommand.AddSubcommands(stopNodeSubCommand)
@@ -98,18 +117,22 @@ func setupStopCommand() *cli.Command {
 	stopCommand.AddSubcommands(stopSuperNodeSubCommand)
 	stopCommand.AddSubcommands(stopallSubCommand)
 
+	stopCommand.AddSubcommands(stopRQSubCommand)
+	stopCommand.AddSubcommands(stopDDSubCommand)
+	stopCommand.AddSubcommands(stopWNSubCommand)
+	stopCommand.AddSubcommands(stopSNSubCommand)
+
 	return stopCommand
 }
 
-func runStopNodeSubCommand(ctx context.Context, config *configs.Config) error {
+func runStopNodeSubCommand(ctx context.Context, config *configs.Config) {
 
 	stopPatelCLI(ctx, config)
 
 	log.WithContext(ctx).Info("End successfully")
-	return nil
 }
 
-func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error {
+func runStopWalletSubCommand(ctx context.Context, config *configs.Config) {
 
 	// *************  Kill process wallet node  *************
 	stopService(ctx, constants.WalletNode)
@@ -121,10 +144,9 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) error 
 	stopPatelCLI(ctx, config)
 
 	log.WithContext(ctx).Info("Walletnode stopped successfully")
-	return nil
 }
 
-func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
+func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 
 	// *************  Kill process super node  *************
 	stopService(ctx, constants.SuperNode)
@@ -139,10 +161,9 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 	stopPatelCLI(ctx, config)
 
 	log.WithContext(ctx).Info("Suppernode stopped successfully")
-	return nil
 }
 
-func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
+func runStopAllSubCommand(ctx context.Context, config *configs.Config) {
 
 	// *************  Kill process super node  *************
 	stopService(ctx, constants.SuperNode)
@@ -160,8 +181,22 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) error {
 	stopPatelCLI(ctx, config)
 
 	log.WithContext(ctx).Info("All stopped successfully")
+}
 
-	return nil
+func stopRQServiceSubCommand(ctx context.Context, _ *configs.Config) {
+	stopService(ctx, constants.RQService)
+}
+
+func stopDDServiceSubCommand(ctx context.Context, _ *configs.Config) {
+	stopDDService(ctx)
+}
+
+func stopWNServiceSubCommand(ctx context.Context, _ *configs.Config) {
+	stopService(ctx, constants.WalletNode)
+}
+
+func stopSNServiceSubCommand(ctx context.Context, _ *configs.Config) {
+	stopService(ctx, constants.SuperNode)
 }
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) {

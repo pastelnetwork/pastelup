@@ -674,7 +674,6 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	config.RPCPwd = utils.GenerateRandomString(15)
 
 	// create pastel.conf file
-
 	pastelConfigPath := filepath.Join(config.WorkingDir, constants.PastelConfName)
 	err := utils.CreateFile(ctx, pastelConfigPath, config.Force)
 	if err != nil {
@@ -849,6 +848,9 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		}
 	}
 
+	if config.Version == "" {
+		config.Version = "beta"
+	}
 	if err = downloadComponents(ctx, config, constants.DDService, config.Version); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
 		return err

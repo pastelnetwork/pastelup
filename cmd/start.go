@@ -392,10 +392,8 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 		"dupe_detection_support_files",
 		"config.ini")
 
-	go RunCMDWithEnvVariable("python3",
-		"DUPEDETECTIONCONFIGPATH",
-		ddConfigFilePath,
-		execPath)
+	go RunCMD("python3", execPath, ddConfigFilePath)
+
 	time.Sleep(10 * time.Second)
 
 	if output, err := FindRunningProcess(constants.DupeDetectionExecName); len(output) == 0 {
@@ -459,6 +457,7 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 		log.WithContext(ctx).WithError(err).Error("Could not find pasteld")
 		return err
 	}
+
 	if _, err = checkPastelFilePath(ctx, config.WorkingDir, constants.PastelConfName); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Could not find pastel.conf")
 		return err

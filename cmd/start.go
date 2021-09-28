@@ -129,7 +129,11 @@ func setupStartSubCommand(config *configs.Config,
 		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
 			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
 		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
-			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/pastel-utility)")),
+			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel")).SetValue("$HOME/.pastel"),
+		cli.NewFlag("ssh-key", &sshKey).
+			SetUsage(yellow("Optional, Path to SSH private key")),
+		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
+			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
 	}
 
 	var commandName, commandMessage string
@@ -209,7 +213,7 @@ func setupStartCommand() *cli.Command {
 	startNodeSubCommand := setupStartSubCommand(config, nodeStart, runStartNodeSubCommand)
 	startWalletSubCommand := setupStartSubCommand(config, walletStart, runStartWalletSubCommand)
 	startSuperNodeSubCommand := setupStartSubCommand(config, superNodeStart, runLocalSuperNodeSubCommand)
-	startSuperNodeCOldHotSubCommand := setupStartSubCommand(config, superNodeColdHotStart, runRemoteSuperNodeSubCommand)
+	startSuperNodeCOldHotSubCommand := setupStartSubCommand(config, superNodeColdHotStart, runSuperNodeColdHotSubCommand)
 
 	startRQServiceCommand := setupStartSubCommand(config, rqService, runRQService)
 	startDDServiceCommand := setupStartSubCommand(config, ddService, runDDService)
@@ -604,6 +608,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 		}
 		return flagMasterNodeP2PPort
 	}()
+
 	return nil
 }
 
@@ -646,12 +651,12 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 		return err
 	}
 
-	if err := checkMasternodePrivKey(ctx, config); err != nil {
+	if err := checkMasternodePrivKey(ctx, config, nil); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing masternode private key")
 		return err
 	}
 
-	if err := checkPastelID(ctx, config); err != nil {
+	if err := checkPastelID(ctx, config, nil); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing masternode PastelID")
 		return err
 	}
@@ -659,7 +664,7 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 	return StopPastelDAndWait(ctx, config)
 }
 
-func checkPastelID(ctx context.Context, config *configs.Config) error {
+func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Client) (err error) {
 	if len(flagMasterNodePastelID) == 0 {
 
 		log.WithContext(ctx).Info("Masternode PastelID is empty - will create new one")
@@ -670,10 +675,23 @@ func checkPastelID(ctx context.Context, config *configs.Config) error {
 			return err
 		}
 
-		pastelid, err := RunPastelCLI(ctx, config, "pastelid", "newkey", flagMasterNodePassPhrase)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
-			return err
+		var pastelid string
+		if client == nil {
+			pastelid, err = RunPastelCLI(ctx, config, "pastelid", "newkey", flagMasterNodePassPhrase)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
+				return err
+			}
+		} else {
+			pastelcliPath := filepath.Join(config.RemotePastelExecDir, constants.PastelCliName[utils.GetOS()])
+			out, err := client.Cmd(fmt.Sprintf("%s %s %s", pastelcliPath, "pastelid newkey",
+				flagMasterNodePassPhrase)).Output()
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key on Hot node")
+				return err
+			}
+			pastelid = string(out)
+			fmt.Println("generated pastel key on hotnode: ", pastelid)
 		}
 
 		var pastelidSt structure.RPCPastelID
@@ -687,15 +705,57 @@ func checkPastelID(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func checkMasternodePrivKey(ctx context.Context, config *configs.Config) error {
+func runSuperNodeColdHotSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	runner := &ColdHotRunner{
+		config: config,
+		opts: &ColdHotRunnerOpts{
+			sshUser: sshUser,
+			sshIP:   flagMasterNodeSSHIP,
+			sshPort: flagMasterNodeSSHPort,
+			sshKey:  sshKey,
+		},
+	}
+
+	log.WithContext(ctx).Info("run supernode coldhot init")
+	if err := runner.Init(ctx); err != nil {
+		log.WithContext(ctx).WithError(err).Error("init coldhot runner failed.")
+		return err
+	}
+
+	log.WithContext(ctx).Info("running supernode coldhot runner")
+	if err := runner.Run(ctx); err != nil {
+		log.WithContext(ctx).WithError(err).Error("run coldhot runner failed.")
+		return err
+	}
+	log.WithContext(ctx).Info("run supernode coldhot successfull")
+
+	return nil
+}
+
+func checkMasternodePrivKey(ctx context.Context, config *configs.Config, client *utils.Client) (err error) {
 	if len(flagMasterNodePrivateKey) == 0 {
 		log.WithContext(ctx).Info("Masternode private key is empty - will create new one")
 
-		mnPrivKey, err := RunPastelCLI(ctx, config, "masternode", "genkey")
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to generate new masternode private key")
-			return err
+		var mnPrivKey string
+		if client == nil {
+			mnPrivKey, err = RunPastelCLI(ctx, config, "masternode", "genkey")
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to generate new masternode private key")
+				return err
+			}
+		} else {
+			pastelcliPath := filepath.Join(config.RemotePastelExecDir, constants.PastelCliName[utils.GetOS()])
+			cmd := fmt.Sprintf("%s %s", pastelcliPath, "masternode genkey")
+			out, err := client.Cmd(cmd).Output()
+			if err != nil {
+				log.WithContext(ctx).WithField("cmd", cmd).WithField("out", string(out)).WithError(err).Error("Failed to generate new masternode private key on Hot node")
+				return err
+			}
+
+			mnPrivKey = string(out)
+			fmt.Println("generated priv key on hotnode: ", mnPrivKey)
 		}
+
 		flagMasterNodePrivateKey = strings.TrimSuffix(mnPrivKey, "\n")
 	}
 	log.WithContext(ctx).Infof("masternode private key = %s", flagMasterNodePrivateKey)
@@ -1142,298 +1202,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 	return nil
 }
 
-//FIXME: ColdNot
-func runRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
-	//var pastelid string
-	var err error
-
-	if len(config.RemotePastelUtilityDir) == 0 {
-		err = fmt.Errorf("cannot find remote pastel-utility dir")
-		log.WithContext(ctx).WithError(err).Error("Remote configuration error")
-		return err
-	}
-
-	log.WithContext(ctx).Info("Checking parameters...")
-	if err := checkStartMasterNodeParams(ctx, config, true); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Checking parameters failed")
-		return err
-	}
-	log.WithContext(ctx).Info("Finished checking parameters!")
-
-	log.WithContext(ctx).Info("Checking pastel config...")
-	if err := ParsePastelConf(ctx, config); err != nil {
-		log.WithContext(ctx).Error("pastel.conf was not correct!")
-		return err
-	}
-	log.WithContext(ctx).Info("Finished checking pastel config!")
-
-	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
-		log.WithContext(ctx).Info("Prepare mastenode parameters")
-		if err := prepareMasterNodeParameters(ctx, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
-			return err
-		}
-		if err := createOrUpdateMasternodeConf(ctx, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
-			return err
-		}
-	}
-
-	// ***************  4. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
-	username, password, _ := utils.Credentials("", true)
-
-	if err = remoteHotNodeCtrl(ctx, config, username, password); err != nil {
-		log.WithContext(ctx).Error(fmt.Sprintf("%s\n", err))
-		return err
-	}
-	log.WithContext(ctx).Info("The hot wallet node has been successfully launched!")
-	// ***************  5. Enable Masternode  ***************
-	// Get conf data from masternode.conf File
-	var extIP string
-	if _, extIP, _, err = getMasternodeConfData(ctx, config, flagMasterNodeName); err != nil {
-		return err
-	}
-
-	// Start Node as Masternode
-	if err := runPastelNode(ctx, config, flagReIndex, extIP, ""); err != nil {
-		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
-		return err
-	}
-
-	if err = CheckMasterNodeSync(ctx, config); err != nil {
-		return err
-	}
-
-	if flagMasterNodeIsActivate {
-		if err = runStartAliasMasternode(ctx, config, flagMasterNodeName); err != nil {
-			return err
-		}
-	}
-
-	// ***************  6. Stop Cold Node  ***************
-	if _, err = RunPastelCLI(ctx, config, "stop"); err != nil {
-		return err
-	}
-
-	client, err := utils.DialWithPasswd(fmt.Sprintf("%s:%d", flagMasterNodeSSHIP, flagMasterNodeSSHPort), username, password)
-	if err != nil {
-		return err
-	}
-
-	// *************  7. Start rq-servce    *************
-	if err = runPastelServiceRemote(ctx, config, constants.RQService, client); err != nil {
-		return err
-	}
-
-	// ***************  8. Start supernode  **************
-
-	err = runSuperNodeRemote(ctx, config, client /*, extIP, pastelid*/)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func remoteHotNodeCtrl(ctx context.Context, config *configs.Config, username string, password string) error {
-	var pastelCliPath, testnetOption string
-	log.WithContext(ctx).Infof("Connecting to SSH Hot node wallet -> %s:%d...", flagMasterNodeSSHIP, flagMasterNodeSSHPort)
-	client, err := utils.DialWithPasswd(fmt.Sprintf("%s:%d", flagMasterNodeSSHIP, flagMasterNodeSSHPort), username, password)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	if config.Network == constants.NetworkTestnet {
-		testnetOption = " --testnet"
-	}
-
-	// Find pasteld
-	pasteldPath := filepath.Join(config.RemotePastelExecDir, constants.PasteldName[utils.GetOS()])
-	log.WithContext(ctx).Info("Check pasteld default path...")
-	out, err := client.Cmd(fmt.Sprintf("test -e %s && echo file exists || echo file not found", pasteldPath)).Output()
-	if err != nil {
-		return err
-	}
-
-	if strings.TrimRight(string(out), "\n") != "file exists" {
-		log.WithContext(ctx).Info("Finding pasteld executable on $HOME path")
-		out, err = client.Cmd("find $HOME -iname pasteld").Output()
-		if err != nil {
-			return err
-		}
-
-		pastelPaths := strings.Split(string(out), "\n")
-
-		if len(pastelPaths) > 0 {
-			log.WithContext(ctx).Infof("%s\n", string(out))
-			for {
-				indexStr, err := utils.ReadStrings("Please input index of pasteld path to use")
-				if err != nil {
-					return err
-				}
-
-				index, err := strconv.Atoi(indexStr)
-				if err != nil {
-					return err
-				}
-
-				if len(pastelPaths) < index {
-					log.WithContext(ctx).Warn("Please input index correctly")
-				} else {
-					pasteldPath = pastelPaths[index]
-					break
-				}
-			}
-		}
-
-	} else {
-		log.WithContext(ctx).Info("Found pasteld on default path!")
-	}
-
-	log.WithContext(ctx).Info("Checking pastel-cli path...")
-	out, err = client.Cmd("find $HOME -iname pastel-cli").Output()
-	if err != nil {
-		return err
-	}
-
-	pastelCliPaths := strings.Split(string(out), "\n")
-
-	if len(pastelCliPaths) == 0 {
-		err = fmt.Errorf("cannot find pastel-cli on SSH server")
-		log.WithContext(ctx).WithError(err).Error("Remote configuration error")
-		return err
-	}
-
-	pastelCliPath = pastelCliPaths[0]
-
-	log.WithContext(ctx).Infof("Found pastel-cli path on %s", pastelCliPath)
-
-	go client.Cmd(fmt.Sprintf("%s --reindex --externalip=%s --daemon%s", pasteldPath, flagNodeExtIP, testnetOption)).Run()
-
-	time.Sleep(10 * time.Second)
-
-	if err = checkMasterNodeSyncRemote(ctx, config, client, pastelCliPath); err != nil {
-		log.WithContext(ctx).Error("Remote::Master node sync failed")
-		return err
-	}
-
-	if _, err = client.Cmd(fmt.Sprintf("%s stop", pastelCliPath)).Output(); err != nil {
-		log.WithContext(ctx).Error("Error - stopping on pasteld")
-		return err
-	}
-
-	time.Sleep(5 * time.Second)
-
-	cmdLine := fmt.Sprintf("%s --masternode --txindex=1 --reindex --masternodeprivkey=%s --externalip=%s%s --daemon", pasteldPath, flagMasterNodePrivateKey, flagNodeExtIP, testnetOption)
-	log.WithContext(ctx).Infof("%s\n", cmdLine)
-	go client.Cmd(cmdLine).Run()
-
-	time.Sleep(10 * time.Second)
-
-	if err = checkMasterNodeSyncRemote(ctx, config, client, pastelCliPath); err != nil {
-		log.WithContext(ctx).Error("Remote::Master node sync failed")
-		return err
-	}
-
-	return nil
-}
-
-func runPastelServiceRemote(ctx context.Context, config *configs.Config, tool constants.ToolType, client *utils.Client) (err error) {
-	commandName := filepath.Base(string(tool))
-	log.WithContext(ctx).Infof("Remote:::Starting %s", commandName)
-
-	remoteWorkDirPath, remotePastelExecPath, remoteOsType, err := getRemoteInfo(config, client)
-	if err != nil {
-		return err
-	}
-
-	switch tool {
-	case constants.RQService:
-		remoteRQServiceConfigFilePath := config.Configurer.GetRQServiceConfFile(string(remoteWorkDirPath))
-
-		remoteRQServiceConfigFilePath = strings.ReplaceAll(remoteRQServiceConfigFilePath, "\\", "/")
-
-		pastelRqServicePath := filepath.Join(string(remotePastelExecPath), constants.PastelRQServiceExecName[constants.OSType(string(remoteOsType))])
-		pastelRqServicePath = strings.ReplaceAll(pastelRqServicePath, "\\", "/")
-
-		go client.Cmd(fmt.Sprintf("%s %s", pastelRqServicePath, fmt.Sprintf("--config-file=%s", remoteRQServiceConfigFilePath))).Run()
-
-		time.Sleep(10 * time.Second)
-
-	}
-
-	log.WithContext(ctx).Infof("Remote:::The %s started succesfully!", commandName)
-	return nil
-}
-
-func runSuperNodeRemote(ctx context.Context, config *configs.Config, client *utils.Client /*, extIP string, pastelid string*/) (err error) {
-	log.WithContext(ctx).Info("Remote:::Starting supernode")
-	log.WithContext(ctx).Debug("Remote:::Configure supernode setting")
-
-	log.WithContext(ctx).Info("Remote:::Configuring supernode was finished")
-	log.WithContext(ctx).Info("Remote:::Start supernode")
-
-	remoteWorkDirPath, remotePastelExecPath, remoteOsType, err := getRemoteInfo(config, client)
-	if err != nil {
-		return err
-	}
-
-	remoteSuperNodeConfigFilePath := config.Configurer.GetSuperNodeConfFile(string(remoteWorkDirPath))
-
-	var remoteSupernodeExecFile string
-
-	remoteSuperNodeConfigFilePath = strings.ReplaceAll(remoteSuperNodeConfigFilePath, "\\", "/")
-	remoteSupernodeExecFile = filepath.Join(string(remotePastelExecPath), constants.SuperNodeExecName[constants.OSType(string(remoteOsType))])
-	remoteSupernodeExecFile = strings.ReplaceAll(remoteSupernodeExecFile, "\\", "/")
-
-	time.Sleep(5 * time.Second)
-
-	log.WithContext(ctx).Infof("Remote:::Start supernode command : %s", fmt.Sprintf("%s %s", remoteSupernodeExecFile, fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath)))
-
-	go client.Cmd(fmt.Sprintf("%s %s", remoteSupernodeExecFile,
-		fmt.Sprintf("--config-file=%s", remoteSuperNodeConfigFilePath))).Run()
-
-	defer client.Close()
-
-	log.WithContext(ctx).Info("Remote:::Waiting for supernode started...")
-	time.Sleep(5 * time.Second)
-
-	log.WithContext(ctx).Info("Remote:::Supernode was started successfully")
-	return nil
-}
-
-func checkMasterNodeSyncRemote(ctx context.Context, _ *configs.Config, client *utils.Client, pastelCliPath string) (err error) {
-	var mnstatus structure.RPCPastelMSStatus
-	var output []byte
-
-	for {
-		if output, err = client.Cmd(fmt.Sprintf("%s mnsync status", pastelCliPath)).Output(); err != nil {
-			return err
-		}
-		// Master Node Output
-		if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
-			return err
-		}
-
-		if mnstatus.AssetName == "Initial" {
-			if _, err = client.Cmd(fmt.Sprintf("%s mnsync reset", pastelCliPath)).Output(); err != nil {
-				log.WithContext(ctx).Error("Remote:::master node reset was failed")
-				return err
-			}
-			time.Sleep(10 * time.Second)
-		}
-		if mnstatus.IsSynced {
-			log.WithContext(ctx).Info("Remote:::master node was synced!")
-			break
-		}
-		log.WithContext(ctx).Info("Remote:::Waiting for sync...")
-		time.Sleep(10 * time.Second)
-	}
-	return nil
-}
-
-func getRemoteInfo(config *configs.Config, client *utils.Client) (remoteWorkDirPath []byte, remotePastelExecPath []byte, remoteOsType []byte, err error) {
+/*func getRemoteInfo(config *configs.Config, client *utils.Client) (remoteWorkDirPath []byte, remotePastelExecPath []byte, remoteOsType []byte, err error) {
 
 	remotePastelUtilityExec := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
 	remotePastelUtilityExec = strings.ReplaceAll(remotePastelUtilityExec, "\\", "/")
@@ -1458,3 +1227,4 @@ func getRemoteInfo(config *configs.Config, client *utils.Client) (remoteWorkDirP
 
 	return remoteWorkDirPath, remotePastelExecPath, remoteOsType, nil
 }
+*/

@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	errors2 "github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	errors2 "github.com/pkg/errors"
 
 	"github.com/go-errors/errors"
 	ps "github.com/mitchellh/go-ps"
@@ -83,6 +84,7 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
+	log.WithContext(ctx).WithField("pastel.conf", string(configure)).Info("pastel conf")
 	if strings.Contains(string(configure), "testnet=1") {
 		config.Network = constants.NetworkTestnet
 	} else {
@@ -291,6 +293,7 @@ func GetSNPortList(config *configs.Config) []int {
 	if config.Network == constants.NetworkTestnet {
 		return constants.TestnetPortList
 	}
+
 	return constants.MainnetPortList
 }
 
@@ -418,4 +421,23 @@ func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
 	}
 
 	return nil
+}
+
+func connectSSH(ctx context.Context, sshUser, sshIP string, sshPort int, key string) (client *utils.Client, err error) {
+
+	addr := fmt.Sprintf("%s:%d", sshIP, sshPort)
+	log.WithContext(ctx).Infof("SSH into node -> %s...", addr)
+
+	if len(key) == 0 {
+		username, password, _ := utils.Credentials(sshUser, true)
+		client, err = utils.DialWithPasswd(addr, username, password)
+	} else {
+		username, _, _ := utils.Credentials(sshUser, false)
+		client, err = utils.DialWithKey(addr, username, sshKey)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }

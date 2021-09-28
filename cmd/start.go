@@ -459,7 +459,7 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 		log.WithContext(ctx).WithError(err).Error("Could not find pasteld")
 		return err
 	}
-	if _, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PastelConfName); err != nil {
+	if _, err = checkPastelFilePath(ctx, config.WorkingDir, constants.PastelConfName); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Could not find pastel.conf")
 		return err
 	}

@@ -63,8 +63,10 @@ const (
 	AMD64 ArchitectureType = "amd64"
 	// DupeDetectionArchiveName is archive name for dupe detection
 	DupeDetectionArchiveName = "dupe-detection-server.zip"
-	// DupeDetectionExecName  is exec name for dupe detection
-	DupeDetectionExecName = "dupe_detection_server.py"
+	// DupeDetectionSubFolder is the subfolder where dd scripts live
+	DupeDetectionSubFolder = "dd-service"
+	// DupeDetectionExecFileName  is exec name for dupe detection
+	DupeDetectionExecFileName = "dupe_detection_server.py"
 	// PortCheckURL is URL of port checker service
 	PortCheckURL = "http://portchecker.com?q="
 	// IPCheckURL is URL of IP checker service

@@ -382,7 +382,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Infof("Starting dupe detection service")
 
 	var execPath string
-	if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.DupeDetectionExecName); err != nil {
+	if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, utils.GetDupeDetectionExecName()); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
 		return err
 	}
@@ -396,7 +396,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 
 	time.Sleep(10 * time.Second)
 
-	if output, err := FindRunningProcess(constants.DupeDetectionExecName); len(output) == 0 {
+	if output, err := FindRunningProcess(constants.DupeDetectionExecFileName); len(output) == 0 {
 		err = errors.Errorf("dd-service failed to start")
 		log.WithContext(ctx).WithError(err).Error("dd-service failed to start")
 		return err

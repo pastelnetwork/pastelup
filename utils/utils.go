@@ -504,3 +504,7 @@ func IsValidNetworkOpt(val string) bool {
 
 	return false
 }
+
+func GetDupeDetectionExecName() string {
+	return filepath.Join(constants.DupeDetectionSubFolder, constants.DupeDetectionExecFileName)
+}

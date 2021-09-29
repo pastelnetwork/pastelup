@@ -505,6 +505,7 @@ func IsValidNetworkOpt(val string) bool {
 	return false
 }
 
+// GetDupeDetectionExecName returns exec file name for dupedetection
 func GetDupeDetectionExecName() string {
 	return filepath.Join(constants.DupeDetectionSubFolder, constants.DupeDetectionExecFileName)
 }

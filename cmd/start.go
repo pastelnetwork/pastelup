@@ -392,7 +392,11 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 		"dupe_detection_support_files",
 		"config.ini")
 
-	go RunCMD("python3", execPath, ddConfigFilePath)
+	python := "python3"
+	if utils.GetOS() == constants.Windows {
+		python = "python"
+	}
+	go RunCMD(python, execPath, ddConfigFilePath)
 
 	time.Sleep(10 * time.Second)
 

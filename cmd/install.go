@@ -338,7 +338,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		pasteldName := constants.PasteldName[utils.GetOS()]
 		pastelCliName := constants.PastelCliName[utils.GetOS()]
 
-		if err := downloadComponents(ctx, config, constants.PastelD, config.Version); err != nil {
+		if err := downloadComponents(ctx, config, constants.PastelD, config.Version, ""); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.PastelD)
 			return err
 		}
@@ -368,7 +368,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return errors.Errorf("failed to get rqservice config: %v", err)
 		}
 
-		if err = downloadComponents(ctx, config, constants.RQService, config.Version); err != nil {
+		if err = downloadComponents(ctx, config, constants.RQService, config.Version, ""); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
 			return err
 		}
@@ -411,7 +411,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return errors.Errorf("failed to get walletnode config: %v", err)
 		}
 
-		if err = downloadComponents(ctx, config, constants.WalletNode, config.Version); err != nil {
+		if err = downloadComponents(ctx, config, constants.WalletNode, config.Version, ""); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
 			return err
 		}
@@ -459,7 +459,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 
 		toolPath := constants.SuperNodeExecName[utils.GetOS()]
 
-		if err = downloadComponents(ctx, config, constants.SuperNode, config.Version); err != nil {
+		if err = downloadComponents(ctx, config, constants.SuperNode, config.Version, ""); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
 			return err
 		}
@@ -584,7 +584,7 @@ func installMissingReqPackagesLinux(ctx context.Context, pkgs []string) error {
 	return nil
 }
 
-func downloadComponents(ctx context.Context, config *configs.Config, installCommand constants.ToolType, version string) (err error) {
+func downloadComponents(ctx context.Context, config *configs.Config, installCommand constants.ToolType, version string, dstFolder string) (err error) {
 	commandName := filepath.Base(string(installCommand))
 	log.WithContext(ctx).Infof("Downloading %s...", commandName)
 
@@ -598,7 +598,7 @@ func downloadComponents(ctx context.Context, config *configs.Config, installComm
 	}
 
 	if strings.Contains(archiveName, ".zip") {
-		if err = processArchive(ctx, config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName)); err != nil {
+		if err = processArchive(ctx, filepath.Join(config.PastelExecDir, dstFolder), filepath.Join(config.PastelExecDir, archiveName)); err != nil {
 			//Error was logged in processArchive
 			return errors.Errorf("failed to process downloaded file: %v", err)
 		}
@@ -674,7 +674,6 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	config.RPCPwd = utils.GenerateRandomString(15)
 
 	// create pastel.conf file
-
 	pastelConfigPath := filepath.Join(config.WorkingDir, constants.PastelConfName)
 	err := utils.CreateFile(ctx, pastelConfigPath, config.Force)
 	if err != nil {
@@ -849,7 +848,10 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		}
 	}
 
-	if err = downloadComponents(ctx, config, constants.DDService, config.Version); err != nil {
+	if config.Version == "" {
+		config.Version = "beta"
+	}
+	if err = downloadComponents(ctx, config, constants.DDService, config.Version, constants.DupeDetectionSubFolder); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
 		return err
 	}

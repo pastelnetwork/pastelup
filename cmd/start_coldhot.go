@@ -206,6 +206,20 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	// *************  6. Start rq-servce    *************
+	log.WithContext(ctx).Info("starting rq-service..")
+	if err = r.runServiceRemote(ctx, string(constants.RQService)); err != nil {
+		return fmt.Errorf("failed to start rq-service on hot node: %s", err)
+	}
+	log.WithContext(ctx).Info("rq-service started successfully")
+
+	// *************  Start dd-servce    *************
+	log.WithContext(ctx).Info("starting dd-service..")
+	if err = r.runServiceRemote(ctx, string(constants.DDService)); err != nil {
+		return fmt.Errorf("failed to start dd-service on hot node: %s", err)
+	}
+	log.WithContext(ctx).Info("dd-service started successfully")
+
 	// ***************  7. Start supernode  **************
 	// TODO (MATEE): improve the following code
 	snConfigPath := r.config.Configurer.GetSuperNodeConfFile(r.config.WorkingDir)
@@ -228,13 +242,6 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to start supernode-service on hot node: %s", err)
 	}
 	log.WithContext(ctx).Info("started supernode-service successfully..")
-
-	// *************  6. Start rq-servce    *************
-	log.WithContext(ctx).Info("starting rq-service..")
-	if err = r.runServiceRemote(ctx, string(constants.RQService)); err != nil {
-		return fmt.Errorf("failed to start rq-service on hot node: %s", err)
-	}
-	log.WithContext(ctx).Info("rq-service started successfully")
 
 	return nil
 }

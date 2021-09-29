@@ -61,8 +61,12 @@ const (
 	RQService ToolType = "rq-service"
 	// AMD64 is architecture type
 	AMD64 ArchitectureType = "amd64"
-	// DupeDetectionExecName is execution file name
-	DupeDetectionExecName = "pastel_dupe_detection_daemon_v4.py"
+	// DupeDetectionArchiveName is archive name for dupe detection
+	DupeDetectionArchiveName = "dupe-detection-server.zip"
+	// DupeDetectionSubFolder is the subfolder where dd scripts live
+	DupeDetectionSubFolder = "dd-service"
+	// DupeDetectionExecFileName  is exec name for dupe detection
+	DupeDetectionExecFileName = "dupe_detection_server.py"
 	// PortCheckURL is URL of port checker service
 	PortCheckURL = "http://portchecker.com?q="
 	// IPCheckURL is URL of IP checker service

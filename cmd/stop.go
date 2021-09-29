@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"context"
+	"os"
+	"time"
+
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
-	"os"
-	"time"
 )
 
 type stopCommand uint8
@@ -229,7 +230,7 @@ func stopService(ctx context.Context, tool constants.ToolType) {
 
 func stopDDService(ctx context.Context) {
 	log.WithContext(ctx).Info("Stopping dd-service process")
-	if pid, err := FindRunningProcessPid(constants.DupeDetectionExecName); err != nil {
+	if pid, err := FindRunningProcessPid(constants.DupeDetectionExecFileName); err != nil {
 		log.WithContext(ctx).Infof("dd-service is not running")
 	} else if pid != 0 {
 		if err := KillProcessByPid(ctx, pid); err != nil {

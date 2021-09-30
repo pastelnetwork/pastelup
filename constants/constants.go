@@ -66,6 +66,8 @@ const (
 	DupeDetectionArchiveName = "dupe-detection-server.zip"
 	// DupeDetectionSubFolder is the subfolder where dd scripts live
 	DupeDetectionSubFolder = "dd-service"
+	// DupeDetectionConfigFilename is the config file name for dd
+	DupeDetectionConfigFilename = "config.ini"
 	// DupeDetectionExecFileName  is exec name for dupe detection
 	DupeDetectionExecFileName = "dupe_detection_server.py"
 	// PortCheckURL is URL of port checker service

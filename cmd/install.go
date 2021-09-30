@@ -890,7 +890,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		}
 	}
 
-	ddConfigPath := filepath.Join(targetDir, "config.ini")
+	ddConfigPath := filepath.Join(targetDir, constants.DupeDetectionConfigFilename)
 	err = utils.CreateFile(ctx, ddConfigPath, config.Force)
 	if err != nil {
 		log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", ddConfigPath)

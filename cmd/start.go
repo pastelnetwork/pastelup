@@ -389,7 +389,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 
 	ddConfigFilePath := filepath.Join(config.Configurer.GetHomeDir(),
 		"pastel_dupe_detection_service",
-		"dupe_detection_support_files",
+		constants.DupeDetectionSupportFilePath,
 		"config.ini")
 
 	python := "python3"

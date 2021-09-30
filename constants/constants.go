@@ -2,6 +2,7 @@ package constants
 
 import (
 	"fmt"
+	"path/filepath"
 )
 
 // OSType - Windows, Linux, MAC, Unknown
@@ -223,12 +224,12 @@ var PastelRQServiceExecName = map[OSType]string{
 
 // DupeDetectionConfigs - dupe detection path of the supernode config
 var DupeDetectionConfigs = []string{
-	"dupe_detection_input_files",
-	"dupe_detection_support_files",
-	"dupe_detection_output_files",
-	"dupe_detection_processed_files",
-	"dupe_detection_rare_on_internet",
-	"mobilenet_v2_140_224",
+	"input_files",
+	DupeDetectionSupportFilePath,
+	"output_files",
+	"processed_files",
+	"rare_on_internet",
+	filepath.Join(DupeDetectionSupportFilePath, "mobilenet_v2_140_224"),
 }
 
 // DupeDetectionSupportDownloadURL - The URL of dupe detection support files
@@ -242,7 +243,7 @@ var DupeDetectionSupportDownloadURL = []string{
 }
 
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files
-var DupeDetectionSupportFilePath = "dupe_detection_support_files"
+var DupeDetectionSupportFilePath = "support_files"
 
 // GetVersionSubURL returns the sub url concerned with version info
 func GetVersionSubURL(version string) string {

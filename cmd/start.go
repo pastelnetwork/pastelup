@@ -388,9 +388,9 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	}
 
 	ddConfigFilePath := filepath.Join(config.Configurer.GetHomeDir(),
-		"pastel_dupe_detection_service",
-		"dupe_detection_support_files",
-		"config.ini")
+		constants.DupeDetectionServiceDir,
+		constants.DupeDetectionSupportFilePath,
+		constants.DupeDetectionConfigFilename)
 
 	python := "python3"
 	if utils.GetOS() == constants.Windows {

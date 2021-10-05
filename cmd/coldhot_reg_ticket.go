@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,7 +12,7 @@ import (
 )
 
 const (
-	minBalanceForTicketReg = 1000.0
+	minBalanceForTicketReg = 1100.0
 )
 
 func (r *ColdHotRunner) getBalance(ctx context.Context, cold bool) (balance float64, err error) {
@@ -183,12 +184,15 @@ func (r *ColdHotRunner) registerTicketPastelID(ctx context.Context) (err error) 
 		return err
 	}
 
-	/*var pastelidSt structure.RPCPastelID
-	if err = json.Unmarshal([]byte(pastelid), &pastelidSt); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to parse pastelid json")
+	type ticketRegOut struct {
+		TXID string `json:"txid"`
+	}
+	regOut := &ticketRegOut{}
+
+	if err = json.Unmarshal(out, &regOut); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to parse ticket register output")
 		return err
 	}
-	flagMasterNodePastelID = pastelidSt.Pastelid*/
 
 	log.WithContext(ctx).Infof("Register ticket pastelid result = %s", string(out))
 	return nil

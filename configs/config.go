@@ -61,6 +61,11 @@ metadb:
 raptorq:
   host: "localhost"
   port: {{.RaptorqPort}}
+
+dd-server:
+  host: "localhost"
+  port: {{.DDServerPort}}
+  dd-temp-file-dir: "dd-server"
 `
 
 	// RQServiceDefaultConfig - default rqserivce config
@@ -109,6 +114,7 @@ type SuperNodeConfig struct {
 	RAFTPort      int
 	MDLDataDir    string
 	RaptorqPort   int
+	DDServerPort  int
 }
 
 // RQServiceConfig defines configurations for rqservice

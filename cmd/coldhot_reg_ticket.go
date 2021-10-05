@@ -188,9 +188,14 @@ func (r *ColdHotRunner) registerTicketPastelID(ctx context.Context) (err error) 
 		TXID string `json:"txid"`
 	}
 	regOut := &ticketRegOut{}
-
 	if err = json.Unmarshal(out, &regOut); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to parse ticket register output")
+		return err
+	}
+
+	if regOut.TXID == "" {
+		err = fmt.Errorf("registerTicketPastelID: unexpected response: %s", string(out))
+		log.WithContext(ctx).WithError(err).Error("Received unexpected response on register")
 		return err
 	}
 

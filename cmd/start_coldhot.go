@@ -518,7 +518,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 		return err
 	}
 
-	if err := utils.DeleteFile("supernode.yml"); err != nil {
+	if err := utils.DeleteFile(supernodeConfigPath); err != nil {
 		log.WithContext(ctx).Errorf("Failed to delete archive file : %s", supernodeConfigPath)
 		return err
 	}

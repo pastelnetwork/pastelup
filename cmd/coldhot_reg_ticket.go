@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	minBalanceForTicketReg = 1100.0
+	minBalanceForTicketReg = 1000.0
 )
 
 func (r *ColdHotRunner) getBalance(ctx context.Context, cold bool) (balance float64, err error) {

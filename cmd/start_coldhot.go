@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/structure"
 	"github.com/pastelnetwork/pastel-utility/utils"
+	"gopkg.in/yaml.v2"
 )
 
 // TODO: Remove the use of shadowing global variables and decouple
@@ -139,10 +142,6 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 			log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
 			return err
 		}
-		if err := createOrUpdateSuperNodeConfig(ctx, r.config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
-			return err
-		}
 	}
 
 	if err = StopPastelDAndWait(ctx, r.config); err != nil {
@@ -221,18 +220,9 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	log.WithContext(ctx).Info("dd-service started successfully")
 
 	// ***************  7. Start supernode  **************
-	// TODO (MATEE): improve the following code
-	snConfigPath := r.config.Configurer.GetSuperNodeConfFile(r.config.WorkingDir)
-	remoteSnConfigPath := r.config.Configurer.GetSuperNodeConfFile(r.config.RemoteWorkingDir)
-	remoteSnConfigPath = strings.ReplaceAll(remoteSnConfigPath, "\\", "/")
 
-	log.WithContext(ctx).Info("copying supernode config..")
-	if err := r.sshClient.Scp(snConfigPath, remoteSnConfigPath); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
-		return err
-	}
-	if err = r.sshClient.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", snConfigPath)); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
+	if err := r.createAndCopyRemoteSuperNodeConfig(ctx, r.config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
 		return err
 	}
 
@@ -434,5 +424,109 @@ func (r *ColdHotRunner) checkMasterNodeSyncRemote(ctx context.Context, retryCoun
 		log.WithContext(ctx).Info("Remote:::Waiting for sync...")
 		time.Sleep(10 * time.Second)
 	}
+	return nil
+}
+
+///// supernode.yml helpers
+func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, config *configs.Config) error {
+
+	supernodeConfigPath := "supernode.yml"
+	log.WithContext(ctx).Infof("Creating remote supernode config - %s", supernodeConfigPath)
+
+	if _, err := os.Stat(supernodeConfigPath); os.IsNotExist(err) {
+		// create new
+		if err = utils.CreateFile(ctx, supernodeConfigPath, true); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create new supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+
+		portList := GetSNPortList(config)
+
+		snTempDirPath := filepath.Join(config.RemoteWorkingDir, constants.TempDir)
+		rqWorkDirPath := filepath.Join(config.RemoteWorkingDir, constants.RQServiceDir)
+		p2pDataPath := filepath.Join(config.RemoteWorkingDir, constants.P2PDataDir)
+		mdlDataPath := filepath.Join(config.RemoteWorkingDir, constants.MDLDataDir)
+
+		toolConfig, err := utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+			LogLevel:      constants.SuperNodeDefaultLogLevel,
+			LogFilePath:   config.Configurer.GetSuperNodeLogFile(config.RemoteWorkingDir),
+			SNTempDir:     snTempDirPath,
+			SNWorkDir:     config.RemoteWorkingDir,
+			RQDir:         rqWorkDirPath,
+			DDDir:         filepath.Join(config.Configurer.GetHomeDir(), constants.DupeDetectionServiceDir),
+			SuperNodePort: portList[constants.SNPort],
+			P2PPort:       portList[constants.P2PPort],
+			P2PDataDir:    p2pDataPath,
+			MDLPort:       portList[constants.MDLPort],
+			RAFTPort:      portList[constants.RAFTPort],
+			MDLDataDir:    mdlDataPath,
+			RaptorqPort:   constants.RRServiceDefaultPort,
+			DDServerPort:  constants.DDServerDefaultPort,
+			PasteID:       flagMasterNodePastelID,
+			Passphrase:    flagMasterNodePassPhrase,
+		})
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
+			return err
+		}
+		if err = utils.WriteFile(supernodeConfigPath, toolConfig); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to update new supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+
+	} else if err == nil {
+		//update existing
+		var snConfFile []byte
+		snConfFile, err = ioutil.ReadFile(supernodeConfigPath)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to open existing supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+		snConf := make(map[string]interface{})
+		if err = yaml.Unmarshal(snConfFile, &snConf); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to parse existing supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+
+		node := snConf["node"].(map[interface{}]interface{})
+
+		node["pastel_id"] = flagMasterNodePastelID
+		node["pass_phrase"] = flagMasterNodePassPhrase
+
+		var snConfFileUpdated []byte
+		if snConfFileUpdated, err = yaml.Marshal(&snConf); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+		if ioutil.WriteFile(supernodeConfigPath, snConfFileUpdated, 0644) != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to update supernode.yml file at - %s", supernodeConfigPath)
+			return err
+		}
+	} else {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update or create supernode.yml file at - %s", supernodeConfigPath)
+		return err
+	}
+
+	log.WithContext(ctx).Info("Supernode config updated")
+
+	remoteSnConfigPath := r.config.Configurer.GetSuperNodeConfFile(r.config.RemoteWorkingDir)
+	remoteSnConfigPath = strings.ReplaceAll(remoteSnConfigPath, "\\", "/")
+
+	log.WithContext(ctx).Info("copying supernode config..")
+	if err := r.sshClient.Scp(supernodeConfigPath, remoteSnConfigPath); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
+		return err
+	}
+
+	if err := utils.DeleteFile(supernodeConfigPath); err != nil {
+		log.WithContext(ctx).Errorf("Failed to delete archive file : %s", supernodeConfigPath)
+		return err
+	}
+
+	if err := r.sshClient.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", remoteSnConfigPath)); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
+		return err
+	}
+
 	return nil
 }

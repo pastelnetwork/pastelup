@@ -1159,6 +1159,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 			RAFTPort:      portList[constants.RAFTPort],
 			MDLDataDir:    mdlDataPath,
 			RaptorqPort:   constants.RRServiceDefaultPort,
+			DDServerPort:  constants.DDServerDefaultPort,
 		})
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")

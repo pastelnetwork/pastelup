@@ -100,6 +100,9 @@ const (
 	// RRServiceDefaultPort defines rqservice port
 	RRServiceDefaultPort = 50051
 
+	// DDServerDefaultPort defines dd-server port
+	DDServerDefaultPort = 50052
+
 	// TempDir defines temporary directory
 	TempDir = "tmp"
 )

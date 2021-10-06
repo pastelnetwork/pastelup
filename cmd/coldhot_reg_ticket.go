@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -183,12 +184,20 @@ func (r *ColdHotRunner) registerTicketPastelID(ctx context.Context) (err error) 
 		return err
 	}
 
-	/*var pastelidSt structure.RPCPastelID
-	if err = json.Unmarshal([]byte(pastelid), &pastelidSt); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to parse pastelid json")
+	type ticketRegOut struct {
+		TXID string `json:"txid"`
+	}
+	regOut := &ticketRegOut{}
+	if err = json.Unmarshal(out, &regOut); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to parse ticket register output")
 		return err
 	}
-	flagMasterNodePastelID = pastelidSt.Pastelid*/
+
+	if regOut.TXID == "" {
+		err = fmt.Errorf("registerTicketPastelID: unexpected response: %s", string(out))
+		log.WithContext(ctx).WithError(err).Error("Received unexpected response on register")
+		return err
+	}
 
 	log.WithContext(ctx).Infof("Register ticket pastelid result = %s", string(out))
 	return nil

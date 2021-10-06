@@ -165,7 +165,7 @@ func setupStartSubCommand(config *configs.Config,
 		commandName = string(constants.DDService)
 		commandMessage = "Start dupe detection service only"
 	case wnService:
-		commandFlags = commonFlags
+		commandFlags = append(walletNodeFlags, commonFlags[:]...)
 		commandName = string(constants.WalletNode) + "-service"
 		commandMessage = "Start WalletNode service only"
 	case snService:

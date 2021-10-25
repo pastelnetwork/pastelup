@@ -3,7 +3,7 @@
 package configurer
 
 func getAppDir() string {
-	return "Application"
+	return "Applications"
 }
 
 func getAppDataDir() string {

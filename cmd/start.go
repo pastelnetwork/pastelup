@@ -387,7 +387,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 		return err
 	}
 
-	ddConfigFilePath := filepath.Join(config.Configurer.GetHomeDir(),
+	ddConfigFilePath := filepath.Join(config.Configurer.DefaultHomeDir(),
 		constants.DupeDetectionServiceDir,
 		constants.DupeDetectionSupportFilePath,
 		constants.DupeDetectionConfigFilename)
@@ -1151,7 +1151,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 			SNTempDir:     snTempDirPath,
 			SNWorkDir:     config.WorkingDir,
 			RQDir:         rqWorkDirPath,
-			DDDir:         filepath.Join(config.Configurer.GetHomeDir(), constants.DupeDetectionServiceDir),
+			DDDir:         filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
 			SuperNodePort: portList[constants.SNPort],
 			P2PPort:       portList[constants.P2PPort],
 			P2PDataDir:    p2pDataPath,

@@ -444,7 +444,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			SNTempDir:     snTempDirPath,
 			SNWorkDir:     config.WorkingDir,
 			RQDir:         rqWorkDirPath,
-			DDDir:         filepath.Join(config.Configurer.GetHomeDir(), constants.DupeDetectionServiceDir),
+			DDDir:         filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
 			SuperNodePort: portList[constants.SNPort],
 			P2PPort:       portList[constants.P2PPort],
 			P2PDataDir:    p2pDataPath,
@@ -856,7 +856,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
-	ddBaseDir := filepath.Join(config.Configurer.GetHomeDir(), constants.DupeDetectionServiceDir)
+	ddBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 	var pathList []interface{}
 	for _, configItem := range constants.DupeDetectionConfigs {
 		dupeDetectionDirPath := filepath.Join(ddBaseDir, configItem)

@@ -34,6 +34,7 @@ const (
 	superNodeInstall
 	remoteInstall
 	dupedetectionInstall
+	dupedetectionImgServerInstall
 	//highLevel
 )
 
@@ -113,9 +114,13 @@ func setupSubCommand(config *configs.Config,
 		commandName = "remote"
 		commandMessage = "Install supernode remote"
 	case dupedetectionInstall:
-		commandFlags = dupeFlags
+		commandFlags = append(dirsFlags, dupeFlags[:]...)
 		commandName = "dupedetection"
 		commandMessage = "Install dupedetection"
+	case dupedetectionImgServerInstall:
+		commandFlags = append(dirsFlags, dupeFlags[:]...)
+		commandName = "imgserver"
+		commandMessage = "Install dupedetection image server"
 	default:
 		commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
 	}
@@ -159,6 +164,7 @@ func setupInstallCommand() *cli.Command {
 	installSuperNodeRemoteSubCommand := setupSubCommand(config, remoteInstall, runInstallSuperNodeRemoteSubCommand)
 	installSuperNodeSubCommand.AddSubcommands(installSuperNodeRemoteSubCommand)
 	installDupeDetecionSubCommand := setupSubCommand(config, dupedetectionInstall, runInstallDupeDetectionSubCommand)
+	installDupeDetecionImgServerSubCommand := setupSubCommand(config, dupedetectionImgServerInstall, runInstallDupeDetectionImgServerSubCommand)
 
 	installCommand := cli.NewCommand("install")
 	installCommand.SetUsage(blue("Performs installation and initialization of the system for both WalletNode and SuperNodes"))
@@ -166,6 +172,7 @@ func setupInstallCommand() *cli.Command {
 	installCommand.AddSubcommands(installWalletSubCommand)
 	installCommand.AddSubcommands(installSuperNodeSubCommand)
 	installCommand.AddSubcommands(installDupeDetecionSubCommand)
+	installCommand.AddSubcommands(installDupeDetecionImgServerSubCommand)
 
 	return installCommand
 }
@@ -313,6 +320,10 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 	return installDupeDetection(ctx, config)
 }
 
+func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
+	return installDDImgServer(ctx, config)
+}
+
 func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
 	if !utils.IsValidNetworkOpt(config.Network) {
 		return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
@@ -360,7 +371,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		installCommand == constants.SuperNode {
 
 		toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
-		toolConfig, err := utils.GetServiceConfig(constants.RQService, configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
+		toolConfig, err := utils.GetServiceConfig(string(constants.RQService), configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
 			HostName: "127.0.0.1",
 			Port:     constants.RRServiceDefaultPort,
 		})
@@ -398,7 +409,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		wnTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
 		rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
 
-		toolConfig, err := utils.GetServiceConfig(constants.WalletNode, configs.WalletDefaultConfig, &configs.WalletNodeConfig{
+		toolConfig, err := utils.GetServiceConfig(string(constants.WalletNode), configs.WalletDefaultConfig, &configs.WalletNodeConfig{
 			LogLevel:    constants.WalletNodeDefaultLogLevel,
 			LogFilePath: config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
 			WNTempDir:   wnTempDirPath,
@@ -438,7 +449,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
 		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
 
-		toolConfig, err := utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
 			LogLevel:      constants.SuperNodeDefaultLogLevel,
 			LogFilePath:   config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
 			SNTempDir:     snTempDirPath,
@@ -903,7 +914,79 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 
+	if err = installDDImgServer(ctx, config); err != nil {
+		return err
+	}
+
 	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")
+	return nil
+}
+
+func installDDImgServer(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Installing DupeDetection image server")
+
+	ddImgServerServiceFile := "dd_img_server.service"
+	ddImgServerServiceDir := "/etc/systemd/system"
+	ddImgServerServiceFilePath := filepath.Join(ddImgServerServiceDir, ddImgServerServiceFile)
+	ddImgServerServiceTempFilePath := filepath.Join(config.PastelExecDir, ddImgServerServiceFile)
+
+	ddImgServerStartFile := "start_dd_img_server.sh"
+	ddImgServerStartDir := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder)
+	ddImgServerStartFilePath := filepath.Join(ddImgServerStartDir, ddImgServerStartFile)
+	ddBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
+	ddImgServerWorkDir := filepath.Join(ddBaseDir, "img_server")
+
+	// create service file
+	if ddImgServerDaemonScript, err := utils.GetServiceConfig("dd_img_server", configs.DDImgServerService,
+		&configs.DDImgServerServiceScript{
+			DDImgServerStartScript: ddImgServerStartFilePath,
+		}); err != nil {
+		log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server file")
+		return fmt.Errorf("unable to create content of dd_img_server file - err: %s", err)
+	} else if err := utils.CreateAndWrite(ctx, config.Force, ddImgServerServiceTempFilePath, ddImgServerDaemonScript); err != nil {
+		return err
+	}
+	if _, err := RunCMD("sudo", "mv", ddImgServerServiceTempFilePath, ddImgServerServiceFilePath); err != nil {
+		log.WithContext(ctx).Error("Failed to make  as executable")
+		return err
+	}
+	if _, err := RunCMD("sudo", "chmod", "644", ddImgServerServiceFilePath); err != nil {
+		log.WithContext(ctx).Errorf("Failed to make %s as executable", ddImgServerServiceFilePath)
+		return err
+	}
+
+	// create start script file
+	if ddImgServerStartScript, err := utils.GetServiceConfig("dd_img_server_start", configs.DDImgServerStart,
+		&configs.DDImgServerStartScript{
+			DDImgServerDir: ddImgServerWorkDir,
+		}); err != nil {
+		log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server_start file")
+		return fmt.Errorf("unable to create content of dd_img_server_start file - err: %s", err)
+	} else if err := utils.CreateAndWrite(ctx, config.Force, ddImgServerStartFilePath, ddImgServerStartScript); err != nil {
+		return err
+	}
+	if err := makeExecutable(ctx, ddImgServerStartDir, ddImgServerStartFile); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", ddImgServerStartFilePath)
+		return err
+	}
+
+	log.WithContext(ctx).Info("Setting service for auto start on boot")
+	if out, err := RunCMD("sudo", "systemctl", "enable", "dd_img_server"); err != nil {
+		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+			WithError(err).Error("unable to enable dd_img_server service")
+
+		return fmt.Errorf("err eanbling dd_img_server service - err: %s", err)
+	}
+
+	log.WithContext(ctx).Info("Starting service")
+	if out, err := RunCMD("sudo", "systemctl", "start", "dd_img_server"); err != nil {
+		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+			WithError(err).Error("unable to start dd_img_server service")
+
+		return fmt.Errorf("err starting dd_img_server service - err: %s", err)
+	}
+
+	log.WithContext(ctx).Info("DupeDetection image server installed successfully")
 	return nil
 }
 

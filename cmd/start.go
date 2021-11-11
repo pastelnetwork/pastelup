@@ -1145,7 +1145,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 		p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
 		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
 
-		toolConfig, err := utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
 			LogLevel:      constants.SuperNodeDefaultLogLevel,
 			LogFilePath:   config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
 			SNTempDir:     snTempDirPath,

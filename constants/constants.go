@@ -235,6 +235,7 @@ var DupeDetectionConfigs = []string{
 	"processed_files",
 	"rare_on_internet",
 	filepath.Join(DupeDetectionSupportFilePath, "mobilenet_v2_140_224"),
+	"img_server",
 }
 
 // DupeDetectionSupportDownloadURL - The URL of dupe detection support files

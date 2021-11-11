@@ -947,7 +947,7 @@ func installDDImgServer(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 	if _, err := RunCMD("sudo", "mv", ddImgServerServiceTempFilePath, ddImgServerServiceFilePath); err != nil {
-		log.WithContext(ctx).Error("Failed to make  as executable")
+		log.WithContext(ctx).Error("Failed to move service file to systemd folder")
 		return err
 	}
 	if _, err := RunCMD("sudo", "chmod", "644", ddImgServerServiceFilePath); err != nil {

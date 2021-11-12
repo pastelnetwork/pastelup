@@ -321,7 +321,7 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 }
 
 func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
-	return installDDImgServer(ctx, config)
+	return íntallAppService(ctx, "dd-img-server", config)
 }
 
 func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
@@ -882,7 +882,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		pathList = append(pathList, dupeDetectionDirPath)
 	}
 
-	targetDir := filepath.Join(ddBaseDir, constants.DupeDetectionSupportFilePath)
+	targetDir := filepath.Join(appBaseDir, constants.DupeDetectionSupportFilePath)
 	tmpDir := filepath.Join(targetDir, "temp.zip")
 	for _, url := range constants.DupeDetectionSupportDownloadURL {
 		if !strings.Contains(url, ".zip") {
@@ -918,7 +918,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 
-	if err = installDDImgServer(ctx, config); err != nil {
+	if err = íntallAppService(ctx, "dd-img-server", config); err != nil {
 		return err
 	}
 
@@ -926,71 +926,106 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	return nil
 }
 
-func installDDImgServer(ctx context.Context, config *configs.Config) error {
-	log.WithContext(ctx).Info("Installing DupeDetection image server")
+func íntallAppService(ctx context.Context, appName string, config *configs.Config) error {
 
-	ddImgServerServiceFile := "dd_img_server.service"
-	ddImgServerServiceDir := "/etc/systemd/system"
-	ddImgServerServiceFilePath := filepath.Join(ddImgServerServiceDir, ddImgServerServiceFile)
-	ddImgServerServiceTempFilePath := filepath.Join(config.PastelExecDir, ddImgServerServiceFile)
+	log.WithContext(ctx).Info("Installing" + appName)
 
-	ddImgServerStartFile := "start_dd_img_server.sh"
-	ddImgServerStartDir := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder)
-	ddImgServerStartFilePath := filepath.Join(ddImgServerStartDir, ddImgServerStartFile)
-	ddBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
-	ddImgServerWorkDir := filepath.Join(ddBaseDir, "img_server")
+	var systemdFile, serviceStartScript string
+	var appServiceStartDir, appServiceStartFilePath string
+	var err error
+
+	// Service file - will be installed at /etc/systemd/system
+	appServiceFileName := appName + ".service"
+	systemdDir := "/etc/systemd/system"
+	appServiceFilePath := filepath.Join(systemdDir, appServiceFileName)
+	appServiceTmpFilePath := filepath.Join(config.PastelExecDir, appServiceFileName)
+
+	// Executable script - called by systemd service
+	appServiceStartFile := "start_" + appName + ".sh"
+
+	switch appName {
+	case "dd-img-server":
+		appServiceStartDir = filepath.Join(config.PastelExecDir, "dd-service")
+		appServiceStartFilePath = filepath.Join(appServiceStartDir, appServiceStartFile)
+
+		// Systemd content
+		systemdFile, err = utils.GetServiceConfig(appName, configs.DDImgServerService,
+			&configs.DDImgServerServiceScript{
+				DDImgServerStartScript: appServiceStartFilePath,
+			})
+
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server file")
+			return fmt.Errorf("unable to create content of dd_img_server file - err: %s", err)
+		}
+
+		// Startup script content
+		appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
+		appServiceWorkDirPath := filepath.Join(appBaseDir, "img_server")
+
+		serviceStartScript, err = utils.GetServiceConfig("dd_img_server_start", configs.DDImgServerStart,
+			&configs.DDImgServerStartScript{
+				DDImgServerDir: appServiceWorkDirPath,
+			})
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server_start file")
+			return fmt.Errorf("unable to create content of dd_img_server_start file - err: %s", err)
+		}
+	case "pasteld":
+
+	case "supernode":
+
+	case "rq-server":
+
+	case "dd-server":
+
+	default:
+	}
 
 	// create service file
-	if ddImgServerDaemonScript, err := utils.GetServiceConfig("dd_img_server", configs.DDImgServerService,
-		&configs.DDImgServerServiceScript{
-			DDImgServerStartScript: ddImgServerStartFilePath,
-		}); err != nil {
-		log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server file")
-		return fmt.Errorf("unable to create content of dd_img_server file - err: %s", err)
-	} else if err := utils.CreateAndWrite(ctx, config.Force, ddImgServerServiceTempFilePath, ddImgServerDaemonScript); err != nil {
+	if err := utils.CreateAndWrite(ctx, config.Force, appServiceTmpFilePath, systemdFile); err != nil {
 		return err
 	}
-	if _, err := RunCMD("sudo", "mv", ddImgServerServiceTempFilePath, ddImgServerServiceFilePath); err != nil {
+
+	if _, err := RunCMD("sudo", "mv", appServiceTmpFilePath, appServiceFilePath); err != nil {
 		log.WithContext(ctx).Error("Failed to move service file to systemd folder")
 		return err
 	}
-	if _, err := RunCMD("sudo", "chmod", "644", ddImgServerServiceFilePath); err != nil {
-		log.WithContext(ctx).Errorf("Failed to make %s as executable", ddImgServerServiceFilePath)
+
+	if _, err := RunCMD("sudo", "chmod", "644", appServiceFilePath); err != nil {
+		log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
 		return err
 	}
 
 	// create start script file
-	if ddImgServerStartScript, err := utils.GetServiceConfig("dd_img_server_start", configs.DDImgServerStart,
-		&configs.DDImgServerStartScript{
-			DDImgServerDir: ddImgServerWorkDir,
-		}); err != nil {
-		log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server_start file")
-		return fmt.Errorf("unable to create content of dd_img_server_start file - err: %s", err)
-	} else if err := utils.CreateAndWrite(ctx, config.Force, ddImgServerStartFilePath, ddImgServerStartScript); err != nil {
-		return err
-	}
-	if err := makeExecutable(ctx, ddImgServerStartDir, ddImgServerStartFile); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", ddImgServerStartFilePath)
+	if err := utils.CreateAndWrite(ctx, config.Force, appServiceStartFilePath, serviceStartScript); err != nil {
 		return err
 	}
 
+	if err := makeExecutable(ctx, appServiceStartDir, appServiceStartFile); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", appServiceStartFilePath)
+		return err
+	}
+
+	// Auto start service at boot
 	log.WithContext(ctx).Info("Setting service for auto start on boot")
-	if out, err := RunCMD("sudo", "systemctl", "enable", "dd_img_server"); err != nil {
+	if out, err := RunCMD("sudo", "systemctl", "enable", appName); err != nil {
 		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to enable dd_img_server service")
+			WithError(err).Error("unable to enable " + appName + " service")
 
-		return fmt.Errorf("err eanbling dd_img_server service - err: %s", err)
+		return fmt.Errorf("err enabling "+appName+" service - err: %s", err)
 	}
 
+	// Start script
 	log.WithContext(ctx).Info("Starting service")
-	if out, err := RunCMD("sudo", "systemctl", "start", "dd_img_server"); err != nil {
+	if out, err := RunCMD("sudo", "systemctl", "start", appName); err != nil {
 		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to start dd_img_server service")
+			WithError(err).Error("unable to start " + appName + " service")
 
-		return fmt.Errorf("err starting dd_img_server service - err: %s", err)
+		return fmt.Errorf("err starting "+appName+" service - err: %s", err)
 	}
 
-	log.WithContext(ctx).Info("DupeDetection image server installed successfully")
+	log.WithContext(ctx).Info(appName + " installed successfully")
 	return nil
 }
 

@@ -67,6 +67,7 @@ const (
 	ddService
 	wnService
 	snService
+	masterNode
 )
 
 func setupStartSubCommand(config *configs.Config,
@@ -136,6 +137,11 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
 	}
 
+	masternodeFlags := []*cli.Flag{
+		cli.NewFlag("name", &flagMasterNodeName).
+			SetUsage(yellow("Required, name of the Masternode to start")).SetRequired(),
+	}
+
 	var commandName, commandMessage string
 	var commandFlags []*cli.Flag
 
@@ -172,6 +178,10 @@ func setupStartSubCommand(config *configs.Config,
 		commandFlags = commonFlags
 		commandName = string(constants.SuperNode) + "-service"
 		commandMessage = "Start SuperNode service only"
+	case masterNode:
+		commandFlags = append(masternodeFlags, commonFlags[:]...)
+		commandName = "masternode"
+		commandMessage = "Start pasteld node as Masternode only"
 	default:
 		commandFlags = append(append(walletNodeFlags, commonFlags[:]...), superNodeFlags[:]...)
 	}
@@ -219,6 +229,7 @@ func setupStartCommand() *cli.Command {
 	startDDServiceCommand := setupStartSubCommand(config, ddService, runDDService)
 	startWNServiceCommand := setupStartSubCommand(config, wnService, runWalletNodeService)
 	startSNServiceCommand := setupStartSubCommand(config, snService, runSuperNodeService)
+	startMasternodeCommand := setupStartSubCommand(config, masterNode, runStartMasternode)
 
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
@@ -231,6 +242,7 @@ func setupStartCommand() *cli.Command {
 	startCommand.AddSubcommands(startDDServiceCommand)
 	startCommand.AddSubcommands(startWNServiceCommand)
 	startCommand.AddSubcommands(startSNServiceCommand)
+	startCommand.AddSubcommands(startMasternodeCommand)
 
 	return startCommand
 
@@ -305,23 +317,8 @@ func runLocalSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 		}
 	}
 
-	// Get conf data from masternode.conf File
-	privKey, extIP, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to get masternode details from masternode.conf")
-		return err
-	}
-
-	if extIP != flagNodeExtIP {
-		err := errors.Errorf("External IP address in masternode.conf MUST match WAN address of the node! IP in masternode.conf - %s, WAN IP passed or identified - %s", extIP, flagNodeExtIP)
-		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
-		return err
-	}
-
 	// *************  3. Start Node as Masternode  *************
-	log.WithContext(ctx).Infof("Starting pasteld as masternode: nodeName: %s; mnPrivKey: %s", flagMasterNodeName, privKey)
-	if err := runPastelNode(ctx, config, true, flagNodeExtIP, privKey); err != nil { //in masternode mode pasteld MUST be started with reindex flag
-		log.WithContext(ctx).WithError(err).Error("pasteld failed to start as masternode")
+	if err := runStartMasternode(ctx, config); err != nil { //in masternode mode pasteld MUST be started with reindex flag
 		return err
 	}
 
@@ -358,6 +355,29 @@ func runLocalSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 		return err
 	}
 
+	return nil
+}
+
+func runStartMasternode(ctx context.Context, config *configs.Config) error {
+	// Get conf data from masternode.conf File
+	privKey, extIP, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to get masternode details from masternode.conf")
+		return err
+	}
+
+	if extIP != flagNodeExtIP {
+		err := errors.Errorf("External IP address in masternode.conf MUST match WAN address of the node! IP in masternode.conf - %s, WAN IP passed or identified - %s", extIP, flagNodeExtIP)
+		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
+		return err
+	}
+
+	// *************  Start Node as Masternode  *************
+	log.WithContext(ctx).Infof("Starting pasteld as masternode: nodeName: %s; mnPrivKey: %s", flagMasterNodeName, privKey)
+	if err := runPastelNode(ctx, config, true, flagNodeExtIP, privKey); err != nil { //in masternode mode pasteld MUST be started with reindex flag
+		log.WithContext(ctx).WithError(err).Error("pasteld failed to start as masternode")
+		return err
+	}
 	return nil
 }
 

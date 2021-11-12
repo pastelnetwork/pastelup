@@ -120,6 +120,21 @@ func WriteFile(fileName string, data string) (err error) {
 	return err
 }
 
+// CreateAndWrite create and write file
+func CreateAndWrite(ctx context.Context, force bool, filePath string, fileContent string) error {
+	err := CreateFile(ctx, filePath, force)
+	if err != nil {
+		log.WithContext(ctx).Errorf("Failed to create %s file", filePath)
+		return err
+	}
+
+	if err = WriteFile(filePath, fileContent); err != nil {
+		log.WithContext(ctx).Errorf("Failed to write config to %s file", filePath)
+		return err
+	}
+	return nil
+}
+
 // WriteCounter counts the number of bytes written to it. It implements to the io.Writer interface
 // and we can pass this into io.TeeReader() which will report progress on each write cycle.
 type WriteCounter struct {
@@ -438,8 +453,8 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 }
 
 // GetServiceConfig returns service configuration
-func GetServiceConfig(toolType constants.ToolType, format string, value interface{}) (string, error) {
-	temp, err := template.New(string(toolType)).Parse(format)
+func GetServiceConfig(templName string, format string, value interface{}) (string, error) {
+	temp, err := template.New(templName).Parse(format)
 	if err != nil {
 		return "", errors.Errorf("failed to parse service config template: %v", err)
 	}

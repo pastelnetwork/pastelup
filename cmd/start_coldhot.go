@@ -447,13 +447,13 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 		p2pDataPath := filepath.Join(config.RemoteWorkingDir, constants.P2PDataDir)
 		mdlDataPath := filepath.Join(config.RemoteWorkingDir, constants.MDLDataDir)
 
-		toolConfig, err := utils.GetServiceConfig(constants.SuperNode, configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
 			LogLevel:      constants.SuperNodeDefaultLogLevel,
 			LogFilePath:   config.Configurer.GetSuperNodeLogFile(config.RemoteWorkingDir),
 			SNTempDir:     snTempDirPath,
 			SNWorkDir:     config.RemoteWorkingDir,
 			RQDir:         rqWorkDirPath,
-			DDDir:         filepath.Join(config.Configurer.GetHomeDir(), constants.DupeDetectionServiceDir),
+			DDDir:         filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
 			SuperNodePort: portList[constants.SNPort],
 			P2PPort:       portList[constants.P2PPort],
 			P2PDataDir:    p2pDataPath,

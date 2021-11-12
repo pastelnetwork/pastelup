@@ -3,7 +3,7 @@
 package configurer
 
 func getAppDir() string {
-	return ""
+	return "AppData\\Roaming"
 }
 
 func getAppDataDir() string {

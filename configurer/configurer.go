@@ -31,16 +31,13 @@ type configurer struct {
 }
 
 // GetHomeDir returns the home path.
-func (c *configurer) GetHomeDir() string {
+func (c *configurer) DefaultHomeDir() string {
 	return c.homeDir
 }
 
 // DefaultWorkingDir returns the default config path.
 func (c *configurer) DefaultWorkingDir() string {
-	if c.osType == constants.Windows {
-		return filepath.Join(c.homeDir, filepath.FromSlash(getAppDataDir()), c.workingDir)
-	}
-	return filepath.Join(c.homeDir, c.workingDir)
+	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDataDir()), c.workingDir)
 }
 
 // DefaultSuperNodeLogFile returns the default supernode log file
@@ -70,15 +67,12 @@ func (c *configurer) GetRQServiceConfFile(workingDir string) string {
 
 // DefaultZksnarkDir returns the default config path.
 func (c *configurer) DefaultZksnarkDir() string {
-	return filepath.Join(c.homeDir, filepath.FromSlash(getAppDataDir()), c.zksnarkDir)
+	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDataDir()), c.zksnarkDir)
 }
 
 // DefaultPastelExecutableDir returns the default pastel executable path.
 func (c *configurer) DefaultPastelExecutableDir() string {
-	if c.osType == constants.Windows {
-		return filepath.Join(c.homeDir, filepath.FromSlash(getAppDir()), c.pastelExecutableDir)
-	}
-	return filepath.Join(c.homeDir, c.pastelExecutableDir)
+	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDir()), c.pastelExecutableDir)
 }
 
 // GetDownloadURL returns download url of the pastel executables.
@@ -142,7 +136,7 @@ func newDarwinConfigurer(homeDir string) IConfigurer {
 		walletNodeConfFile:  "walletnode.yml",
 		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          "PastelParams",
-		pastelExecutableDir: "Pastel",
+		pastelExecutableDir: "PastelWallet",
 		homeDir:             homeDir,
 		architecture:        constants.AMD64,
 		osType:              constants.Mac,
@@ -166,26 +160,22 @@ func newWindowsConfigurer(homeDir string) IConfigurer {
 }
 
 // NewConfigurer return a new configurer instance
+// Returns:
+//		$HOME for MacOS and Linux
+//		%userprofile% for Windows
 func NewConfigurer() (IConfigurer, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, errors.Errorf("failed to get user home dir: %v", err)
+	}
+
 	osType := utils.GetOS()
 	switch osType {
 	case constants.Linux:
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, errors.Errorf("failed to get user home dir: %v", err)
-		}
 		return newLinuxConfigurer(homeDir), nil
 	case constants.Mac:
-		homeDir, err := os.UserConfigDir()
-		if err != nil {
-			return nil, errors.Errorf("failed to get user config dir dir: %v", err)
-		}
 		return newDarwinConfigurer(homeDir), nil
 	case constants.Windows:
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, errors.Errorf("failed to get user home dir: %v", err)
-		}
 		return newWindowsConfigurer(homeDir), nil
 	default:
 		return nil, errors.New("unknown os")

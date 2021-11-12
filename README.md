@@ -122,15 +122,13 @@ Optional, location to working directory, default - see platform specific in [ins
 ##### default_working_dir
 
 The path depends on the OS:
-* MacOS `~/Library/Application Support/Pastel`
-* Linux `~/.pastel`
-* Windows (>= Vista) `C:\Users\Username\AppData\Roaming\Pastel`
-* Windows (< Vista) `C:\Documents and Settings\Username\Application Data\Pastel`
+* MacOS `$HOME/Library/Application Support/Pastel`
+* Linux `$HOME/.pastel`
+* Windows (>= Vista) `%userprofile%\AppData\Roaming\Pastel`
 
 ##### default_exec_dir
 
 The path depends on the OS:
-* MacOS `~/Library/Application Support/Pastel-node`
-* Linux `~/pastel-node`
-* Windows (>= Vista) `C:\Users\Username\AppData\Roaming\Pastel-node`
-* Windows (< Vista) `C:\Documents and Settings\Username\Application Data\Pastel-node`
+* MacOS `$HOME/Applications/PastelWallet`
+* Linux `$HOME/pastel-node`
+* Windows (>= Vista) `%userprofile%\AppData\Roaming\PastelWallet`

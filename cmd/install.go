@@ -521,6 +521,19 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		} else {
 			log.WithContext(ctx).Warn("Please open ports by manually!")
 		}
+
+		// installAppsAsService - pasteld, supernode, rq-server, dd-server
+		appServiceNames := []string{"pasteld", "rq-server", "dd-server", "supernode"}
+		yes, _ := AskUserToContinue(ctx, "Do you want to to set all applications - pasteld, supernode, rq-server and dd-server as service? (Y/N)")
+
+		if yes {
+			for _, appName := range appServiceNames {
+				if err = íntallAppService(ctx, appName, config); err != nil {
+					log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
@@ -928,7 +941,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 func íntallAppService(ctx context.Context, appName string, config *configs.Config) error {
 
-	log.WithContext(ctx).Info("Installing" + appName)
+	log.WithContext(ctx).Info("Installing " + appName + " as service")
 
 	var systemdFile, serviceStartScript string
 	var appServiceStartDir, appServiceStartFilePath string
@@ -972,6 +985,59 @@ func íntallAppService(ctx context.Context, appName string, config *configs.Conf
 			return fmt.Errorf("unable to create content of dd_img_server_start file - err: %s", err)
 		}
 	case "pasteld":
+		var pastelDPath string
+		var extIP string
+
+		// Prepare masternode parameters
+		log.WithContext(ctx).Info("Prepare masternode parameters")
+		if err := prepareMasterNodeParameters(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
+			return err
+		}
+
+		if err := createOrUpdateMasternodeConf(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
+			return err
+		}
+		if err := createOrUpdateSuperNodeConfig(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
+			return err
+		}
+
+		// Get pasteld path
+		if pastelDPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PasteldName[utils.GetOS()]); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find pasteld")
+			return err
+		}
+
+		// Check other params
+		if _, err = checkPastelFilePath(ctx, config.WorkingDir, constants.PastelConfName); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find pastel.conf")
+			return err
+		}
+		if err = CheckZksnarkParams(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Wrong ZKSnark files")
+			return err
+		}
+
+		// Get external IP
+		if extIP, err = GetExternalIPAddress(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not get external IP address")
+			return err
+		}
+
+		// Systemd content
+		systemdFile, err = utils.GetServiceConfig(appName, configs.PasteldServerService,
+			&configs.PasteldServerServiceScript{
+				PasteldBinaryPath: pastelDPath,
+				DataDir:           config.WorkingDir,
+				ExternalIp:        extIP,
+			})
+
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server file")
+			return fmt.Errorf("unable to create content of dd_img_server file - err: %s", err)
+		}
 
 	case "supernode":
 
@@ -982,47 +1048,51 @@ func íntallAppService(ctx context.Context, appName string, config *configs.Conf
 	default:
 	}
 
-	// create service file
-	if err := utils.CreateAndWrite(ctx, config.Force, appServiceTmpFilePath, systemdFile); err != nil {
-		return err
+	// Create startup script file
+	if len(serviceStartScript) > 0 {
+		if err := utils.CreateAndWrite(ctx, config.Force, appServiceStartFilePath, serviceStartScript); err != nil {
+			return err
+		}
+
+		if err := makeExecutable(ctx, appServiceStartDir, appServiceStartFile); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", appServiceStartFilePath)
+			return err
+		}
 	}
 
-	if _, err := RunCMD("sudo", "mv", appServiceTmpFilePath, appServiceFilePath); err != nil {
-		log.WithContext(ctx).Error("Failed to move service file to systemd folder")
-		return err
-	}
+	// create service file and start service
+	if len(systemdFile) > 0 {
+		if err := utils.CreateAndWrite(ctx, config.Force, appServiceTmpFilePath, systemdFile); err != nil {
+			return err
+		}
 
-	if _, err := RunCMD("sudo", "chmod", "644", appServiceFilePath); err != nil {
-		log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
-		return err
-	}
+		if _, err := RunCMD("sudo", "mv", appServiceTmpFilePath, appServiceFilePath); err != nil {
+			log.WithContext(ctx).Error("Failed to move service file to systemd folder")
+			return err
+		}
 
-	// create start script file
-	if err := utils.CreateAndWrite(ctx, config.Force, appServiceStartFilePath, serviceStartScript); err != nil {
-		return err
-	}
+		if _, err := RunCMD("sudo", "chmod", "644", appServiceFilePath); err != nil {
+			log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
+			return err
+		}
 
-	if err := makeExecutable(ctx, appServiceStartDir, appServiceStartFile); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", appServiceStartFilePath)
-		return err
-	}
+		// Auto start service at boot
+		log.WithContext(ctx).Info("Setting service for auto start on boot")
+		if out, err := RunCMD("sudo", "systemctl", "enable", appName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to enable " + appName + " service")
 
-	// Auto start service at boot
-	log.WithContext(ctx).Info("Setting service for auto start on boot")
-	if out, err := RunCMD("sudo", "systemctl", "enable", appName); err != nil {
-		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to enable " + appName + " service")
+			return fmt.Errorf("err enabling "+appName+" service - err: %s", err)
+		}
 
-		return fmt.Errorf("err enabling "+appName+" service - err: %s", err)
-	}
+		// Start the service
+		log.WithContext(ctx).Info("Starting service")
+		if out, err := RunCMD("sudo", "systemctl", "start", appName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to start " + appName + " service")
 
-	// Start script
-	log.WithContext(ctx).Info("Starting service")
-	if out, err := RunCMD("sudo", "systemctl", "start", appName); err != nil {
-		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to start " + appName + " service")
-
-		return fmt.Errorf("err starting "+appName+" service - err: %s", err)
+			return fmt.Errorf("err starting "+appName+" service - err: %s", err)
+		}
 	}
 
 	log.WithContext(ctx).Info(appName + " installed successfully")

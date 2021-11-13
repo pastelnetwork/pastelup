@@ -100,6 +100,17 @@ WantedBy=multi-user.target
 	DDImgServerStart = `#!/bin/bash
 cd {{.DDImgServerDir}}
 python3 -m  http.server 80`
+
+	// PasteldServerService - /etc/systemd/system/pasteld.service
+	PasteldServerService = `[Unit]
+Description=Pasteld Daemon
+
+[Service]
+ExecStart={{.PasteldBinaryPath}} --datadir={{.DataDir}} --externalip={{.ExternalIp}}
+
+[Install]
+WantedBy=multi-user.target
+`
 )
 
 // WalletNodeConfig defines configurations for walletnode
@@ -147,6 +158,12 @@ type DDImgServerServiceScript struct {
 // DDImgServerStartScript actual script to start dd image server
 type DDImgServerStartScript struct {
 	DDImgServerDir string
+}
+
+type PasteldServerServiceScript struct {
+	PasteldBinaryPath string
+	DataDir           string
+	ExternalIp        string
 }
 
 // ZksnarkParamsNames - slice of zksnark parameters

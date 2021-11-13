@@ -1031,12 +1031,12 @@ func íntallAppService(ctx context.Context, appName string, config *configs.Conf
 			&configs.PasteldServerServiceScript{
 				PasteldBinaryPath: pastelDPath,
 				DataDir:           config.WorkingDir,
-				ExternalIp:        extIP,
+				ExternalIP:        extIP,
 			})
 
 		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server file")
-			return fmt.Errorf("unable to create content of dd_img_server file - err: %s", err)
+			log.WithContext(ctx).WithError(err).Error("unable to create content of pasteld service file")
+			return fmt.Errorf("unable to create content of pasteld service file - err: %s", err)
 		}
 
 	case "supernode":

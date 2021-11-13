@@ -106,7 +106,7 @@ python3 -m  http.server 80`
 Description=Pasteld Daemon
 
 [Service]
-ExecStart={{.PasteldBinaryPath}} --datadir={{.DataDir}} --externalip={{.ExternalIp}}
+ExecStart={{.PasteldBinaryPath}} --datadir={{.DataDir}} --externalip={{.ExternalIP}}
 
 [Install]
 WantedBy=multi-user.target
@@ -160,10 +160,11 @@ type DDImgServerStartScript struct {
 	DDImgServerDir string
 }
 
+// PasteldServerServiceScript defines service file for /etc/systemd/system
 type PasteldServerServiceScript struct {
 	PasteldBinaryPath string
 	DataDir           string
-	ExternalIp        string
+	ExternalIP        string
 }
 
 // ZksnarkParamsNames - slice of zksnark parameters

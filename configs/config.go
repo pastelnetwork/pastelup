@@ -106,6 +106,7 @@ python3 -m  http.server 80`
 Description=Pasteld Daemon
 
 [Service]
+User={{.User}}
 ExecStart={{.PasteldBinaryPath}} --datadir={{.DataDir}} --externalip={{.ExternalIP}}
 
 [Install]
@@ -165,6 +166,7 @@ type PasteldServerServiceScript struct {
 	PasteldBinaryPath string
 	DataDir           string
 	ExternalIP        string
+	User              string
 }
 
 // ZksnarkParamsNames - slice of zksnark parameters

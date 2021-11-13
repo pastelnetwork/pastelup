@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strings"
@@ -956,6 +957,12 @@ func íntallAppService(ctx context.Context, appName string, config *configs.Conf
 	// Executable script - called by systemd service
 	appServiceStartFile := "start_" + appName + ".sh"
 
+	// Get current user that call the script
+	curUser, err := user.Current()
+	if err != nil {
+		return err
+	}
+
 	switch appName {
 	case "dd-img-server":
 		appServiceStartDir = filepath.Join(config.PastelExecDir, "dd-service")
@@ -1032,6 +1039,7 @@ func íntallAppService(ctx context.Context, appName string, config *configs.Conf
 				PasteldBinaryPath: pastelDPath,
 				DataDir:           config.WorkingDir,
 				ExternalIP:        extIP,
+				User:              curUser.Username,
 			})
 
 		if err != nil {

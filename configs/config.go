@@ -101,17 +101,18 @@ WantedBy=multi-user.target
 cd {{.DDImgServerDir}}
 python3 -m  http.server 80`
 
-	// PasteldServerService - /etc/systemd/system/pasteld.service
-	PasteldServerService = `[Unit]
-Description=Pasteld Daemon
-
-[Service]
-User={{.User}}
-ExecStart={{.PasteldBinaryPath}} --datadir={{.DataDir}} --externalip={{.ExternalIP}}
-
-[Install]
-WantedBy=multi-user.target
-`
+	// SystemdService - /etc/systemd/sysstem/rq-service.service
+	SystemdService = `[Unit]
+	Description={{.Desc}}
+	
+	[Service]
+	WorkingDirectory={{.WorkDir}}
+	User={{.User}}
+	ExecStart={{.ExecCmd}}
+	
+	[Install]
+	WantedBy=multi-user.target
+	`
 )
 
 // WalletNodeConfig defines configurations for walletnode
@@ -161,12 +162,12 @@ type DDImgServerStartScript struct {
 	DDImgServerDir string
 }
 
-// PasteldServerServiceScript defines service file for /etc/systemd/system
-type PasteldServerServiceScript struct {
-	PasteldBinaryPath string
-	DataDir           string
-	ExternalIP        string
-	User              string
+// SystemdServiceScript defines service file for /etc/systemd/system
+type SystemdServiceScript struct {
+	User    string
+	ExecCmd string
+	Desc    string
+	WorkDir string
 }
 
 // ZksnarkParamsNames - slice of zksnark parameters

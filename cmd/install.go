@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/errors"
@@ -1084,6 +1085,16 @@ func íntallAppService(ctx context.Context, appName string, config *configs.Conf
 	}
 
 	log.WithContext(ctx).Info(appName + " installed successfully")
+
+	// Check if service is already running
+	time.Sleep(3 * time.Second)
+	_, err = RunCMD("systemctl", "is-active", appName)
+	if err == nil {
+		log.WithContext(ctx).Infof(appName + " is running!")
+	} else {
+		log.WithContext(ctx).Infof(appName + " is FAILED to run, pls check detail: journalctl -u " + appName)
+	}
+
 	return nil
 }
 

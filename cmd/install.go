@@ -838,8 +838,27 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
-	subCmd := []string{"-m", "pip", "install"}
-	subCmd = append(subCmd, constants.DependenciesDupeDetectionPackages...)
+	// Download dependency list from download page
+	log.WithContext(ctx).Info("Downloading dd-server dependency list...")
+
+	if config.Version == "" {
+		config.Version = "beta"
+	}
+
+	downloadURL, archiveName, err := config.Configurer.GetDownloadURL(config.Version, constants.DDService_Dependencies)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download dd-service dependency list")
+		return err
+	}
+
+	if err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, archiveName), downloadURL.String()); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("failed to download executable file %s", downloadURL)
+		return err
+	}
+
+	subCmd := []string{"-m", "pip", "-r"}
+	subCmd = append(subCmd, filepath.Join(config.PastelExecDir, filepath.Join(config.PastelExecDir, archiveName)))
+
 	log.WithContext(ctx).Info("Installing Pip...")
 	if utils.GetOS() == constants.Windows {
 		if err := RunCMDWithInteractive("python", subCmd...); err != nil {

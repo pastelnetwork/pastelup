@@ -28,7 +28,7 @@ const (
 	PastelUtilityLogFilePath string = "./pastel-utility-remote-log.txt"
 
 	// PipRequirmentsFileName - pip install requirements file name
-	PipRequirmentsFileName string = "requirements.txt"
+	PipRequirmentsFileName string = "requirements.in"
 
 	// DupeDetectionImageFingerPrintDataBase - dupe_detection_image_fingerprint_database file
 	DupeDetectionImageFingerPrintDataBase string = "dupe_detection_image_fingerprint_database.sqlite"
@@ -58,6 +58,8 @@ const (
 	PastelD ToolType = "pasteld"
 	// DDService type
 	DDService ToolType = "dd-service"
+	// DDService_Dependencies dependency list
+	DDService_Dependencies ToolType = "dd-service-dependencies"
 	// RQService type
 	RQService ToolType = "rq-service"
 	// AMD64 is architecture type

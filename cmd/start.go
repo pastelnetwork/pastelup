@@ -127,14 +127,16 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(red("Required (only if --remote specified), remote supernode specific, SSH address of the remote HOT node")),
 		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).
 			SetUsage(green("Optional, remote supernode specific, SSH port of the remote HOT node")).SetValue(22),
-		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
-			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
-		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
-			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel")).SetValue("$HOME/.pastel"),
+		cli.NewFlag("ssh-user", &sshUser).
+			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-key", &sshKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
+		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
+			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
+		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
+			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel")).SetValue("$HOME/.pastel"),
 	}
 
 	masternodeFlags := []*cli.Flag{
@@ -359,6 +361,13 @@ func runLocalSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 }
 
 func runStartMasternode(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Reading pastel.conf")
+	if err := ParsePastelConf(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to parse pastel config")
+		return err
+	}
+	log.WithContext(ctx).Infof("Finished Reading pastel.conf! Starting Supernode in %s mode", config.Network)
+
 	// Get conf data from masternode.conf File
 	privKey, extIP, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName)
 	if err != nil {
@@ -366,6 +375,18 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
+	if len(flagNodeExtIP) == 0 {
+
+		log.WithContext(ctx).Info("--ip flag is ommited, trying to get our WAN IP address")
+		externalIP, err := GetExternalIPAddress()
+		if err != nil {
+			err := fmt.Errorf("cannot get external ip address")
+			log.WithContext(ctx).WithError(err).Error("Missing parameter --ip")
+			return err
+		}
+		flagNodeExtIP = externalIP
+		log.WithContext(ctx).Infof("WAN IP address - %s", flagNodeExtIP)
+	}
 	if extIP != flagNodeExtIP {
 		err := errors.Errorf("External IP address in masternode.conf MUST match WAN address of the node! IP in masternode.conf - %s, WAN IP passed or identified - %s", extIP, flagNodeExtIP)
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")

@@ -274,8 +274,10 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context) erro
 	}
 
 	go func() {
-		if err := r.sshClient.Cmd(fmt.Sprintf("%s --reindex --externalip=%s --data-dir=%s --daemon %s",
-			r.opts.remotePasteld, flagNodeExtIP, r.config.RemoteWorkingDir, r.opts.testnetOption)).Run(); err != nil {
+		cmdLine := fmt.Sprintf("%s --reindex --externalip=%s --data-dir=%s --daemon %s",
+			r.opts.remotePasteld, flagNodeExtIP, r.config.RemoteWorkingDir, r.opts.testnetOption)
+		log.WithContext(ctx).Infof("starting pasteld on the remote node - %s\n", cmdLine)
+		if err := r.sshClient.Cmd(cmdLine).Run(); err != nil {
 			log.WithContext(ctx).WithError(err).Error("unable to start pasteld on remote")
 		}
 	}()

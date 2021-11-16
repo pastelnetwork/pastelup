@@ -92,9 +92,6 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 	case constants.DDService:
 		name = constants.DupeDetectionArchiveName
 		tool = constants.DDService
-	case constants.DDService_Dependencies:
-		name = constants.PipRequirmentsFileName
-		tool = constants.DDService
 	default:
 		return nil, "", errors.Errorf("unknow tool: %s", tool)
 	}

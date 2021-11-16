@@ -323,7 +323,7 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 }
 
 func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
-	return íntallAppService(ctx, "dd-img-server", config)
+	return installAppService(ctx, "dd-img-server", config)
 }
 
 func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
@@ -536,7 +536,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 
 		if yes {
 			for _, appName := range appServiceNames {
-				if err = íntallAppService(ctx, appName, config); err != nil {
+				if err = installAppService(ctx, appName, config); err != nil {
 					log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")
 					return err
 				}
@@ -939,7 +939,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 
-	if err = íntallAppService(ctx, "dd-img-server", config); err != nil {
+	if err = installAppService(ctx, "dd-img-server", config); err != nil {
 		return err
 	}
 
@@ -947,7 +947,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	return nil
 }
 
-func íntallAppService(ctx context.Context, appName string, config *configs.Config) error {
+func installAppService(ctx context.Context, appName string, config *configs.Config) error {
 
 	log.WithContext(ctx).Info("Installing " + appName + " as service")
 
@@ -956,9 +956,8 @@ func íntallAppService(ctx context.Context, appName string, config *configs.Conf
 	var execCmd, execPath, execUser, workDir string
 
 	// Service file - will be installed at /etc/systemd/system
-	appServiceFileName := appName + ".service"
-	systemdDir := "/etc/systemd/system"
-	appServiceFilePath := filepath.Join(systemdDir, appServiceFileName)
+	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+	appServiceFilePath := filepath.Join(constants.SystemdSystemDir, appServiceFileName)
 	appServiceTmpFilePath := filepath.Join(config.PastelExecDir, appServiceFileName)
 
 	// Get current user that call the script
@@ -1047,8 +1046,8 @@ func íntallAppService(ctx context.Context, appName string, config *configs.Conf
 		})
 
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("unable to create content of " + appName + " service file")
-		return fmt.Errorf("unable to create content of "+appName+" service file - err: %s", err)
+		log.WithContext(ctx).WithError(err).Error("unable to create content of " + appServiceFileName + " file")
+		return fmt.Errorf("unable to create content of "+appServiceFileName+" file - err: %s", err)
 	}
 
 	// create service file and start service
@@ -1068,34 +1067,42 @@ func íntallAppService(ctx context.Context, appName string, config *configs.Conf
 
 	// Auto start service at boot
 	log.WithContext(ctx).Info("Setting service for auto start on boot")
-	if out, err := RunCMD("sudo", "systemctl", "enable", appName); err != nil {
+	if out, err := RunCMD("sudo", "systemctl", "enable", appServiceFileName); err != nil {
 		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to enable " + appName + " service")
+			WithError(err).Error("unable to enable " + appServiceFileName + " service")
 
-		return fmt.Errorf("err enabling "+appName+" service - err: %s", err)
+		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
 	}
 
 	// Start the service
 	log.WithContext(ctx).Info("Starting service")
-	if out, err := RunCMD("sudo", "systemctl", "start", appName); err != nil {
+	if out, err := RunCMD("sudo", "systemctl", "start", appServiceFileName); err != nil {
 		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to start " + appName + " service")
+			WithError(err).Error("unable to start " + appServiceFileName)
 
-		return fmt.Errorf("err starting "+appName+" service - err: %s", err)
+		return fmt.Errorf("err starting "+appServiceFileName+" - err: %s", err)
 	}
 
 	log.WithContext(ctx).Info(appName + " installed successfully")
 
 	// Check if service is already running
 	time.Sleep(3 * time.Second)
-	_, err = RunCMD("systemctl", "is-active", appName)
-	if err == nil {
-		log.WithContext(ctx).Infof(appName + " is running!")
-	} else {
-		log.WithContext(ctx).Infof(appName + " is FAILED to run, pls check detail: journalctl -u " + appName)
-	}
+	checkServiceRunning(ctx, appName)
 
 	return nil
+}
+
+func checkServiceRunning(ctx context.Context, appName string) error {
+	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+
+	_, err := RunCMD("systemctl", "is-active", appServiceFileName)
+	if err == nil {
+		log.WithContext(ctx).Infof(appServiceFileName + " service is running!")
+	} else {
+		log.WithContext(ctx).Infof(appServiceFileName + " service is FAILED to run, pls check detail: journalctl -u " + appServiceFileName)
+	}
+
+	return err
 }
 
 func installChrome(ctx context.Context, config *configs.Config) (err error) {

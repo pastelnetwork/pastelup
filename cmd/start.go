@@ -405,9 +405,9 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runRQService(ctx context.Context, config *configs.Config) error {
 
-	_, err := RunCMD("systemctl", "is-active", string(constants.RQService))
+	err := checkServiceRunning(ctx, string(constants.RQService))
 	if err == nil {
-		log.WithContext(ctx).Infof(string(constants.RQService) + " is already running!")
+		log.WithContext(ctx).Infof(string(constants.RQService) + " service is already running!")
 		return nil
 	}
 
@@ -428,9 +428,9 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runDDService(ctx context.Context, config *configs.Config) (err error) {
 
-	_, err = RunCMD("systemctl", "is-active", string(constants.DDService))
+	err = checkServiceRunning(ctx, string(constants.DDService))
 	if err == nil {
-		log.WithContext(ctx).Infof(string(constants.DDService) + " is already running!")
+		log.WithContext(ctx).Infof(string(constants.DDService) + " service is already running!")
 		return nil
 	}
 
@@ -492,9 +492,9 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 
-	_, err := RunCMD("systemctl", "is-active", string(constants.SuperNode))
+	err := checkServiceRunning(ctx, string(constants.SuperNode))
 	if err == nil {
-		log.WithContext(ctx).Infof(string(constants.SuperNode) + " is already running!")
+		log.WithContext(ctx).Infof(string(constants.SuperNode) + " service is already running!")
 		return nil
 	}
 
@@ -693,9 +693,9 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 		bReIndex = flagReIndex
 	}
 
-	_, err = RunCMD("systemctl", "is-active", string(constants.PastelD))
+	err = checkServiceRunning(ctx, string(constants.PastelD))
 	if err == nil {
-		log.WithContext(ctx).Infof(string(constants.PastelD) + " is already running!")
+		log.WithContext(ctx).Infof(string(constants.PastelD) + " service is already running!")
 	} else {
 		log.WithContext(ctx).Infof("Starting pasteld")
 		if err = runPastelNode(ctx, config, bReIndex, flagNodeExtIP, ""); err != nil {

@@ -85,6 +85,11 @@ const (
 	// DupeDetectionServiceDir defines location for dupe detection service
 	DupeDetectionServiceDir = "pastel_dupe_detection_service"
 
+	// SystemdServicePrefix prefix of all pastel services
+	SystemdServicePrefix = "pastel-"
+	// SystemdSystemDir location of systemd folder in Linux system
+	SystemdSystemDir = "/etc/systemd/system"
+
 	// RQServiceDir defines location for rq-service file exchange dir
 	RQServiceDir = "rqfiles"
 	// P2PDataDir defines location for p2p data dir

@@ -847,25 +847,18 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
-	// Install pip pkg from requirements.txt
-	var subCmd [2][]string
-	subCmd[0] = []string{"-m", "pip", "install", "-r"}
-	subCmd[0] = append(subCmd[0], filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName))
+	// Install pip pkg from requirements.in
+	subCmd := []string{"-m", "pip", "install", "-r"}
+	subCmd = append(subCmd, filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName))
 
-	// Extra pip pkg
-	subCmd[1] = []string{"-m", "pip", "install"}
-	subCmd[1] = append(subCmd[1], constants.DependenciesDupeDetectionPackages...)
-
-	for _, cmd := range subCmd {
-		log.WithContext(ctx).Info("Installing Pip: ", cmd)
-		if utils.GetOS() == constants.Windows {
-			if err := RunCMDWithInteractive("python", cmd...); err != nil {
-				return err
-			}
-		} else {
-			if err := RunCMDWithInteractive("python3", cmd...); err != nil {
-				return err
-			}
+	log.WithContext(ctx).Info("Installing Pip: ", subCmd)
+	if utils.GetOS() == constants.Windows {
+		if err := RunCMDWithInteractive("python", subCmd...); err != nil {
+			return err
+		}
+	} else {
+		if err := RunCMDWithInteractive("python3", subCmd...); err != nil {
+			return err
 		}
 	}
 

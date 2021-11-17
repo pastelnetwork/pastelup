@@ -28,7 +28,7 @@ const (
 	PastelUtilityLogFilePath string = "./pastel-utility-remote-log.txt"
 
 	// PipRequirmentsFileName - pip install requirements file name
-	PipRequirmentsFileName string = "requirements.txt"
+	PipRequirmentsFileName string = "requirements.in"
 
 	// DupeDetectionImageFingerPrintDataBase - dupe_detection_image_fingerprint_database file
 	DupeDetectionImageFingerPrintDataBase string = "dupe_detection_image_fingerprint_database.sqlite"

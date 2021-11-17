@@ -838,9 +838,20 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
-	subCmd := []string{"-m", "pip", "install"}
-	subCmd = append(subCmd, constants.DependenciesDupeDetectionPackages...)
-	log.WithContext(ctx).Info("Installing Pip...")
+	// Download dd-service
+	if config.Version == "" {
+		config.Version = "beta"
+	}
+	if err = downloadComponents(ctx, config, constants.DDService, config.Version, constants.DupeDetectionSubFolder); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
+		return err
+	}
+
+	// Install pip pkg from requirements.in
+	subCmd := []string{"-m", "pip", "install", "-r"}
+	subCmd = append(subCmd, filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName))
+
+	log.WithContext(ctx).Info("Installing Pip: ", subCmd)
 	if utils.GetOS() == constants.Windows {
 		if err := RunCMDWithInteractive("python", subCmd...); err != nil {
 			return err
@@ -850,6 +861,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 			return err
 		}
 	}
+
 	log.WithContext(ctx).Info("Pip install finished")
 
 	// need to install manual by user
@@ -857,14 +869,6 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		if err = installChrome(ctx, config); err != nil {
 			return err
 		}
-	}
-
-	if config.Version == "" {
-		config.Version = "beta"
-	}
-	if err = downloadComponents(ctx, config, constants.DDService, config.Version, constants.DupeDetectionSubFolder); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
-		return err
 	}
 
 	ddBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)

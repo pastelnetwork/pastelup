@@ -28,7 +28,7 @@ const (
 	PastelUtilityLogFilePath string = "./pastel-utility-remote-log.txt"
 
 	// PipRequirmentsFileName - pip install requirements file name
-	PipRequirmentsFileName string = "requirements.txt"
+	PipRequirmentsFileName string = "requirements.in"
 
 	// DupeDetectionImageFingerPrintDataBase - dupe_detection_image_fingerprint_database file
 	DupeDetectionImageFingerPrintDataBase string = "dupe_detection_image_fingerprint_database.sqlite"
@@ -305,11 +305,7 @@ var DependenciesPackagesPastelD = map[OSType][]string{
 
 // DependenciesDupeDetectionPackages is dependencies for dupe detection service
 var DependenciesDupeDetectionPackages = []string{
-	"xgboost", "numpy==1.19.2", "hyppo", "zstandard", "tensorflow", "pandas",
-	"scipy", "scikit-learn", "matplotlib", "watchdog",
-	"chromedriver_autoinstaller", "selenium", "Pillow",
-	"opennsfw-standalone", "tensorflow_hub", "imagehash", "psutil",
-	"onnxruntime",
+	"pyimgur", "scikit-learn-intelex",
 }
 
 // NetworkModes are valid network nmodes

@@ -323,7 +323,7 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 }
 
 func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
-	return installAppService(ctx, "dd-img-server", config)
+	return installAppService(ctx, string(constants.DDImgService), config)
 }
 
 func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
@@ -958,7 +958,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 
-	if err = installAppService(ctx, "dd-img-server", config); err != nil {
+	if err = installAppService(ctx, string(constants.DDImgService), config); err != nil {
 		return err
 	}
 
@@ -1114,38 +1114,56 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		log.WithContext(ctx).Errorf("Failed to start %s", appServiceFilePath)
 	}
 
+	// Check if service is already running
+	time.Sleep(3 * time.Second)
+	checkServiceRunning(appName)
+
 	log.WithContext(ctx).Info(appName + " installed successfully")
 
 	return nil
 }
 
-func checkServiceRunning(ctx context.Context, appName string) error {
+func checkServiceInstalled(appName string) error {
+	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+
+	if _, err := os.Stat(filepath.Join(constants.SystemdSystemDir, appServiceFileName)); os.IsNotExist(err) {
+		return fmt.Errorf(appServiceFileName + " is not yet installed")
+	}
+
+	return nil
+}
+
+func checkServiceRunning(appName string) error {
 	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
 
 	_, err := RunCMD("systemctl", "is-active", appServiceFileName)
-	if err == nil {
-		log.WithContext(ctx).Infof(appServiceFileName + " service is running!")
-	} else {
-		log.WithContext(ctx).Infof(appServiceFileName + " service is FAILED to run, pls check detail: journalctl -u " + appServiceFileName)
-	}
 
 	return err
 }
 
+// Check if app is installed as service - if yes, then start it
 func startService(ctx context.Context, appName string) error {
-	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
 
-	log.WithContext(ctx).Info("Starting service " + appServiceFileName)
-	if out, err := RunCMD("sudo", "systemctl", "start", appServiceFileName); err != nil {
-		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to start " + appServiceFileName)
-
-		return fmt.Errorf("err starting "+appServiceFileName+" - err: %s", err)
+	if err := checkServiceInstalled(appName); err != nil {
+		return fmt.Errorf("Service " + appName + " is not installed as service")
 	}
 
-	// Check if service is already running
-	time.Sleep(3 * time.Second)
-	checkServiceRunning(ctx, appName)
+	// Start app, if it is not running
+	err := checkServiceRunning(appName)
+	if err == nil {
+		log.WithContext(ctx).Info(appName + " is already running!")
+	} else {
+		appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+
+		// Start service
+		log.WithContext(ctx).Info("Starting service " + appServiceFileName)
+		if out, err := RunCMD("sudo", "systemctl", "start", appServiceFileName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to start " + appServiceFileName)
+
+			return fmt.Errorf("err starting "+appServiceFileName+" - err: %s", err)
+		}
+	}
 
 	return nil
 }

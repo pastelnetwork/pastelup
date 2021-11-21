@@ -892,10 +892,10 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		}
 	}
 
-	ddBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
+	appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 	var pathList []interface{}
 	for _, configItem := range constants.DupeDetectionConfigs {
-		dupeDetectionDirPath := filepath.Join(ddBaseDir, configItem)
+		dupeDetectionDirPath := filepath.Join(appBaseDir, configItem)
 		if err = utils.CreateFolder(ctx, dupeDetectionDirPath, config.Force); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to create directory : %s", dupeDetectionDirPath)
 			return err

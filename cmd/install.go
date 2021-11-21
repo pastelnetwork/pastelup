@@ -440,6 +440,25 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
+
+		// Start all wallet nodes apps as service
+		// installAppsAsService - pasteld, supernode, rq-server, dd-server
+		appServiceNames := []string{
+			string(constants.PastelD),
+			string(constants.RQService),
+			string(constants.WalletNode),
+		}
+
+		yes, _ := AskUserToContinue(ctx, "Do you want to to set all applications - pasteld, rqservice, walletnode as service? (Y/N)")
+
+		if yes {
+			for _, appName := range appServiceNames {
+				if err = installAppService(ctx, appName, config); err != nil {
+					log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")
+					return err
+				}
+			}
+		}
 	}
 
 	if installCommand == constants.SuperNode {
@@ -967,7 +986,7 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 	}
 
 	switch appName {
-	case "dd-img-server":
+	case string(constants.DDImgService):
 
 		appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 		appServiceWorkDirPath := filepath.Join(appBaseDir, "img_server")
@@ -981,7 +1000,7 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 
 		// Get pasteld path
 		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PasteldName[utils.GetOS()]); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Could not find pasteld")
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
 			return err
 		}
 
@@ -997,7 +1016,7 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 
 	case string(constants.RQService):
 		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()]); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Could not find " + appName)
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
 			return err
 		}
 		rqServiceArgs := fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir))
@@ -1007,7 +1026,7 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 
 	case string(constants.DDService):
 		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, utils.GetDupeDetectionExecName()); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
 			return err
 		}
 
@@ -1022,13 +1041,29 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 
 	case string(constants.SuperNode):
 		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()]); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
 			return err
 		}
 
 		supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
 
 		execCmd = execPath + " --config-file=" + supernodeConfigPath
+		execUser = curUser.Username
+		workDir = config.PastelExecDir
+
+	case string(constants.WalletNode):
+		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.WalletNodeExecName[utils.GetOS()]); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
+			return err
+		}
+
+		walletnodeConfigFile := config.Configurer.GetWalletNodeConfFile(config.WorkingDir)
+
+		execCmd = execPath + " --config-file=" + walletnodeConfigFile
+		if flagDevMode {
+			execCmd += " --swagger"
+		}
+
 		execUser = curUser.Username
 		workDir = config.PastelExecDir
 
@@ -1075,19 +1110,11 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 	}
 
 	// Start the service
-	log.WithContext(ctx).Info("Starting service")
-	if out, err := RunCMD("sudo", "systemctl", "start", appServiceFileName); err != nil {
-		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to start " + appServiceFileName)
-
-		return fmt.Errorf("err starting "+appServiceFileName+" - err: %s", err)
+	if err := startService(ctx, appName); err != nil {
+		log.WithContext(ctx).Errorf("Failed to start %s", appServiceFilePath)
 	}
 
 	log.WithContext(ctx).Info(appName + " installed successfully")
-
-	// Check if service is already running
-	time.Sleep(3 * time.Second)
-	checkServiceRunning(ctx, appName)
 
 	return nil
 }
@@ -1103,6 +1130,24 @@ func checkServiceRunning(ctx context.Context, appName string) error {
 	}
 
 	return err
+}
+
+func startService(ctx context.Context, appName string) error {
+	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+
+	log.WithContext(ctx).Info("Starting service " + appServiceFileName)
+	if out, err := RunCMD("sudo", "systemctl", "start", appServiceFileName); err != nil {
+		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+			WithError(err).Error("unable to start " + appServiceFileName)
+
+		return fmt.Errorf("err starting "+appServiceFileName+" - err: %s", err)
+	}
+
+	// Check if service is already running
+	time.Sleep(3 * time.Second)
+	checkServiceRunning(ctx, appName)
+
+	return nil
 }
 
 func installChrome(ctx context.Context, config *configs.Config) (err error) {

@@ -470,6 +470,11 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 
 // Sub Command
 func runWalletNodeService(ctx context.Context, config *configs.Config) error {
+	err := checkServiceRunning(ctx, string(constants.WalletNode))
+	if err == nil {
+		log.WithContext(ctx).Infof(string(constants.WalletNode) + " service is already running!")
+		return nil
+	}
 
 	walletnodeExecName := constants.WalletNodeExecName[utils.GetOS()]
 	log.WithContext(ctx).Infof("Starting walletnode service - %s", walletnodeExecName)

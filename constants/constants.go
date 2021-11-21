@@ -60,6 +60,8 @@ const (
 	DDService ToolType = "dd-service"
 	// RQService type
 	RQService ToolType = "rq-service"
+	// DDImgService type
+	DDImgService ToolType = "dd-img-server"
 	// AMD64 is architecture type
 	AMD64 ArchitectureType = "amd64"
 	// DupeDetectionArchiveName is archive name for dupe detection

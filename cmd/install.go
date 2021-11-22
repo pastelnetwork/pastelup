@@ -55,6 +55,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
 		cli.NewFlag("started-remote", &config.StartedRemote).
 			SetUsage(green("Optional, means that this command is executed remotely via ssh shell")),
+		cli.NewFlag("started-as-service", &config.StartedAsService).
+			SetUsage(green("Optional, start all apps automatically as systemd service")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -442,16 +444,13 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		}
 
 		// Start all wallet nodes apps as service
-		// installAppsAsService - pasteld, supernode, rq-server, dd-server
-		appServiceNames := []string{
-			string(constants.PastelD),
-			string(constants.RQService),
-			string(constants.WalletNode),
-		}
+		if config.StartedAsService {
+			appServiceNames := []string{
+				string(constants.PastelD),
+				string(constants.RQService),
+				string(constants.WalletNode),
+			}
 
-		yes, _ := AskUserToContinue(ctx, "Do you want to to set all applications - pasteld, rqservice, walletnode as service? (Y/N)")
-
-		if yes {
 			for _, appName := range appServiceNames {
 				if err = installAppService(ctx, appName, config); err != nil {
 					log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")
@@ -544,16 +543,14 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		}
 
 		// installAppsAsService - pasteld, supernode, rq-server, dd-server
-		appServiceNames := []string{
-			string(constants.PastelD),
-			string(constants.RQService),
-			string(constants.DDService),
-			string(constants.SuperNode),
-		}
+		if config.StartedAsService {
+			appServiceNames := []string{
+				string(constants.PastelD),
+				string(constants.RQService),
+				string(constants.DDService),
+				string(constants.SuperNode),
+			}
 
-		yes, _ := AskUserToContinue(ctx, "Do you want to to set all applications - pasteld, supernode, rq-server and dd-server as service? (Y/N)")
-
-		if yes {
 			for _, appName := range appServiceNames {
 				if err = installAppService(ctx, appName, config); err != nil {
 					log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")

@@ -81,6 +81,8 @@ TBD
 - `--force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)`
 - `--peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"`
 - `--release value, -r value   Optional, Pastel version to install (default: "beta")`
+- `--started-remote            Optional, means that this command is executed remotely via ssh shell`
+- `--started-as-service        Optional, start all apps automatically as systemd service`
 - `--help, -h                  show help (default: false)`
 
 ### Start command options

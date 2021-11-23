@@ -1107,7 +1107,7 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 	}
 
 	// Start the service
-	if err := startService(ctx, appName); err != nil {
+	if err := startSystemdService(ctx, appName); err != nil {
 		log.WithContext(ctx).Errorf("Failed to start %s", appServiceFilePath)
 	}
 
@@ -1133,13 +1133,13 @@ func checkServiceInstalled(appName string) error {
 func checkServiceRunning(appName string) error {
 	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
 
-	_, err := RunCMD("systemctl", "is-active", appServiceFileName)
+	_, err := RunCMD("systemctl", "is-active", "--quiet", appServiceFileName)
 
 	return err
 }
 
 // Check if app is installed as service - if yes, then start it
-func startService(ctx context.Context, appName string) error {
+func startSystemdService(ctx context.Context, appName string) error {
 
 	if err := checkServiceInstalled(appName); err != nil {
 		return fmt.Errorf("Service " + appName + " is not installed as service")
@@ -1160,6 +1160,32 @@ func startService(ctx context.Context, appName string) error {
 
 			return fmt.Errorf("err starting "+appServiceFileName+" - err: %s", err)
 		}
+	}
+
+	return nil
+}
+
+// Stop systemd service if it is running, return nil if the service is found
+func stopSystemdService(ctx context.Context, appName string) error {
+
+	if err := checkServiceInstalled(appName); err != nil {
+		return fmt.Errorf("Service " + appName + " is not installed as service")
+	}
+
+	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+
+	if err := checkServiceRunning(appName); err == nil {
+
+		if out, err := RunCMD("sudo", "systemctl", "stop", appServiceFileName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to stop " + appServiceFileName)
+
+			return fmt.Errorf("err stopping "+appServiceFileName+" - err: %s", err)
+		}
+
+		log.WithContext(ctx).Infof("Service %s stopped", appServiceFileName)
+	} else {
+		log.WithContext(ctx).Infof("Service %s is not running", appServiceFileName)
 	}
 
 	return nil

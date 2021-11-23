@@ -513,7 +513,7 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 	// Start Pasteld service
 	err = startSystemdService(ctx, string(constants.PastelD))
 	if err == nil {
-		log.WithContext(ctx).Info("Pasteld is already running!")
+		log.WithContext(ctx).Info("Pasteld service is running!")
 		return nil
 	}
 

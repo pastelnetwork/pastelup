@@ -560,6 +560,14 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		}
 	}
 
+	// Install node as service
+	if (installCommand == constants.PastelD) && (config.StartedAsService) {
+		if err := installAppService(ctx, string(constants.PastelD), config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -142,7 +142,7 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) {
 	stopService(ctx, constants.RQService)
 
 	// *************  Stop pasteld node  *************
-	stopService(ctx, constants.PastelD)
+	stopPatelCLI(ctx, config)
 
 	log.WithContext(ctx).Info("Walletnode stopped successfully")
 }
@@ -163,7 +163,7 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 	stopService(ctx, constants.DDImgService)
 
 	// *************  Stop pasteld node  *************
-	stopService(ctx, constants.PastelD)
+	stopPatelCLI(ctx, config)
 
 	log.WithContext(ctx).Info("Suppernode stopped successfully")
 }
@@ -186,7 +186,7 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) {
 	stopService(ctx, constants.DDImgService)
 
 	// *************  Stop pasteld node  *************
-	stopService(ctx, constants.PastelD)
+	stopPatelCLI(ctx, config)
 
 	log.WithContext(ctx).Info("All stopped successfully")
 }
@@ -208,15 +208,19 @@ func stopSNServiceSubCommand(ctx context.Context, _ *configs.Config) {
 }
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) {
+
 	log.WithContext(ctx).Info("Stopping Pasteld")
-	if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
-	}
-	time.Sleep(1 * time.Second)
-	if CheckProcessRunning(constants.PastelD) {
-		log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
-	} else {
-		log.WithContext(ctx).Info("Pasteld stopped")
+
+	if err := stopSystemdService(ctx, string(constants.PastelD)); err != nil {
+		if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
+		}
+		time.Sleep(1 * time.Second)
+		if CheckProcessRunning(constants.PastelD) {
+			log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
+		} else {
+			log.WithContext(ctx).Info("Pasteld stopped")
+		}
 	}
 }
 

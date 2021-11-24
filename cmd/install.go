@@ -26,6 +26,7 @@ var (
 	sshPort int
 	sshKey  string
 	sshUser string
+	sshPw   string
 )
 
 type installCommand uint8
@@ -57,6 +58,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, means that this command is executed remotely via ssh shell")),
 		cli.NewFlag("started-as-service", &config.StartedAsService).
 			SetUsage(green("Optional, start all apps automatically as systemd service")),
+		cli.NewFlag("user-pw", &config.UserPw).
+			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -84,6 +87,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &sshUser).
 			SetUsage(yellow("Optional, SSH user")),
+		cli.NewFlag("ssh-user-pw", &sshPw).
+			SetUsage(red("Required, password of remote user - so no sudo request is promoted")).SetRequired(),
 		cli.NewFlag("ssh-key", &sshKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
@@ -223,6 +228,12 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, pastelUtilityFile)
 	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
 
+	// check if folder is existed, if not, create that folder
+	err = client.ShellCmd(ctx, fmt.Sprintf("[ ! -d %s ] && mkdir %s", config.RemotePastelUtilityDir, config.RemotePastelUtilityDir))
+	if err != nil {
+		log.WithContext(ctx).Info("Pastel-utility folder is existed")
+	}
+
 	err = client.ShellCmd(ctx, fmt.Sprintf("rm -r -f %s", pastelUtilityPath))
 	if err != nil {
 		log.WithContext(ctx).Error("Failed to delete pastel-utility file")
@@ -303,11 +314,15 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s -n=testnet", remoteOptions)
 	}
 
+	if len(sshPw) > 0 {
+		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, sshPw)
+	}
+
 	// disable config ports by tool, need do it manually due to having to enter
 	// FIXME: add port config via ssh later
 	remoteOptions = fmt.Sprintf("%s --started-remote", remoteOptions)
 
-	installSuperNodeCmd := fmt.Sprintf("%s install supernode%s", pastelUtilityPath, remoteOptions)
+	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install supernode%s", pastelUtilityPath, remoteOptions)
 	err = client.ShellCmd(ctx, installSuperNodeCmd)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to Installing Supernode")
@@ -340,7 +355,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		return err
 	}
 
-	if err := checkInstalledPackages(ctx, installCommand); err != nil {
+	if err := checkInstalledPackages(ctx, config, installCommand); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing packages...")
 		return err
 	}
@@ -596,7 +611,7 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 	return nil
 }
 
-func checkInstalledPackages(ctx context.Context, tool constants.ToolType) (err error) {
+func checkInstalledPackages(ctx context.Context, config *configs.Config, tool constants.ToolType) (err error) {
 	// TODO: 1) must offer to install missing packages
 	installedCmd := utils.GetInstalledPackages(ctx)
 	var notInstall []string
@@ -620,15 +635,23 @@ func checkInstalledPackages(ctx context.Context, tool constants.ToolType) (err e
 		return fmt.Errorf("missing required pkgs: %s", pkgsStr)
 	}
 
-	return installMissingReqPackagesLinux(ctx, notInstall)
+	return installMissingReqPackagesLinux(ctx, config, notInstall)
 }
 
-func installMissingReqPackagesLinux(ctx context.Context, pkgs []string) error {
+func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config, pkgs []string) error {
 	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
 		Info("system will now install missing packages")
 
 	for _, pkg := range pkgs {
-		out, err := RunCMD("sudo", "apt", "install", "-y", pkg)
+		var out string
+		var err error
+
+		if len(config.UserPw) > 0 {
+			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+"  | sudo -S apt-get update -y &&  echo "+config.UserPw+" | sudo apt-get install  -y "+pkg)
+		} else {
+			out, err = RunCMD("sudo", "apt-get", "install", "-y", pkg)
+		}
+
 		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out, "package": pkg}).
 				WithError(err).Error("unable to install required package")
@@ -878,7 +901,7 @@ func showOpenPortGuideline(ctx context.Context, portList []int) {
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Installing dd-service...")
 
-	if err := checkInstalledPackages(ctx, constants.DDService); err != nil {
+	if err := checkInstalledPackages(ctx, config, constants.DDService); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing packages...")
 		return err
 	}
@@ -1095,23 +1118,44 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		return err
 	}
 
-	if _, err := RunCMD("sudo", "mv", appServiceTmpFilePath, appServiceFilePath); err != nil {
-		log.WithContext(ctx).Error("Failed to move service file to systemd folder")
-		return err
-	}
+	if len(config.UserPw) > 0 {
+		if _, err := RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S mv "+appServiceTmpFilePath+" "+appServiceFilePath); err != nil {
+			log.WithContext(ctx).Error("Failed to move service file to systemd folder")
+			return err
+		}
 
-	if _, err := RunCMD("sudo", "chmod", "644", appServiceFilePath); err != nil {
-		log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
-		return err
-	}
+		if _, err := RunCMD("bash", "-c", "echo "+config.UserPw+" | "+"sudo -S chmod 644 "+appServiceFilePath); err != nil {
+			log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
+			return err
+		}
 
-	// Auto start service at boot
-	log.WithContext(ctx).Info("Setting service for auto start on boot")
-	if out, err := RunCMD("sudo", "systemctl", "enable", appServiceFileName); err != nil {
-		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to enable " + appServiceFileName + " service")
+		// Auto start service at boot
+		log.WithContext(ctx).Info("Setting service for auto start on boot")
+		if out, err := RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S systemctl enable "+appServiceFileName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to enable " + appServiceFileName + " service")
 
-		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
+			return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
+		}
+	} else {
+		if _, err := RunCMD("sudo", "mv", appServiceTmpFilePath, appServiceFilePath); err != nil {
+			log.WithContext(ctx).Error("Failed to move service file to systemd folder")
+			return err
+		}
+
+		if _, err := RunCMD("sudo", "chmod", "644", appServiceFilePath); err != nil {
+			log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
+			return err
+		}
+
+		// Auto start service at boot
+		log.WithContext(ctx).Info("Setting service for auto start on boot")
+		if out, err := RunCMD("sudo", "systemctl", "enable", appServiceFileName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to enable " + appServiceFileName + " service")
+
+			return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
+		}
 	}
 
 	// Start the service

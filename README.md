@@ -68,8 +68,12 @@ The above command will:
 - start rq-server, dd-server and supernode
 
 ### Start supernode remotely
-TBD
 
+In order to install all extra packages and set system services, `password` of current user with `sudo` access is needed via param `--ssh-user-pw`.
+
+```
+./pastel-utility install supernode remote --ssh-ip <remote_ip> --ssh-dir=<path_remote_utility_folder>/ --utility-path-to-copy=<path_local_pastel-utility> --ssh-user=bacnh --ssh-user-pw=<remote_user_pw> --ssh-key=$HOME/.ssh/id_rsa 
+```
 
 ### Install command options
 
@@ -83,6 +87,7 @@ TBD
 - `--release value, -r value   Optional, Pastel version to install (default: "beta")`
 - `--started-remote            Optional, means that this command is executed remotely via ssh shell`
 - `--started-as-service        Optional, start all apps automatically as systemd service`
+- `--user-pw value             Optional, password of current sudo user - so no sudo password request is prompted`
 - `--help, -h                  show help (default: false)`
 
 ### Start command options

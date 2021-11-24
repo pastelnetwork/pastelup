@@ -17,6 +17,7 @@ type Init struct {
 	CopyUtilityPath        string `json:"copy-utility,omitempty"`
 	StartedRemote          bool   `json:"started-remote,omitempty"`
 	StartedAsService       bool   `json:"started-asservice,omitempty"`
+	UserPw                 string `json:"user-pw,omitempty"`
 }
 
 /*

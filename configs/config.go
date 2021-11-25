@@ -100,6 +100,19 @@ WantedBy=multi-user.target
 	DDImgServerStart = `#!/bin/bash
 cd {{.DDImgServerDir}}
 python3 -m  http.server 80`
+
+	// SystemdService - /etc/systemd/sysstem/rq-service.service
+	SystemdService = `[Unit]
+	Description={{.Desc}}
+	
+	[Service]
+	WorkingDirectory={{.WorkDir}}
+	User={{.User}}
+	ExecStart={{.ExecCmd}}
+	
+	[Install]
+	WantedBy=multi-user.target
+	`
 )
 
 // WalletNodeConfig defines configurations for walletnode
@@ -147,6 +160,14 @@ type DDImgServerServiceScript struct {
 // DDImgServerStartScript actual script to start dd image server
 type DDImgServerStartScript struct {
 	DDImgServerDir string
+}
+
+// SystemdServiceScript defines service file for /etc/systemd/system
+type SystemdServiceScript struct {
+	User    string
+	ExecCmd string
+	Desc    string
+	WorkDir string
 }
 
 // ZksnarkParamsNames - slice of zksnark parameters

@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/errors"
@@ -24,6 +26,7 @@ var (
 	sshPort int
 	sshKey  string
 	sshUser string
+	sshPw   string
 )
 
 type installCommand uint8
@@ -53,6 +56,10 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
 		cli.NewFlag("started-remote", &config.StartedRemote).
 			SetUsage(green("Optional, means that this command is executed remotely via ssh shell")),
+		cli.NewFlag("started-as-service", &config.StartedAsService).
+			SetUsage(green("Optional, start all apps automatically as systemd service")),
+		cli.NewFlag("user-pw", &config.UserPw).
+			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -80,6 +87,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &sshUser).
 			SetUsage(yellow("Optional, SSH user")),
+		cli.NewFlag("ssh-user-pw", &sshPw).
+			SetUsage(red("Required, password of remote user - so no sudo request is promoted")).SetRequired(),
 		cli.NewFlag("ssh-key", &sshKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
@@ -219,6 +228,12 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, pastelUtilityFile)
 	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
 
+	// check if folder is existed, if not, create that folder
+	err = client.ShellCmd(ctx, fmt.Sprintf("[ ! -d %s ] && mkdir %s", config.RemotePastelUtilityDir, config.RemotePastelUtilityDir))
+	if err != nil {
+		log.WithContext(ctx).Info("Pastel-utility folder is existed")
+	}
+
 	err = client.ShellCmd(ctx, fmt.Sprintf("rm -r -f %s", pastelUtilityPath))
 	if err != nil {
 		log.WithContext(ctx).Error("Failed to delete pastel-utility file")
@@ -299,11 +314,15 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s -n=testnet", remoteOptions)
 	}
 
+	if len(sshPw) > 0 {
+		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, sshPw)
+	}
+
 	// disable config ports by tool, need do it manually due to having to enter
 	// FIXME: add port config via ssh later
 	remoteOptions = fmt.Sprintf("%s --started-remote", remoteOptions)
 
-	installSuperNodeCmd := fmt.Sprintf("%s install supernode%s", pastelUtilityPath, remoteOptions)
+	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install supernode%s", pastelUtilityPath, remoteOptions)
 	err = client.ShellCmd(ctx, installSuperNodeCmd)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to Installing Supernode")
@@ -321,7 +340,7 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 }
 
 func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
-	return installDDImgServer(ctx, config)
+	return installAppService(ctx, string(constants.DDImgService), config)
 }
 
 func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
@@ -336,7 +355,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		return err
 	}
 
-	if err := checkInstalledPackages(ctx, installCommand); err != nil {
+	if err := checkInstalledPackages(ctx, config, installCommand); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing packages...")
 		return err
 	}
@@ -438,6 +457,22 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
 			return err
 		}
+
+		// Start all wallet nodes apps as service
+		if config.StartedAsService {
+			appServiceNames := []string{
+				string(constants.PastelD),
+				string(constants.RQService),
+				string(constants.WalletNode),
+			}
+
+			for _, appName := range appServiceNames {
+				if err = installAppService(ctx, appName, config); err != nil {
+					log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")
+					return err
+				}
+			}
+		}
 	}
 
 	if installCommand == constants.SuperNode {
@@ -521,6 +556,31 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		} else {
 			log.WithContext(ctx).Warn("Please open ports by manually!")
 		}
+
+		// installAppsAsService - pasteld, supernode, rq-server, dd-server
+		if config.StartedAsService {
+			appServiceNames := []string{
+				string(constants.PastelD),
+				string(constants.RQService),
+				string(constants.DDService),
+				string(constants.SuperNode),
+			}
+
+			for _, appName := range appServiceNames {
+				if err = installAppService(ctx, appName, config); err != nil {
+					log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")
+					return err
+				}
+			}
+		}
+	}
+
+	// Install node as service
+	if (installCommand == constants.PastelD) && (config.StartedAsService) {
+		if err := installAppService(ctx, string(constants.PastelD), config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")
+			return err
+		}
 	}
 
 	return nil
@@ -551,7 +611,7 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 	return nil
 }
 
-func checkInstalledPackages(ctx context.Context, tool constants.ToolType) (err error) {
+func checkInstalledPackages(ctx context.Context, config *configs.Config, tool constants.ToolType) (err error) {
 	// TODO: 1) must offer to install missing packages
 	installedCmd := utils.GetInstalledPackages(ctx)
 	var notInstall []string
@@ -575,15 +635,23 @@ func checkInstalledPackages(ctx context.Context, tool constants.ToolType) (err e
 		return fmt.Errorf("missing required pkgs: %s", pkgsStr)
 	}
 
-	return installMissingReqPackagesLinux(ctx, notInstall)
+	return installMissingReqPackagesLinux(ctx, config, notInstall)
 }
 
-func installMissingReqPackagesLinux(ctx context.Context, pkgs []string) error {
+func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config, pkgs []string) error {
 	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
 		Info("system will now install missing packages")
 
 	for _, pkg := range pkgs {
-		out, err := RunCMD("sudo", "apt", "install", "-y", pkg)
+		var out string
+		var err error
+
+		if len(config.UserPw) > 0 {
+			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+"  | sudo -S apt-get update -y &&  echo "+config.UserPw+" | sudo apt-get install  -y "+pkg)
+		} else {
+			out, err = RunCMD("sudo", "apt-get", "install", "-y", pkg)
+		}
+
 		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out, "package": pkg}).
 				WithError(err).Error("unable to install required package")
@@ -833,7 +901,7 @@ func showOpenPortGuideline(ctx context.Context, portList []int) {
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Installing dd-service...")
 
-	if err := checkInstalledPackages(ctx, constants.DDService); err != nil {
+	if err := checkInstalledPackages(ctx, config, constants.DDService); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing packages...")
 		return err
 	}
@@ -871,10 +939,10 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		}
 	}
 
-	ddBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
+	appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 	var pathList []interface{}
 	for _, configItem := range constants.DupeDetectionConfigs {
-		dupeDetectionDirPath := filepath.Join(ddBaseDir, configItem)
+		dupeDetectionDirPath := filepath.Join(appBaseDir, configItem)
 		if err = utils.CreateFolder(ctx, dupeDetectionDirPath, config.Force); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to create directory : %s", dupeDetectionDirPath)
 			return err
@@ -882,7 +950,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		pathList = append(pathList, dupeDetectionDirPath)
 	}
 
-	targetDir := filepath.Join(ddBaseDir, constants.DupeDetectionSupportFilePath)
+	targetDir := filepath.Join(appBaseDir, constants.DupeDetectionSupportFilePath)
 	tmpDir := filepath.Join(targetDir, "temp.zip")
 	for _, url := range constants.DupeDetectionSupportDownloadURL {
 		if !strings.Contains(url, ".zip") {
@@ -918,7 +986,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 
-	if err = installDDImgServer(ctx, config); err != nil {
+	if err = installAppService(ctx, string(constants.DDImgService), config); err != nil {
 		return err
 	}
 
@@ -926,71 +994,252 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	return nil
 }
 
-func installDDImgServer(ctx context.Context, config *configs.Config) error {
-	log.WithContext(ctx).Info("Installing DupeDetection image server")
+func installAppService(ctx context.Context, appName string, config *configs.Config) error {
 
-	ddImgServerServiceFile := "dd_img_server.service"
-	ddImgServerServiceDir := "/etc/systemd/system"
-	ddImgServerServiceFilePath := filepath.Join(ddImgServerServiceDir, ddImgServerServiceFile)
-	ddImgServerServiceTempFilePath := filepath.Join(config.PastelExecDir, ddImgServerServiceFile)
+	log.WithContext(ctx).Info("Installing " + appName + " as service")
 
-	ddImgServerStartFile := "start_dd_img_server.sh"
-	ddImgServerStartDir := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder)
-	ddImgServerStartFilePath := filepath.Join(ddImgServerStartDir, ddImgServerStartFile)
-	ddBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
-	ddImgServerWorkDir := filepath.Join(ddBaseDir, "img_server")
+	var systemdFile string
+	var err error
+	var execCmd, execPath, execUser, workDir string
 
-	// create service file
-	if ddImgServerDaemonScript, err := utils.GetServiceConfig("dd_img_server", configs.DDImgServerService,
-		&configs.DDImgServerServiceScript{
-			DDImgServerStartScript: ddImgServerStartFilePath,
-		}); err != nil {
-		log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server file")
-		return fmt.Errorf("unable to create content of dd_img_server file - err: %s", err)
-	} else if err := utils.CreateAndWrite(ctx, config.Force, ddImgServerServiceTempFilePath, ddImgServerDaemonScript); err != nil {
-		return err
-	}
-	if _, err := RunCMD("sudo", "mv", ddImgServerServiceTempFilePath, ddImgServerServiceFilePath); err != nil {
-		log.WithContext(ctx).Error("Failed to move service file to systemd folder")
-		return err
-	}
-	if _, err := RunCMD("sudo", "chmod", "644", ddImgServerServiceFilePath); err != nil {
-		log.WithContext(ctx).Errorf("Failed to make %s as executable", ddImgServerServiceFilePath)
+	// Service file - will be installed at /etc/systemd/system
+	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+	appServiceFilePath := filepath.Join(constants.SystemdSystemDir, appServiceFileName)
+	appServiceTmpFilePath := filepath.Join(config.PastelExecDir, appServiceFileName)
+
+	// Get current user that call the script
+	curUser, err := user.Current()
+	if err != nil {
 		return err
 	}
 
-	// create start script file
-	if ddImgServerStartScript, err := utils.GetServiceConfig("dd_img_server_start", configs.DDImgServerStart,
-		&configs.DDImgServerStartScript{
-			DDImgServerDir: ddImgServerWorkDir,
-		}); err != nil {
-		log.WithContext(ctx).WithError(err).Error("unable to create content of dd_img_server_start file")
-		return fmt.Errorf("unable to create content of dd_img_server_start file - err: %s", err)
-	} else if err := utils.CreateAndWrite(ctx, config.Force, ddImgServerStartFilePath, ddImgServerStartScript); err != nil {
+	switch appName {
+	case string(constants.DDImgService):
+
+		appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
+		appServiceWorkDirPath := filepath.Join(appBaseDir, "img_server")
+
+		execCmd = "python3 -m  http.server 80"
+		execUser = "root"
+		workDir = appServiceWorkDirPath
+
+	case string(constants.PastelD):
+		var extIP string
+
+		// Get pasteld path
+		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PasteldName[utils.GetOS()]); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
+			return err
+		}
+
+		// Get external IP
+		if extIP, err = GetExternalIPAddress(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not get external IP address")
+			return err
+		}
+
+		execCmd = execPath + " --datadir=" + config.WorkingDir + " --externalip=" + extIP
+		execUser = curUser.Username
+		workDir = config.PastelExecDir
+
+	case string(constants.RQService):
+		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()]); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
+			return err
+		}
+		rqServiceArgs := fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir))
+		execCmd = execPath + " " + rqServiceArgs
+		execUser = curUser.Username
+		workDir = config.PastelExecDir
+
+	case string(constants.DDService):
+		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, utils.GetDupeDetectionExecName()); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
+			return err
+		}
+
+		ddConfigFilePath := filepath.Join(config.Configurer.DefaultHomeDir(),
+			constants.DupeDetectionServiceDir,
+			constants.DupeDetectionSupportFilePath,
+			constants.DupeDetectionConfigFilename)
+
+		execCmd = "python3 " + execPath + " " + ddConfigFilePath
+		execUser = curUser.Username
+		workDir = config.PastelExecDir
+
+	case string(constants.SuperNode):
+		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()]); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
+			return err
+		}
+
+		supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
+
+		execCmd = execPath + " --config-file=" + supernodeConfigPath
+		execUser = curUser.Username
+		workDir = config.PastelExecDir
+
+	case string(constants.WalletNode):
+		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.WalletNodeExecName[utils.GetOS()]); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find" + appName + " executable file")
+			return err
+		}
+
+		walletnodeConfigFile := config.Configurer.GetWalletNodeConfFile(config.WorkingDir)
+
+		execCmd = execPath + " --config-file=" + walletnodeConfigFile
+		if flagDevMode {
+			execCmd += " --swagger"
+		}
+
+		execUser = curUser.Username
+		workDir = config.PastelExecDir
+
+	default:
+		return nil
+	}
+
+	// Create systemd file
+	systemdFile, err = utils.GetServiceConfig(appName, configs.SystemdService,
+		&configs.SystemdServiceScript{
+			Desc:    appName + " daemon",
+			User:    execUser,
+			ExecCmd: execCmd,
+			WorkDir: workDir,
+		})
+
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("unable to create content of " + appServiceFileName + " file")
+		return fmt.Errorf("unable to create content of "+appServiceFileName+" file - err: %s", err)
+	}
+
+	// create service file and start service
+	if err := utils.CreateAndWrite(ctx, config.Force, appServiceTmpFilePath, systemdFile); err != nil {
 		return err
 	}
-	if err := makeExecutable(ctx, ddImgServerStartDir, ddImgServerStartFile); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", ddImgServerStartFilePath)
-		return err
+
+	if len(config.UserPw) > 0 {
+		if _, err := RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S mv "+appServiceTmpFilePath+" "+appServiceFilePath); err != nil {
+			log.WithContext(ctx).Error("Failed to move service file to systemd folder")
+			return err
+		}
+
+		if _, err := RunCMD("bash", "-c", "echo "+config.UserPw+" | "+"sudo -S chmod 644 "+appServiceFilePath); err != nil {
+			log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
+			return err
+		}
+
+		// Auto start service at boot
+		log.WithContext(ctx).Info("Setting service for auto start on boot")
+		if out, err := RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S systemctl enable "+appServiceFileName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to enable " + appServiceFileName + " service")
+
+			return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
+		}
+	} else {
+		if _, err := RunCMD("sudo", "mv", appServiceTmpFilePath, appServiceFilePath); err != nil {
+			log.WithContext(ctx).Error("Failed to move service file to systemd folder")
+			return err
+		}
+
+		if _, err := RunCMD("sudo", "chmod", "644", appServiceFilePath); err != nil {
+			log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
+			return err
+		}
+
+		// Auto start service at boot
+		log.WithContext(ctx).Info("Setting service for auto start on boot")
+		if out, err := RunCMD("sudo", "systemctl", "enable", appServiceFileName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to enable " + appServiceFileName + " service")
+
+			return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
+		}
 	}
 
-	log.WithContext(ctx).Info("Setting service for auto start on boot")
-	if out, err := RunCMD("sudo", "systemctl", "enable", "dd_img_server"); err != nil {
-		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to enable dd_img_server service")
-
-		return fmt.Errorf("err eanbling dd_img_server service - err: %s", err)
+	// Start the service
+	if err := startSystemdService(ctx, appName); err != nil {
+		log.WithContext(ctx).Errorf("Failed to start %s", appServiceFilePath)
 	}
 
-	log.WithContext(ctx).Info("Starting service")
-	if out, err := RunCMD("sudo", "systemctl", "start", "dd_img_server"); err != nil {
-		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to start dd_img_server service")
+	// Check if service is already running
+	time.Sleep(3 * time.Second)
+	checkServiceRunning(appName)
 
-		return fmt.Errorf("err starting dd_img_server service - err: %s", err)
+	log.WithContext(ctx).Info(appName + " installed successfully")
+
+	return nil
+}
+
+func checkServiceInstalled(appName string) error {
+	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+
+	if _, err := os.Stat(filepath.Join(constants.SystemdSystemDir, appServiceFileName)); os.IsNotExist(err) {
+		return fmt.Errorf(appServiceFileName + " is not yet installed")
 	}
 
-	log.WithContext(ctx).Info("DupeDetection image server installed successfully")
+	return nil
+}
+
+func checkServiceRunning(appName string) error {
+	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+
+	_, err := RunCMD("systemctl", "is-active", "--quiet", appServiceFileName)
+
+	return err
+}
+
+// Check if app is installed as service - if yes, then start it
+func startSystemdService(ctx context.Context, appName string) error {
+
+	if err := checkServiceInstalled(appName); err != nil {
+		return fmt.Errorf("Service " + appName + " is not installed as service")
+	}
+
+	// Start app, if it is not running
+	err := checkServiceRunning(appName)
+	if err == nil {
+		log.WithContext(ctx).Info(appName + " is already running!")
+	} else {
+		appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+
+		// Start service
+		log.WithContext(ctx).Info("Starting service " + appServiceFileName)
+		if out, err := RunCMD("sudo", "systemctl", "start", appServiceFileName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to start " + appServiceFileName)
+
+			return fmt.Errorf("err starting "+appServiceFileName+" - err: %s", err)
+		}
+	}
+
+	return nil
+}
+
+// Stop systemd service if it is running, return nil if the service is found
+func stopSystemdService(ctx context.Context, appName string) error {
+
+	if err := checkServiceInstalled(appName); err != nil {
+		return fmt.Errorf("Service " + appName + " is not installed as service")
+	}
+
+	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
+
+	if err := checkServiceRunning(appName); err == nil {
+
+		if out, err := RunCMD("sudo", "systemctl", "stop", appServiceFileName); err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+				WithError(err).Error("unable to stop " + appServiceFileName)
+
+			return fmt.Errorf("err stopping "+appServiceFileName+" - err: %s", err)
+		}
+
+		log.WithContext(ctx).Infof("Service %s stopped", appServiceFileName)
+	} else {
+		log.WithContext(ctx).Infof("Service %s is not running", appServiceFileName)
+	}
+
 	return nil
 }
 

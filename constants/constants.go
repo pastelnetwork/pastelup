@@ -60,6 +60,8 @@ const (
 	DDService ToolType = "dd-service"
 	// RQService type
 	RQService ToolType = "rq-service"
+	// DDImgService type
+	DDImgService ToolType = "dd-img-server"
 	// AMD64 is architecture type
 	AMD64 ArchitectureType = "amd64"
 	// DupeDetectionArchiveName is archive name for dupe detection
@@ -84,6 +86,11 @@ const (
 	BurnAddressMainnet = "PtpasteLBurnAddressXXXXXXXXXXbJ5ndd"
 	// DupeDetectionServiceDir defines location for dupe detection service
 	DupeDetectionServiceDir = "pastel_dupe_detection_service"
+
+	// SystemdServicePrefix prefix of all pastel services
+	SystemdServicePrefix = "pastel-"
+	// SystemdSystemDir location of systemd folder in Linux system
+	SystemdSystemDir = "/etc/systemd/system"
 
 	// RQServiceDir defines location for rq-service file exchange dir
 	RQServiceDir = "rqfiles"

@@ -405,50 +405,56 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runRQService(ctx context.Context, config *configs.Config) error {
 
-	rqExecName := constants.PastelRQServiceExecName[utils.GetOS()]
+	if err := startSystemdService(ctx, string(constants.RQService)); err != nil {
+		rqExecName := constants.PastelRQServiceExecName[utils.GetOS()]
 
-	var rqServiceArgs []string
-	rqServiceArgs = append(rqServiceArgs,
-		fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir)))
+		var rqServiceArgs []string
+		rqServiceArgs = append(rqServiceArgs,
+			fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir)))
 
-	if err := runPastelService(ctx, config, constants.RQService, rqExecName, rqServiceArgs...); err != nil {
-		log.WithContext(ctx).WithError(err).Error("rqservice failed")
-		return err
+		if err := runPastelService(ctx, config, constants.RQService, rqExecName, rqServiceArgs...); err != nil {
+			log.WithContext(ctx).WithError(err).Error("rqservice failed")
+			return err
+		}
 	}
+
 	return nil
 }
 
 // Sub Command
 func runDDService(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Infof("Starting dupe detection service")
 
-	var execPath string
-	if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, utils.GetDupeDetectionExecName()); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
-		return err
-	}
+	if err := startSystemdService(ctx, string(constants.DDService)); err != nil {
+		log.WithContext(ctx).Infof("Starting dupe detection service")
 
-	ddConfigFilePath := filepath.Join(config.Configurer.DefaultHomeDir(),
-		constants.DupeDetectionServiceDir,
-		constants.DupeDetectionSupportFilePath,
-		constants.DupeDetectionConfigFilename)
+		var execPath string
+		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, utils.GetDupeDetectionExecName()); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
+			return err
+		}
 
-	python := "python3"
-	if utils.GetOS() == constants.Windows {
-		python = "python"
-	}
-	go RunCMD(python, execPath, ddConfigFilePath)
+		ddConfigFilePath := filepath.Join(config.Configurer.DefaultHomeDir(),
+			constants.DupeDetectionServiceDir,
+			constants.DupeDetectionSupportFilePath,
+			constants.DupeDetectionConfigFilename)
 
-	time.Sleep(10 * time.Second)
+		python := "python3"
+		if utils.GetOS() == constants.Windows {
+			python = "python"
+		}
+		go RunCMD(python, execPath, ddConfigFilePath)
 
-	if output, err := FindRunningProcess(constants.DupeDetectionExecFileName); len(output) == 0 {
-		err = errors.Errorf("dd-service failed to start")
-		log.WithContext(ctx).WithError(err).Error("dd-service failed to start")
-		return err
-	} else if err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed to test if dd-servise is running")
-	} else {
-		log.WithContext(ctx).Info("dd-service is successfully started")
+		time.Sleep(10 * time.Second)
+
+		if output, err := FindRunningProcess(constants.DupeDetectionExecFileName); len(output) == 0 {
+			err = errors.Errorf("dd-service failed to start")
+			log.WithContext(ctx).WithError(err).Error("dd-service failed to start")
+			return err
+		} else if err != nil {
+			log.WithContext(ctx).WithError(err).Error("failed to test if dd-servise is running")
+		} else {
+			log.WithContext(ctx).Info("dd-service is successfully started")
+		}
 	}
 
 	return nil
@@ -457,45 +463,60 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 // Sub Command
 func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 
-	walletnodeExecName := constants.WalletNodeExecName[utils.GetOS()]
-	log.WithContext(ctx).Infof("Starting walletnode service - %s", walletnodeExecName)
+	err := startSystemdService(ctx, string(constants.WalletNode))
+	if err != nil {
+		walletnodeExecName := constants.WalletNodeExecName[utils.GetOS()]
+		log.WithContext(ctx).Infof("Starting walletnode service - %s", walletnodeExecName)
 
-	var wnServiceArgs []string
-	wnServiceArgs = append(wnServiceArgs,
-		fmt.Sprintf("--config-file=%s", config.Configurer.GetWalletNodeConfFile(config.WorkingDir)))
-	if flagDevMode {
-		wnServiceArgs = append(wnServiceArgs, "--swagger")
+		var wnServiceArgs []string
+		wnServiceArgs = append(wnServiceArgs,
+			fmt.Sprintf("--config-file=%s", config.Configurer.GetWalletNodeConfFile(config.WorkingDir)))
+		if flagDevMode {
+			wnServiceArgs = append(wnServiceArgs, "--swagger")
+		}
+
+		log.WithContext(ctx).Infof("Options : %s", wnServiceArgs)
+		if err := runPastelService(ctx, config, constants.WalletNode, walletnodeExecName, wnServiceArgs...); err != nil {
+			log.WithContext(ctx).WithError(err).Error("walletnode service failed")
+			return err
+		}
 	}
 
-	log.WithContext(ctx).Infof("Options : %s", wnServiceArgs)
-	if err := runPastelService(ctx, config, constants.WalletNode, walletnodeExecName, wnServiceArgs...); err != nil {
-		log.WithContext(ctx).WithError(err).Error("walletnode service failed")
-		return err
-	}
 	return nil
 }
 
 // Sub Command
 func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 
-	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
-	supernodeExecName := constants.SuperNodeExecName[utils.GetOS()]
-	log.WithContext(ctx).Infof("Starting Supernode service - %s", supernodeExecName)
+	err := startSystemdService(ctx, string(constants.SuperNode))
+	if err != nil {
+		supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
+		supernodeExecName := constants.SuperNodeExecName[utils.GetOS()]
+		log.WithContext(ctx).Infof("Starting Supernode service - %s", supernodeExecName)
 
-	var snServiceArgs []string
-	snServiceArgs = append(snServiceArgs,
-		fmt.Sprintf("--config-file=%s", supernodeConfigPath))
+		var snServiceArgs []string
+		snServiceArgs = append(snServiceArgs,
+			fmt.Sprintf("--config-file=%s", supernodeConfigPath))
 
-	log.WithContext(ctx).Infof("Options : %s", snServiceArgs)
-	if err := runPastelService(ctx, config, constants.SuperNode, supernodeExecName, snServiceArgs...); err != nil {
-		log.WithContext(ctx).WithError(err).Error("supernode failed")
-		return err
+		log.WithContext(ctx).Infof("Options : %s", snServiceArgs)
+		if err := runPastelService(ctx, config, constants.SuperNode, supernodeExecName, snServiceArgs...); err != nil {
+			log.WithContext(ctx).WithError(err).Error("supernode failed")
+			return err
+		}
 	}
+
 	return nil
 }
 
 ///// Run helpers
 func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, extIP string, mnPrivKey string) (err error) {
+	// Start Pasteld service
+	err = startSystemdService(ctx, string(constants.PastelD))
+	if err == nil {
+		log.WithContext(ctx).Info("Pasteld service is running!")
+		return nil
+	}
+
 	var pastelDPath string
 
 	if pastelDPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PasteldName[utils.GetOS()]); err != nil {
@@ -673,10 +694,15 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 		bReIndex = flagReIndex
 	}
 
-	log.WithContext(ctx).Infof("Starting pasteld")
-	if err = runPastelNode(ctx, config, bReIndex, flagNodeExtIP, ""); err != nil {
-		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
-		return err
+	err = checkServiceRunning(string(constants.PastelD))
+	if err == nil {
+		log.WithContext(ctx).Infof(string(constants.PastelD) + " service is already running!")
+	} else {
+		log.WithContext(ctx).Infof("Starting pasteld")
+		if err = runPastelNode(ctx, config, bReIndex, flagNodeExtIP, ""); err != nil {
+			log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
+			return err
+		}
 	}
 
 	// Check masternode status

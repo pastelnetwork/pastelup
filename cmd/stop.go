@@ -157,6 +157,10 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 
 	// *************  Kill process dd-service  *************
 	stopDDService(ctx)
+	//stopService(ctx, constants.DDService)
+
+	// *************  Kill process dd-img-server  *************
+	stopService(ctx, constants.DDImgService)
 
 	// *************  Stop pasteld node  *************
 	stopPatelCLI(ctx, config)
@@ -177,6 +181,9 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) {
 
 	// *************  Kill process dd-service  *************
 	stopDDService(ctx)
+
+	// *************  Kill process dd-img-server  *************
+	stopService(ctx, constants.DDImgService)
 
 	// *************  Stop pasteld node  *************
 	stopPatelCLI(ctx, config)
@@ -201,28 +208,36 @@ func stopSNServiceSubCommand(ctx context.Context, _ *configs.Config) {
 }
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) {
+
 	log.WithContext(ctx).Info("Stopping Pasteld")
-	if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
-	}
-	time.Sleep(1 * time.Second)
-	if CheckProcessRunning(constants.PastelD) {
-		log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
-	} else {
-		log.WithContext(ctx).Info("Pasteld stopped")
+
+	if err := stopSystemdService(ctx, string(constants.PastelD)); err != nil {
+		if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
+		}
+		time.Sleep(1 * time.Second)
+		if CheckProcessRunning(constants.PastelD) {
+			log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
+		} else {
+			log.WithContext(ctx).Info("Pasteld stopped")
+		}
 	}
 }
 
 func stopService(ctx context.Context, tool constants.ToolType) {
 
 	log.WithContext(ctx).Infof("Stopping %s process", tool)
-	if err := KillProcess(ctx, tool); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to kill %s", tool)
-	}
-	if CheckProcessRunning(tool) {
-		log.WithContext(ctx).Warnf("Failed to kill %s, it is still running", tool)
-	} else {
-		log.WithContext(ctx).Infof("%s stopped", tool)
+
+	// Check if service is installed and running, then check if it is running
+	if err := stopSystemdService(ctx, string(tool)); err != nil {
+		if err := KillProcess(ctx, tool); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to kill %s", tool)
+		}
+		if CheckProcessRunning(tool) {
+			log.WithContext(ctx).Warnf("Failed to kill %s, it is still running", tool)
+		} else {
+			log.WithContext(ctx).Infof("%s stopped", tool)
+		}
 	}
 
 	log.WithContext(ctx).Infof("The %s process ended", tool)
@@ -230,13 +245,16 @@ func stopService(ctx context.Context, tool constants.ToolType) {
 
 func stopDDService(ctx context.Context) {
 	log.WithContext(ctx).Info("Stopping dd-service process")
-	if pid, err := FindRunningProcessPid(constants.DupeDetectionExecFileName); err != nil {
-		log.WithContext(ctx).Infof("dd-service is not running")
-	} else if pid != 0 {
-		if err := KillProcessByPid(ctx, pid); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to kill dd-service'")
-		} else {
-			log.WithContext(ctx).Info("The dd-service process ended.")
+
+	if err := stopSystemdService(ctx, string(constants.DDService)); err != nil {
+		if pid, err := FindRunningProcessPid(constants.DupeDetectionExecFileName); err != nil {
+			log.WithContext(ctx).Infof("dd-service is not running")
+		} else if pid != 0 {
+			if err := KillProcessByPid(ctx, pid); err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to kill dd-service'")
+			} else {
+				log.WithContext(ctx).Info("The dd-service process ended.")
+			}
 		}
 	}
 }

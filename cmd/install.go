@@ -54,8 +54,6 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
-		cli.NewFlag("started-remote", &config.StartedRemote).
-			SetUsage(green("Optional, means that this command is executed remotely via ssh shell")),
 		cli.NewFlag("started-as-service", &config.StartedAsService).
 			SetUsage(green("Optional, start all apps automatically as systemd service")),
 		cli.NewFlag("user-pw", &config.UserPw).
@@ -318,10 +316,6 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, sshPw)
 	}
 
-	// disable config ports by tool, need do it manually due to having to enter
-	// FIXME: add port config via ssh later
-	remoteOptions = fmt.Sprintf("%s --started-remote", remoteOptions)
-
 	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install supernode%s", pastelUtilityPath, remoteOptions)
 	err = client.ShellCmd(ctx, installSuperNodeCmd)
 	if err != nil {
@@ -329,9 +323,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return err
 	}
 
-	log.WithContext(ctx).Info("Finished Installing Supernode Successfully, but not at all ^^")
-	log.WithContext(ctx).Warn("Please manualy install chrome & config ports by yourself  as following:")
-	showUserInstallGuideline(ctx, config)
+	log.WithContext(ctx).Info("Finished Installing Supernode Successfully")
 	return nil
 }
 
@@ -548,13 +540,9 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		}
 
 		// Open ports
-		if !config.StartedRemote {
-			if err = openPorts(ctx, portList); err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to open ports")
-				return err
-			}
-		} else {
-			log.WithContext(ctx).Warn("Please open ports by manually!")
+		if err = openPorts(ctx, config, portList); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to open ports")
+			return err
 		}
 
 		// installAppsAsService - pasteld, supernode, rq-server, dd-server
@@ -853,7 +841,7 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 
 }
 
-func openPorts(ctx context.Context, portList []int) (err error) {
+func openPorts(ctx context.Context, config *configs.Config, portList []int) (err error) {
 	// only open ports on SuperNode and this is only on Linux!!!
 	var out string
 	for k := range portList {
@@ -862,7 +850,12 @@ func openPorts(ctx context.Context, portList []int) (err error) {
 		portStr := fmt.Sprintf("%d", portList[k])
 		switch utils.GetOS() {
 		case constants.Linux:
-			out, err = RunCMD("sudo", "ufw", "allow", portStr)
+			if len(config.UserPw) > 0 {
+				out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S ufw allow "+portStr)
+			} else {
+				out, err = RunCMD("sudo ufw allow " + portStr)
+			}
+
 			/*		case constants.Windows:
 						out, err = RunCMD("netsh", "advfirewall", "firewall", "add", "rule", "name=TCP Port "+portStr, "dir=in", "action=allow", "protocol=TCP", "localport="+portStr)
 					case constants.Mac:
@@ -881,21 +874,6 @@ func openPorts(ctx context.Context, portList []int) (err error) {
 	}
 
 	return nil
-}
-
-func showOpenPortGuideline(ctx context.Context, portList []int) {
-	log.WithContext(ctx).Warn(" - Open ports:")
-
-	for k := range portList {
-		switch utils.GetOS() {
-		case constants.Linux:
-			log.WithContext(ctx).Warnf("   sudo ufw allow %d", portList[k])
-		case constants.Windows:
-			log.WithContext(ctx).Warnf("   netsh advfirewall firewall add rule name=TCP Port %d dir=in action=allow protocol=TCP localport=%d", portList[k], portList[k])
-		case constants.Mac:
-			log.WithContext(ctx).Warnf("   sudo ipfw allow tcp from any to any dest-port %d", portList[k])
-		}
-	}
 }
 
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
@@ -932,11 +910,9 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	log.WithContext(ctx).Info("Pip install finished")
 
-	// need to install manual by user
-	if !config.StartedRemote {
-		if err = installChrome(ctx, config); err != nil {
-			return err
-		}
+	// Install Chrome
+	if err = installChrome(ctx, config); err != nil {
+		return err
 	}
 
 	appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
@@ -1159,7 +1135,7 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 	}
 
 	// Start the service
-	if err := startSystemdService(ctx, appName); err != nil {
+	if err := startSystemdService(ctx, appName, config); err != nil {
 		log.WithContext(ctx).Errorf("Failed to start %s", appServiceFilePath)
 	}
 
@@ -1191,7 +1167,7 @@ func checkServiceRunning(appName string) error {
 }
 
 // Check if app is installed as service - if yes, then start it
-func startSystemdService(ctx context.Context, appName string) error {
+func startSystemdService(ctx context.Context, appName string, config *configs.Config) error {
 
 	if err := checkServiceInstalled(appName); err != nil {
 		return fmt.Errorf("Service " + appName + " is not installed as service")
@@ -1206,7 +1182,16 @@ func startSystemdService(ctx context.Context, appName string) error {
 
 		// Start service
 		log.WithContext(ctx).Info("Starting service " + appServiceFileName)
-		if out, err := RunCMD("sudo", "systemctl", "start", appServiceFileName); err != nil {
+
+		var out string
+
+		if len(config.UserPw) > 0 {
+			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S systemctl start "+appServiceFileName)
+		} else {
+			out, err = RunCMD("sudo", "systemctl", "start", appServiceFileName)
+		}
+
+		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
 				WithError(err).Error("unable to start " + appServiceFileName)
 
@@ -1218,7 +1203,7 @@ func startSystemdService(ctx context.Context, appName string) error {
 }
 
 // Stop systemd service if it is running, return nil if the service is found
-func stopSystemdService(ctx context.Context, appName string) error {
+func stopSystemdService(ctx context.Context, appName string, config *configs.Config) error {
 
 	if err := checkServiceInstalled(appName); err != nil {
 		return fmt.Errorf("Service " + appName + " is not installed as service")
@@ -1228,7 +1213,15 @@ func stopSystemdService(ctx context.Context, appName string) error {
 
 	if err := checkServiceRunning(appName); err == nil {
 
-		if out, err := RunCMD("sudo", "systemctl", "stop", appServiceFileName); err != nil {
+		var out string
+
+		if len(config.UserPw) > 0 {
+			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S systemctl stop "+appServiceFileName)
+		} else {
+			out, err = RunCMD("sudo", "systemctl", "stop", appServiceFileName)
+		}
+
+		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
 				WithError(err).Error("unable to stop " + appServiceFileName)
 
@@ -1260,23 +1253,13 @@ func installChrome(ctx context.Context, config *configs.Config) (err error) {
 
 		log.WithContext(ctx).Infof("Installing Chrome : %s \n", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
 
-		RunCMDWithInteractive("sudo", "dpkg", "-i", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
+		if len(config.UserPw) > 0 {
+			RunCMDWithInteractive("bash", "-c", "echo "+config.UserPw+" | sudo -S dpkg -i "+filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
+		} else {
+			RunCMDWithInteractive("sudo dpkg -i " + filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
+		}
 
 		utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
 	}
 	return nil
-}
-
-func showInstallChromeGuideline(ctx context.Context, _ *configs.Config) {
-	if utils.GetOS() == constants.Linux {
-		log.WithContext(ctx).Warn(" - Install chrome:")
-		log.WithContext(ctx).Warnf("   wget %s", constants.ChromeDownloadURL[utils.GetOS()])
-		log.WithContext(ctx).Warnf("   sudo dpkg -i %s", constants.ChromeExecFileName[utils.GetOS()])
-	}
-}
-
-func showUserInstallGuideline(ctx context.Context, config *configs.Config) {
-	showInstallChromeGuideline(ctx, config)
-	portList := GetSNPortList(config)
-	showOpenPortGuideline(ctx, portList)
 }

@@ -84,18 +84,6 @@ processed_files_path = %s/
 internet_rareness_downloaded_images_path = %s/
 nsfw_model_path = %s/
 `
-
-	// DDImgServerService - /etc/systemd/system/dd_img_server.service
-	DDImgServerService = `[Unit]
-Description=Pastel dupe detection image service
-
-[Service]
-ExecStart={{.DDImgServerStartScript}}
-
-[Install]
-WantedBy=multi-user.target
-`
-
 	// DDImgServerStart - actual script to start dd image server - start_dd_img_server.sh
 	DDImgServerStart = `#!/bin/bash
 cd {{.DDImgServerDir}}
@@ -106,6 +94,8 @@ python3 -m  http.server 80`
 	Description={{.Desc}}
 	
 	[Service]
+	Restart=always
+	RestartSec=10
 	WorkingDirectory={{.WorkDir}}
 	User={{.User}}
 	ExecStart={{.ExecCmd}}

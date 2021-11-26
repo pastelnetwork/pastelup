@@ -85,8 +85,7 @@ In order to install all extra packages and set system services, `password` of cu
 - `--force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)`
 - `--peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"`
 - `--release value, -r value   Optional, Pastel version to install (default: "beta")`
-- `--started-remote            Optional, means that this command is executed remotely via ssh shell`
-- `--started-as-service        Optional, start all apps automatically as systemd service`
+- `--enable-service            Optional, start all apps automatically as systemd service`
 - `--user-pw value             Optional, password of current sudo user - so no sudo password request is prompted`
 - `--help, -h                  show help (default: false)`
 

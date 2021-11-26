@@ -54,7 +54,7 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
-		cli.NewFlag("started-as-service", &config.StartedAsService).
+		cli.NewFlag("enable-service", &config.EnableService).
 			SetUsage(green("Optional, start all apps automatically as systemd service")),
 		cli.NewFlag("user-pw", &config.UserPw).
 			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
@@ -312,6 +312,10 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s -n=testnet", remoteOptions)
 	}
 
+	if config.EnableService {
+		remoteOptions = fmt.Sprintf("%s --enable-service", remoteOptions)
+	}
+
 	if len(sshPw) > 0 {
 		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, sshPw)
 	}
@@ -451,7 +455,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		}
 
 		// Start all wallet nodes apps as service
-		if config.StartedAsService {
+		if config.EnableService {
 			appServiceNames := []string{
 				string(constants.PastelD),
 				string(constants.RQService),
@@ -546,7 +550,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		}
 
 		// installAppsAsService - pasteld, supernode, rq-server, dd-server
-		if config.StartedAsService {
+		if config.EnableService {
 			appServiceNames := []string{
 				string(constants.PastelD),
 				string(constants.RQService),
@@ -564,7 +568,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	}
 
 	// Install node as service
-	if (installCommand == constants.PastelD) && (config.StartedAsService) {
+	if (installCommand == constants.PastelD) && (config.EnableService) {
 		if err := installAppService(ctx, string(constants.PastelD), config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install " + appName + " service")
 			return err

@@ -405,7 +405,7 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runRQService(ctx context.Context, config *configs.Config) error {
 
-	if err := startSystemdService(ctx, string(constants.RQService)); err != nil {
+	if err := startSystemdService(ctx, string(constants.RQService), config); err != nil {
 		rqExecName := constants.PastelRQServiceExecName[utils.GetOS()]
 
 		var rqServiceArgs []string
@@ -424,7 +424,7 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runDDService(ctx context.Context, config *configs.Config) (err error) {
 
-	if err := startSystemdService(ctx, string(constants.DDService)); err != nil {
+	if err := startSystemdService(ctx, string(constants.DDService), config); err != nil {
 		log.WithContext(ctx).Infof("Starting dupe detection service")
 
 		var execPath string
@@ -463,7 +463,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 // Sub Command
 func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 
-	err := startSystemdService(ctx, string(constants.WalletNode))
+	err := startSystemdService(ctx, string(constants.WalletNode), config)
 	if err != nil {
 		walletnodeExecName := constants.WalletNodeExecName[utils.GetOS()]
 		log.WithContext(ctx).Infof("Starting walletnode service - %s", walletnodeExecName)
@@ -488,7 +488,7 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 
-	err := startSystemdService(ctx, string(constants.SuperNode))
+	err := startSystemdService(ctx, string(constants.SuperNode), config)
 	if err != nil {
 		supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
 		supernodeExecName := constants.SuperNodeExecName[utils.GetOS()]
@@ -511,7 +511,7 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 ///// Run helpers
 func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, extIP string, mnPrivKey string) (err error) {
 	// Start Pasteld service
-	err = startSystemdService(ctx, string(constants.PastelD))
+	err = startSystemdService(ctx, string(constants.PastelD), config)
 	if err == nil {
 		log.WithContext(ctx).Info("Pasteld service is running!")
 		return nil

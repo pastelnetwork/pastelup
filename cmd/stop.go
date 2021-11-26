@@ -136,10 +136,10 @@ func runStopNodeSubCommand(ctx context.Context, config *configs.Config) {
 func runStopWalletSubCommand(ctx context.Context, config *configs.Config) {
 
 	// *************  Kill process wallet node  *************
-	stopService(ctx, constants.WalletNode)
+	stopService(ctx, constants.WalletNode, config)
 
 	// *************  Kill process rqservice  *************
-	stopService(ctx, constants.RQService)
+	stopService(ctx, constants.RQService, config)
 
 	// *************  Stop pasteld node  *************
 	stopPatelCLI(ctx, config)
@@ -150,17 +150,17 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) {
 func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 
 	// *************  Kill process super node  *************
-	stopService(ctx, constants.SuperNode)
+	stopService(ctx, constants.SuperNode, config)
 
 	// *************  Kill process rqservice  *************
-	stopService(ctx, constants.RQService)
+	stopService(ctx, constants.RQService, config)
 
 	// *************  Kill process dd-service  *************
-	stopDDService(ctx)
-	//stopService(ctx, constants.DDService)
+	stopDDService(ctx, config)
+	//stopService(ctx, constants.DDService, config)
 
 	// *************  Kill process dd-img-server  *************
-	stopService(ctx, constants.DDImgService)
+	stopService(ctx, constants.DDImgService, config)
 
 	// *************  Stop pasteld node  *************
 	stopPatelCLI(ctx, config)
@@ -171,19 +171,19 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 func runStopAllSubCommand(ctx context.Context, config *configs.Config) {
 
 	// *************  Kill process super node  *************
-	stopService(ctx, constants.SuperNode)
+	stopService(ctx, constants.SuperNode, config)
 
 	// *************  Kill process wallet node  *************
-	stopService(ctx, constants.WalletNode)
+	stopService(ctx, constants.WalletNode, config)
 
 	// *************  Kill process rqservice  *************
-	stopService(ctx, constants.RQService)
+	stopService(ctx, constants.RQService, config)
 
 	// *************  Kill process dd-service  *************
-	stopDDService(ctx)
+	stopDDService(ctx, config)
 
 	// *************  Kill process dd-img-server  *************
-	stopService(ctx, constants.DDImgService)
+	stopService(ctx, constants.DDImgService, config)
 
 	// *************  Stop pasteld node  *************
 	stopPatelCLI(ctx, config)
@@ -191,27 +191,27 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) {
 	log.WithContext(ctx).Info("All stopped successfully")
 }
 
-func stopRQServiceSubCommand(ctx context.Context, _ *configs.Config) {
-	stopService(ctx, constants.RQService)
+func stopRQServiceSubCommand(ctx context.Context, config *configs.Config) {
+	stopService(ctx, constants.RQService, config)
 }
 
-func stopDDServiceSubCommand(ctx context.Context, _ *configs.Config) {
-	stopDDService(ctx)
+func stopDDServiceSubCommand(ctx context.Context, config *configs.Config) {
+	stopDDService(ctx, config)
 }
 
-func stopWNServiceSubCommand(ctx context.Context, _ *configs.Config) {
-	stopService(ctx, constants.WalletNode)
+func stopWNServiceSubCommand(ctx context.Context, config *configs.Config) {
+	stopService(ctx, constants.WalletNode, config)
 }
 
-func stopSNServiceSubCommand(ctx context.Context, _ *configs.Config) {
-	stopService(ctx, constants.SuperNode)
+func stopSNServiceSubCommand(ctx context.Context, config *configs.Config) {
+	stopService(ctx, constants.SuperNode, config)
 }
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) {
 
 	log.WithContext(ctx).Info("Stopping Pasteld")
 
-	if err := stopSystemdService(ctx, string(constants.PastelD)); err != nil {
+	if err := stopSystemdService(ctx, string(constants.PastelD), config); err != nil {
 		if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
 		}
@@ -224,12 +224,12 @@ func stopPatelCLI(ctx context.Context, config *configs.Config) {
 	}
 }
 
-func stopService(ctx context.Context, tool constants.ToolType) {
+func stopService(ctx context.Context, tool constants.ToolType, config *configs.Config) {
 
 	log.WithContext(ctx).Infof("Stopping %s process", tool)
 
 	// Check if service is installed and running, then check if it is running
-	if err := stopSystemdService(ctx, string(tool)); err != nil {
+	if err := stopSystemdService(ctx, string(tool), config); err != nil {
 		if err := KillProcess(ctx, tool); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to kill %s", tool)
 		}
@@ -243,10 +243,10 @@ func stopService(ctx context.Context, tool constants.ToolType) {
 	log.WithContext(ctx).Infof("The %s process ended", tool)
 }
 
-func stopDDService(ctx context.Context) {
+func stopDDService(ctx context.Context, config *configs.Config) {
 	log.WithContext(ctx).Info("Stopping dd-service process")
 
-	if err := stopSystemdService(ctx, string(constants.DDService)); err != nil {
+	if err := stopSystemdService(ctx, string(constants.DDService), config); err != nil {
 		if pid, err := FindRunningProcessPid(constants.DupeDetectionExecFileName); err != nil {
 			log.WithContext(ctx).Infof("dd-service is not running")
 		} else if pid != 0 {

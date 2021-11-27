@@ -72,9 +72,9 @@ func setupSubCommand(config *configs.Config,
 	} else {
 		dirsFlags = []*cli.Flag{
 			cli.NewFlag("remote-dir", &config.RemotePastelExecDir).SetAliases("d").
-				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/.pastel)")),
+				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/pastel)")),
 			cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).SetAliases("w").
-				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/pastel-utility)")),
+				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/.pastel)")),
 		}
 	}
 
@@ -91,7 +91,7 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
 			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
-		cli.NewFlag("utility-path-to-copy", &config.CopyUtilityPath).
+		cli.NewFlag("utility-path-to-copy", &config.BinUtilityPath).
 			SetUsage(yellow("Optional, path to the local pastel-utility file to copy to remote host")),
 	}
 
@@ -239,15 +239,15 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	}
 
 	// Transfer pastel utility to remote
-	copyUtilityPath := config.CopyUtilityPath
-	if len(copyUtilityPath) == 0 {
-		copyUtilityPath = os.Args[0]
+	BinUtilityPath := config.BinUtilityPath
+	if len(BinUtilityPath) == 0 {
+		BinUtilityPath = os.Args[0]
 	}
 
 	// scp pastel-utility to remote
-	log.WithContext(ctx).Infof("Copying local pastel-utility executable to remote host - %s", copyUtilityPath)
+	log.WithContext(ctx).Infof("Copying local pastel-utility executable to remote host - %s", BinUtilityPath)
 
-	if err := client.Scp(copyUtilityPath, pastelUtilityPath); err != nil {
+	if err := client.Scp(BinUtilityPath, pastelUtilityPath); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
 		return err
 	}

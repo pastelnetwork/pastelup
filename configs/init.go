@@ -19,11 +19,10 @@ type Init struct {
 	RemoteWorkingDir       string `json:"remoteworkingdir,omitempty"`
 	RemotePastelExecDir    string `json:"remotepastelexecdir,omitempty"`
 	RemotePastelUtilityDir string `json:"remotepastelutilitydir,omitempty"`
-	RemoteIP               string `json:"remote-ip"`
-	RemotePort             int    `json:"remote-port"`
-	RemoteUser             string `json:"remote-user"`
-	RemoteUserPw           string `json:"remote-user-pw"`
-	SSHKey                 string `json:"ssh-key"`
+	// RemoteIP               string `json:"remote-ip"`
+	// RemotePort             int    `json:"remote-port"`
+	// RemoteUser             string `json:"remote-user"`
+	// SSHKey                 string `json:"ssh-key"`
 
 	BinUtilityPath   string `json:"utility-path,omitempty"`
 	BinComponentPath string `json:"bin-path,omitempty"`

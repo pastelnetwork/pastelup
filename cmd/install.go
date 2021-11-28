@@ -857,7 +857,7 @@ func openPorts(ctx context.Context, config *configs.Config, portList []int) (err
 			if len(config.UserPw) > 0 {
 				out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S ufw allow "+portStr)
 			} else {
-				out, err = RunCMD("sudo ufw allow " + portStr)
+				out, err = RunCMD("sudo", "ufw", "allow", portStr)
 			}
 
 			/*		case constants.Windows:
@@ -1260,7 +1260,7 @@ func installChrome(ctx context.Context, config *configs.Config) (err error) {
 		if len(config.UserPw) > 0 {
 			RunCMDWithInteractive("bash", "-c", "echo "+config.UserPw+" | sudo -S dpkg -i "+filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
 		} else {
-			RunCMDWithInteractive("sudo dpkg -i " + filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
+			RunCMDWithInteractive("sudo", "dpkg", "-i", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
 		}
 
 		utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))

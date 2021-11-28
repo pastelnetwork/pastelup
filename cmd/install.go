@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path"
 	"path/filepath"
 	"strings"
@@ -978,20 +977,21 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 
 	log.WithContext(ctx).Info("Installing " + appName + " as service")
 
+	// Get home dir
+	SystemdUserDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.SystemdUserDir)
+
+	if err := utils.CreateFolder(ctx, SystemdUserDir, config.Force); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to create directory : %s", SystemdUserDir)
+		return err
+	}
+
 	var systemdFile string
 	var err error
-	var execCmd, execPath, execUser, workDir string
+	var execCmd, execPath, workDir string
 
 	// Service file - will be installed at /etc/systemd/system
 	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
-	appServiceFilePath := filepath.Join(constants.SystemdSystemDir, appServiceFileName)
-	appServiceTmpFilePath := filepath.Join(config.PastelExecDir, appServiceFileName)
-
-	// Get current user that call the script
-	curUser, err := user.Current()
-	if err != nil {
-		return err
-	}
+	appServiceFilePath := filepath.Join(SystemdUserDir, appServiceFileName)
 
 	switch appName {
 	case string(constants.DDImgService):
@@ -1000,7 +1000,6 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		appServiceWorkDirPath := filepath.Join(appBaseDir, "img_server")
 
 		execCmd = "python3 -m  http.server 80"
-		execUser = "root"
 		workDir = appServiceWorkDirPath
 
 	case string(constants.PastelD):
@@ -1019,7 +1018,6 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		}
 
 		execCmd = execPath + " --datadir=" + config.WorkingDir + " --externalip=" + extIP
-		execUser = curUser.Username
 		workDir = config.PastelExecDir
 
 	case string(constants.RQService):
@@ -1029,7 +1027,6 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		}
 		rqServiceArgs := fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir))
 		execCmd = execPath + " " + rqServiceArgs
-		execUser = curUser.Username
 		workDir = config.PastelExecDir
 
 	case string(constants.DDService):
@@ -1044,7 +1041,6 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 			constants.DupeDetectionConfigFilename)
 
 		execCmd = "python3 " + execPath + " " + ddConfigFilePath
-		execUser = curUser.Username
 		workDir = config.PastelExecDir
 
 	case string(constants.SuperNode):
@@ -1056,7 +1052,6 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
 
 		execCmd = execPath + " --config-file=" + supernodeConfigPath
-		execUser = curUser.Username
 		workDir = config.PastelExecDir
 
 	case string(constants.WalletNode):
@@ -1071,8 +1066,6 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		if flagDevMode {
 			execCmd += " --swagger"
 		}
-
-		execUser = curUser.Username
 		workDir = config.PastelExecDir
 
 	default:
@@ -1083,7 +1076,6 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 	systemdFile, err = utils.GetServiceConfig(appName, configs.SystemdService,
 		&configs.SystemdServiceScript{
 			Desc:    appName + " daemon",
-			User:    execUser,
 			ExecCmd: execCmd,
 			WorkDir: workDir,
 		})
@@ -1093,49 +1085,18 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		return fmt.Errorf("unable to create content of "+appServiceFileName+" file - err: %s", err)
 	}
 
-	// create service file and start service
-	if err := utils.CreateAndWrite(ctx, config.Force, appServiceTmpFilePath, systemdFile); err != nil {
-		return err
+	// write systemdFile to SystemdUserDir with mode 0644
+	if err := ioutil.WriteFile(appServiceFilePath, []byte(systemdFile), 0644); err != nil {
+		log.WithContext(ctx).WithError(err).Error("unable to write " + appServiceFileName + " file")
 	}
 
-	if len(config.UserPw) > 0 {
-		if _, err := RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S mv "+appServiceTmpFilePath+" "+appServiceFilePath); err != nil {
-			log.WithContext(ctx).Error("Failed to move service file to systemd folder")
-			return err
-		}
+	// Enable service
+	log.WithContext(ctx).Info("Setting service for auto start on boot")
+	if out, err := RunCMD("systemctl", "--user", "enable", appServiceFileName); err != nil {
+		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+			WithError(err).Error("unable to enable " + appServiceFileName + " service")
 
-		if _, err := RunCMD("bash", "-c", "echo "+config.UserPw+" | "+"sudo -S chmod 644 "+appServiceFilePath); err != nil {
-			log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
-			return err
-		}
-
-		// Auto start service at boot
-		log.WithContext(ctx).Info("Setting service for auto start on boot")
-		if out, err := RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S systemctl enable "+appServiceFileName); err != nil {
-			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-				WithError(err).Error("unable to enable " + appServiceFileName + " service")
-
-			return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
-		}
-	} else {
-		if _, err := RunCMD("sudo", "mv", appServiceTmpFilePath, appServiceFilePath); err != nil {
-			log.WithContext(ctx).Error("Failed to move service file to systemd folder")
-			return err
-		}
-
-		if _, err := RunCMD("sudo", "chmod", "644", appServiceFilePath); err != nil {
-			log.WithContext(ctx).Errorf("Failed to make %s as executable", appServiceFilePath)
-			return err
-		}
-
-		// Auto start service at boot
-		log.WithContext(ctx).Info("Setting service for auto start on boot")
-		if out, err := RunCMD("sudo", "systemctl", "enable", appServiceFileName); err != nil {
-			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-				WithError(err).Error("unable to enable " + appServiceFileName + " service")
-
-			return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
-		}
+		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
 	}
 
 	// Start the service
@@ -1165,13 +1126,13 @@ func checkServiceInstalled(appName string) error {
 func checkServiceRunning(appName string) error {
 	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
 
-	_, err := RunCMD("systemctl", "is-active", "--quiet", appServiceFileName)
+	_, err := RunCMD("systemctl", "--user", "is-active", "--quiet", appServiceFileName)
 
 	return err
 }
 
 // Check if app is installed as service - if yes, then start it
-func startSystemdService(ctx context.Context, appName string, config *configs.Config) error {
+func startSystemdService(ctx context.Context, appName string, _ *configs.Config) error {
 
 	if err := checkServiceInstalled(appName); err != nil {
 		return fmt.Errorf("Service " + appName + " is not installed as service")
@@ -1187,13 +1148,7 @@ func startSystemdService(ctx context.Context, appName string, config *configs.Co
 		// Start service
 		log.WithContext(ctx).Info("Starting service " + appServiceFileName)
 
-		var out string
-
-		if len(config.UserPw) > 0 {
-			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S systemctl start "+appServiceFileName)
-		} else {
-			out, err = RunCMD("sudo", "systemctl", "start", appServiceFileName)
-		}
+		out, err := RunCMD("systemctl", "--user", "start", appServiceFileName)
 
 		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
@@ -1207,7 +1162,7 @@ func startSystemdService(ctx context.Context, appName string, config *configs.Co
 }
 
 // Stop systemd service if it is running, return nil if the service is found
-func stopSystemdService(ctx context.Context, appName string, config *configs.Config) error {
+func stopSystemdService(ctx context.Context, appName string, _ *configs.Config) error {
 
 	if err := checkServiceInstalled(appName); err != nil {
 		return fmt.Errorf("Service " + appName + " is not installed as service")
@@ -1217,13 +1172,7 @@ func stopSystemdService(ctx context.Context, appName string, config *configs.Con
 
 	if err := checkServiceRunning(appName); err == nil {
 
-		var out string
-
-		if len(config.UserPw) > 0 {
-			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S systemctl stop "+appServiceFileName)
-		} else {
-			out, err = RunCMD("sudo", "systemctl", "stop", appServiceFileName)
-		}
+		out, err := RunCMD("systemctl", "--user", "stop", appServiceFileName)
 
 		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out}).

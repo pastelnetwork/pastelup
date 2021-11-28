@@ -17,13 +17,34 @@ make
 ### Start node
 1. Install node
 
+Usage:
+```
+./pastel-utility install node --help
+NAME:
+   Pastel-Utility install node - Install node
+
+USAGE:
+   Pastel-Utility install node [command options] [arguments...]
+
+OPTIONS:
+   --dir value, -d value       Optional, Location where to create pastel node directory (default: "/home/bacnh/pastel")
+   --work-dir value, -w value  Optional, Location where to create working directory (default: "/home/bacnh/.pastel")
+   --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
+   --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
+   --peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"
+   --release value, -r value   Optional, Pastel version to install (default: "beta")
+   --enable-service            Optional, start all apps automatically as systemd service (default: false)
+   --user-pw value             Optional, password of current sudo user - so no sudo password request is prompted
+   --help, -h                  show help (default: false)
+   ```
+
 ``` shell
-./pastel-utility install node
+./pastel-utility install node --enable-service
 ```
 
 For testnet:
 ``` shell
-./pastel-utility install node -n=testnet
+./pastel-utility install node -n=testnet --enable-service
 ```
 
 2. Start node

@@ -120,12 +120,19 @@ func (r *ColdHotRunner) handleConfigs(ctx context.Context) error {
 
 // Run starts coldhot runner
 func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
+	isPasteldAlreadyRunning := false
 
 	// ***************  1. Start the local Pastel Network Node ***************
-	log.WithContext(ctx).Infof("Starting pasteld")
-	if err = runPastelNode(ctx, r.config, true, "", ""); err != nil {
-		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
-		return err
+	// Check if pasteld is already running
+	if _, err = RunPastelCLI(ctx, r.config, "getinfo"); err == nil {
+		log.WithContext(ctx).Info("Pasteld service is already running!")
+		isPasteldAlreadyRunning = true
+	} else {
+		log.WithContext(ctx).Infof("Starting pasteld")
+		if err = runPastelNode(ctx, r.config, true, "", ""); err != nil {
+			log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
+			return err
+		}
 	}
 
 	// ***************  2. If flag --create or --update is provided ***************
@@ -198,11 +205,15 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		}
 	}
 
-	log.WithContext(ctx).Info("stopping cold node..")
 	// ***************  5. Stop Cold Node  ***************
-	if err = StopPastelDAndWait(ctx, r.config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("unable to stop local node")
-		return err
+	if isPasteldAlreadyRunning {
+		log.WithContext(ctx).Info("As pasteld is running before starting supernode-coldstart, keep it running!")
+	} else {
+		log.WithContext(ctx).Info("Stopping code node ... ")
+		if err = StopPastelDAndWait(ctx, r.config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("unable to stop local node")
+			return err
+		}
 	}
 
 	// *************  6. Start rq-servce    *************

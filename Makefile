@@ -6,7 +6,7 @@ export GOSUMDB ?= sum.golang.org
 
 # Applications name
 CGO    ?= 0
-BINARY ?= pastel-utility
+BINARY ?= pastelup
 
 # Version
 VERSION = $(shell git rev-parse --short=8 HEAD)

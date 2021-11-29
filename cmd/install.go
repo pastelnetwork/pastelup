@@ -1142,6 +1142,7 @@ func startSystemdService(ctx context.Context, appName string, _ *configs.Config)
 	err := checkServiceRunning(appName)
 	if err == nil {
 		log.WithContext(ctx).Info(appName + " is already running!")
+
 	} else {
 		appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
 

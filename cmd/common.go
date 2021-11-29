@@ -330,7 +330,7 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 }
 
 // CheckPastelDRunning whether pasteld is running
-func CheckPastelDRunning(ctx context.Context, config *configs.Config) (ret bool) {
+func CheckPastelDRunning(ctx context.Context, config *configs.Config) bool {
 	var failCnt = 0
 	var err error
 
@@ -354,13 +354,13 @@ func CheckPastelDRunning(ctx context.Context, config *configs.Config) (ret bool)
 
 // StopPastelDAndWait sends stop command to pasteld and waits 10 seconds
 func StopPastelDAndWait(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Info("Stopping pasteld...")
+	log.WithContext(ctx).Info("Stopping local pasteld...")
 	if _, err = RunPastelCLI(ctx, config, "stop"); err != nil {
 		return err
 	}
 
 	time.Sleep(10 * time.Second)
-	log.WithContext(ctx).Info("Stopped pasteld")
+	log.WithContext(ctx).Info("Stopped local pasteld")
 	return nil
 }
 

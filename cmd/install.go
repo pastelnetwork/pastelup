@@ -53,10 +53,16 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
-		cli.NewFlag("enable-service", &config.EnableService).
-			SetUsage(green("Optional, start all apps automatically as systemd service")),
-		cli.NewFlag("user-pw", &config.UserPw).
-			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
+	}
+
+	if installCommand == superNodeInstall || installCommand == remoteInstall {
+		serviceFlags := []*cli.Flag{
+			cli.NewFlag("enable-service", &config.EnableService).
+				SetUsage(green("Optional, start all apps automatically as systemd service")),
+			cli.NewFlag("user-pw", &config.UserPw).
+				SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
+		}
+		commonFlags = append(commonFlags, serviceFlags...)
 	}
 
 	var dirsFlags []*cli.Flag
@@ -1116,7 +1122,7 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 func checkServiceInstalled(appName string) error {
 	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
 
-	if _, err := os.Stat(filepath.Join(constants.SystemdSystemDir, appServiceFileName)); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(constants.SystemdUserDir, appServiceFileName)); os.IsNotExist(err) {
 		return fmt.Errorf(appServiceFileName + " is not yet installed")
 	}
 

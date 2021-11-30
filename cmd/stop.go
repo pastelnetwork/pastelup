@@ -35,8 +35,6 @@ func setupStopSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Location of pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 			SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
-		cli.NewFlag("user-pw", &config.UserPw).
-			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	var commandName, commandMessage string
@@ -212,12 +210,17 @@ func stopSNServiceSubCommand(ctx context.Context, config *configs.Config) {
 func stopPatelCLI(ctx context.Context, config *configs.Config) {
 
 	log.WithContext(ctx).Info("Stopping Pasteld")
-
 	if err := stopSystemdService(ctx, string(constants.PastelD), config); err != nil {
+		// Check if pasteld is already running
+		if _, err = RunPastelCLI(ctx, config, "getinfo"); err != nil {
+			log.WithContext(ctx).Info("Pasteld is not running!")
+			return
+		}
+
 		if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 		if CheckProcessRunning(constants.PastelD) {
 			log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
 		} else {

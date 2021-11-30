@@ -83,8 +83,6 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
 		cli.NewFlag("reindex", &flagReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
-		cli.NewFlag("user-pw", &config.UserPw).
-			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	walletNodeFlags := []*cli.Flag{

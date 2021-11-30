@@ -11,19 +11,22 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 type updateCommand uint8
 
 const (
-	updateWalletNode updateCommand = iota
+	updateNode updateCommand = iota
+	updateWalletNode
 	updateSuperNode
 	updateSuperNodeRemote
 )
 
 var (
 	updateCommandName = map[updateCommand]string{
+		updateNode:            "node",
 		updateWalletNode:      "walletnode",
 		updateSuperNode:       "supernode",
 		updateSuperNodeRemote: "remote",
@@ -47,12 +50,26 @@ func setupUpdateSubCommand(config *configs.Config,
 ) *cli.Command {
 
 	commonFlags := []*cli.Flag{
-		cli.NewFlag("user-pw", &config.UserPw).
-			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
+		cli.NewFlag("network", &config.Network).SetAliases("n").
+			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
+		cli.NewFlag("force", &config.Force).SetAliases("f").
+			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
+		cli.NewFlag("peers", &config.Peers).SetAliases("p").
+			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
+		cli.NewFlag("release", &config.Version).SetAliases("r").
+			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
+
 		cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
 			SetUsage(green("Optional, Location where to create pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 			SetUsage(green("Optional, Location where to create working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
+	}
+
+	if updateCmd == updateSuperNodeRemote || updateCmd == updateSuperNode {
+		commonFlags = append(commonFlags,
+			cli.NewFlag("user-pw", &config.UserPw).
+				SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
+		)
 	}
 
 	remoteFlags := []*cli.Flag{
@@ -112,14 +129,19 @@ func setupUpdateSubCommand(config *configs.Config,
 func setupUpdateCommand() *cli.Command {
 	config := configs.InitConfig()
 
+	updateNodeSubCommand := setupUpdateSubCommand(config, updateNode, runUpdateNodeSubCommand)
+	updateWalletNnodeSubCommand := setupUpdateSubCommand(config, updateWalletNode, runUpdateWalletNodeSubCommand)
+
 	updateSuperNodeRemoteSubCommand := setupUpdateSubCommand(config, updateSuperNodeRemote, runUpdateSuperNodeRemoteSubCommand)
 	updateSuperNodeSubCommand := setupUpdateSubCommand(config, updateSuperNode, runUpdateSuperNodeSubCommand)
 	updateSuperNodeSubCommand.AddSubcommands(updateSuperNodeRemoteSubCommand)
 
 	// Add update command
 	updateCommand := cli.NewCommand("update")
-	updateCommand.SetUsage(blue("Perform update components for each service: WalletNode and SuperNode"))
+	updateCommand.SetUsage(blue("Perform update components for each service: Node, Walletnode and Supernode"))
 
+	updateCommand.AddSubcommands(updateNodeSubCommand)
+	updateCommand.AddSubcommands(updateWalletNnodeSubCommand)
 	updateCommand.AddSubcommands(updateSuperNodeSubCommand)
 
 	return updateCommand
@@ -240,7 +262,53 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 	return nil
 }
 
-func runUpdateSuperNodeSubCommand(_ context.Context, _ *configs.Config) (err error) {
+func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+
+	log.WithContext(ctx).Info("Stopping SuperNode service ...")
+	runStopSuperNodeSubCommand(ctx, config)
+
+	log.WithContext(ctx).Info("Updating SuperNode component ...")
+	if err = runComponentsInstall(ctx, config, constants.SuperNode); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update supernode component")
+		return err
+	}
+
+	log.WithContext(ctx).Info("Starting SuperNode service ...")
+	runLocalSuperNodeSubCommand(ctx, config)
+
+	return nil
+}
+
+func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+
+	log.WithContext(ctx).Info("Stopping Node service ...")
+	runStopNodeSubCommand(ctx, config)
+
+	log.WithContext(ctx).Info("Updating node component ...")
+	if err = runComponentsInstall(ctx, config, constants.PastelD); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update node component")
+		return err
+	}
+
+	log.WithContext(ctx).Info("Starting Node service ...")
+	runStartNodeSubCommand(ctx, config)
+
+	return nil
+}
+
+func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+
+	log.WithContext(ctx).Info("Stopping Wallet Node service ...")
+	runStopWalletSubCommand(ctx, config)
+
+	log.WithContext(ctx).Info("Updating walletnode component ...")
+	if err = runComponentsInstall(ctx, config, constants.WalletNode); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update wallet node component")
+		return err
+	}
+
+	log.WithContext(ctx).Info("Starting Wallet Node service ...")
+	runStartWalletSubCommand(ctx, config)
 
 	return nil
 }

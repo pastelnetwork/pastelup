@@ -97,11 +97,10 @@ python3 -m  http.server 80`
 	Restart=always
 	RestartSec=10
 	WorkingDirectory={{.WorkDir}}
-	User={{.User}}
 	ExecStart={{.ExecCmd}}
 	
 	[Install]
-	WantedBy=multi-user.target
+	WantedBy=default.target
 	`
 )
 
@@ -154,7 +153,6 @@ type DDImgServerStartScript struct {
 
 // SystemdServiceScript defines service file for /etc/systemd/system
 type SystemdServiceScript struct {
-	User    string
 	ExecCmd string
 	Desc    string
 	WorkDir string

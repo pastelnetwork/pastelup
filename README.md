@@ -1,18 +1,50 @@
 # Pastel Utility
 `pastel-utility` is a utility that can install `supernode`/`walletnode` and start.
 
+In order to build `pastel-utlity`, pls install `golang` and `upx`:
+```
+sudo apt-get install upx
+```
+and then:
+```
+git clone https://github.com/pastelnetwork/pastel-utility.git
+cd pastel-utility
+make
+```
+
 ## Install and Start
 
 ### Start node
 1. Install node
 
+Usage:
+```
+./pastel-utility install node --help
+NAME:
+   Pastel-Utility install node - Install node
+
+USAGE:
+   Pastel-Utility install node [command options] [arguments...]
+
+OPTIONS:
+   --dir value, -d value       Optional, Location where to create pastel node directory (default: "/home/bacnh/pastel")
+   --work-dir value, -w value  Optional, Location where to create working directory (default: "/home/bacnh/.pastel")
+   --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
+   --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
+   --peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"
+   --release value, -r value   Optional, Pastel version to install (default: "beta")
+   --enable-service            Optional, start all apps automatically as systemd service (default: false)
+   --user-pw value             Optional, password of current sudo user - so no sudo password request is prompted
+   --help, -h                  show help (default: false)
+   ```
+
 ``` shell
-./pastel-utility install node
+./pastel-utility install node --enable-service
 ```
 
 For testnet:
 ``` shell
-./pastel-utility install node -n=testnet
+./pastel-utility install node -n=testnet --enable-service
 ```
 
 2. Start node
@@ -67,12 +99,74 @@ The above command will:
 - activate pasteld as masternode
 - start rq-server, dd-server and supernode
 
-### Start supernode remotely
+
+### Install supernode remotely
 
 In order to install all extra packages and set system services, `password` of current user with `sudo` access is needed via param `--ssh-user-pw`.
 
 ```
-./pastel-utility install supernode remote --ssh-ip <remote_ip> --ssh-dir=<path_remote_utility_folder>/ --utility-path-to-copy=<path_local_pastel-utility> --ssh-user=bacnh --ssh-user-pw=<remote_user_pw> --ssh-key=$HOME/.ssh/id_rsa 
+./pastel-utility install supernode remote \
+  --ssh-ip <remote_ip> \
+  --ssh-dir=<path_remote_utility_folder>/ \
+  --utility-path-to-copy=<path_local_pastel-utility> \
+  --ssh-user=<remote username> \
+  --ssh-user-pw=<remote_user_pw> \
+  --ssh-key=$HOME/.ssh/id_rsa 
+```
+
+## Update supernode remotely
+
+### Usage
+```
+NAME:
+   Pastel-Utility update supernode remote - 
+
+USAGE:
+   Pastel-Utility update supernode remote [command options] [arguments...]
+
+OPTIONS:
+   --user-pw value             Optional, password of current sudo user - so no sudo password request is prompted
+   --dir value, -d value       Optional, Location where to create pastel node directory (default: "/home/bacnh/pastel")
+   --work-dir value, -w value  Optional, Location where to create working directory (default: "/home/bacnh/.pastel")
+   --name value                Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)
+   --ssh-ip value              Required, SSH address of the remote host
+   --ssh-port value            Optional, SSH port of the remote host, default is 22 (default: 22)
+   --ssh-user value            Optional, Username of user at remote host
+   --ssh-key value             Optional, Path to SSH private key for SSH Key Authentication
+   --utility-path value        Required, local path of pastel-utility file 
+   --bin value                 Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file  or a folder of binary to remote host
+   --help, -h                  show help (default: false)
+```
+
+
+`pastel-utility update` will do folowing steps:
+- Copy `pastel-utility` tool specified by `--utility-path' to `/tmp` folder of remote side
+- Stop `supernode` serivces by `pastel-ulity stop supernode`
+- Copy the file specified at `--bin` to `--dir` at remote side. If path is directory, it will copy all files inside that folder to remote side
+- Start `supernode` again with masternode config `--name`
+
+a) To update supernode bin to remote side:
+
+```
+./pastel-utility update supernode remote \
+  --utility-path=$HOME/pastel/pastel-utility \
+  --bin=$HOME/pastel/supernode-ubuntu20.04-amd64 \
+  --name=<masternode name> \
+  --ssh-ip=<remote ip> \
+  --ssh-user=<remote user> \
+  --user-pw=<pw of remote user> \
+  --ssh-key=<private key path>
+```
+b) To update all binaries at once. Create a local folder and copy all binaries into a folder and execute below command with `--bin` points to that folder path:
+```
+./pastel-utility update supernode remote \
+  --utility-path=$HOME/pastel/pastel-utility \
+  --bin=<path fo that folder> \
+  --name=<masternode name> \
+  --ssh-ip=<remote ip> \
+  --ssh-user=<remote user> \
+  --user-pw=<pw of remote user> \
+  --ssh-key=<private key path>
 ```
 
 ### Install command options

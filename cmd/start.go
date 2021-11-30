@@ -83,6 +83,8 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
 		cli.NewFlag("reindex", &flagReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
+		cli.NewFlag("user-pw", &config.UserPw).
+			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	walletNodeFlags := []*cli.Flag{
@@ -517,6 +519,12 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 		return nil
 	}
 
+	// Check if pasteld is already running
+	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
+		log.WithContext(ctx).Info("Pasteld service is already running!")
+		return nil
+	}
+
 	var pastelDPath string
 
 	if pastelDPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PasteldName[utils.GetOS()]); err != nil {
@@ -877,6 +885,14 @@ func checkCollateral(ctx context.Context, config *configs.Config) (err error) {
 		yes, _ := AskUserToContinue(ctx, "Search existing masternode collateral ready transaction in the wallet? Y/N")
 
 		if yes {
+			yes, _ = AskUserToContinue(ctx, "Do you want to wait for local node to fully sync before searching? Y/N")
+			if yes {
+				log.WithContext(ctx).Info("Waiting for local node to fully sync before searching for collateral")
+				if err := CheckMasterNodeSync(ctx, config); err != nil {
+					log.WithContext(ctx).WithError(err).Error("Failed to wait for local node to fully sync")
+					return err
+				}
+			}
 
 			var mnOutputs map[string]string
 			mnOutputs, err = getMasternodeOutputs(ctx, config)

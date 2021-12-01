@@ -1,7 +1,7 @@
-# Pastel Utility
-`pastel-utility` is a utility that can install `supernode`/`walletnode` and start.
+# Pastelup
+`pastelup` is a utility that can install `supernode`/`walletnode` and start.
 
-In order to build `pastel-utlity`, pls install `golang` and `upx`:
+In order to build `pastelup`, pls install `golang` and `upx`:
 ```
 sudo apt-get install upx
 ```
@@ -19,12 +19,12 @@ make
 
 Usage:
 ```
-./pastel-utility install node --help
+./pastelup install node --help
 NAME:
-   Pastel-Utility install node - Install node
+   Pastelup install node - Install node
 
 USAGE:
-   Pastel-Utility install node [command options] [arguments...]
+   Pastelup install node [command options] [arguments...]
 
 OPTIONS:
    --dir value, -d value       Optional, Location where to create pastel node directory (default: "/home/bacnh/pastel")
@@ -39,54 +39,66 @@ OPTIONS:
    ```
 
 ``` shell
-./pastel-utility install node --enable-service
+./pastelup install node --enable-service
 ```
 
 For testnet:
 ``` shell
-./pastel-utility install node -n=testnet --enable-service
+./pastelup install node -n=testnet --enable-service
 ```
 
 2. Start node
 
 ``` shell
-./pastel-utility start node
+./pastelup start node
+```
+
+3. Update node
+
+```shell
+./pastelup update node
 ```
 
 ### Start walletnode
 1. Install walletnode
 
 ``` shell
-./pastel-utility install walletnode
+./pastelup install walletnode
 ```
 
 For testnet:
 ``` shell
-./pastel-utility install walletnode -n=testnet
+./pastelup install walletnode -n=testnet
 ```
 
 2. Start walletnode
 
 ``` shell
-./pastel-utility start walletnode
+./pastelup start walletnode
+```
+
+3. Update walletnode
+
+```shell
+./pastelup update walletnode
 ```
 
 ### Start supernode
 1. Install supernode
 
 ``` shell
-./pastel-utility install supernode
+./pastelup install supernode
 ```
 
 For testnet:
 ``` shell
-./pastel-utility install supernode -n=testnet
+./pastelup install supernode -n=testnet
 ```
 
 2. Start **_new_** supernode
 
 ``` shell
-./pastel-utility start supernode --create --activate --name=<local name for masternode.conf file>
+./pastelup start supernode --create --activate --name=<local name for masternode.conf file>
 ```
 
 The above command will:
@@ -99,16 +111,21 @@ The above command will:
 - activate pasteld as masternode
 - start rq-server, dd-server and supernode
 
+3. Update supernode
+
+```
+./pastelup update supernode  --name=<local name for masternode.conf file>
+```
 
 ### Install supernode remotely
 
 In order to install all extra packages and set system services, `password` of current user with `sudo` access is needed via param `--ssh-user-pw`.
 
 ```
-./pastel-utility install supernode remote \
+./pastelup install supernode remote \
   --ssh-ip <remote_ip> \
   --ssh-dir=<path_remote_utility_folder>/ \
-  --utility-path-to-copy=<path_local_pastel-utility> \
+  --utility-path-to-copy=<path_local_pastelup> \
   --ssh-user=<remote username> \
   --ssh-user-pw=<remote_user_pw> \
   --ssh-key=$HOME/.ssh/id_rsa 
@@ -119,10 +136,10 @@ In order to install all extra packages and set system services, `password` of cu
 ### Usage
 ```
 NAME:
-   Pastel-Utility update supernode remote - 
+   pastelup update supernode remote - 
 
 USAGE:
-   Pastel-Utility update supernode remote [command options] [arguments...]
+   pastelup update supernode remote [command options] [arguments...]
 
 OPTIONS:
    --user-pw value             Optional, password of current sudo user - so no sudo password request is prompted
@@ -133,14 +150,12 @@ OPTIONS:
    --ssh-port value            Optional, SSH port of the remote host, default is 22 (default: 22)
    --ssh-user value            Optional, Username of user at remote host
    --ssh-key value             Optional, Path to SSH private key for SSH Key Authentication
-   --utility-path value        Required, local path of pastel-utility file 
+   --utility-path value        Required, local path of pastelup file 
    --bin value                 Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file  or a folder of binary to remote host
    --help, -h                  show help (default: false)
 ```
-
-
-`pastel-utility update` will do folowing steps:
-- Copy `pastel-utility` tool specified by `--utility-path' to `/tmp` folder of remote side
+`pastelup update` will do folowing steps:
+- Copy `pastelup` tool specified by `--utility-path' to `/tmp` folder of remote side
 - Stop `supernode` serivces by `pastel-ulity stop supernode`
 - Copy the file specified at `--bin` to `--dir` at remote side. If path is directory, it will copy all files inside that folder to remote side
 - Start `supernode` again with masternode config `--name`
@@ -148,8 +163,8 @@ OPTIONS:
 a) To update supernode bin to remote side:
 
 ```
-./pastel-utility update supernode remote \
-  --utility-path=$HOME/pastel/pastel-utility \
+./pastelup update supernode remote \
+  --utility-path=$HOME/pastel/pastelup \
   --bin=$HOME/pastel/supernode-ubuntu20.04-amd64 \
   --name=<masternode name> \
   --ssh-ip=<remote ip> \
@@ -159,8 +174,8 @@ a) To update supernode bin to remote side:
 ```
 b) To update all binaries at once. Create a local folder and copy all binaries into a folder and execute below command with `--bin` points to that folder path:
 ```
-./pastel-utility update supernode remote \
-  --utility-path=$HOME/pastel/pastel-utility \
+./pastelup update supernode remote \
+  --utility-path=$HOME/pastel/pastelup \
   --bin=<path fo that folder> \
   --name=<masternode name> \
   --ssh-ip=<remote ip> \
@@ -168,10 +183,20 @@ b) To update all binaries at once. Create a local folder and copy all binaries i
   --user-pw=<pw of remote user> \
   --ssh-key=<private key path>
 ```
+c) In case `--bin` is missing, the tool will update the latest from the download page
+
+```
+./pastelup update supernode remote  --utility-path=$HOME/pastel/pastelup \
+   --name=<masternode name> \
+   --ssh-ip <remote ip> \
+   --ssh-user <remote username> \
+   --user-pw <remote_user_pw> \
+   --ssh-key=$HOME/.ssh/id_rsa
+```
 
 ### Install command options
 
-`pastel-utility install <node|walletnode|supernode> ...` supports the following common parameters:
+`pastelup install <node|walletnode|supernode> ...` supports the following common parameters:
 
 - `--dir value, -d value       Optional, Location where to create pastel node directory (default: "$HOME/pastel")`
 - `--work-dir value, -w value  Optional, Location where to create working directory (default: "$HOME/.pastel")`
@@ -187,7 +212,7 @@ b) To update all binaries at once. Create a local folder and copy all binaries i
 
 ### Common options
 
-`pastel-utility start <node|walletnode|supernode> ...` supports the following common parameters:
+`pastelup start <node|walletnode|supernode> ...` supports the following common parameters:
 
 - `--ip value                  Optional, WAN address of the host`
 - `--dir value, -d value       Optional, Location of pastel node directory (default: "$HOME/pastel")`
@@ -197,13 +222,13 @@ b) To update all binaries at once. Create a local folder and copy all binaries i
 
 ### Walletnode specific options
 
-`pastel-utility start walletnode ...` supports the following parameters in addition to common:
+`pastelup start walletnode ...` supports the following parameters in addition to common:
 
 - `--development-mode          Optional, Starts walletnode service with swagger enabled (default: false)`
 
 ### Supernode specific options
 
-`pastel-utility start walletnode ...` supports the following parameters in addition to common:
+`pastelup start walletnode ...` supports the following parameters in addition to common:
 
 - `--activate                  Optional, if specified, will try to enable node as Masternode (start-alias). (default: false)`
 - `--name value                Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)`
@@ -234,7 +259,7 @@ Command [stop](#stop) stops Pastel network services
 stop ALL local Pastel Network services
 
 ``` shell
-./pastel-utility stop all [options]
+./pastelup stop all [options]
 ```
 
 ### Stop node
@@ -242,7 +267,7 @@ stop ALL local Pastel Network services
 stop Pastel Core node
 
 ``` shell
-./pastel-utility stop node [options]
+./pastelup stop node [options]
 ```
 
 ### Stop walletnode
@@ -250,7 +275,7 @@ stop Pastel Core node
 stop Pastel Network Walletnode (not UI Wallet!)
 
 ``` shell
-./pastel-utility stop walletnode [options]
+./pastelup stop walletnode [options]
 ```
 
 ### Stop supernode
@@ -258,7 +283,7 @@ stop Pastel Network Walletnode (not UI Wallet!)
 stop Pastel Network Supernode
 
 ``` shell
-./pastel-utility stop supernode [options]
+./pastelup stop supernode [options]
 ```
 
 ### Options

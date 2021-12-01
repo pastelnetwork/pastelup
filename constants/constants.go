@@ -298,7 +298,7 @@ var DependenciesPackagesWalletNode = map[OSType][]string{
 
 // DependenciesPackagesSuperNode defines some dependencies for supernode
 var DependenciesPackagesSuperNode = map[OSType][]string{
-	Linux:   {"libgomp1", "ufw", "python3-pip"},
+	Linux:   {"libgomp1", "ufw", "python3-pip", "curl"},
 	Mac:     {},
 	Windows: {},
 	Unknown: {},

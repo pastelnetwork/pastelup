@@ -128,6 +128,7 @@ func setupUpdateSubCommand(config *configs.Config,
 
 func setupUpdateCommand() *cli.Command {
 	config := configs.InitConfig()
+	config.OpMode = "update"
 
 	updateNodeSubCommand := setupUpdateSubCommand(config, updateNode, runUpdateNodeSubCommand)
 	updateWalletNnodeSubCommand := setupUpdateSubCommand(config, updateWalletNode, runUpdateWalletNodeSubCommand)

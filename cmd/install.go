@@ -169,6 +169,7 @@ func setupSubCommand(config *configs.Config,
 
 func setupInstallCommand() *cli.Command {
 	config := configs.InitConfig()
+	config.OpMode = "install"
 
 	installNodeSubCommand := setupSubCommand(config, nodeInstall, runInstallNodeSubCommand)
 	installWalletSubCommand := setupSubCommand(config, walletInstall, runInstallWalletSubCommand)
@@ -345,7 +346,7 @@ func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *con
 }
 
 func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
-	if !utils.IsValidNetworkOpt(config.Network) {
+	if config.OpMode == "install" && !utils.IsValidNetworkOpt(config.Network) {
 		return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
 	}
 	log.WithContext(ctx).Infof("initiaing in %s mode", config.Network)
@@ -721,6 +722,11 @@ func makeExecutable(ctx context.Context, dirPath string, fileName string) error 
 func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Config,
 	toolName string, configFilePath string, toolConfig string) error {
 
+	// Ignore if not in "install" mode
+	if config.OpMode != "install" {
+		return nil
+	}
+
 	log.WithContext(ctx).Infof("Initialize working environment for %s", toolName)
 	err := utils.CreateFile(ctx, configFilePath, config.Force)
 	if err != nil {
@@ -737,6 +743,11 @@ func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Confi
 }
 
 func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Config) error {
+	// Ignore if not in "install" mode
+	if config.OpMode != "install" {
+		return nil
+	}
+
 	// create working dir
 	if err := utils.CreateFolder(ctx, config.WorkingDir, config.Force); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", config.WorkingDir)
@@ -851,6 +862,10 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 }
 
 func openPorts(ctx context.Context, config *configs.Config, portList []int) (err error) {
+	if config.OpMode != "install" {
+		return nil
+	}
+
 	// only open ports on SuperNode and this is only on Linux!!!
 	var out string
 	for k := range portList {
@@ -958,21 +973,23 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		}
 	}
 
-	ddConfigPath := filepath.Join(targetDir, constants.DupeDetectionConfigFilename)
-	err = utils.CreateFile(ctx, ddConfigPath, config.Force)
-	if err != nil {
-		log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", ddConfigPath)
-		return err
-	}
+	if config.OpMode == "install" {
+		ddConfigPath := filepath.Join(targetDir, constants.DupeDetectionConfigFilename)
+		err = utils.CreateFile(ctx, ddConfigPath, config.Force)
+		if err != nil {
+			log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", ddConfigPath)
+			return err
+		}
 
-	if err = utils.WriteFile(ddConfigPath, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
-		return err
-	}
+		if err = utils.WriteFile(ddConfigPath, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
+			return err
+		}
 
-	os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
+		os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 
-	if err = installAppService(ctx, string(constants.DDImgService), config); err != nil {
-		return err
+		if err = installAppService(ctx, string(constants.DDImgService), config); err != nil {
+			return err
+		}
 	}
 
 	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")

@@ -151,10 +151,10 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		}
 	}
 
-	if err = StopPastelDAndWait(ctx, r.config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("unable to stop local node")
-		return err
-	}
+	// if err = StopPastelDAndWait(ctx, r.config); err != nil {
+	// 	log.WithContext(ctx).WithError(err).Error("unable to stop local node")
+	// 	return err
+	// }
 
 	// ***************  3. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
 
@@ -177,11 +177,11 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	}
 	log.WithContext(ctx).Info("remote node started as masternode successfully..")
 
-	log.WithContext(ctx).Info("restart cold node..")
-	if err = runPastelNode(ctx, r.config, true, "", ""); err != nil {
-		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
-		return err
-	}
+	// log.WithContext(ctx).Info("restart cold node..")
+	// if err = runPastelNode(ctx, r.config, true, "", ""); err != nil {
+	// 	log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
+	// 	return err
+	// }
 
 	// ***************  4. If --activate are provided, ***************
 	if flagMasterNodeIsActivate {

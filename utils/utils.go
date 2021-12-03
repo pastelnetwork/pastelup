@@ -231,6 +231,12 @@ func Untar(dst string, r io.Reader, filenames ...string) error {
 	for {
 		header, err := tr.Next()
 
+		// validate filenames
+		p, _ := filepath.Abs(header.Name)
+		if strings.Contains(p, "..") {
+			return errors.Errorf("invalid tar file")
+		}
+
 		switch {
 		// if no more files are found return
 		case err == io.EOF:

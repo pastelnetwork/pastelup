@@ -1022,7 +1022,7 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 		appServiceWorkDirPath := filepath.Join(appBaseDir, "img_server")
 
-		execCmd = "python3 -m  http.server 80"
+		execCmd = "python3 -m  http.server 8080"
 		workDir = appServiceWorkDirPath
 
 	case string(constants.PastelD):

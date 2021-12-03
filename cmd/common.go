@@ -364,20 +364,33 @@ func StopPastelDAndWait(ctx context.Context, config *configs.Config) (err error)
 	return nil
 }
 
-// CheckMasterNodeSync checks and waits until mnsync is "Finished"
-func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (err error) {
-	for {
+// CheckMasterNodeSync checks and waits until mnsync is "Finished", return number of synced blocks
+func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, error) {
+	var getinfo structure.RPCGetInfo
+	var err error
 
+	for {
+		// Checking getinfo
+		log.WithContext(ctx).Info("Waiting for sync...")
+
+		getinfo, err = GetPastelInfo(ctx, config)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("master node getinfo call has failed")
+			return 0, err
+		}
+		log.WithContext(ctx).Infof("Loading blocks - block #%d; Node has %d connection", getinfo.Blocks, getinfo.Connections)
+
+		// Checking mnsync status
 		mnstatus, err := GetMNSyncInfo(ctx, config)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("master node mnsync status call has failed")
-			return err
+			return 0, err
 		}
 
 		if mnstatus.AssetName == "Initial" {
 			if _, err = RunPastelCLI(ctx, config, "mnsync", "reset"); err != nil {
 				log.WithContext(ctx).WithError(err).Error("master node reset has failed")
-				return err
+				return 0, err
 			}
 			time.Sleep(10 * time.Second)
 		}
@@ -385,19 +398,11 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (err error
 			log.WithContext(ctx).Info("master node was synced!")
 			break
 		}
-		log.WithContext(ctx).Info("Waiting for sync...")
-
-		getinfo, err := GetPastelInfo(ctx, config)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("master node getinfo call has failed")
-			return err
-		}
-		log.WithContext(ctx).Infof("Loading blocks - block #%d; Node has %d connection", getinfo.Blocks, getinfo.Connections)
 
 		time.Sleep(10 * time.Second)
 	}
 
-	return nil
+	return getinfo.Blocks, nil
 }
 
 // CheckZksnarkParams validates Zksnark files

@@ -27,9 +27,9 @@ LDFLAGS="-s -w -X github.com/pastelnetwork/gonode/common/version.version=$(VERSI
 #
 release: $(PLATFORMS)
 
-# upx dist/$(BINARY)-$(os)-$(arch)
+# upx dist/$(BINARY)-$(os)-$(arch)$(ext
 $(PLATFORMS):
-	CGO_ENABLED=$(CGO) GOOS=$(os) GOARCH=$(arch) go build $(GCFLAGS) -ldflags=$(LDFLAGS) -o dist/$(BINARY)-$(os)-$(arch)$(ext) main.go
+	CGO_ENABLED=$(CGO) GOOS=$(os) GOARCH=$(arch) go build  $(GCFLAGS) -ldflags=$(LDFLAGS) -o dist/$(BINARY)-$(os)-$(arch)$(ext) main.go
 	upx dist/$(BINARY)-$(os)-$(arch)$(ext)
 
 .PHONY: release $(PLATFORMS)

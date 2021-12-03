@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/structure"
@@ -198,13 +198,24 @@ func setupStartSubCommand(config *configs.Config,
 				return err
 			}
 
+			// Register interrupt handler
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			sys.RegisterInterruptHandler(cancel, func() {
-				log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
-				os.Exit(0)
-			})
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt)
+			go func() {
+				for {
+					<-sigCh
+
+					yes, _ := AskUserToContinue(ctx, "Interrupt signal received, do you want to cancel this process? Y/N")
+					if yes {
+						log.WithContext(ctx).Info("Gracefully shutting down...")
+						cancel()
+						os.Exit(0)
+					}
+				}
+			}()
 
 			log.WithContext(ctx).Info("Starting")
 			err = f(ctx, config)
@@ -325,7 +336,7 @@ func runLocalSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 	}
 
 	// *************  4. Wait for blockchain and masternodes sync  *************
-	if err := CheckMasterNodeSync(ctx, config); err != nil {
+	if _, err := CheckMasterNodeSync(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to synchronize, add some peers and try again")
 		return err
 	}
@@ -712,7 +723,7 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 	}
 
 	// Check masternode status
-	if err = CheckMasterNodeSync(ctx, config); err != nil {
+	if _, err = CheckMasterNodeSync(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to synchronize, add some peers and try again")
 		return err
 	}
@@ -873,9 +884,10 @@ func getMasternodeOutputs(ctx context.Context, config *configs.Config) (map[stri
 	return mnOutputs, nil
 }
 
-func checkCollateral(ctx context.Context, config *configs.Config) (err error) {
+func checkCollateral(ctx context.Context, config *configs.Config) error {
 
 	var address string
+	var err error
 
 	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
 
@@ -886,7 +898,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) (err error) {
 			yes, _ = AskUserToContinue(ctx, "Do you want to wait for local node to fully sync before searching? Y/N")
 			if yes {
 				log.WithContext(ctx).Info("Waiting for local node to fully sync before searching for collateral")
-				if err := CheckMasterNodeSync(ctx, config); err != nil {
+				if _, err = CheckMasterNodeSync(ctx, config); err != nil {
 					log.WithContext(ctx).WithError(err).Error("Failed to wait for local node to fully sync")
 					return err
 				}

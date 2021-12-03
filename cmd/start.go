@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
 	"github.com/pastelnetwork/pastel-utility/structure"
@@ -198,13 +198,24 @@ func setupStartSubCommand(config *configs.Config,
 				return err
 			}
 
+			// Register interrupt handler
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-			sys.RegisterInterruptHandler(cancel, func() {
-				log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
-				os.Exit(0)
-			})
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt)
+			go func() {
+				for {
+					<-sigCh
+
+					yes, _ := AskUserToContinue(ctx, "Interrupt signal received, do you want to cancel this process? Y/N")
+					if yes {
+						log.WithContext(ctx).Info("Gracefully shutting down...")
+						cancel()
+						os.Exit(0)
+					}
+				}
+			}()
 
 			log.WithContext(ctx).Info("Starting")
 			err = f(ctx, config)

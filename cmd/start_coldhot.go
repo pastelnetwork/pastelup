@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -168,7 +167,7 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		log.WithContext(ctx).WithError(err).Error("failed on runRemoteNode")
 		return err
 	}
-	log.WithContext(ctx).Infof("remote: pasteld is fully synced")
+	log.WithContext(ctx).Infof("Remote::pasteld is fully synced")
 
 	//Get conf data from masternode.conf File
 	privkey, _, _, err := getMasternodeConfData(ctx, r.config, flagMasterNodeName)
@@ -261,6 +260,8 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 }
 
 func (r *ColdHotRunner) runRemoteNodeAsMasterNode(ctx context.Context, numOfSyncedBlocks int) error {
+
+	log.WithContext(ctx).Info("Running remote node as masternode ...")
 	go func() {
 		cmdLine := fmt.Sprintf("%s --masternode --txindex=1 --reindex --masternodeprivkey=%s --externalip=%s  --data-dir=%s %s --daemon ",
 			r.opts.remotePasteld, flagMasterNodePrivateKey, flagNodeExtIP, r.config.RemoteWorkingDir, r.opts.testnetOption)
@@ -283,6 +284,8 @@ func (r *ColdHotRunner) runRemoteNodeAsMasterNode(ctx context.Context, numOfSync
 		return err
 	}
 
+	log.WithContext(ctx).Info("Remote::Master node is started and synced sucessfully")
+
 	return nil
 }
 
@@ -297,6 +300,12 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context) erro
 
 	if err = checkPassphrase(ctx); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing passphrase")
+		return err
+	}
+
+	// Check if cold node is already running, if yes stop it
+	if err := stopRemoteNode(ctx, r.sshClient, r.opts.remotePastelCli); err != nil {
+		log.WithContext(ctx).WithError(err).Error("remote unable to stop pasteld")
 		return err
 	}
 
@@ -363,12 +372,12 @@ func CheckPastelDRunningRemote(ctx context.Context, client *utils.Client, cliPat
 	var failCnt = 0
 	var err error
 
-	log.WithContext(ctx).Info("Waiting the pasteld to be started...")
+	log.WithContext(ctx).Info("Remote::checking if pasteld is running ...")
 
 	for {
 		if _, err = client.Cmd(fmt.Sprintf("%s %s", cliPath, "getinfo")).Output(); err != nil {
 			if !want {
-				log.WithContext(ctx).Info("remote pasteld stopped.")
+				log.WithContext(ctx).Info("remote pasteld is not running")
 				return false
 			}
 
@@ -382,8 +391,22 @@ func CheckPastelDRunningRemote(ctx context.Context, client *utils.Client, cliPat
 		}
 	}
 
-	log.WithContext(ctx).Info("remote pasteld started successfully")
+	log.WithContext(ctx).Info("Remote::Pasteld is running")
 	return true
+}
+
+// stopRemoteNode - just stop pasteld and check if it is really stopped
+func stopRemoteNode(ctx context.Context, client *utils.Client, cliPath string) error {
+	log.WithContext(ctx).Info("remote stopping pasteld if it is running ...")
+
+	client.Cmd(fmt.Sprintf("%s %s", cliPath, "stop")).Output()
+
+	time.Sleep(10 * time.Second)
+	if _, err := client.Cmd(fmt.Sprintf("%s %s", cliPath, "getinfo")).Output(); err == nil {
+		return fmt.Errorf("failed to stop remote node")
+	}
+
+	return nil
 }
 
 func (r *ColdHotRunner) runRemoteNode(ctx context.Context, numOfSyncedBlocks int) error {
@@ -399,15 +422,17 @@ func (r *ColdHotRunner) runRemoteNode(ctx context.Context, numOfSyncedBlocks int
 	}
 
 	if err := r.checkMasterNodeSyncRemote(ctx, numOfSyncedBlocks, 0); err != nil {
-		log.WithContext(ctx).Error("Remote::Master node sync failed")
+		log.WithContext(ctx).Error("Remote:: node sync failed")
 		return err
 	}
+	log.WithContext(ctx).Info("Remote::node is fully synced")
 
-	if _, err := r.sshClient.Cmd(fmt.Sprintf("%s stop", r.opts.remotePastelCli)).Output(); err != nil {
-		log.WithContext(ctx).Error("Error - stopping on pasteld")
+	log.WithContext(ctx).Info("Remote::Stopping pasteld ...")
+	if err := stopRemoteNode(ctx, r.sshClient, r.opts.remotePastelCli); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Remote::unable to stop pasteld")
 		return err
 	}
-	time.Sleep(5 * time.Second)
+	log.WithContext(ctx).Info("Remote::pasteld is stopped")
 
 	return nil
 }
@@ -415,7 +440,7 @@ func (r *ColdHotRunner) runRemoteNode(ctx context.Context, numOfSyncedBlocks int
 func (r *ColdHotRunner) checkMasterNodeSyncRemote(ctx context.Context, numOfSyncedBlocks int, retryCount int) (err error) {
 	var mnstatus structure.RPCPastelMSStatus
 	var output []byte
-	var blockcount int
+	var getinfo structure.RPCGetInfo
 
 	for {
 		// Get mnsync status
@@ -454,19 +479,19 @@ func (r *ColdHotRunner) checkMasterNodeSyncRemote(ctx context.Context, numOfSync
 		}
 
 		// Get blockcount at remote: `pasteld getinfo`
-		if output, err = r.sshClient.Cmd(fmt.Sprintf("%s getblockcount", r.opts.remotePastelCli)).Output(); err != nil {
+		if output, err = r.sshClient.Cmd(fmt.Sprintf("%s getinfo", r.opts.remotePastelCli)).Output(); err != nil {
 			log.WithContext(ctx).WithField("out", string(output)).WithError(err).
-				Error("Remote:::failed to get blockcount")
+				Error("Remote:::pasteld failed to get getinfo")
 			return err
 		}
 
-		if blockcount, err = strconv.Atoi(string(output)); err != nil {
-			log.WithContext(ctx).WithField("out", string(output)).WithError(err).
-				Error("Remote:::failed to convert blockcount to int")
+		if err = json.Unmarshal([]byte(output), &getinfo); err != nil {
+			log.WithContext(ctx).WithField("payload", string(output)).WithError(err).
+				Error("Remote:::pasteld failed to unmarshal getinfo")
 			return err
 		}
 
-		log.WithContext(ctx).Infof("Remote:::Waiting for sync... (%d from %d)", blockcount, numOfSyncedBlocks)
+		log.WithContext(ctx).Infof("Remote:::Waiting for sync... (%d from %d)", getinfo.Blocks, numOfSyncedBlocks)
 		time.Sleep(10 * time.Second)
 	}
 	return nil

@@ -114,6 +114,9 @@ const (
 
 	// TempDir defines temporary directory
 	TempDir = "tmp"
+
+	// RemotePastelupPath - Remote pastelup path
+	RemotePastelupPath = "/tmp/pastelup"
 )
 
 // ServiceName defines services name

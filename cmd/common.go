@@ -446,3 +446,31 @@ func connectSSH(ctx context.Context, sshUser, sshIP string, sshPort int, key str
 
 	return client, nil
 }
+
+func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePastelUp string) error {
+	log.WithContext(ctx).Infof("copying pastelup to remote")
+	var localPastelupPath string
+
+	// Get local pastelup path
+	ex, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failure in getting path of executable file %s", err)
+	}
+
+	// Check if localPastelupPath is a symlink file
+	if localPastelupPath, err = filepath.EvalSymlinks(ex); err != nil {
+		return fmt.Errorf("local pastelup is symbol link:  %s", err)
+	}
+
+	// Copy pastelup to remote
+	if err := client.Scp(localPastelupPath, remotePastelUp); err != nil {
+		return fmt.Errorf("failure in copying pastelup to remote %s", err)
+	}
+
+	// chmod +x pastelup at remote
+	if _, err := client.Cmd(fmt.Sprintf("chmod +x %s", remotePastelUp)).Output(); err != nil {
+		return fmt.Errorf("failure in chmod +x pastelup at remote: %s", err.Error())
+	}
+
+	return nil
+}

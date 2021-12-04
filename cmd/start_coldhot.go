@@ -33,9 +33,9 @@ type ColdHotRunnerOpts struct {
 	testnetOption string
 
 	// remote paths
-	remotePastelUtility string
-	remotePasteld       string
-	remotePastelCli     string
+	remotePastelUp  string
+	remotePasteld   string
+	remotePastelCli string
 }
 
 // ColdHotRunner starts sn in coldhot mode
@@ -62,7 +62,7 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 	}
 	r.sshClient = client
 
-	// ***************** get external ip addr ***************
+	// Get external IP
 	if flagNodeExtIP == "" {
 		out, err := client.Cmd(fmt.Sprintf("curl %s", "http://ipinfo.io/ip")).Output()
 		if err != nil {
@@ -72,14 +72,15 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 		flagNodeExtIP = string(out)
 	}
 
+	// Copy pastelup to remote
+	if err := copyPastelUpToRemote(ctx, client, r.opts.remotePastelUp); err != nil {
+		return fmt.Errorf("failure in copying pastelup to remote %s", err)
+	}
+
 	return nil
 }
 
 func (r *ColdHotRunner) handleArgs() (err error) {
-	if len(r.config.RemotePastelUtilityDir) == 0 {
-		return fmt.Errorf("cannot find remote pastel-utility dir")
-	}
-
 	if len(r.config.RemotePastelExecDir) == 0 {
 		r.config.RemotePastelExecDir = r.config.Configurer.DefaultPastelExecutableDir()
 	}
@@ -90,8 +91,7 @@ func (r *ColdHotRunner) handleArgs() (err error) {
 	r.opts.remotePasteld = filepath.Join(r.config.RemotePastelExecDir, constants.PasteldName[utils.GetOS()])
 	r.opts.remotePasteld = strings.ReplaceAll(r.opts.remotePasteld, "\\", "/")
 
-	r.opts.remotePastelUtility = filepath.Join(r.config.RemotePastelUtilityDir, "pastel-utility")
-	r.opts.remotePastelUtility = strings.ReplaceAll(r.opts.remotePastelUtility, "\\", "/")
+	r.opts.remotePastelUp = constants.RemotePastelupPath
 
 	return nil
 }
@@ -352,7 +352,7 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context) erro
 func (r *ColdHotRunner) runServiceRemote(ctx context.Context, service string) (err error) {
 	log.WithContext(ctx).WithField("service", service).Info("starting service on remote")
 
-	cmd := fmt.Sprintf("%s %s %s", r.opts.remotePastelUtility, "start", service)
+	cmd := fmt.Sprintf("%s %s %s", r.opts.remotePastelUp, "start", service)
 	if r.config.RemoteWorkingDir != "" {
 		cmd = fmt.Sprintf("%s --work-dir=%s", cmd, r.config.RemoteWorkingDir)
 	}

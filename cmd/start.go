@@ -131,10 +131,8 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-key", &sshKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
-		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
-			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
 		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
-			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
+			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel)")),
 		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
 			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel")).SetValue("$HOME/.pastel"),
 	}

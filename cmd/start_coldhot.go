@@ -143,7 +143,15 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	// ***************  2. If flag --create or --update is provided ***************
+	// Run pasteld at remote side and wait for it to be synced
+	log.WithContext(ctx).Infof("Starting pasteld at remote node and wait for it to be synced")
+	if err = r.runRemoteNode(ctx, numOfSyncedBlocks); err != nil {
+		log.WithContext(ctx).WithError(err).Error("failed on runRemoteNode")
+		return err
+	}
+	log.WithContext(ctx).Infof("Remote::pasteld is fully synced")
+
+	// Prepare the remote node for coldhot mode
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
 		log.WithContext(ctx).Info("Prepare mastenode parameters")
 		if err := r.handleCreateUpdateStartColdHot(ctx); err != nil {
@@ -159,15 +167,7 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		}
 	}
 
-	// ***************  3. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
-
-	// Run pasteld at remote side and wait for it to be synced
-	log.WithContext(ctx).Infof("Starting pasteld at remote node and wait for it to be synced")
-	if err = r.runRemoteNode(ctx, numOfSyncedBlocks); err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed on runRemoteNode")
-		return err
-	}
-	log.WithContext(ctx).Infof("Remote::pasteld is fully synced")
+	// Start remote node as masternode
 
 	//Get conf data from masternode.conf File
 	privkey, _, _, err := getMasternodeConfData(ctx, r.config, flagMasterNodeName)
@@ -182,17 +182,19 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	}
 	log.WithContext(ctx).Info("remote node started as masternode successfully..")
 
-	// Restart pasteld at local node (cold node)
-	log.WithContext(ctx).Infof("Stopping pasteld at local node")
-	if err = StopPastelDAndWait(ctx, r.config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed to stop pasteld")
-		return err
-	}
+	// Restart local cold node pasteld
+	if (flagMasterNodeIsCreate || flagMasterNodeIsUpdate) && (isPasteldAlreadyRunning || flagMasterNodeIsActivate) {
+		log.WithContext(ctx).Infof("Stopping pasteld at local node")
+		if err = StopPastelDAndWait(ctx, r.config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("failed to stop pasteld")
+			return err
+		}
 
-	log.WithContext(ctx).Infof("Starting pasteld at local node")
-	if err = runPastelNode(ctx, r.config, true, "", ""); err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed to start pasteld")
-		return err
+		log.WithContext(ctx).Infof("Starting pasteld at local node")
+		if err = runPastelNode(ctx, r.config, true, "", ""); err != nil {
+			log.WithContext(ctx).WithError(err).Error("failed to start pasteld")
+			return err
+		}
 	}
 
 	// ***************  4. If --activate are provided, ***************

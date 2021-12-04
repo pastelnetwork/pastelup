@@ -94,10 +94,6 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(red("Required, password of remote user - so no sudo request is promoted")).SetRequired(),
 		cli.NewFlag("ssh-key", &sshKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
-		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
-			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
-		cli.NewFlag("utility-path-to-copy", &config.BinUtilityPath).
-			SetUsage(yellow("Optional, path to the local pastel-utility file to copy to remote host")),
 	}
 
 	dupeFlags := []*cli.Flag{
@@ -207,10 +203,6 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		return fmt.Errorf("--ssh-ip IP address - Required, SSH address of the remote host")
 	}
 
-	if len(config.RemotePastelUtilityDir) == 0 {
-		return fmt.Errorf("--ssh-dir RemotePastelUtilityDir - Required, pastel-utility path of the remote host")
-	}
-
 	var client *utils.Client
 	log.WithContext(ctx).Infof("Connecting to remote host -> %s:%d...", sshIP, sshPort)
 	if len(sshKey) == 0 {
@@ -228,43 +220,18 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	log.WithContext(ctx).Info("Connected successfully")
 
-	pastelUtilityFile := "pastel-utility"
-	pastelUtilityPath := filepath.Join(config.RemotePastelUtilityDir, pastelUtilityFile)
-	pastelUtilityPath = strings.ReplaceAll(pastelUtilityPath, "\\", "/")
+	// Transfer pastelup to remote
+	log.WithContext(ctx).Info("Uploading pastelup to remote host...")
+	remotePastelUpPath := constants.RemotePastelupPath
 
-	// check if folder is existed, if not, create that folder
-	err = client.ShellCmd(ctx, fmt.Sprintf("[ ! -d %s ] && mkdir %s", config.RemotePastelUtilityDir, config.RemotePastelUtilityDir))
-	if err != nil {
-		log.WithContext(ctx).Info("Pastel-utility folder is existed")
-	}
-
-	err = client.ShellCmd(ctx, fmt.Sprintf("rm -r -f %s", pastelUtilityPath))
-	if err != nil {
-		log.WithContext(ctx).Error("Failed to delete pastel-utility file")
+	if err := copyPastelUpToRemote(ctx, client, remotePastelUpPath); err != nil {
+		log.WithContext(ctx).Errorf("Failed to copy pastelup to remote at %s - %v", remotePastelUpPath, err)
 		return err
 	}
 
-	// Transfer pastel utility to remote
-	BinUtilityPath := config.BinUtilityPath
-	if len(BinUtilityPath) == 0 {
-		BinUtilityPath = os.Args[0]
-	}
+	log.WithContext(ctx).Info("Successfully copied pastelup executable to remote host")
 
-	// scp pastel-utility to remote
-	log.WithContext(ctx).Infof("Copying local pastel-utility executable to remote host - %s", BinUtilityPath)
-
-	if err := client.Scp(BinUtilityPath, pastelUtilityPath); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
-		return err
-	}
-
-	log.WithContext(ctx).Info("Successfully copied pastel-utility executable to remote host")
-
-	if err = client.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", pastelUtilityPath)); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
-		return err
-	}
-
+	// Validate running services
 	checkIfRunningCommand := "ps afx | grep -E 'pasteld|rq-service|dd-service|supernode' | grep -v grep"
 	if out, _ := client.Cmd(checkIfRunningCommand).Output(); len(out) != 0 {
 		log.WithContext(ctx).Info("Supernode is running on remote host")
@@ -276,7 +243,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		}
 
 		log.WithContext(ctx).Info("Stopping supernode services...")
-		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", pastelUtilityPath)
+		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", remotePastelUpPath)
 		err = client.ShellCmd(ctx, stopSuperNodeCmd)
 		if err != nil {
 			if config.Force {
@@ -291,7 +258,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	}
 
 	log.WithContext(ctx).Info("Installing Supernode ...")
-	log.WithContext(ctx).Infof("pastel-utility path: %s", pastelUtilityPath)
+	log.WithContext(ctx).Infof("pastel-utility path: %s", remotePastelUpPath)
 
 	remoteOptions := ""
 	if len(config.RemotePastelExecDir) > 0 {
@@ -326,7 +293,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, sshPw)
 	}
 
-	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install supernode%s", pastelUtilityPath, remoteOptions)
+	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install supernode%s", remotePastelUpPath, remoteOptions)
 	err = client.ShellCmd(ctx, installSuperNodeCmd)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to Installing Supernode")
@@ -346,10 +313,12 @@ func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *con
 }
 
 func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
-	if config.OpMode == "install" && !utils.IsValidNetworkOpt(config.Network) {
-		return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
+	if config.OpMode == "install" {
+		if !utils.IsValidNetworkOpt(config.Network) {
+			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
+		}
+		log.WithContext(ctx).Infof("initiaing in %s mode", config.Network)
 	}
-	log.WithContext(ctx).Infof("initiaing in %s mode", config.Network)
 
 	// create installation directory, example ~/pastel
 	if err := createInstallDir(ctx, config, config.PastelExecDir); err != nil {

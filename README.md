@@ -191,6 +191,20 @@ c) In case `--bin` is missing, the tool will update the latest from the download
    --user-pw=<pw of remote user>
 ```
 
+### Start supernode-coldhot
+
+How cold-hot is working: https://pastel.wiki/en/home/how-to-start-mn
+
+Usage:
+```
+./pastel-utility start supernode-coldhot \
+   --ssh-ip 10.211.55.5 \
+   --ssh-user bacnh \
+   --ssh-key=$HOME/.ssh/id_rsa 
+   --name=mn01 
+   --create
+```
+
 ### Install command options
 
 `pastelup install <node|walletnode|supernode> ...` supports the following common parameters:

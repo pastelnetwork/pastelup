@@ -893,15 +893,6 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 		yes, _ := AskUserToContinue(ctx, "Search existing masternode collateral ready transaction in the wallet? Y/N")
 
 		if yes {
-			yes, _ = AskUserToContinue(ctx, "Do you want to wait for local node to fully sync before searching? Y/N")
-			if yes {
-				log.WithContext(ctx).Info("Waiting for local node to fully sync before searching for collateral")
-				if _, err = CheckMasterNodeSync(ctx, config); err != nil {
-					log.WithContext(ctx).WithError(err).Error("Failed to wait for local node to fully sync")
-					return err
-				}
-			}
-
 			var mnOutputs map[string]string
 			mnOutputs, err = getMasternodeOutputs(ctx, config)
 			if err != nil {

@@ -191,6 +191,15 @@ c) In case `--bin` is missing, the tool will update the latest from the download
    --user-pw=<pw of remote user>
 ```
 
+### Stop supernode remotely
+
+```
+./pastelup stop supernode remote \
+   --ssh-ip 10.211.55.5 \
+   --ssh-user bacnh \
+   --ssh-key $HOME/.ssh/id_rsa
+```
+
 ### Start supernode-coldhot
 
 How cold-hot is working: https://pastel.wiki/en/home/how-to-start-mn

@@ -457,7 +457,7 @@ func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePaste
 		// Get local pastelup path
 		ex, err := os.Executable()
 		if err != nil {
-			return fmt.Errorf("failure in getting path of executable file %s", err)
+			return fmt.Errorf("failed to get path of executable file %s", err)
 		}
 
 		// Check if localPastelupPath is a symlink file
@@ -467,26 +467,26 @@ func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePaste
 
 		// Copy pastelup to remote
 		if err := client.Scp(localPastelupPath, remotePastelUp); err != nil {
-			return fmt.Errorf("failure in copying pastelup to remote %s", err)
+			return fmt.Errorf("failed to copy pastelup to remote %s", err)
 		}
 
 	} else {
-		log.WithContext(ctx).Infof("Current OS is not linux, skipping pastelup copy")
+		log.WithContext(ctx).Infof("current OS is not linux, skipping pastelup copy")
 
 		// Download PastelUpExecName from remote and save to remotePastelUp
-		log.WithContext(ctx).Infof("Downloading pastelup from Pastel download portal ...")
+		log.WithContext(ctx).Infof("downloading pastelup from Pastel download portal ...")
 		version := "beta"
 		downloadURL := fmt.Sprintf("%s/%s/%s", constants.DownloadBaseURL, version, constants.PastelUpExecName["Linux"])
 
 		if _, err := client.Cmd(fmt.Sprintf("wget %s -O %s", downloadURL, remotePastelUp)).Output(); err != nil {
-			return fmt.Errorf("failure in downloading pastelup from remote: %s", err.Error())
+			return fmt.Errorf("failed to download pastelup from remote: %s", err.Error())
 		}
 		log.WithContext(ctx).Infof("pastelup downloaded from Pastel download portal")
 	}
 
-	// chmod +x pastelup at remote
+	// chmod +x remote pastelup
 	if _, err := client.Cmd(fmt.Sprintf("chmod +x %s", remotePastelUp)).Output(); err != nil {
-		return fmt.Errorf("failure in chmod +x pastelup at remote: %s", err.Error())
+		return fmt.Errorf("failed to chmod +x pastelup at remote: %s", err.Error())
 	}
 
 	return nil

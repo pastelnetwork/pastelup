@@ -317,7 +317,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		if !utils.IsValidNetworkOpt(config.Network) {
 			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
 		}
-		log.WithContext(ctx).Infof("initiaing in %s mode", config.Network)
+		log.WithContext(ctx).Infof("initiating in %s mode", config.Network)
 	}
 
 	// create installation directory, example ~/pastel

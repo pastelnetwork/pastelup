@@ -74,7 +74,7 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 
 	// Copy pastelup to remote
 	if err := copyPastelUpToRemote(ctx, client, r.opts.remotePastelUp); err != nil {
-		return fmt.Errorf("failure in copying pastelup to remote %s", err)
+		return fmt.Errorf("failed to copy pastelup to remote %s", err)
 	}
 
 	return nil

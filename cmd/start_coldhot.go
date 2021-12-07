@@ -33,9 +33,9 @@ type ColdHotRunnerOpts struct {
 	testnetOption string
 
 	// remote paths
-	remotePastelUtility string
-	remotePasteld       string
-	remotePastelCli     string
+	remotePastelUp  string
+	remotePasteld   string
+	remotePastelCli string
 }
 
 // ColdHotRunner starts sn in coldhot mode
@@ -62,7 +62,7 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 	}
 	r.sshClient = client
 
-	// ***************** get external ip addr ***************
+	// Get external IP
 	if flagNodeExtIP == "" {
 		out, err := client.Cmd(fmt.Sprintf("curl %s", "http://ipinfo.io/ip")).Output()
 		if err != nil {
@@ -72,14 +72,15 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 		flagNodeExtIP = string(out)
 	}
 
+	// Copy pastelup to remote
+	if err := copyPastelUpToRemote(ctx, client, r.opts.remotePastelUp); err != nil {
+		return fmt.Errorf("failed to copy pastelup to remote %s", err)
+	}
+
 	return nil
 }
 
 func (r *ColdHotRunner) handleArgs() (err error) {
-	if len(r.config.RemotePastelUtilityDir) == 0 {
-		return fmt.Errorf("cannot find remote pastel-utility dir")
-	}
-
 	if len(r.config.RemotePastelExecDir) == 0 {
 		r.config.RemotePastelExecDir = r.config.Configurer.DefaultPastelExecutableDir()
 	}
@@ -90,8 +91,7 @@ func (r *ColdHotRunner) handleArgs() (err error) {
 	r.opts.remotePasteld = filepath.Join(r.config.RemotePastelExecDir, constants.PasteldName[utils.GetOS()])
 	r.opts.remotePasteld = strings.ReplaceAll(r.opts.remotePasteld, "\\", "/")
 
-	r.opts.remotePastelUtility = filepath.Join(r.config.RemotePastelUtilityDir, "pastel-utility")
-	r.opts.remotePastelUtility = strings.ReplaceAll(r.opts.remotePastelUtility, "\\", "/")
+	r.opts.remotePastelUp = constants.RemotePastelupPath
 
 	return nil
 }
@@ -143,7 +143,15 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	// ***************  2. If flag --create or --update is provided ***************
+	// Run pasteld at remote side and wait for it to be synced
+	log.WithContext(ctx).Infof("Starting pasteld at remote node and wait for it to be synced")
+	if err = r.runRemoteNode(ctx, numOfSyncedBlocks); err != nil {
+		log.WithContext(ctx).WithError(err).Error("failed on runRemoteNode")
+		return err
+	}
+	log.WithContext(ctx).Infof("Remote::pasteld is fully synced")
+
+	// Prepare the remote node for coldhot mode
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
 		log.WithContext(ctx).Info("Prepare mastenode parameters")
 		if err := r.handleCreateUpdateStartColdHot(ctx); err != nil {
@@ -159,15 +167,7 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		}
 	}
 
-	// ***************  3. Execute following commands over SSH on the remote node (using ssh-ip and ssh-port)  ***************
-
-	// Run pasteld at remote side and wait for it to be synced
-	log.WithContext(ctx).Infof("Starting pasteld at remote node and wait for it to be synced")
-	if err = r.runRemoteNode(ctx, numOfSyncedBlocks); err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed on runRemoteNode")
-		return err
-	}
-	log.WithContext(ctx).Infof("Remote::pasteld is fully synced")
+	// Start remote node as masternode
 
 	//Get conf data from masternode.conf File
 	privkey, _, _, err := getMasternodeConfData(ctx, r.config, flagMasterNodeName)
@@ -182,17 +182,19 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	}
 	log.WithContext(ctx).Info("remote node started as masternode successfully..")
 
-	// Restart pasteld at local node (cold node)
-	log.WithContext(ctx).Infof("Stopping pasteld at local node")
-	if err = StopPastelDAndWait(ctx, r.config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed to stop pasteld")
-		return err
-	}
+	// Restart local cold node pasteld
+	if (flagMasterNodeIsCreate || flagMasterNodeIsUpdate) && (isPasteldAlreadyRunning || flagMasterNodeIsActivate) {
+		log.WithContext(ctx).Infof("Stopping pasteld at local node")
+		if err = StopPastelDAndWait(ctx, r.config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("failed to stop pasteld")
+			return err
+		}
 
-	log.WithContext(ctx).Infof("Starting pasteld at local node")
-	if err = runPastelNode(ctx, r.config, true, "", ""); err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed to start pasteld")
-		return err
+		log.WithContext(ctx).Infof("Starting pasteld at local node")
+		if err = runPastelNode(ctx, r.config, true, "", ""); err != nil {
+			log.WithContext(ctx).WithError(err).Error("failed to start pasteld")
+			return err
+		}
 	}
 
 	// ***************  4. If --activate are provided, ***************
@@ -352,7 +354,7 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context) erro
 func (r *ColdHotRunner) runServiceRemote(ctx context.Context, service string) (err error) {
 	log.WithContext(ctx).WithField("service", service).Info("starting service on remote")
 
-	cmd := fmt.Sprintf("%s %s %s", r.opts.remotePastelUtility, "start", service)
+	cmd := fmt.Sprintf("%s %s %s", r.opts.remotePastelUp, "start", service)
 	if r.config.RemoteWorkingDir != "" {
 		cmd = fmt.Sprintf("%s --work-dir=%s", cmd, r.config.RemoteWorkingDir)
 	}

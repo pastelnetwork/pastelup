@@ -131,10 +131,8 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-key", &sshKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
-		cli.NewFlag("ssh-dir", &config.RemotePastelUtilityDir).SetAliases("rpud").
-			SetUsage(yellow("Required, Location where to copy pastel-utility on the remote computer")).SetRequired(),
 		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
-			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel-utility)")),
+			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel)")),
 		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
 			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel")).SetValue("$HOME/.pastel"),
 	}
@@ -895,15 +893,6 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 		yes, _ := AskUserToContinue(ctx, "Search existing masternode collateral ready transaction in the wallet? Y/N")
 
 		if yes {
-			yes, _ = AskUserToContinue(ctx, "Do you want to wait for local node to fully sync before searching? Y/N")
-			if yes {
-				log.WithContext(ctx).Info("Waiting for local node to fully sync before searching for collateral")
-				if _, err = CheckMasterNodeSync(ctx, config); err != nil {
-					log.WithContext(ctx).WithError(err).Error("Failed to wait for local node to fully sync")
-					return err
-				}
-			}
-
 			var mnOutputs map[string]string
 			mnOutputs, err = getMasternodeOutputs(ctx, config)
 			if err != nil {

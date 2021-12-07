@@ -33,12 +33,6 @@ const (
 	// DupeDetectionImageFingerPrintDataBase - dupe_detection_image_fingerprint_database file
 	DupeDetectionImageFingerPrintDataBase string = "dupe_detection_image_fingerprint_database.sqlite"
 
-	// PastelUtilityDownloadURL - The path of pastel-utility for install supernode remote
-	PastelUtilityDownloadURL string = "https://github.com/pastelnetwork/pastel-utility/releases/download/v0.5.8/pastel-utility-linux-amd64"
-
-	// RequirementDownloadURL - The path of requirement.txt for install pip
-	RequirementDownloadURL string = "https://download.pastel.network/machine-learning/requirements.txt"
-
 	// Windows type
 	Windows OSType = "Windows"
 	// Linux type
@@ -114,6 +108,9 @@ const (
 
 	// TempDir defines temporary directory
 	TempDir = "tmp"
+
+	// RemotePastelupPath - Remote pastelup path
+	RemotePastelupPath = "/tmp/pastelup"
 )
 
 // ServiceName defines services name
@@ -154,6 +151,13 @@ var SuperNodeExecName = map[OSType]string{
 	Linux:   "supernode-ubuntu20.04-amd64",
 	Mac:     "",
 	Unknown: "",
+}
+
+// PastelUpExecName - The name of the pastelup
+var PastelUpExecName = map[OSType]string{
+	Windows: "pastel-utility-windows-amd64.exe",
+	Linux:   "pastel-utility-ubuntu20.04-amd64",
+	Mac:     "pastel-utility-darwin-amd64",
 }
 
 // PastelExecArchiveName - The name of the pastel executable files

@@ -106,6 +106,12 @@ const (
 	// DDServerDefaultPort defines dd-server port
 	DDServerDefaultPort = 50052
 
+	// StorageChallengeExpiredDuration defines expired duration storage challenge process
+	StorageChallengeExpiredDuration = "3m"
+
+	// NumberOfChallengeReplicas defines number of storage challenge replicas
+	NumberOfChallengeReplicas = 1
+
 	// TempDir defines temporary directory
 	TempDir = "tmp"
 

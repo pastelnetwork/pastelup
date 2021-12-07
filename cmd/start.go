@@ -38,19 +38,20 @@ var (
 	// masternode flags
 	flagMasterNodeIsActivate bool
 
-	flagMasterNodeName       string
-	flagMasterNodeIsCreate   bool
-	flagMasterNodeIsUpdate   bool
-	flagMasterNodeTxID       string
-	flagMasterNodeInd        string
-	flagMasterNodePort       int
-	flagMasterNodePrivateKey string
-	flagMasterNodePastelID   string
-	flagMasterNodePassPhrase string
-	flagMasterNodeRPCIP      string
-	flagMasterNodeRPCPort    int
-	flagMasterNodeP2PIP      string
-	flagMasterNodeP2PPort    int
+	flagMasterNodeName         string
+	flagMasterNodeIsCreate     bool
+	flagMasterNodeIsUpdate     bool
+	flagMasterNodeTxID         string
+	flagMasterNodeInd          string
+	flagMasterNodePort         int
+	flagMasterNodePrivateKey   string
+	flagMasterNodePastelID     string
+	flagMasterNodePassPhrase   string
+	flagMasterNodeRPCIP        string
+	flagMasterNodeRPCPort      int
+	flagMasterNodeP2PIP        string
+	flagMasterNodeP2PPort      int
+	flagMasternodeMetaDBLeader bool
 )
 
 type startCommand uint8
@@ -118,6 +119,8 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Kademlia IP address, if omitted, value passed to --ip will be used")),
 		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort).
 			SetUsage(green("Optional, Kademlia port, default - 4445 (14445 for Testnet)")),
+		cli.NewFlag("leader", &flagMasternodeMetaDBLeader).
+			SetUsage(green("Optionals, MetaDB leader, if omitted, default - false")),
 	}
 
 	superNodeColdHotFlags := []*cli.Flag{
@@ -1315,20 +1318,23 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			LogLevel:      constants.SuperNodeDefaultLogLevel,
-			LogFilePath:   config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
-			SNTempDir:     snTempDirPath,
-			SNWorkDir:     config.WorkingDir,
-			RQDir:         rqWorkDirPath,
-			DDDir:         filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
-			SuperNodePort: portList[constants.SNPort],
-			P2PPort:       portList[constants.P2PPort],
-			P2PDataDir:    p2pDataPath,
-			MDLPort:       portList[constants.MDLPort],
-			RAFTPort:      portList[constants.RAFTPort],
-			MDLDataDir:    mdlDataPath,
-			RaptorqPort:   constants.RRServiceDefaultPort,
-			DDServerPort:  constants.DDServerDefaultPort,
+			LogLevel:                        constants.SuperNodeDefaultLogLevel,
+			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
+			SNTempDir:                       snTempDirPath,
+			SNWorkDir:                       config.WorkingDir,
+			RQDir:                           rqWorkDirPath,
+			DDDir:                           filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
+			SuperNodePort:                   portList[constants.SNPort],
+			P2PPort:                         portList[constants.P2PPort],
+			P2PDataDir:                      p2pDataPath,
+			MDLPort:                         portList[constants.MDLPort],
+			RAFTPort:                        portList[constants.RAFTPort],
+			MDLDataDir:                      mdlDataPath,
+			RaptorqPort:                     constants.RRServiceDefaultPort,
+			DDServerPort:                    constants.DDServerDefaultPort,
+			NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
+			StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
+			IsLeader:                        flagMasternodeMetaDBLeader,
 		})
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
@@ -1357,6 +1363,13 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 
 		node["pastel_id"] = flagMasterNodePastelID
 		node["pass_phrase"] = flagMasterNodePassPhrase
+
+		metadb := snConf["metadb"].(map[interface{}]interface{})
+		if flagMasternodeMetaDBLeader {
+			metadb["is_leader"] = true
+		} else {
+			metadb["is_leader"] = false
+		}
 
 		var snConfFileUpdated []byte
 		if snConfFileUpdated, err = yaml.Marshal(&snConf); err != nil {

@@ -44,6 +44,8 @@ node:
   server:
     listen_addresses: "0.0.0.0"
     port: {{.SuperNodePort}}
+  storage_challenge_expired_duration: {{.StorageChallengeExpiredDuration}}
+  number_of_challenge_replicas: {{.NumberOfChallengeReplicas}}
 
 p2p:
   listen_address: "0.0.0.0"
@@ -51,7 +53,7 @@ p2p:
   data_dir: {{.P2PDataDir}}
 
 metadb:
-  # is_leader: false
+  is_leader: {{.IsLeader}}
   # none_voter: true
   listen_address: "0.0.0.0"
   http_port: {{.MDLPort}}
@@ -117,22 +119,25 @@ type WalletNodeConfig struct {
 
 // SuperNodeConfig defines configurations for supernode
 type SuperNodeConfig struct {
-	LogLevel      string
-	LogFilePath   string
-	SNTempDir     string
-	SNWorkDir     string
-	RQDir         string
-	DDDir         string
-	PasteID       string
-	Passphrase    string
-	SuperNodePort int
-	P2PPort       int
-	P2PDataDir    string
-	MDLPort       int
-	RAFTPort      int
-	MDLDataDir    string
-	RaptorqPort   int
-	DDServerPort  int
+	LogLevel                        string
+	LogFilePath                     string
+	SNTempDir                       string
+	SNWorkDir                       string
+	RQDir                           string
+	DDDir                           string
+	PasteID                         string
+	Passphrase                      string
+	SuperNodePort                   int
+	P2PPort                         int
+	P2PDataDir                      string
+	MDLPort                         int
+	RAFTPort                        int
+	MDLDataDir                      string
+	RaptorqPort                     int
+	DDServerPort                    int
+	NumberOfChallengeReplicas       int
+	StorageChallengeExpiredDuration string
+	IsLeader                        bool
 }
 
 // RQServiceConfig defines configurations for rqservice

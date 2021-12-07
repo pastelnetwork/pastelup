@@ -53,7 +53,7 @@ p2p:
   data_dir: {{.P2PDataDir}}
 
 metadb:
-  # is_leader: false
+  is_leader: {{.IsLeader}}
   # none_voter: true
   listen_address: "0.0.0.0"
   http_port: {{.MDLPort}}

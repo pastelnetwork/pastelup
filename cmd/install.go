@@ -194,7 +194,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
-		log.WithContext(ctx).Infof("failed to prepare remote session: %v", err)
+		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
 		return
 	}
 	defer client.Close()

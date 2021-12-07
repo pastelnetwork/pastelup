@@ -390,7 +390,7 @@ func runSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) e
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
-		log.WithContext(ctx).Infof("failed to prepare remote session: %v", err)
+		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
 		return fmt.Errorf("failed to prepare remote session: %v", err)
 	}
 	defer client.Close()

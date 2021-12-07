@@ -51,6 +51,7 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 
 	client, err := prepareRemoteSession(ctx, r.config)
 	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
 		return fmt.Errorf("prepare remote session: %s", err)
 	}
 

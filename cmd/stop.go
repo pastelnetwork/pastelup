@@ -181,7 +181,7 @@ func runStopSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Confi
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
-		log.WithContext(ctx).Infof("failed to prepare remote session: %v", err)
+		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
 		return
 	}
 	defer client.Close()
@@ -201,7 +201,7 @@ func runStopSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Confi
 
 	stopSuperNodeCmd := fmt.Sprintf("%s stop supernode %s", constants.RemotePastelupPath, stopOptions)
 	if err := client.ShellCmd(ctx, stopSuperNodeCmd); err != nil {
-		log.WithContext(ctx).Errorf("Failed to execute stop supernode on remote host - %v", err)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to execute stop supernode on remote host")
 		return
 	}
 

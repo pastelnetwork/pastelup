@@ -24,12 +24,6 @@ import (
 
 // ColdHotRunnerOpts defines opts for ColdHotRunner
 type ColdHotRunnerOpts struct {
-	// ssh params
-	sshUser string
-	sshIP   string
-	sshPort int
-	sshKey  string
-
 	testnetOption string
 
 	// remote paths
@@ -55,11 +49,11 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 		return fmt.Errorf("parse args: %s", err)
 	}
 
-	client, err := connectSSH(ctx, r.opts.sshUser, r.opts.sshIP, r.opts.sshPort, r.opts.sshKey)
+	client, err := prepareRemoteSession(ctx, r.config)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to connect with remote via SSH")
-		return fmt.Errorf("ssh connection failure: %s", err)
+		return fmt.Errorf("prepare remote session: %s", err)
 	}
+
 	r.sshClient = client
 
 	// Get external IP
@@ -70,11 +64,6 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 		}
 
 		flagNodeExtIP = string(out)
-	}
-
-	// Copy pastelup to remote
-	if err := copyPastelUpToRemote(ctx, client, r.opts.remotePastelUp); err != nil {
-		return fmt.Errorf("failed to copy pastelup to remote %s", err)
 	}
 
 	return nil
@@ -122,6 +111,8 @@ func (r *ColdHotRunner) handleConfigs(ctx context.Context) error {
 func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	isPasteldAlreadyRunning := false
 	var numOfSyncedBlocks int
+
+	defer r.sshClient.Close()
 
 	// ***************  1. Start the local Pastel Network Node ***************
 	// Check if pasteld is already running

@@ -51,9 +51,6 @@ var (
 	flagMasterNodeRPCPort    int
 	flagMasterNodeP2PIP      string
 	flagMasterNodeP2PPort    int
-
-	flagMasterNodeSSHIP   string
-	flagMasterNodeSSHPort int
 )
 
 type startCommand uint8
@@ -62,6 +59,7 @@ const (
 	nodeStart startCommand = iota
 	walletStart
 	superNodeStart
+	superNodeRemoteStart
 	superNodeColdHotStart
 	rqService
 	ddService
@@ -123,18 +121,29 @@ func setupStartSubCommand(config *configs.Config,
 	}
 
 	superNodeColdHotFlags := []*cli.Flag{
-		cli.NewFlag("ssh-ip", &flagMasterNodeSSHIP).
+		cli.NewFlag("ssh-ip", &config.RemoteIP).
 			SetUsage(red("Required (only if --remote specified), remote supernode specific, SSH address of the remote HOT node")),
-		cli.NewFlag("ssh-port", &flagMasterNodeSSHPort).
+		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(green("Optional, remote supernode specific, SSH port of the remote HOT node")).SetValue(22),
-		cli.NewFlag("ssh-user", &sshUser).
+		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, SSH user")),
-		cli.NewFlag("ssh-key", &sshKey).
+		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
 			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel)")),
 		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
 			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel")).SetValue("$HOME/.pastel"),
+	}
+
+	superNodeRemoteFlags := []*cli.Flag{
+		cli.NewFlag("ssh-ip", &config.RemoteIP).
+			SetUsage(red("Required (only if --remote specified), remote supernode specific, SSH address of the remote HOT node")),
+		cli.NewFlag("ssh-port", &config.RemotePort).
+			SetUsage(green("Optional, remote supernode specific, SSH port of the remote HOT node")).SetValue(22),
+		cli.NewFlag("ssh-user", &config.RemoteUser).
+			SetUsage(yellow("Optional, SSH user")),
+		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
+			SetUsage(yellow("Optional, Path to SSH private key")),
 	}
 
 	masternodeFlags := []*cli.Flag{
@@ -158,6 +167,11 @@ func setupStartSubCommand(config *configs.Config,
 		commandFlags = append(superNodeFlags, commonFlags[:]...)
 		commandName = string(constants.SuperNode)
 		commandMessage = "Start supernode"
+	case superNodeRemoteStart:
+		superNodeFlags = append(superNodeFlags, superNodeRemoteFlags...)
+		commandFlags = append(superNodeFlags, commonFlags[:]...)
+		commandName = "remote"
+		commandMessage = "Start remote supernode"
 	case superNodeColdHotStart:
 		commandFlags = append(append(superNodeFlags, commonFlags[:]...), superNodeColdHotFlags[:]...)
 		commandName = string(constants.SuperNode) + "-coldhot"
@@ -233,7 +247,9 @@ func setupStartCommand() *cli.Command {
 
 	startNodeSubCommand := setupStartSubCommand(config, nodeStart, runStartNodeSubCommand)
 	startWalletSubCommand := setupStartSubCommand(config, walletStart, runStartWalletSubCommand)
+	startSuperNodeRemoteSubCommand := setupStartSubCommand(config, superNodeRemoteStart, runSuperNodeRemoteSubCommand)
 	startSuperNodeSubCommand := setupStartSubCommand(config, superNodeStart, runLocalSuperNodeSubCommand)
+	startSuperNodeSubCommand.AddSubcommands(startSuperNodeRemoteSubCommand)
 	startSuperNodeCOldHotSubCommand := setupStartSubCommand(config, superNodeColdHotStart, runSuperNodeColdHotSubCommand)
 
 	startRQServiceCommand := setupStartSubCommand(config, rqService, runRQService)
@@ -363,6 +379,82 @@ func runLocalSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 	// *************  7. Start supernode  **************
 	if err := runSuperNodeService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to start supernode service")
+		return err
+	}
+
+	return nil
+}
+
+func runSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) error {
+
+	// Connect to remote
+	client, err := prepareRemoteSession(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Infof("failed to prepare remote session: %v", err)
+		return fmt.Errorf("failed to prepare remote session: %v", err)
+	}
+	defer client.Close()
+
+	// Start remote node
+	startOptions := ""
+
+	if len(flagMasterNodeName) > 0 {
+		startOptions = fmt.Sprintf("--name=%s", flagMasterNodeName)
+	}
+
+	if flagMasterNodeIsActivate {
+		startOptions = fmt.Sprintf("%s --activate", startOptions)
+	}
+
+	if len(flagMasterNodePrivateKey) > 0 {
+		startOptions = fmt.Sprintf("%s --pkey=%s", startOptions, flagMasterNodePrivateKey)
+	}
+
+	if flagMasterNodeIsUpdate {
+		startOptions = fmt.Sprintf("%s --update", startOptions)
+	}
+
+	if len(flagMasterNodeTxID) > 0 {
+		startOptions = fmt.Sprintf("%s --txid=%s", startOptions, flagMasterNodeTxID)
+	}
+
+	if len(flagMasterNodeInd) > 0 {
+		startOptions = fmt.Sprintf("%s --ind=%s", startOptions, flagMasterNodeInd)
+	}
+
+	if len(flagMasterNodePastelID) > 0 {
+		startOptions = fmt.Sprintf("%s --pastelid=%s", startOptions, flagMasterNodePastelID)
+	}
+
+	if len(flagMasterNodePassPhrase) > 0 {
+		startOptions = fmt.Sprintf("%s --passphrase=%s", startOptions, flagMasterNodePassPhrase)
+	}
+
+	if flagMasterNodePort > 0 {
+		startOptions = fmt.Sprintf("%s --port=%d", startOptions, flagMasterNodePort)
+	}
+
+	if len(flagMasterNodeRPCIP) > 0 {
+		startOptions = fmt.Sprintf("%s --rpc-ip=%s", startOptions, flagMasterNodeRPCIP)
+	}
+
+	if flagMasterNodeRPCPort > 0 {
+		startOptions = fmt.Sprintf("%s --rpc-port=%d", startOptions, flagMasterNodeRPCPort)
+	}
+
+	if len(flagMasterNodeP2PIP) > 0 {
+		startOptions = fmt.Sprintf("%s --p2p-ip=%s", startOptions, flagMasterNodeP2PIP)
+	}
+
+	if flagMasterNodeP2PPort > 0 {
+		startOptions = fmt.Sprintf("%s --p2p-port=%d", startOptions, flagMasterNodeP2PPort)
+	}
+
+	startSuperNodeCmd := fmt.Sprintf("%s start supernode %s", constants.RemotePastelupPath, startOptions)
+
+	err = client.ShellCmd(ctx, startSuperNodeCmd)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to start Supernode services")
 		return err
 	}
 
@@ -648,7 +740,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 	}
 
 	if coldHot {
-		if len(flagMasterNodeSSHIP) == 0 {
+		if len(config.RemoteIP) == 0 {
 			err := fmt.Errorf("required if --coldhot is specified, –-ssh-ip, SSH address of the remote HOT node")
 			log.WithContext(ctx).WithError(err).Error("Missing parameter --ssh-ip")
 			return err
@@ -793,12 +885,7 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 func runSuperNodeColdHotSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	runner := &ColdHotRunner{
 		config: config,
-		opts: &ColdHotRunnerOpts{
-			sshUser: sshUser,
-			sshIP:   flagMasterNodeSSHIP,
-			sshPort: flagMasterNodeSSHPort,
-			sshKey:  sshKey,
-		},
+		opts:   &ColdHotRunnerOpts{},
 	}
 
 	log.WithContext(ctx).Info("run supernode coldhot init")
@@ -1287,30 +1374,3 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 	log.WithContext(ctx).Info("Supernode config updated")
 	return nil
 }
-
-/*func getRemoteInfo(config *configs.Config, client *utils.Client) (remoteWorkDirPath []byte, remotePastelExecPath []byte, remoteOsType []byte, err error) {
-
-	remotePastelUtilityExec := filepath.Join(config.RemotePastelUtilityDir, "pastel-utility")
-	remotePastelUtilityExec = strings.ReplaceAll(remotePastelUtilityExec, "\\", "/")
-
-	remoteWorkDirPath, err = client.Cmd(fmt.Sprintf("%s info --work-dir", remotePastelUtilityExec)).Output()
-	if err != nil {
-		return nil, nil, nil, err
-
-	}
-
-	remotePastelExecPath, err = client.Cmd(fmt.Sprintf("%s info --exec-dir", remotePastelUtilityExec)).Output()
-	if err != nil {
-		return nil, nil, nil, err
-
-	}
-
-	remoteOsType, err = client.Cmd(fmt.Sprintf("%s info --os-version", remotePastelUtilityExec)).Output()
-	if err != nil {
-		return nil, nil, nil, err
-
-	}
-
-	return remoteWorkDirPath, remotePastelExecPath, remoteOsType, nil
-}
-*/

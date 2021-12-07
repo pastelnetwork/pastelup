@@ -11,7 +11,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 type stopCommand uint8
@@ -41,14 +40,6 @@ var (
 		wnServiceStop:       "walletnode-service",
 		snServiceStop:       "supernode-service",
 	}
-
-	// Stop flags
-	stopConfigFlags struct {
-		RemoteIP   string
-		RemotePort int
-		RemoteUser string
-		SSHKey     string
-	}
 )
 
 func setupStopSubCommand(config *configs.Config,
@@ -65,13 +56,13 @@ func setupStopSubCommand(config *configs.Config,
 
 	if stopCommand == superNodeRemoteStop {
 		remoteFlags := []*cli.Flag{
-			cli.NewFlag("ssh-ip", &stopConfigFlags.RemoteIP).
+			cli.NewFlag("ssh-ip", &config.RemoteIP).
 				SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
-			cli.NewFlag("ssh-port", &stopConfigFlags.RemotePort).
+			cli.NewFlag("ssh-port", &config.RemotePort).
 				SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
-			cli.NewFlag("ssh-user", &stopConfigFlags.RemoteUser).
+			cli.NewFlag("ssh-user", &config.RemoteUser).
 				SetUsage(yellow("Optional, Username of user at remote host")),
-			cli.NewFlag("ssh-key", &stopConfigFlags.SSHKey).
+			cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 				SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
 		}
 
@@ -80,6 +71,10 @@ func setupStopSubCommand(config *configs.Config,
 
 	commandName := stopCmdName[stopCommand]
 	commandMessage := "Stop " + commandName
+
+	if stopCommand >= allStop {
+		commandMessage += " only"
+	}
 
 	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))
@@ -182,41 +177,14 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 }
 
 func runStopSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) {
-	var err error
-
-	// Validate config
-	if len(stopConfigFlags.RemoteIP) == 0 {
-		log.WithContext(ctx).Fatal("Remote IP is required")
-		return
-	}
 
 	// Connect to remote
-	var client *utils.Client
-	log.WithContext(ctx).Infof("Connecting to remote host -> %s:%d...", stopConfigFlags.RemoteIP, stopConfigFlags.RemotePort)
-
-	if len(stopConfigFlags.SSHKey) == 0 {
-		username, password, _ := utils.Credentials(stopConfigFlags.RemoteUser, true)
-		client, err = utils.DialWithPasswd(fmt.Sprintf("%s:%d", stopConfigFlags.RemoteIP, stopConfigFlags.RemotePort), username, password)
-	} else {
-		username, _, _ := utils.Credentials(stopConfigFlags.RemoteUser, false)
-		client, err = utils.DialWithKey(fmt.Sprintf("%s:%d", stopConfigFlags.RemoteIP, stopConfigFlags.RemotePort), username, stopConfigFlags.SSHKey)
-	}
+	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
+		log.WithContext(ctx).Infof("failed to prepare remote session: %v", err)
 		return
 	}
-
 	defer client.Close()
-	log.WithContext(ctx).Info("Connected successfully")
-
-	// Transfer pastelup to remote
-	log.WithContext(ctx).Info("Uploading pastelup to remote host...")
-	remotePastelUpPath := constants.RemotePastelupPath
-
-	if err := copyPastelUpToRemote(ctx, client, remotePastelUpPath); err != nil {
-		log.WithContext(ctx).Errorf("Failed to copy pastelup to remote at %s - %v", remotePastelUpPath, err)
-		return
-	}
-	log.WithContext(ctx).Info("Successfully copied pastelup executable to remote host")
 
 	// Execute stop remote supernode
 	log.WithContext(ctx).Info("Executing stop remote supernode...")
@@ -231,7 +199,7 @@ func runStopSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Confi
 		stopOptions = fmt.Sprintf("%s --work-dir %s", stopOptions, config.WorkingDir)
 	}
 
-	stopSuperNodeCmd := fmt.Sprintf("%s stop supernode %s", remotePastelUpPath, stopOptions)
+	stopSuperNodeCmd := fmt.Sprintf("%s stop supernode %s", constants.RemotePastelupPath, stopOptions)
 	if err := client.ShellCmd(ctx, stopSuperNodeCmd); err != nil {
 		log.WithContext(ctx).Errorf("Failed to execute stop supernode on remote host - %v", err)
 		return

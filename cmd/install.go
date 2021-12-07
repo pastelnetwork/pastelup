@@ -20,14 +20,6 @@ import (
 	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
-var (
-	sshIP   string
-	sshPort int
-	sshKey  string
-	sshUser string
-	sshPw   string
-)
-
 type installCommand uint8
 
 const (
@@ -84,15 +76,15 @@ func setupSubCommand(config *configs.Config,
 	}
 
 	remoteFlags := []*cli.Flag{
-		cli.NewFlag("ssh-ip", &sshIP).
+		cli.NewFlag("ssh-ip", &config.RemoteIP).
 			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
-		cli.NewFlag("ssh-port", &sshPort).
+		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
-		cli.NewFlag("ssh-user", &sshUser).
+		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, SSH user")),
-		cli.NewFlag("ssh-user-pw", &sshPw).
+		cli.NewFlag("ssh-user-pw", &config.UserPw).
 			SetUsage(red("Required, password of remote user - so no sudo request is promoted")).SetRequired(),
-		cli.NewFlag("ssh-key", &sshKey).
+		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 	}
 
@@ -199,37 +191,13 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 }
 
 func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	if len(sshIP) == 0 {
-		return fmt.Errorf("--ssh-ip IP address - Required, SSH address of the remote host")
-	}
-
-	var client *utils.Client
-	log.WithContext(ctx).Infof("Connecting to remote host -> %s:%d...", sshIP, sshPort)
-	if len(sshKey) == 0 {
-		username, password, _ := utils.Credentials(sshUser, true)
-		client, err = utils.DialWithPasswd(fmt.Sprintf("%s:%d", sshIP, sshPort), username, password)
-	} else {
-		username, _, _ := utils.Credentials(sshUser, false)
-		client, err = utils.DialWithKey(fmt.Sprintf("%s:%d", sshIP, sshPort), username, sshKey)
-	}
+	// Connect to remote
+	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
-		return err
+		log.WithContext(ctx).Infof("failed to prepare remote session: %v", err)
+		return
 	}
-
 	defer client.Close()
-
-	log.WithContext(ctx).Info("Connected successfully")
-
-	// Transfer pastelup to remote
-	log.WithContext(ctx).Info("Uploading pastelup to remote host...")
-	remotePastelUpPath := constants.RemotePastelupPath
-
-	if err := copyPastelUpToRemote(ctx, client, remotePastelUpPath); err != nil {
-		log.WithContext(ctx).Errorf("Failed to copy pastelup to remote at %s - %v", remotePastelUpPath, err)
-		return err
-	}
-
-	log.WithContext(ctx).Info("Successfully copied pastelup executable to remote host")
 
 	// Validate running services
 	checkIfRunningCommand := "ps afx | grep -E 'pasteld|rq-service|dd-service|supernode' | grep -v grep"
@@ -243,7 +211,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		}
 
 		log.WithContext(ctx).Info("Stopping supernode services...")
-		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", remotePastelUpPath)
+		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", constants.RemotePastelupPath)
 		err = client.ShellCmd(ctx, stopSuperNodeCmd)
 		if err != nil {
 			if config.Force {
@@ -258,7 +226,6 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	}
 
 	log.WithContext(ctx).Info("Installing Supernode ...")
-	log.WithContext(ctx).Infof("pastel-utility path: %s", remotePastelUpPath)
 
 	remoteOptions := ""
 	if len(config.RemotePastelExecDir) > 0 {
@@ -289,11 +256,11 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 		remoteOptions = fmt.Sprintf("%s --enable-service", remoteOptions)
 	}
 
-	if len(sshPw) > 0 {
-		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, sshPw)
+	if len(config.UserPw) > 0 {
+		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, config.UserPw)
 	}
 
-	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install supernode%s", remotePastelUpPath, remoteOptions)
+	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install supernode%s", constants.RemotePastelupPath, remoteOptions)
 	err = client.ShellCmd(ctx, installSuperNodeCmd)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to Installing Supernode")

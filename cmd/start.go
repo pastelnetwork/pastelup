@@ -1363,6 +1363,8 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 
 		node["pastel_id"] = flagMasterNodePastelID
 		node["pass_phrase"] = flagMasterNodePassPhrase
+		node["storage_challenge_expired_duration"] = constants.StorageChallengeExpiredDuration
+		node["number_of_challenge_replicas"] = constants.NumberOfChallengeReplicas
 
 		metadb := snConf["metadb"].(map[interface{}]interface{})
 		if flagMasternodeMetaDBLeader {

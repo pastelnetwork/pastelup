@@ -12,7 +12,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 type updateCommand uint8
@@ -30,17 +29,6 @@ var (
 		updateWalletNode:      "walletnode",
 		updateSuperNode:       "supernode",
 		updateSuperNodeRemote: "remote",
-	}
-
-	// updateConfigFlags struct to hold all the flags settings
-	updateConfigFlags struct {
-		MasterNodeName   string
-		RemoteIP         string
-		RemotePort       int
-		RemoteUser       string
-		SSHKey           string
-		BinUtilityPath   string
-		BinComponentPath string
 	}
 )
 
@@ -74,23 +62,21 @@ func setupUpdateSubCommand(config *configs.Config,
 
 	if updateCmd == updateSuperNodeRemote || updateCmd == updateSuperNode || updateCmd == updateWalletNode {
 		commonFlags = append(commonFlags,
-			cli.NewFlag("name", &updateConfigFlags.MasterNodeName).
+			cli.NewFlag("name", &flagMasterNodeName).
 				SetUsage(red("Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)")).SetRequired(),
 		)
 	}
 
 	remoteFlags := []*cli.Flag{
-		cli.NewFlag("ssh-ip", &updateConfigFlags.RemoteIP).
+		cli.NewFlag("ssh-ip", &config.RemoteIP).
 			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
-		cli.NewFlag("ssh-port", &updateConfigFlags.RemotePort).
+		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
-		cli.NewFlag("ssh-user", &updateConfigFlags.RemoteUser).
+		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, Username of user at remote host")),
-		cli.NewFlag("ssh-key", &updateConfigFlags.SSHKey).
+		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
-		cli.NewFlag("utility-path", &updateConfigFlags.BinUtilityPath).SetRequired().
-			SetUsage(red("Required, local path of pastel-utility file ")),
-		cli.NewFlag("bin", &updateConfigFlags.BinComponentPath).SetRequired().
+		cli.NewFlag("bin", &config.BinComponentPath).SetRequired().
 			SetUsage(red("Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file  or a folder of binary to remote host")),
 	}
 
@@ -155,49 +141,16 @@ func setupUpdateCommand() *cli.Command {
 
 func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) (err error) {
 
-	// Validate config
-	if len(updateConfigFlags.RemoteIP) == 0 {
-		return fmt.Errorf("--ssh-ip IP address - Required, SSH address of the remote host")
-	}
-
 	// Connect to remote
-	var client *utils.Client
-	log.WithContext(ctx).Infof("Connecting to remote host -> %s:%d...", updateConfigFlags.RemoteIP, updateConfigFlags.RemotePort)
-
-	if len(updateConfigFlags.SSHKey) == 0 {
-		username, password, _ := utils.Credentials(updateConfigFlags.RemoteUser, true)
-		client, err = utils.DialWithPasswd(fmt.Sprintf("%s:%d", updateConfigFlags.RemoteIP, updateConfigFlags.RemotePort), username, password)
-	} else {
-		username, _, _ := utils.Credentials(updateConfigFlags.RemoteUser, false)
-		client, err = utils.DialWithKey(fmt.Sprintf("%s:%d", updateConfigFlags.RemoteIP, updateConfigFlags.RemotePort), username, updateConfigFlags.SSHKey)
-	}
+	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
-		return err
+		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
+		return
 	}
-
 	defer client.Close()
 
-	log.WithContext(ctx).Info("Connected successfully")
-
-	/* Upload pastel-utility to remote at /tmp */
-	pastelUtilityPath := "/tmp/pastelup"
-
-	BinUtilityPath := config.BinUtilityPath
-	if len(BinUtilityPath) == 0 {
-		BinUtilityPath = os.Args[0]
-	}
-
-	log.WithContext(ctx).Infof("Copying local pastel-utility from  executable to remote host - %s", BinUtilityPath)
-
-	if err := client.Scp(BinUtilityPath, pastelUtilityPath); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
-		return err
-	}
-
-	log.WithContext(ctx).Info("Successfully copied pastel-utility executable to remote host")
-
-	// in case updateConfigFlags.BinComponentPath empty then execute command at remote host to upgrade supernode
-	if len(updateConfigFlags.BinComponentPath) == 0 {
+	// in case config.BinComponentPath empty then execute command at remote host to upgrade supernode
+	if len(config.BinComponentPath) == 0 {
 		log.WithContext(ctx).Info("Upgrading supernode at remote host ...")
 
 		updateOptions := ""
@@ -218,15 +171,15 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 			updateOptions = fmt.Sprintf("--user-pw %s", config.UserPw)
 		}
 
-		if len(updateConfigFlags.MasterNodeName) > 0 {
-			updateOptions = fmt.Sprintf("%s --name %s", updateOptions, updateConfigFlags.MasterNodeName)
+		if len(flagMasterNodeName) > 0 {
+			updateOptions = fmt.Sprintf("%s --name %s", updateOptions, flagMasterNodeName)
 		}
 
 		if len(config.Version) > 0 {
 			updateOptions = fmt.Sprintf("%s --release=%s", updateOptions, config.Version)
 		}
 
-		updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update supernode %s", pastelUtilityPath, updateOptions)
+		updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update supernode %s", constants.RemotePastelupPath, updateOptions)
 		err = client.ShellCmd(ctx, updateSuperNodeCmd)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to update Supernode services")
@@ -247,7 +200,7 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 			remoteOptions = fmt.Sprintf("%s --work-dir %s", remoteOptions, config.WorkingDir)
 		}
 
-		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode %s", pastelUtilityPath, remoteOptions)
+		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode %s", constants.RemotePastelupPath, remoteOptions)
 		err = client.ShellCmd(ctx, stopSuperNodeCmd)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to stop Supernode services")
@@ -257,29 +210,46 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 		log.WithContext(ctx).Info("Successfully stop supernode at remote host")
 
 		/* Copy the binary (pastel-cli, pasteld, pastel-cli, rq-service, supernode) from local folder to remote location to overwrite binary */
-		fileInfo, err := os.Stat(updateConfigFlags.BinComponentPath)
+		fileInfo, err := os.Stat(config.BinComponentPath)
 		if err != nil {
 			return err
 		}
 
 		if fileInfo.IsDir() {
-			log.WithContext(ctx).Infof("Copying all files in %s to remote host %s", updateConfigFlags.BinComponentPath, config.PastelExecDir)
-			files, err := ioutil.ReadDir(updateConfigFlags.BinComponentPath)
+			log.WithContext(ctx).Infof("Copying all files in %s to remote host %s", config.BinComponentPath, config.PastelExecDir)
+			files, err := ioutil.ReadDir(config.BinComponentPath)
 			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to read directory ", updateConfigFlags.BinComponentPath)
+				log.WithContext(ctx).WithError(err).Error("Failed to read directory ", config.BinComponentPath)
 				return err
 			}
 
 			for _, file := range files {
 				log.WithContext(ctx).Infof("Copying %s to remote host %s", file.Name(), config.PastelExecDir)
-				if err := client.Scp(filepath.Join(updateConfigFlags.BinComponentPath, file.Name()), filepath.Join(config.PastelExecDir, file.Name())); err != nil {
+				sourceBin := filepath.Join(config.BinComponentPath, file.Name())
+				destBin := filepath.Join(config.PastelExecDir, file.Name())
+
+				if err := client.Scp(sourceBin, destBin); err != nil {
 					log.WithContext(ctx).WithError(err).Error("Failed to copy file ", file.Name())
+					return err
+				}
+
+				// chmod +x for the copied file
+				if err := client.ShellCmd(ctx, destBin); err != nil {
+					log.WithContext(ctx).WithError(err).Error("Failed to chmod +x file ", file.Name())
 					return err
 				}
 			}
 		} else {
-			log.WithContext(ctx).Infof("Copying file %s to %s at remote host", updateConfigFlags.BinComponentPath, config.PastelExecDir)
-			if err := client.Scp(updateConfigFlags.BinComponentPath, filepath.Join(config.PastelExecDir, fileInfo.Name())); err != nil {
+			log.WithContext(ctx).Infof("Copying file %s to %s at remote host", config.BinComponentPath, config.PastelExecDir)
+			destBin := filepath.Join(config.PastelExecDir, fileInfo.Name())
+			if err := client.Scp(config.BinComponentPath, destBin); err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to copy file ", fileInfo.Name())
+				return err
+			}
+
+			// chmod +x copied file
+			if err := client.ShellCmd(ctx, fmt.Sprintf("chmod +x %s", destBin)); err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to chmod +x file ", fileInfo.Name())
 				return err
 			}
 		}
@@ -288,11 +258,11 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 		/* Start service supernode again */
 		log.WithContext(ctx).Info("Starting Supernode service ...")
 
-		if len(updateConfigFlags.MasterNodeName) > 0 {
-			remoteOptions = fmt.Sprintf("--name=%s", updateConfigFlags.MasterNodeName)
+		if len(flagMasterNodeName) > 0 {
+			remoteOptions = fmt.Sprintf("--name=%s", flagMasterNodeName)
 		}
 
-		startSuperNodeCmd := fmt.Sprintf("%s start supernode %s", pastelUtilityPath, remoteOptions)
+		startSuperNodeCmd := fmt.Sprintf("%s start supernode %s", constants.RemotePastelupPath, remoteOptions)
 
 		err = client.ShellCmd(ctx, startSuperNodeCmd)
 		if err != nil {
@@ -305,27 +275,48 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 }
 
 func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	// check if pasteld is running at remote host
+	isPasteldAlreadyRunning := false
 
-	log.WithContext(ctx).Info("Stopping SuperNode service ...")
-	runStopSuperNodeSubCommand(ctx, config)
+	log.WithContext(ctx).Info("Checking if pasteld is running ...")
+	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
+		log.WithContext(ctx).Info("Pasteld service is already running!")
+		isPasteldAlreadyRunning = true
+
+		log.WithContext(ctx).Info("Stopping SuperNode service ...")
+		runStopSuperNodeSubCommand(ctx, config)
+	} else {
+		log.WithContext(ctx).Info("Pasteld service is not running!")
+	}
 
 	log.WithContext(ctx).Info("Updating SuperNode component ...")
-	flagMasterNodeName = updateConfigFlags.MasterNodeName
 	if err = runComponentsInstall(ctx, config, constants.SuperNode); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update supernode component")
 		return err
 	}
 
-	log.WithContext(ctx).Info("Starting SuperNode service ...")
-	runLocalSuperNodeSubCommand(ctx, config)
+	if isPasteldAlreadyRunning {
+		log.WithContext(ctx).Info("Starting SuperNode service ...")
+		runLocalSuperNodeSubCommand(ctx, config)
+	}
 
 	return nil
 }
 
 func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	isPasteldAlreadyRunning := false
 
-	log.WithContext(ctx).Info("Stopping Node service ...")
-	runStopNodeSubCommand(ctx, config)
+	log.WithContext(ctx).Info("Checking if pasteld is running ...")
+
+	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
+		log.WithContext(ctx).Info("Pasteld service is already running!")
+		isPasteldAlreadyRunning = true
+
+		log.WithContext(ctx).Info("Stopping Node service ...")
+		runStopNodeSubCommand(ctx, config)
+	} else {
+		log.WithContext(ctx).Info("Pasteld service is not running!")
+	}
 
 	log.WithContext(ctx).Info("Updating node component ...")
 	if err = runComponentsInstall(ctx, config, constants.PastelD); err != nil {
@@ -333,26 +324,37 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 		return err
 	}
 
-	log.WithContext(ctx).Info("Starting Node service ...")
-	runStartNodeSubCommand(ctx, config)
+	if isPasteldAlreadyRunning {
+		log.WithContext(ctx).Info("Starting Node service ...")
+		runStartNodeSubCommand(ctx, config)
+	}
 
 	return nil
 }
 
 func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	isPasteldAlreadyRunning := false
 
-	log.WithContext(ctx).Info("Stopping Wallet Node service ...")
-	runStopWalletSubCommand(ctx, config)
+	log.WithContext(ctx).Info("Checking if pasteld is running ...")
+	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
+		log.WithContext(ctx).Info("Pasteld service is already running!")
+		isPasteldAlreadyRunning = true
+		log.WithContext(ctx).Info("Stopping Wallet Node service ...")
+		runStopWalletSubCommand(ctx, config)
+	} else {
+		log.WithContext(ctx).Info("Pasteld service is not running!")
+	}
 
 	log.WithContext(ctx).Info("Updating walletnode component ...")
-	flagMasterNodeName = updateConfigFlags.MasterNodeName
 	if err = runComponentsInstall(ctx, config, constants.WalletNode); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update wallet node component")
 		return err
 	}
 
-	log.WithContext(ctx).Info("Starting Wallet Node service ...")
-	runStartWalletSubCommand(ctx, config)
+	if isPasteldAlreadyRunning {
+		log.WithContext(ctx).Info("Starting Wallet Node service ...")
+		runStartWalletSubCommand(ctx, config)
+	}
 
 	return nil
 }

@@ -97,14 +97,15 @@ const (
 	// MDLDataDir defines location for MDL data dir
 	MDLDataDir = "mdldata"
 
-	// SuperNodeDefaultLogCompress defines supernode log compress
-	SuperNodeDefaultLogCompress = true
-	// SuperNodeDefaultMaxSizeMB defines supernode log max size
-	SuperNodeDefaultMaxSizeMB = 100
-	// SuperNodeDefaultMaxAgeDays defines supernode log max age
-	SuperNodeDefaultMaxAgeDays = 3
-	// SuperNodeDefaultMaxBackups defines supernode log max backups
-	SuperNodeDefaultMaxBackups = 10
+	// LogConfigDefaultCompress defines supernode log compress
+	LogConfigDefaultCompress = true
+	// LogConfigDefaultMaxSizeMB defines supernode log max size
+	LogConfigDefaultMaxSizeMB = 100
+	// LogConfigDefaultMaxAgeDays defines supernode log max age
+	LogConfigDefaultMaxAgeDays = 3
+	// LogConfigDefaultMaxBackups defines supernode log max backups
+	LogConfigDefaultMaxBackups = 10
+
 	// SuperNodeDefaultCommonLogLevel defines supernode common log level
 	SuperNodeDefaultCommonLogLevel = "debug"
 	// SuperNodeDefaultP2PLogLevel defines supernode p2p log level

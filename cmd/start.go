@@ -38,7 +38,6 @@ var (
 	// masternode flags
 	flagMasterNodeIsActivate bool
 
-<<<<<<< HEAD
 	flagMasterNodeName        string
 	flagMasterNodeIsCreate    bool
 	flagMasterNodeIsUpdate    bool
@@ -53,22 +52,6 @@ var (
 	flagMasterNodeP2PIP       string
 	flagMasterNodeP2PPort     int
 	flagMasternodeStartSNOnly bool
-=======
-	flagMasterNodeName         string
-	flagMasterNodeIsCreate     bool
-	flagMasterNodeIsUpdate     bool
-	flagMasterNodeTxID         string
-	flagMasterNodeInd          string
-	flagMasterNodePort         int
-	flagMasterNodePrivateKey   string
-	flagMasterNodePastelID     string
-	flagMasterNodePassPhrase   string
-	flagMasterNodeRPCIP        string
-	flagMasterNodeRPCPort      int
-	flagMasterNodeP2PIP        string
-	flagMasterNodeP2PPort      int
-	flagMasternodeMetaDBLeader bool
->>>>>>> update generated supernode.yml for start supernode
 )
 
 type startCommand uint8
@@ -1338,10 +1321,10 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
 			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
-			LogCompress:                     constants.SuperNodeDefaultLogCompress,
-			LogMaxSizeMB:                    constants.SuperNodeDefaultMaxSizeMB,
-			LogMaxAgeDays:                   constants.SuperNodeDefaultMaxAgeDays,
-			LogMaxBackups:                   constants.SuperNodeDefaultMaxBackups,
+			LogCompress:                     constants.LogConfigDefaultCompress,
+			LogMaxSizeMB:                    constants.LogConfigDefaultMaxSizeMB,
+			LogMaxAgeDays:                   constants.LogConfigDefaultMaxAgeDays,
+			LogMaxBackups:                   constants.LogConfigDefaultMaxBackups,
 			LogLevelCommon:                  constants.SuperNodeDefaultCommonLogLevel,
 			LogLevelP2P:                     constants.SuperNodeDefaultP2PLogLevel,
 			LogLevelMetadb:                  constants.SuperNodeDefaultMetaDBLogLevel,
@@ -1390,13 +1373,6 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 		node["pass_phrase"] = flagMasterNodePassPhrase
 		node["storage_challenge_expired_duration"] = constants.StorageChallengeExpiredDuration
 		node["number_of_challenge_replicas"] = constants.NumberOfChallengeReplicas
-
-		metadb := snConf["metadb"].(map[interface{}]interface{})
-		if flagMasternodeMetaDBLeader {
-			metadb["is_leader"] = true
-		} else {
-			metadb["is_leader"] = false
-		}
 
 		var snConfFileUpdated []byte
 		if snConfFileUpdated, err = yaml.Marshal(&snConf); err != nil {

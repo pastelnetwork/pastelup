@@ -11,8 +11,13 @@ import (
 const (
 	// WalletDefaultConfig - default config for walletnode
 	WalletDefaultConfig = `
-log-level: {{.LogLevel}}
-log-file: {{.LogFilePath}}
+log-config:
+	log-level: {{.LogLevel}}
+	log-file: {{.LogFilePath}}
+	log-compress: {{.LogCompress}}
+	log-max-size-mb: {{.LogMaxSizeMB}}
+	log-max-age-days: {{.LogMaxAgeDays}}
+	log-max-backups: {{.LogMaxBackups}}
 quiet: true
 temp-dir: {{.WNTempDir}}
 work-dir: {{.WNWorkDir}}
@@ -63,7 +68,7 @@ p2p:
   data_dir: {{.P2PDataDir}}
 
 metadb:
-  is_leader: {{.IsLeader}}
+  # is_leader: false
   # none_voter: true
   listen_address: "0.0.0.0"
   http_port: {{.MDLPort}}
@@ -118,13 +123,17 @@ python3 -m  http.server 80`
 
 // WalletNodeConfig defines configurations for walletnode
 type WalletNodeConfig struct {
-	LogLevel    string
-	LogFilePath string
-	WNTempDir   string
-	WNWorkDir   string
-	RQDir       string
-	RaptorqPort int
-	BurnAddress string
+	LogLevel      string
+	LogFilePath   string
+	LogCompress   bool
+	LogMaxSizeMB  int
+	LogMaxAgeDays int
+	LogMaxBackups int
+	WNTempDir     string
+	WNWorkDir     string
+	RQDir         string
+	RaptorqPort   int
+	BurnAddress   string
 }
 
 // SuperNodeConfig defines configurations for supernode

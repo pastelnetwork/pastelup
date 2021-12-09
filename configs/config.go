@@ -30,8 +30,18 @@ raptorq:
 
 	// SupernodeDefaultConfig - default config for supernode
 	SupernodeDefaultConfig = `
-log-level: {{.LogLevel}}
-log-file: {{.LogFilePath}}
+log-config:
+	log-file: {{.LogFilePath}}
+	log-compress: {{.LogCompress}}
+	log-max-size-mb: {{.LogMaxSizeMB}}
+	log-max-age-days: {{.LogMaxAgeDays}}
+	log-max-backups: {{.LogMaxBackups}}
+	log-levels:
+		common: {{.LogLevelCommon}}
+		p2p: {{.LogLevelP2P}}
+		metadb: {{.LogLevelMetadb}}
+		dd: {{.LogLevelDD}}
+	
 quiet: true
 temp-dir: {{.SNTempDir}}
 work-dir: {{.SNWorkDir}}
@@ -119,8 +129,15 @@ type WalletNodeConfig struct {
 
 // SuperNodeConfig defines configurations for supernode
 type SuperNodeConfig struct {
-	LogLevel                        string
 	LogFilePath                     string
+	LogCompress                     bool
+	LogMaxSizeMB                    int
+	LogMaxAgeDays                   int
+	LogMaxBackups                   int
+	LogLevelCommon                  string
+	LogLevelP2P                     string
+	LogLevelMetadb                  string
+	LogLevelDD                      string
 	SNTempDir                       string
 	SNWorkDir                       string
 	RQDir                           string

@@ -97,8 +97,23 @@ const (
 	// MDLDataDir defines location for MDL data dir
 	MDLDataDir = "mdldata"
 
-	// SuperNodeDefaultLogLevel defines supernode log level
-	SuperNodeDefaultLogLevel = "debug"
+	// SuperNodeDefaultLogCompress defines supernode log compress
+	SuperNodeDefaultLogCompress = true
+	// SuperNodeDefaultMaxSizeMB defines supernode log max size
+	SuperNodeDefaultMaxSizeMB = 100
+	// SuperNodeDefaultMaxAgeDays defines supernode log max age
+	SuperNodeDefaultMaxAgeDays = 3
+	// SuperNodeDefaultMaxBackups defines supernode log max backups
+	SuperNodeDefaultMaxBackups = 10
+	// SuperNodeDefaultCommonLogLevel defines supernode common log level
+	SuperNodeDefaultCommonLogLevel = "debug"
+	// SuperNodeDefaultP2PLogLevel defines supernode p2p log level
+	SuperNodeDefaultP2PLogLevel = "info"
+	// SuperNodeDefaultMetaDBLogLevel defines supernode meta db log level
+	SuperNodeDefaultMetaDBLogLevel = "info"
+	// SuperNodeDefaultDDLogLevel defines supernode dupe detection log level
+	SuperNodeDefaultDDLogLevel = "info"
+
 	// WalletNodeDefaultLogLevel defines walletnode log level
 	WalletNodeDefaultLogLevel = "debug"
 

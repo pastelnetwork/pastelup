@@ -515,6 +515,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 		mdlDataPath := filepath.Join(config.RemoteWorkingDir, constants.MDLDataDir)
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+<<<<<<< HEAD
 			LogLevel:      constants.SuperNodeDefaultLogLevel,
 			LogFilePath:   config.Configurer.GetSuperNodeLogFile(config.RemoteWorkingDir),
 			SNTempDir:     snTempDirPath,
@@ -531,6 +532,34 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 			DDServerPort:  constants.DDServerDefaultPort,
 			PasteID:       flagMasterNodePastelID,
 			Passphrase:    flagMasterNodePassPhrase,
+=======
+			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.RemoteWorkingDir),
+			LogCompress:                     constants.SuperNodeDefaultLogCompress,
+			LogMaxSizeMB:                    constants.SuperNodeDefaultMaxSizeMB,
+			LogMaxAgeDays:                   constants.SuperNodeDefaultMaxAgeDays,
+			LogMaxBackups:                   constants.SuperNodeDefaultMaxBackups,
+			LogLevelCommon:                  constants.SuperNodeDefaultCommonLogLevel,
+			LogLevelP2P:                     constants.SuperNodeDefaultP2PLogLevel,
+			LogLevelMetadb:                  constants.SuperNodeDefaultMetaDBLogLevel,
+			LogLevelDD:                      constants.SuperNodeDefaultDDLogLevel,
+			SNTempDir:                       snTempDirPath,
+			SNWorkDir:                       config.RemoteWorkingDir,
+			RQDir:                           rqWorkDirPath,
+			DDDir:                           filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
+			SuperNodePort:                   portList[constants.SNPort],
+			P2PPort:                         portList[constants.P2PPort],
+			P2PDataDir:                      p2pDataPath,
+			MDLPort:                         portList[constants.MDLPort],
+			RAFTPort:                        portList[constants.RAFTPort],
+			MDLDataDir:                      mdlDataPath,
+			RaptorqPort:                     constants.RRServiceDefaultPort,
+			DDServerPort:                    constants.DDServerDefaultPort,
+			NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
+			StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
+			IsLeader:                        flagMasternodeMetaDBLeader,
+			PasteID:                         flagMasterNodePastelID,
+			Passphrase:                      flagMasterNodePassPhrase,
+>>>>>>> add log-config to supernode.yml
 		})
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
@@ -559,6 +588,8 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 
 		node["pastel_id"] = flagMasterNodePastelID
 		node["pass_phrase"] = flagMasterNodePassPhrase
+		node["storage_challenge_expired_duration"] = constants.StorageChallengeExpiredDuration
+		node["number_of_challenge_replicas"] = constants.NumberOfChallengeReplicas
 
 		var snConfFileUpdated []byte
 		if snConfFileUpdated, err = yaml.Marshal(&snConf); err != nil {

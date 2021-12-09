@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -18,11 +19,27 @@ const (
 	nodeStop stopCommand = iota
 	walletStop
 	superNodeStop
+	superNodeRemoteStop
 	allStop
 	rqServiceStop
 	ddServiceStop
 	wnServiceStop
 	snServiceStop
+)
+
+var (
+	// Stop commands
+	stopCmdName = map[stopCommand]string{
+		nodeStop:            "node",
+		walletStop:          "walletnode",
+		superNodeStop:       "supernode",
+		superNodeRemoteStop: "remote",
+		allStop:             "all",
+		rqServiceStop:       "rq-service",
+		ddServiceStop:       "dd-service",
+		wnServiceStop:       "walletnode-service",
+		snServiceStop:       "supernode-service",
+	}
 )
 
 func setupStopSubCommand(config *configs.Config,
@@ -37,43 +54,32 @@ func setupStopSubCommand(config *configs.Config,
 			SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
 	}
 
-	var commandName, commandMessage string
+	if stopCommand == superNodeRemoteStop {
+		remoteFlags := []*cli.Flag{
+			cli.NewFlag("ssh-ip", &config.RemoteIP).
+				SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
+			cli.NewFlag("ssh-port", &config.RemotePort).
+				SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
+			cli.NewFlag("ssh-user", &config.RemoteUser).
+				SetUsage(yellow("Optional, Username of user at remote host")),
+			cli.NewFlag("ssh-key", &config.RemoteSSHKey).
+				SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
+		}
 
-	switch stopCommand {
-	case nodeStop:
-		commandName = "node"
-		commandMessage = "Stop node"
-	case walletStop:
-		commandName = string(constants.WalletNode)
-		commandMessage = "Stop walletnode"
-	case superNodeStop:
-		commandName = string(constants.SuperNode)
-		commandMessage = "Stop supernode"
-	case allStop:
-		commandName = "all"
-		commandMessage = "Stop all"
+		commonFlags = append(commonFlags, remoteFlags...)
+	}
 
-	case rqServiceStop:
-		commandName = "rq-service"
-		commandMessage = "Stop rq-service"
-	case ddServiceStop:
-		commandName = "dd-service"
-		commandMessage = "Stop dd-service"
-	case wnServiceStop:
-		commandName = "walletnode-service"
-		commandMessage = "Stop walletnode service"
-	case snServiceStop:
-		commandName = "supernode-service"
-		commandMessage = "Stop supernode service"
+	commandName := stopCmdName[stopCommand]
+	commandMessage := "Stop " + commandName
 
-	default:
-		commandName = "all"
-		commandMessage = "Stop all"
+	if stopCommand >= allStop {
+		commandMessage += " only"
 	}
 
 	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))
 	subCommand.AddFlags(commonFlags...)
+
 	if f != nil {
 		subCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 			ctx, err := configureLogging(ctx, commandMessage, config)
@@ -103,7 +109,9 @@ func setupStopCommand() *cli.Command {
 
 	stopNodeSubCommand := setupStopSubCommand(config, nodeStop, runStopNodeSubCommand)
 	stopWalletSubCommand := setupStopSubCommand(config, walletStop, runStopWalletSubCommand)
+	stopSuperNodeRemoteSubCommand := setupStopSubCommand(config, superNodeRemoteStop, runStopSuperNodeRemoteSubCommand)
 	stopSuperNodeSubCommand := setupStopSubCommand(config, superNodeStop, runStopSuperNodeSubCommand)
+	stopSuperNodeSubCommand.AddSubcommands(stopSuperNodeRemoteSubCommand)
 	stopallSubCommand := setupStopSubCommand(config, allStop, runStopAllSubCommand)
 
 	stopRQSubCommand := setupStopSubCommand(config, rqServiceStop, stopRQServiceSubCommand)
@@ -164,6 +172,38 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 
 	// *************  Stop pasteld node  *************
 	stopPatelCLI(ctx, config)
+
+	log.WithContext(ctx).Info("Suppernode stopped successfully")
+}
+
+func runStopSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) {
+
+	// Connect to remote
+	client, err := prepareRemoteSession(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
+		return
+	}
+	defer client.Close()
+
+	// Execute stop remote supernode
+	log.WithContext(ctx).Info("Executing stop remote supernode...")
+
+	stopOptions := ""
+
+	if len(config.PastelExecDir) > 0 {
+		stopOptions = fmt.Sprintf("--dir %s", config.PastelExecDir)
+	}
+
+	if len(config.WorkingDir) > 0 {
+		stopOptions = fmt.Sprintf("%s --work-dir %s", stopOptions, config.WorkingDir)
+	}
+
+	stopSuperNodeCmd := fmt.Sprintf("%s stop supernode %s", constants.RemotePastelupPath, stopOptions)
+	if err := client.ShellCmd(ctx, stopSuperNodeCmd); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to execute stop supernode on remote host")
+		return
+	}
 
 	log.WithContext(ctx).Info("Suppernode stopped successfully")
 }

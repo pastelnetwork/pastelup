@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -428,21 +429,86 @@ func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func connectSSH(ctx context.Context, sshUser, sshIP string, sshPort int, key string) (client *utils.Client, err error) {
+func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePastelUp string) error {
+	// Check if the current os is linux
+	if runtime.GOOS == "linux" {
+		log.WithContext(ctx).Infof("copying pastelup to remote")
+		var localPastelupPath string
 
-	addr := fmt.Sprintf("%s:%d", sshIP, sshPort)
-	log.WithContext(ctx).Infof("SSH into node -> %s...", addr)
+		// Get local pastelup path
+		ex, err := os.Executable()
+		if err != nil {
+			return fmt.Errorf("failed to get path of executable file %s", err)
+		}
 
-	if len(key) == 0 {
-		username, password, _ := utils.Credentials(sshUser, true)
-		client, err = utils.DialWithPasswd(addr, username, password)
+		// Check if localPastelupPath is a symlink file
+		if localPastelupPath, err = filepath.EvalSymlinks(ex); err != nil {
+			return fmt.Errorf("local pastelup is symbol link:  %s", err)
+		}
+
+		// Copy pastelup to remote
+		if err := client.Scp(localPastelupPath, remotePastelUp); err != nil {
+			return fmt.Errorf("failed to copy pastelup to remote %s", err)
+		}
+
 	} else {
-		username, _, _ := utils.Credentials(sshUser, false)
-		client, err = utils.DialWithKey(addr, username, sshKey)
+		log.WithContext(ctx).Infof("current OS is not linux, skipping pastelup copy")
+
+		// Download PastelUpExecName from remote and save to remotePastelUp
+		log.WithContext(ctx).Infof("downloading pastelup from Pastel download portal ...")
+		version := "beta"
+		downloadURL := fmt.Sprintf("%s/%s/%s", constants.DownloadBaseURL, version, constants.PastelUpExecName["Linux"])
+
+		if _, err := client.Cmd(fmt.Sprintf("wget %s -O %s", downloadURL, remotePastelUp)).Output(); err != nil {
+			return fmt.Errorf("failed to download pastelup from remote: %s", err.Error())
+		}
+		log.WithContext(ctx).Infof("pastelup downloaded from Pastel download portal")
+	}
+
+	// chmod +x remote pastelup
+	if _, err := client.Cmd(fmt.Sprintf("chmod +x %s", remotePastelUp)).Output(); err != nil {
+		return fmt.Errorf("failed to chmod +x pastelup at remote: %s", err.Error())
+	}
+
+	return nil
+}
+
+func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.Client, error) {
+	var err error
+
+	// Validate config
+	if len(config.RemoteIP) == 0 {
+		log.WithContext(ctx).Fatal("remote IP is required")
+		return nil, fmt.Errorf("remote IP is required")
+	}
+
+	// Connect to remote node
+	log.WithContext(ctx).Infof("connecting to remote host -> %s:%d...", config.RemoteIP, config.RemotePort)
+
+	var client *utils.Client
+
+	if len(config.RemoteSSHKey) == 0 {
+		username, password, _ := utils.Credentials(config.RemoteUser, true)
+		client, err = utils.DialWithPasswd(fmt.Sprintf("%s:%d", config.RemoteIP, config.RemotePort), username, password)
+	} else {
+		username, _, _ := utils.Credentials(config.RemoteUser, false)
+		client, err = utils.DialWithKey(fmt.Sprintf("%s:%d", config.RemoteIP, config.RemotePort), username, config.RemoteSSHKey)
 	}
 	if err != nil {
 		return nil, err
 	}
+
+	log.WithContext(ctx).Info("connected successfully")
+
+	// Transfer pastelup to remote
+	log.WithContext(ctx).Info("installing pastelup to remote host...")
+
+	if err := copyPastelUpToRemote(ctx, client, constants.RemotePastelupPath); err != nil {
+		log.WithContext(ctx).Errorf("Failed to copy pastelup to remote at %s - %v", constants.RemotePastelupPath, err)
+		client.Close()
+		return nil, fmt.Errorf("failed to install pastelup at %s - %v", constants.RemotePastelupPath, err)
+	}
+	log.WithContext(ctx).Info("successfully install pastelup executable to remote host")
 
 	return client, nil
 }

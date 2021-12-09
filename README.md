@@ -121,19 +121,19 @@ The above command will:
 
 In order to install all extra packages and set system services, `password` of current user with `sudo` access is needed via param `--ssh-user-pw`.
 
+Below is example to create supernode with `testnet` network:
 ```
 ./pastelup install supernode remote \
   --ssh-ip <remote_ip> \
-  --ssh-dir=<path_remote_utility_folder>/ \
-  --utility-path-to-copy=<path_local_pastelup> \
   --ssh-user=<remote username> \
   --ssh-user-pw=<remote_user_pw> \
-  --ssh-key=$HOME/.ssh/id_rsa 
+  --ssh-key=$HOME/.ssh/id_rsa \
+  -n=testnet \
+  --force
 ```
+### Update supernode remotely
 
-## Update supernode remotely
-
-### Usage
+#### Usage
 ```
 NAME:
    pastelup update supernode remote - 
@@ -150,7 +150,6 @@ OPTIONS:
    --ssh-port value            Optional, SSH port of the remote host, default is 22 (default: 22)
    --ssh-user value            Optional, Username of user at remote host
    --ssh-key value             Optional, Path to SSH private key for SSH Key Authentication
-   --utility-path value        Required, local path of pastelup file 
    --bin value                 Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file  or a folder of binary to remote host
    --help, -h                  show help (default: false)
 ```
@@ -164,7 +163,6 @@ a) To update supernode bin to remote side:
 
 ```
 ./pastelup update supernode remote \
-  --utility-path=$HOME/pastel/pastelup \
   --bin=$HOME/pastel/supernode-ubuntu20.04-amd64 \
   --name=<masternode name> \
   --ssh-ip=<remote ip> \
@@ -174,8 +172,7 @@ a) To update supernode bin to remote side:
 ```
 b) To update all binaries at once. Create a local folder and copy all binaries into a folder and execute below command with `--bin` points to that folder path:
 ```
-./pastelup update supernode remote \
-  --utility-path=$HOME/pastel/pastelup \
+./pastelup update supernode remote \ 
   --bin=<path fo that folder> \
   --name=<masternode name> \
   --ssh-ip=<remote ip> \
@@ -186,12 +183,35 @@ b) To update all binaries at once. Create a local folder and copy all binaries i
 c) In case `--bin` is missing, the tool will update the latest from the download page
 
 ```
-./pastelup update supernode remote  --utility-path=$HOME/pastel/pastelup \
+./pastelup update supernode remote  \
    --name=<masternode name> \
    --ssh-ip <remote ip> \
    --ssh-user <remote username> \
-   --user-pw <remote_user_pw> \
-   --ssh-key=$HOME/.ssh/id_rsa
+   --ssh-key=$HOME/.ssh/id_rsa \
+   --user-pw=<pw of remote user>
+```
+
+### Stop supernode remotely
+
+```
+./pastelup stop supernode remote \
+   --ssh-ip 10.211.55.5 \
+   --ssh-user bacnh \
+   --ssh-key $HOME/.ssh/id_rsa
+```
+
+### Start supernode-coldhot
+
+How cold-hot is working: https://pastel.wiki/en/home/how-to-start-mn
+
+Usage:
+```
+./pastel-utility start supernode-coldhot \
+   --ssh-ip 10.211.55.5 \
+   --ssh-user bacnh \
+   --ssh-key=$HOME/.ssh/id_rsa 
+   --name=mn01 
+   --create
 ```
 
 ### Install command options

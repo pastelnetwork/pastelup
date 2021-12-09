@@ -76,6 +76,8 @@ const (
 	PortCheckURL = "http://portchecker.com?q="
 	// IPCheckURL is URL of IP checker service
 	IPCheckURL = "http://ipinfo.io/ip"
+	// NetworkRegTest defines regtest network mode
+	NetworkRegTest = "regtest"
 	// NetworkTestnet defines testnet network mode
 	NetworkTestnet = "testnet"
 	// NetworkMainnet defines mainnet network mode
@@ -106,8 +108,8 @@ const (
 	// WalletNodeDefaultLogLevel defines walletnode log level
 	WalletNodeDefaultLogLevel = "debug"
 
-	// RRServiceDefaultPort defines rqservice port
-	RRServiceDefaultPort = 50051
+	// RQServiceDefaultPort defines rqservice port
+	RQServiceDefaultPort = 50051
 
 	// DDServerDefaultPort defines dd-server port
 	DDServerDefaultPort = 50052
@@ -216,6 +218,9 @@ var MainnetPortList = []int{9933, 4444, 4445, 4446, 4447}
 
 // TestnetPortList - PortList of supernode
 var TestnetPortList = []int{19933, 14444, 14445, 14446, 14447}
+
+// RegTestPortList - PortList of supernode
+var RegTestPortList = []int{18344, 14444, 14445, 14446, 14447}
 
 // Ports mapping
 const (
@@ -327,4 +332,5 @@ var DependenciesDupeDetectionPackages = []string{
 var NetworkModes = []string{
 	NetworkMainnet,
 	NetworkTestnet,
+	NetworkRegTest,
 }

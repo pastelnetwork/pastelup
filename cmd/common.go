@@ -290,7 +290,7 @@ func FindRunningProcess(searchTerm string) (string, error) {
 
 // GetSNPortList returns array of SuperNode ports for network
 func GetSNPortList(config *configs.Config) []int {
-	if config.Network == constants.NetworkTestnet {
+	if config.Network == constants.NetworkRegTest || config.Network == constants.NetworkTestnet {
 		return constants.TestnetPortList
 	}
 

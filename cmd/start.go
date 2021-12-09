@@ -52,6 +52,7 @@ var (
 	flagMasterNodeP2PIP        string
 	flagMasterNodeP2PPort      int
 	flagMasternodeMetaDBLeader bool
+	flagMasternodeStartSNOnly  bool
 
 	flagMasterNodeSSHIP   string
 	flagMasterNodeSSHPort int
@@ -123,6 +124,8 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Kademlia port, default - 4445 (14445 for Testnet)")),
 		cli.NewFlag("leader", &flagMasternodeMetaDBLeader).
 			SetUsage(green("Optionals, MetaDB leader, if omitted, default - false")),
+		cli.NewFlag("sn-only", &flagMasternodeStartSNOnly).
+			SetUsage(green("Optionals, start supernode only")),
 	}
 
 	superNodeColdHotFlags := []*cli.Flag{
@@ -353,16 +356,18 @@ func runLocalSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 		}
 	}
 
-	// *************  6. Start rq-servce    *************
-	if err := runRQService(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("rqservice failed to start")
-		return err
-	}
+	if !flagMasternodeStartSNOnly {
+		// *************  6. Start rq-servce    *************
+		if err := runRQService(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("rqservice failed to start")
+			return err
+		}
 
-	// *************  6. Start dd-servce    *************
-	if err := runDDService(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("ddservice failed to start")
-		return err
+		// *************  6. Start dd-servce    *************
+		if err := runDDService(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("ddservice failed to start")
+			return err
+		}
 	}
 
 	// *************  7. Start supernode  **************
@@ -1254,7 +1259,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 			MDLPort:                         portList[constants.MDLPort],
 			RAFTPort:                        portList[constants.RAFTPort],
 			MDLDataDir:                      mdlDataPath,
-			RaptorqPort:                     constants.RRServiceDefaultPort,
+			RaptorqPort:                     constants.RQServiceDefaultPort,
 			DDServerPort:                    constants.DDServerDefaultPort,
 			NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
 			StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,

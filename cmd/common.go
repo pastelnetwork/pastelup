@@ -429,25 +429,6 @@ func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func connectSSH(ctx context.Context, sshUser, sshIP string, sshPort int, key string) (client *utils.Client, err error) {
-
-	addr := fmt.Sprintf("%s:%d", sshIP, sshPort)
-	log.WithContext(ctx).Infof("SSH into node -> %s...", addr)
-
-	if len(key) == 0 {
-		username, password, _ := utils.Credentials(sshUser, true)
-		client, err = utils.DialWithPasswd(addr, username, password)
-	} else {
-		username, _, _ := utils.Credentials(sshUser, false)
-		client, err = utils.DialWithKey(addr, username, sshKey)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
-}
-
 func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePastelUp string) error {
 	// Check if the current os is linux
 	if runtime.GOOS == "linux" {
@@ -490,4 +471,44 @@ func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePaste
 	}
 
 	return nil
+}
+
+func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.Client, error) {
+	var err error
+
+	// Validate config
+	if len(config.RemoteIP) == 0 {
+		log.WithContext(ctx).Fatal("remote IP is required")
+		return nil, fmt.Errorf("remote IP is required")
+	}
+
+	// Connect to remote node
+	log.WithContext(ctx).Infof("connecting to remote host -> %s:%d...", config.RemoteIP, config.RemotePort)
+
+	var client *utils.Client
+
+	if len(config.RemoteSSHKey) == 0 {
+		username, password, _ := utils.Credentials(config.RemoteUser, true)
+		client, err = utils.DialWithPasswd(fmt.Sprintf("%s:%d", config.RemoteIP, config.RemotePort), username, password)
+	} else {
+		username, _, _ := utils.Credentials(config.RemoteUser, false)
+		client, err = utils.DialWithKey(fmt.Sprintf("%s:%d", config.RemoteIP, config.RemotePort), username, config.RemoteSSHKey)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	log.WithContext(ctx).Info("connected successfully")
+
+	// Transfer pastelup to remote
+	log.WithContext(ctx).Info("installing pastelup to remote host...")
+
+	if err := copyPastelUpToRemote(ctx, client, constants.RemotePastelupPath); err != nil {
+		log.WithContext(ctx).Errorf("Failed to copy pastelup to remote at %s - %v", constants.RemotePastelupPath, err)
+		client.Close()
+		return nil, fmt.Errorf("failed to install pastelup at %s - %v", constants.RemotePastelupPath, err)
+	}
+	log.WithContext(ctx).Info("successfully install pastelup executable to remote host")
+
+	return client, nil
 }

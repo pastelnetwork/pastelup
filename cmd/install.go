@@ -53,6 +53,8 @@ func setupSubCommand(config *configs.Config,
 				SetUsage(green("Optional, start all apps automatically as systemd service")),
 			cli.NewFlag("user-pw", &config.UserPw).
 				SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
+			cli.NewFlag("sn-only", &config.InstallSNOnly).
+				SetUsage(green("Optional, installl supernode only")),
 		}
 		commonFlags = append(commonFlags, serviceFlags...)
 	}
@@ -301,7 +303,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	// install pasteld and pastel-cli; setup working dir (~/.pastel) and pastel.conf
 	if installCommand == constants.PastelD ||
 		installCommand == constants.WalletNode ||
-		installCommand == constants.SuperNode {
+		(installCommand == constants.SuperNode && !config.InstallSNOnly) {
 
 		pasteldName := constants.PasteldName[utils.GetOS()]
 		pastelCliName := constants.PastelCliName[utils.GetOS()]
@@ -325,12 +327,12 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	}
 	// install rqservice and its config
 	if installCommand == constants.WalletNode ||
-		installCommand == constants.SuperNode {
+		(installCommand == constants.SuperNode && !config.InstallSNOnly) {
 
 		toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
 		toolConfig, err := utils.GetServiceConfig(string(constants.RQService), configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
 			HostName: "127.0.0.1",
-			Port:     constants.RRServiceDefaultPort,
+			Port:     constants.RQServiceDefaultPort,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get rqservice config: %v", err)
@@ -373,7 +375,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			WNWorkDir:   config.WorkingDir,
 			RQDir:       rqWorkDirPath,
 			BurnAddress: burnAddress,
-			RaptorqPort: constants.RRServiceDefaultPort,
+			RaptorqPort: constants.RQServiceDefaultPort,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get walletnode config: %v", err)
@@ -435,7 +437,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			MDLPort:       portList[constants.MDLPort],
 			RAFTPort:      portList[constants.RAFTPort],
 			MDLDataDir:    mdlDataPath,
-			RaptorqPort:   constants.RRServiceDefaultPort,
+			RaptorqPort:   constants.RQServiceDefaultPort,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get supernode config: %v", err)
@@ -460,9 +462,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 
-		if err = installDupeDetection(ctx, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
-			return err
+		if !config.InstallSNOnly {
+			if err = installDupeDetection(ctx, config); err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
+				return err
+			}
 		}
 
 		if err := utils.CreateFolder(ctx, snTempDirPath, config.Force); err != nil {
@@ -498,6 +502,12 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 				string(constants.RQService),
 				string(constants.DDService),
 				string(constants.SuperNode),
+			}
+
+			if !config.InstallSNOnly {
+				appServiceNames = []string{
+					string(constants.SuperNode),
+				}
 			}
 
 			for _, appName := range appServiceNames {
@@ -737,6 +747,10 @@ func updatePastelConfigFile(ctx context.Context, filePath string, config *config
 
 	if config.Network == constants.NetworkTestnet {
 		cfgBuffer.WriteString("testnet=1\n") // creates testnet line
+	}
+
+	if config.Network == constants.NetworkRegTest {
+		cfgBuffer.WriteString("regtest=1\n") // creates testnet line
 	}
 
 	if config.Peers != "" {

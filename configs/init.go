@@ -14,8 +14,9 @@ type Init struct {
 	StartedRemote    bool   `json:"started-remote,omitempty"`
 	EnableService    bool   `json:"enableservice,omitempty"`
 	UserPw           string `json:"user-pw,omitempty"`
-	OpMode           string `json:"opmode,omitempty"`
+	InstallSNOnly    bool   `json:"sn-only,omitempty"`
 	BinComponentPath string `json:"bin-path,omitempty"`
+	OpMode           string `json:"opmode,omitempty"`
 
 	// Configs for remote session
 	RemoteWorkingDir    string `json:"remoteworkingdir,omitempty"`

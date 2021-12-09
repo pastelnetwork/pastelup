@@ -96,6 +96,9 @@ func (r *ColdHotRunner) handleConfigs(ctx context.Context) error {
 	if r.config.Network == constants.NetworkTestnet {
 		r.opts.testnetOption = " --testnet"
 	}
+	if r.config.Network == constants.NetworkRegTest {
+		r.opts.testnetOption = " --regtest"
+	}
 	log.WithContext(ctx).Infof("Finished Reading pastel.conf! Starting node in %s mode", r.config.Network)
 
 	log.WithContext(ctx).Infof("checking masternode start params")
@@ -524,7 +527,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 			MDLPort:       portList[constants.MDLPort],
 			RAFTPort:      portList[constants.RAFTPort],
 			MDLDataDir:    mdlDataPath,
-			RaptorqPort:   constants.RRServiceDefaultPort,
+			RaptorqPort:   constants.RQServiceDefaultPort,
 			DDServerPort:  constants.DDServerDefaultPort,
 			PasteID:       flagMasterNodePastelID,
 			Passphrase:    flagMasterNodePassPhrase,

@@ -1381,6 +1381,13 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 			metadb["is_leader"] = false
 		}
 
+		metadb = snConf["metadb"].(map[interface{}]interface{})
+		if flagMasternodeMetaDBLeader {
+			metadb["is_leader"] = true
+		} else {
+			metadb["is_leader"] = false
+		}
+
 		var snConfFileUpdated []byte
 		if snConfFileUpdated, err = yaml.Marshal(&snConf); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for supernode.yml file at - %s", supernodeConfigPath)

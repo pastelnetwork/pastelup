@@ -252,6 +252,8 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 
 	if config.Network == constants.NetworkTestnet {
 		remoteOptions = fmt.Sprintf("%s -n=testnet", remoteOptions)
+	} else if config.Network == constants.NetworkRegTest {
+		remoteOptions = fmt.Sprintf("%s -n=regtest", remoteOptions)
 	}
 
 	if config.EnableService {
@@ -362,6 +364,8 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 
 		burnAddress := constants.BurnAddressMainnet
 		if config.Network == constants.NetworkTestnet {
+			burnAddress = constants.BurnAddressTestnet
+		} else if config.Network == constants.NetworkRegTest {
 			burnAddress = constants.BurnAddressTestnet
 		}
 

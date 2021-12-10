@@ -734,6 +734,8 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 		var masternodeConfPath string
 		if config.Network == constants.NetworkTestnet {
 			masternodeConfPath = filepath.Join("testnet3", "masternode.conf")
+		} else if config.Network == constants.NetworkRegTest {
+			masternodeConfPath = filepath.Join("regtest", "masternode.conf")
 		} else {
 			masternodeConfPath = "masternode.conf"
 		}
@@ -1024,6 +1026,9 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 		if config.Network == constants.NetworkTestnet {
 			collateralAmount = "1"
 			collateralCoins = "LSP"
+		} else if config.Network == constants.NetworkRegTest {
+			collateralAmount = "0.1"
+			collateralCoins = "REG"
 		}
 
 		yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Do you want to generate new local address and send %sM %s to it from another wallet? Y/N",
@@ -1144,6 +1149,7 @@ func createConfFile(ctx context.Context, config *configs.Config, confData []byte
 		log.WithContext(ctx).WithError(err).Error("Failed to create and write new masternode.conf file")
 		return err
 	}
+	log.WithContext(ctx).Info("Created masternode config file at path:", masternodeConfPath)
 
 	return nil
 }
@@ -1155,6 +1161,9 @@ func backupConfFile(ctx context.Context, config *configs.Config) (masternodeConf
 	if config.Network == constants.NetworkTestnet {
 		masternodeConfPath = filepath.Join(workDirPath, "testnet3", "masternode.conf")
 		masternodeConfPathBackup = filepath.Join(workDirPath, "testnet3", "masternode_%s.conf")
+	} else if config.Network == constants.NetworkRegTest {
+		masternodeConfPath = filepath.Join(workDirPath, "regtest", "masternode.conf")
+		masternodeConfPathBackup = filepath.Join(workDirPath, "regtest", "masternode_%s.conf")
 	} else {
 		masternodeConfPath = filepath.Join(workDirPath, "masternode.conf")
 		masternodeConfPathBackup = filepath.Join(workDirPath, "masternode_%s.conf")
@@ -1192,6 +1201,8 @@ func updateMasternodeConfFile(ctx context.Context, confData map[string]interface
 
 	if config.Network == constants.NetworkTestnet {
 		masternodeConfPath = filepath.Join(workDirPath, "testnet3", "masternode.conf")
+	} else if config.Network == constants.NetworkRegTest {
+		masternodeConfPath = filepath.Join(workDirPath, "regtest", "masternode.conf")
 	} else {
 		masternodeConfPath = filepath.Join(workDirPath, "masternode.conf")
 	}
@@ -1244,6 +1255,8 @@ func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName s
 
 	if config.Network == constants.NetworkTestnet {
 		masternodeConfPath = filepath.Join(config.WorkingDir, "testnet3", "masternode.conf")
+	} else if config.Network == constants.NetworkRegTest {
+		masternodeConfPath = filepath.Join(config.WorkingDir, "regtest", "masternode.conf")
 	} else {
 		masternodeConfPath = filepath.Join(config.WorkingDir, "masternode.conf")
 	}

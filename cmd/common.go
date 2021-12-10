@@ -88,6 +88,8 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).WithField("pastel.conf", string(configure)).Info("pastel conf")
 	if strings.Contains(string(configure), "testnet=1") {
 		config.Network = constants.NetworkTestnet
+	} else if strings.Contains(string(configure), "regtest=1") {
+		config.Network = constants.NetworkRegTest
 	} else {
 		config.Network = constants.NetworkMainnet
 	}
@@ -291,8 +293,10 @@ func FindRunningProcess(searchTerm string) (string, error) {
 
 // GetSNPortList returns array of SuperNode ports for network
 func GetSNPortList(config *configs.Config) []int {
-	if config.Network == constants.NetworkRegTest || config.Network == constants.NetworkTestnet {
+	if config.Network == constants.NetworkRegTest {
 		return constants.TestnetPortList
+	} else if config.Network == constants.NetworkTestnet {
+		return constants.RegTestPortList
 	}
 
 	return constants.MainnetPortList

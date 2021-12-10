@@ -1336,7 +1336,6 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 			DDServerPort:                    constants.DDServerDefaultPort,
 			NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
 			StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
-			IsLeader:                        flagMasternodeMetaDBLeader,
 		})
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
@@ -1367,13 +1366,6 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 		node["pass_phrase"] = flagMasterNodePassPhrase
 		node["storage_challenge_expired_duration"] = constants.StorageChallengeExpiredDuration
 		node["number_of_challenge_replicas"] = constants.NumberOfChallengeReplicas
-
-		metadb := snConf["metadb"].(map[interface{}]interface{})
-		if flagMasternodeMetaDBLeader {
-			metadb["is_leader"] = true
-		} else {
-			metadb["is_leader"] = false
-		}
 
 		var snConfFileUpdated []byte
 		if snConfFileUpdated, err = yaml.Marshal(&snConf); err != nil {

@@ -53,7 +53,7 @@ p2p:
   data_dir: {{.P2PDataDir}}
 
 metadb:
-  is_leader: {{.IsLeader}}
+  # is_leader: false
   # none_voter: true
   listen_address: "0.0.0.0"
   http_port: {{.MDLPort}}
@@ -137,7 +137,6 @@ type SuperNodeConfig struct {
 	DDServerPort                    int
 	NumberOfChallengeReplicas       int
 	StorageChallengeExpiredDuration string
-	IsLeader                        bool
 }
 
 // RQServiceConfig defines configurations for rqservice

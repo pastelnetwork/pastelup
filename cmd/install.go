@@ -303,7 +303,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	// install pasteld and pastel-cli; setup working dir (~/.pastel) and pastel.conf
 	if installCommand == constants.PastelD ||
 		installCommand == constants.WalletNode ||
-		(installCommand == constants.SuperNode && !config.InstallSNOnly) {
+		(installCommand == constants.SuperNode) {
 
 		pasteldName := constants.PasteldName[utils.GetOS()]
 		pastelCliName := constants.PastelCliName[utils.GetOS()]
@@ -467,26 +467,26 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 				log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
 				return err
 			}
-		}
 
-		if err := utils.CreateFolder(ctx, snTempDirPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", snTempDirPath)
-			return err
-		}
+			if err := utils.CreateFolder(ctx, snTempDirPath, config.Force); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", snTempDirPath)
+				return err
+			}
 
-		if err := utils.CreateFolder(ctx, rqWorkDirPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", rqWorkDirPath)
-			return err
-		}
+			if err := utils.CreateFolder(ctx, rqWorkDirPath, config.Force); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", rqWorkDirPath)
+				return err
+			}
 
-		if err := utils.CreateFolder(ctx, p2pDataPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", p2pDataPath)
-			return err
-		}
+			if err := utils.CreateFolder(ctx, p2pDataPath, config.Force); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", p2pDataPath)
+				return err
+			}
 
-		if err := utils.CreateFolder(ctx, mdlDataPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", mdlDataPath)
-			return err
+			if err := utils.CreateFolder(ctx, mdlDataPath, config.Force); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", mdlDataPath)
+				return err
+			}
 		}
 
 		// Open ports
@@ -506,6 +506,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 
 			if !config.InstallSNOnly {
 				appServiceNames = []string{
+					string(constants.PastelD),
 					string(constants.SuperNode),
 				}
 			}

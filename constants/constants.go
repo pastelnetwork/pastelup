@@ -107,16 +107,16 @@ const (
 	LogConfigDefaultMaxBackups = 10
 
 	// SuperNodeDefaultCommonLogLevel defines supernode common log level
-	SuperNodeDefaultCommonLogLevel = "debug"
+	SuperNodeDefaultCommonLogLevel = "info"
 	// SuperNodeDefaultP2PLogLevel defines supernode p2p log level
-	SuperNodeDefaultP2PLogLevel = "info"
+	SuperNodeDefaultP2PLogLevel = "error"
 	// SuperNodeDefaultMetaDBLogLevel defines supernode meta db log level
-	SuperNodeDefaultMetaDBLogLevel = "info"
+	SuperNodeDefaultMetaDBLogLevel = "error"
 	// SuperNodeDefaultDDLogLevel defines supernode dupe detection log level
-	SuperNodeDefaultDDLogLevel = "info"
+	SuperNodeDefaultDDLogLevel = "error"
 
 	// WalletNodeDefaultLogLevel defines walletnode log level
-	WalletNodeDefaultLogLevel = "debug"
+	WalletNodeDefaultLogLevel = "info"
 
 	// RQServiceDefaultPort defines rqservice port
 	RQServiceDefaultPort = 50051

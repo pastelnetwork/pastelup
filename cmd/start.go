@@ -1320,20 +1320,22 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			LogLevel:      constants.SuperNodeDefaultLogLevel,
-			LogFilePath:   config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
-			SNTempDir:     snTempDirPath,
-			SNWorkDir:     config.WorkingDir,
-			RQDir:         rqWorkDirPath,
-			DDDir:         filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
-			SuperNodePort: portList[constants.SNPort],
-			P2PPort:       portList[constants.P2PPort],
-			P2PDataDir:    p2pDataPath,
-			MDLPort:       portList[constants.MDLPort],
-			RAFTPort:      portList[constants.RAFTPort],
-			MDLDataDir:    mdlDataPath,
-			RaptorqPort:   constants.RQServiceDefaultPort,
-			DDServerPort:  constants.DDServerDefaultPort,
+			LogLevel:                        constants.SuperNodeDefaultLogLevel,
+			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
+			SNTempDir:                       snTempDirPath,
+			SNWorkDir:                       config.WorkingDir,
+			RQDir:                           rqWorkDirPath,
+			DDDir:                           filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
+			SuperNodePort:                   portList[constants.SNPort],
+			P2PPort:                         portList[constants.P2PPort],
+			P2PDataDir:                      p2pDataPath,
+			MDLPort:                         portList[constants.MDLPort],
+			RAFTPort:                        portList[constants.RAFTPort],
+			MDLDataDir:                      mdlDataPath,
+			RaptorqPort:                     constants.RQServiceDefaultPort,
+			DDServerPort:                    constants.DDServerDefaultPort,
+			NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
+			StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
 		})
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
@@ -1362,6 +1364,8 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 
 		node["pastel_id"] = flagMasterNodePastelID
 		node["pass_phrase"] = flagMasterNodePassPhrase
+		node["storage_challenge_expired_duration"] = constants.StorageChallengeExpiredDuration
+		node["number_of_challenge_replicas"] = constants.NumberOfChallengeReplicas
 
 		var snConfFileUpdated []byte
 		if snConfFileUpdated, err = yaml.Marshal(&snConf); err != nil {

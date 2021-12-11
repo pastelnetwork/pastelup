@@ -592,24 +592,50 @@ func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config,
 
 	// Add google ssl key
 	log.WithContext(ctx).Info("Adding google ssl key ...")
-	_, err = RunCMD("bash", "-c", "wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - 2>/dev/null")
+
+	_, err = RunCMD("bash", "-c", "wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub > /tmp/google-key.pub")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Write /tmp/google-key.pub failed")
+		return err
+	}
+
+	if len(config.UserPw) > 0 {
+		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-key add /tmp/google-key.pub 2>/dev/null")
+	} else {
+		_, err = RunCMD("bash", "-c", "sudo apt-key add /tmp/google-key.pub 2>/dev/null")
+	}
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to add google ssl key")
 		return err
 	}
 	log.WithContext(ctx).Info("Added google ssl key")
 
-	// Add google repo
+	// Add google repo: /etc/apt/sources.list.d/google-chrome.list
 	log.WithContext(ctx).Info("Adding google ppa repo ...")
-	_, err = RunCMD("bash", "-c", "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list")
+	_, err = RunCMD("bash", "-c", "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | tee /tmp/google-chrome.list")
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to add google repo")
+		log.WithContext(ctx).WithError(err).Error("Failed to create /tmp/google-chrome.list")
 		return err
 	}
+
+	if len(config.UserPw) > 0 {
+		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S mv /tmp/google-chrome.list /etc/apt/sources.list.d/ 2>/dev/null")
+	} else {
+		_, err = RunCMD("bash", "-c", "sudo mv /tmp/google-chrome.list /etc/apt/sources.list.d/")
+	}
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to move /tmp/google-chrome.list to /etc/apt/sources.list.d/")
+		return err
+	}
+
 	log.WithContext(ctx).Info("Added google ppa repo")
 
 	// Update
-	_, err = RunCMD("bash", "-c", "sudo apt-get update")
+	if len(config.UserPw) > 0 {
+		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get update")
+	} else {
+		_, err = RunCMD("bash", "-c", "sudo apt-get update -y")
+	}
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update")
 		return err
@@ -618,7 +644,7 @@ func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config,
 	for _, pkg := range pkgs {
 
 		if len(config.UserPw) > 0 {
-			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo apt-get install  -y "+pkg)
+			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get install  -y "+pkg)
 		} else {
 			out, err = RunCMD("sudo", "apt-get", "install", "-y", pkg)
 		}

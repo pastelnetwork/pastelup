@@ -557,6 +557,10 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 }
 
 func checkInstalledPackages(ctx context.Context, config *configs.Config, tool constants.ToolType) (err error) {
+	if config.OpMode == "update" && utils.GetOS() == constants.Linux {
+		return updateReqPackageLinux(ctx, config, constants.DependenciesPackages[tool][utils.GetOS()])
+	}
+
 	// TODO: 1) must offer to install missing packages
 	installedCmd := utils.GetInstalledPackages(ctx)
 	var notInstall []string
@@ -581,6 +585,39 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	}
 
 	return installMissingReqPackagesLinux(ctx, config, notInstall)
+}
+
+func updateReqPackageLinux(ctx context.Context, config *configs.Config, pkgs []string) error {
+	var err error
+
+	log.WithContext(ctx).Info("Doing upgrade packages ...")
+
+	// Update repo
+	if len(config.UserPw) > 0 {
+		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get update")
+	} else {
+		_, err = RunCMD("bash", "-c", "sudo apt-get update")
+	}
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update")
+		return err
+	}
+
+	// Update each package
+	for _, pkg := range pkgs {
+		if len(config.UserPw) > 0 {
+			_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get -y upgrade "+pkg)
+		} else {
+			_, err = RunCMD("bash", "-c", "sudo apt-get -y upgrade "+pkg)
+		}
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
+			return err
+		}
+	}
+
+	log.WithContext(ctx).Info("Upgraded all packages")
+	return nil
 }
 
 func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config, pkgs []string) error {
@@ -634,7 +671,7 @@ func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config,
 	if len(config.UserPw) > 0 {
 		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get update")
 	} else {
-		_, err = RunCMD("bash", "-c", "sudo apt-get update -y")
+		_, err = RunCMD("bash", "-c", "sudo apt-get update")
 	}
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update")

@@ -593,7 +593,7 @@ func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config,
 	// Add google ssl key
 	log.WithContext(ctx).Info("Adding google ssl key ...")
 
-	_, err = RunCMD("bash", "-c", "wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub > /tmp/google-key.pub")
+	_, err = RunCMD("bash", "-c", "wget -q -O - "+constants.GooglePubKeyURL+" > /tmp/google-key.pub")
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Write /tmp/google-key.pub failed")
 		return err
@@ -612,19 +612,19 @@ func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config,
 
 	// Add google repo: /etc/apt/sources.list.d/google-chrome.list
 	log.WithContext(ctx).Info("Adding google ppa repo ...")
-	_, err = RunCMD("bash", "-c", "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | tee /tmp/google-chrome.list")
+	_, err = RunCMD("bash", "-c", "echo '"+constants.GooglePPASourceList+"' | tee /tmp/google-chrome.list")
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to create /tmp/google-chrome.list")
 		return err
 	}
 
 	if len(config.UserPw) > 0 {
-		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S mv /tmp/google-chrome.list /etc/apt/sources.list.d/ 2>/dev/null")
+		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S mv /tmp/google-chrome.list "+constants.UbuntuSourceListPath+" 2>/dev/null")
 	} else {
-		_, err = RunCMD("bash", "-c", "sudo mv /tmp/google-chrome.list /etc/apt/sources.list.d/")
+		_, err = RunCMD("bash", "-c", "sudo mv /tmp/google-chrome.list "+constants.UbuntuSourceListPath+" 2>/dev/null")
 	}
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to move /tmp/google-chrome.list to /etc/apt/sources.list.d/")
+		log.WithContext(ctx).WithError(err).Error("Failed to move /tmp/google-chrome.list to " + constants.UbuntuSourceListPath)
 		return err
 	}
 

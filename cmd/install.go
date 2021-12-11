@@ -584,15 +584,41 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 }
 
 func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config, pkgs []string) error {
+	var out string
+	var err error
+
 	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
 		Info("system will now install missing packages")
 
+	// Add google ssl key
+	log.WithContext(ctx).Info("Adding google ssl key ...")
+	_, err = RunCMD("bash", "-c", "wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - 2>/dev/null")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to add google ssl key")
+		return err
+	}
+	log.WithContext(ctx).Info("Added google ssl key")
+
+	// Add google repo
+	log.WithContext(ctx).Info("Adding google ppa repo ...")
+	_, err = RunCMD("bash", "-c", "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to add google repo")
+		return err
+	}
+	log.WithContext(ctx).Info("Added google ppa repo")
+
+	// Update
+	_, err = RunCMD("bash", "-c", "sudo apt-get update")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update")
+		return err
+	}
+
 	for _, pkg := range pkgs {
-		var out string
-		var err error
 
 		if len(config.UserPw) > 0 {
-			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+"  | sudo -S apt-get update -y &&  echo "+config.UserPw+" | sudo apt-get install  -y "+pkg)
+			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo apt-get install  -y "+pkg)
 		} else {
 			out, err = RunCMD("sudo", "apt-get", "install", "-y", pkg)
 		}
@@ -885,11 +911,6 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	log.WithContext(ctx).Info("Pip install finished")
 
-	// Install Chrome
-	if err = installChrome(ctx, config); err != nil {
-		return err
-	}
-
 	appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 	var pathList []interface{}
 	for _, configItem := range constants.DupeDetectionConfigs {
@@ -1161,33 +1182,5 @@ func stopSystemdService(ctx context.Context, appName string, _ *configs.Config) 
 		log.WithContext(ctx).Infof("Service %s is not running", appServiceFileName)
 	}
 
-	return nil
-}
-
-func installChrome(ctx context.Context, config *configs.Config) (err error) {
-	if utils.GetOS() == constants.Linux {
-		log.WithContext(ctx).Infof("Downloading Chrome to install: %s \n", constants.ChromeDownloadURL[utils.GetOS()])
-
-		err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]), constants.ChromeDownloadURL[utils.GetOS()])
-		if err != nil {
-			return err
-		}
-
-		if _, err = RunCMD("chmod", "777",
-			filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()])); err != nil {
-			log.WithContext(ctx).Error("Failed to make chrome-install as executable")
-			return err
-		}
-
-		log.WithContext(ctx).Infof("Installing Chrome : %s \n", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-
-		if len(config.UserPw) > 0 {
-			RunCMDWithInteractive("bash", "-c", "echo "+config.UserPw+" | sudo -S dpkg -i "+filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-		} else {
-			RunCMDWithInteractive("sudo", "dpkg", "-i", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-		}
-
-		utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-	}
 	return nil
 }

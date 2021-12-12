@@ -557,6 +557,10 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 }
 
 func checkInstalledPackages(ctx context.Context, config *configs.Config, tool constants.ToolType) (err error) {
+	if config.OpMode == "update" && utils.GetOS() == constants.Linux {
+		return updateReqPackageLinux(ctx, config, constants.DependenciesPackages[tool][utils.GetOS()])
+	}
+
 	// TODO: 1) must offer to install missing packages
 	installedCmd := utils.GetInstalledPackages(ctx)
 	var notInstall []string
@@ -583,16 +587,101 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	return installMissingReqPackagesLinux(ctx, config, notInstall)
 }
 
+func updateReqPackageLinux(ctx context.Context, config *configs.Config, pkgs []string) error {
+	var err error
+
+	log.WithContext(ctx).Info("Doing upgrade packages ...")
+
+	// Update repo
+	if len(config.UserPw) > 0 {
+		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get update")
+	} else {
+		_, err = RunCMD("bash", "-c", "sudo apt-get update")
+	}
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update")
+		return err
+	}
+
+	// Update each package
+	for _, pkg := range pkgs {
+		if len(config.UserPw) > 0 {
+			_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get -y upgrade "+pkg)
+		} else {
+			_, err = RunCMD("bash", "-c", "sudo apt-get -y upgrade "+pkg)
+		}
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
+			return err
+		}
+	}
+
+	log.WithContext(ctx).Info("Upgraded all packages")
+	return nil
+}
+
 func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config, pkgs []string) error {
+	var out string
+	var err error
+
 	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
 		Info("system will now install missing packages")
 
+	// Add google ssl key
+	log.WithContext(ctx).Info("Adding google ssl key ...")
+
+	_, err = RunCMD("bash", "-c", "wget -q -O - "+constants.GooglePubKeyURL+" > /tmp/google-key.pub")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Write /tmp/google-key.pub failed")
+		return err
+	}
+
+	if len(config.UserPw) > 0 {
+		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-key add /tmp/google-key.pub 2>/dev/null")
+	} else {
+		_, err = RunCMD("bash", "-c", "sudo apt-key add /tmp/google-key.pub 2>/dev/null")
+	}
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to add google ssl key")
+		return err
+	}
+	log.WithContext(ctx).Info("Added google ssl key")
+
+	// Add google repo: /etc/apt/sources.list.d/google-chrome.list
+	log.WithContext(ctx).Info("Adding google ppa repo ...")
+	_, err = RunCMD("bash", "-c", "echo '"+constants.GooglePPASourceList+"' | tee /tmp/google-chrome.list")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to create /tmp/google-chrome.list")
+		return err
+	}
+
+	if len(config.UserPw) > 0 {
+		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S mv /tmp/google-chrome.list "+constants.UbuntuSourceListPath+" 2>/dev/null")
+	} else {
+		_, err = RunCMD("bash", "-c", "sudo mv /tmp/google-chrome.list "+constants.UbuntuSourceListPath+" 2>/dev/null")
+	}
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to move /tmp/google-chrome.list to " + constants.UbuntuSourceListPath)
+		return err
+	}
+
+	log.WithContext(ctx).Info("Added google ppa repo")
+
+	// Update
+	if len(config.UserPw) > 0 {
+		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get update")
+	} else {
+		_, err = RunCMD("bash", "-c", "sudo apt-get update")
+	}
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update")
+		return err
+	}
+
 	for _, pkg := range pkgs {
-		var out string
-		var err error
 
 		if len(config.UserPw) > 0 {
-			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+"  | sudo -S apt-get update -y &&  echo "+config.UserPw+" | sudo apt-get install  -y "+pkg)
+			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get install  -y "+pkg)
 		} else {
 			out, err = RunCMD("sudo", "apt-get", "install", "-y", pkg)
 		}
@@ -885,11 +974,6 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 	log.WithContext(ctx).Info("Pip install finished")
 
-	// Install Chrome
-	if err = installChrome(ctx, config); err != nil {
-		return err
-	}
-
 	appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 	var pathList []interface{}
 	for _, configItem := range constants.DupeDetectionConfigs {
@@ -1161,33 +1245,5 @@ func stopSystemdService(ctx context.Context, appName string, _ *configs.Config) 
 		log.WithContext(ctx).Infof("Service %s is not running", appServiceFileName)
 	}
 
-	return nil
-}
-
-func installChrome(ctx context.Context, config *configs.Config) (err error) {
-	if utils.GetOS() == constants.Linux {
-		log.WithContext(ctx).Infof("Downloading Chrome to install: %s \n", constants.ChromeDownloadURL[utils.GetOS()])
-
-		err = utils.DownloadFile(ctx, filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]), constants.ChromeDownloadURL[utils.GetOS()])
-		if err != nil {
-			return err
-		}
-
-		if _, err = RunCMD("chmod", "777",
-			filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()])); err != nil {
-			log.WithContext(ctx).Error("Failed to make chrome-install as executable")
-			return err
-		}
-
-		log.WithContext(ctx).Infof("Installing Chrome : %s \n", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-
-		if len(config.UserPw) > 0 {
-			RunCMDWithInteractive("bash", "-c", "echo "+config.UserPw+" | sudo -S dpkg -i "+filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-		} else {
-			RunCMDWithInteractive("sudo", "dpkg", "-i", filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-		}
-
-		utils.DeleteFile(filepath.Join(config.PastelExecDir, constants.ChromeExecFileName[utils.GetOS()]))
-	}
 	return nil
 }

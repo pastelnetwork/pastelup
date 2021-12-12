@@ -201,21 +201,14 @@ var PastelParamsCheckSums = map[string]string{
 	"sprout-verifying.key":  "4bd498dae0aacfd8e98dc306338d017d9c08dd0918ead18172bd0aec2fc5df82",
 }
 
-// ChromeDownloadURL - The download url of chrome
-var ChromeDownloadURL = map[OSType]string{
-	Windows: "",
-	Linux:   "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb",
-	Mac:     "",
-	Unknown: "",
-}
+// GooglePubKeyURL - The url of the google public key
+var GooglePubKeyURL = "https://dl-ssl.google.com/linux/linux_signing_key.pub"
 
-// ChromeExecFileName - The download filename of chrome executable
-var ChromeExecFileName = map[OSType]string{
-	Windows: "",
-	Linux:   "google-chrome.deb",
-	Mac:     "",
-	Unknown: "",
-}
+// GooglePPASourceList - The url of the google PPA source list
+var GooglePPASourceList = "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main"
+
+// UbuntuSourceListPath - The path of the ubuntu source list
+var UbuntuSourceListPath = "/etc/apt/sources.list.d"
 
 // MainnetPortList - PortList of supernode
 var MainnetPortList = []int{9933, 4444, 4445, 4446, 4447}
@@ -313,7 +306,7 @@ var DependenciesPackagesWalletNode = map[OSType][]string{
 
 // DependenciesPackagesSuperNode defines some dependencies for supernode
 var DependenciesPackagesSuperNode = map[OSType][]string{
-	Linux:   {"libgomp1", "ufw", "python3-pip", "curl"},
+	Linux:   {"libgomp1", "ufw", "python3-pip", "curl", "google-chrome-stable"},
 	Mac:     {},
 	Windows: {},
 	Unknown: {},

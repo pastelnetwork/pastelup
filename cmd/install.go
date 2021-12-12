@@ -988,6 +988,24 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	targetDir := filepath.Join(appBaseDir, constants.DupeDetectionSupportFilePath)
 	tmpDir := filepath.Join(targetDir, "temp.zip")
 	for _, url := range constants.DupeDetectionSupportDownloadURL {
+		// Get ddSupportContent and cal checksum
+		ddSupportContent := constants.DupeDetectionSupportContents[path.Base(url)]
+		if len(ddSupportContent) > 0 {
+			ddSupportPath := filepath.Join(targetDir, ddSupportContent)
+			if _, err := os.Stat(ddSupportPath); err == nil {
+				log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support file: %s", ddSupportContent)
+
+				checksum, err := utils.GetChecksum(ctx, ddSupportPath)
+				if err != nil {
+					log.WithContext(ctx).WithError(err).Errorf("Failed to get checksum: %s", ddSupportPath)
+					return err
+				} else if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
+					log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checkum matched, so skipping download.", ddSupportPath)
+					continue
+				}
+			}
+		}
+
 		if !strings.Contains(url, ".zip") {
 			if err = utils.DownloadFile(ctx, filepath.Join(targetDir, path.Base(url)), url); err != nil {
 				log.WithContext(ctx).WithError(err).Errorf("Failed to download file: %s", url)

@@ -265,6 +265,16 @@ var DupeDetectionSupportDownloadURL = []string{
 	"https://download.pastel.network/machine-learning/neuralhash_model.onnx",
 }
 
+// DupeDetectionSupportContents - The contents of dupe detection support files (can be file or folder)
+var DupeDetectionSupportContents = map[string]string{
+	"dupe_detection_image_fingerprint_database.zip": "dupe_detection_image_fingerprint_database.sqlite",
+}
+
+// DupeDetectionSupportChecksum - The checksum of dupe detection support files
+var DupeDetectionSupportChecksum = map[string]string{
+	"dupe_detection_image_fingerprint_database.sqlite": "4534842ef9839ce23426dc985eac28710795bceade19da7f53c1abb37d94ea81",
+}
+
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files
 var DupeDetectionSupportFilePath = "support_files"
 

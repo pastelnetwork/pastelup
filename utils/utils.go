@@ -427,7 +427,7 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 	m := make(map[string]bool)
 	switch GetOS() {
 	case constants.Linux:
-		cmd := exec.Command("bash", "-c", "dpkg-query -l | grep ii | awk '{ print $2 }'")
+		cmd := exec.Command("bash", "-c", "dpkg-query -l |  awk {' print $1,$2 '}")
 		stdout, err := cmd.Output()
 		if err != nil {
 			log.WithContext(ctx).Errorf("failed to execute cmd: %v", err)
@@ -436,9 +436,9 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 
 		packages := strings.Split(string(stdout), "\n")
 		for _, p := range packages {
-			tokens := strings.Split(p, ":")
-			if tokens[0] != "" {
-				m[tokens[0]] = true
+			tokens := strings.Split(p, " ")
+			if tokens[0] == "ii" && tokens[1] != "" {
+				m[tokens[1]] = true
 			}
 		}
 	case constants.Mac:

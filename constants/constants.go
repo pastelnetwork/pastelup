@@ -268,11 +268,21 @@ var DupeDetectionSupportDownloadURL = []string{
 // DupeDetectionSupportContents - The contents of dupe detection support files (can be file or folder)
 var DupeDetectionSupportContents = map[string]string{
 	"dupe_detection_image_fingerprint_database.zip": "dupe_detection_image_fingerprint_database.sqlite",
+	"keras_dupe_classifier.model.zip":               "keras_dupe_classifier.model",
+	"xgboost_dupe_classifier.zip":                   "xgboost_dupe_classifier.model",
+	"nsfw_mobilenet_v2_140_224.zip":                 "mobilenet_v2_140_224",
+	"neuralhash_128x96_seed1.dat":                   "neuralhash_128x96_seed1.dat",
+	"neuralhash_model.onnx":                         "neuralhash_model.onnx",
 }
 
 // DupeDetectionSupportChecksum - The checksum of dupe detection support files
 var DupeDetectionSupportChecksum = map[string]string{
 	"dupe_detection_image_fingerprint_database.sqlite": "4534842ef9839ce23426dc985eac28710795bceade19da7f53c1abb37d94ea81",
+	"keras_dupe_classifier.model":                      "084461c90431e88f75e3b83a6aafa2e0f0e7045057cc78ec50af68e6e4f366c7",
+	"xgboost_dupe_classifier.model":                    "1bf324ef064cec16d2d0a3324118438714fed41f64bbc92f21292c4c841900a3",
+	"mobilenet_v2_140_224":                             "825a4298a25334201ad5fb29e089fce0258c9a13793cc0d0b6a7dbe9c96ad9f3",
+	"neuralhash_128x96_seed1.dat":                      "312344458ca5468eced6f50163c09d88dbc9f3470891f1b078852b01c9a0fce9",
+	"neuralhash_model.onnx":                            "77bcb037a64d2246624fbdbf3a2a8e82bb085760f5b690f13f0b91f3312a92f9",
 }
 
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files

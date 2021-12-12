@@ -422,6 +422,41 @@ func GetChecksum(_ context.Context, fileName string) (checksum string, err error
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
+// CalChecksumOfFolder get checksum of all files under the folder
+func CalChecksumOfFolder(_ context.Context, ddSupportPath string) (string, error) {
+	if _, err := os.Stat(ddSupportPath); os.IsNotExist(err) {
+		return "", errors.Errorf("folder missing: %v", err)
+	}
+
+	hasher := sha256.New()
+
+	err := filepath.Walk(ddSupportPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() {
+			f, err := os.Open(path)
+			if err != nil {
+				return errors.Errorf("open file failed: %v", err)
+			}
+			defer f.Close()
+
+			if _, err := io.Copy(hasher, f); err != nil {
+				return fmt.Errorf("copy file failed: %s", err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", errors.Errorf("cal checksum of folder failed: %v", err)
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
 // GetInstalledPackages returns a map which contains install packages
 func GetInstalledPackages(ctx context.Context) map[string]bool {
 	m := make(map[string]bool)

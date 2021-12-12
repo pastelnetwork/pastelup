@@ -992,14 +992,26 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		ddSupportContent := constants.DupeDetectionSupportContents[path.Base(url)]
 		if len(ddSupportContent) > 0 {
 			ddSupportPath := filepath.Join(targetDir, ddSupportContent)
-			if _, err := os.Stat(ddSupportPath); err == nil {
-				log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support file: %s", ddSupportContent)
+			fileInfo, err := os.Stat(ddSupportPath)
+			if err == nil {
+				var checksum string
+				log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support: %s", ddSupportContent)
 
-				checksum, err := utils.GetChecksum(ctx, ddSupportPath)
+				if fileInfo.IsDir() {
+					checksum, err = utils.CalChecksumOfFolder(ctx, ddSupportPath)
+				} else {
+					checksum, err = utils.GetChecksum(ctx, ddSupportPath)
+				}
+
 				if err != nil {
 					log.WithContext(ctx).WithError(err).Errorf("Failed to get checksum: %s", ddSupportPath)
 					return err
-				} else if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
+				}
+
+				log.WithContext(ctx).Infof("Checksum of DupeDetection Support: %s is %s", ddSupportContent, checksum)
+
+				// Compare checksum
+				if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
 					log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checkum matched, so skipping download.", ddSupportPath)
 					continue
 				}

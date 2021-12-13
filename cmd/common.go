@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -55,6 +56,11 @@ func GetExternalIPAddress() (externalIP string, err error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
+	}
+
+	// Validate body
+	if net.ParseIP(string(body)) == nil {
+		return "", errors.Errorf("invalid IP response from %s", constants.IPCheckURL)
 	}
 
 	return string(body), nil

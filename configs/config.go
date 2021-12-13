@@ -12,12 +12,12 @@ const (
 	// WalletDefaultConfig - default config for walletnode
 	WalletDefaultConfig = `
 log-config:
-	log-level: {{.LogLevel}}
-	log-file: {{.LogFilePath}}
-	log-compress: {{.LogCompress}}
-	log-max-size-mb: {{.LogMaxSizeMB}}
-	log-max-age-days: {{.LogMaxAgeDays}}
-	log-max-backups: {{.LogMaxBackups}}
+  log-level: {{.LogLevel}}
+  log-file: {{.LogFilePath}}
+  log-compress: {{.LogCompress}}
+  log-max-size-mb: {{.LogMaxSizeMB}}
+  log-max-age-days: {{.LogMaxAgeDays}}
+  log-max-backups: {{.LogMaxBackups}}
 quiet: true
 temp-dir: {{.WNTempDir}}
 work-dir: {{.WNWorkDir}}
@@ -36,17 +36,17 @@ raptorq:
 	// SupernodeDefaultConfig - default config for supernode
 	SupernodeDefaultConfig = `
 log-config:
-	log-file: {{.LogFilePath}}
-	log-compress: {{.LogCompress}}
-	log-max-size-mb: {{.LogMaxSizeMB}}
-	log-max-age-days: {{.LogMaxAgeDays}}
-	log-max-backups: {{.LogMaxBackups}}
-	log-levels:
-		common: {{.LogLevelCommon}}
-		p2p: {{.LogLevelP2P}}
-		metadb: {{.LogLevelMetadb}}
-		dd: {{.LogLevelDD}}
-	
+  log-file: {{.LogFilePath}}
+  log-compress: {{.LogCompress}}
+  log-max-size-mb: {{.LogMaxSizeMB}}
+  log-max-age-days: {{.LogMaxAgeDays}}
+  log-max-backups: {{.LogMaxBackups}}
+  log-levels:
+      common: {{.LogLevelCommon}}
+      p2p: {{.LogLevelP2P}}
+      metadb: {{.LogLevelMetadb}}
+      dd: {{.LogLevelDD}}
+    
 quiet: true
 temp-dir: {{.SNTempDir}}
 work-dir: {{.SNWorkDir}}
@@ -108,17 +108,17 @@ python3 -m  http.server 80`
 
 	// SystemdService - /etc/systemd/sysstem/rq-service.service
 	SystemdService = `[Unit]
-	Description={{.Desc}}
-	
-	[Service]
-	Restart=always
-	RestartSec=10
-	WorkingDirectory={{.WorkDir}}
-	ExecStart={{.ExecCmd}}
-	
-	[Install]
-	WantedBy=default.target
-	`
+    Description={{.Desc}}
+    
+    [Service]
+    Restart=always
+    RestartSec=10
+    WorkingDirectory={{.WorkDir}}
+    ExecStart={{.ExecCmd}}
+    
+    [Install]
+    WantedBy=default.target
+    `
 )
 
 // WalletNodeConfig defines configurations for walletnode

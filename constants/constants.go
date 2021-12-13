@@ -97,10 +97,26 @@ const (
 	// MDLDataDir defines location for MDL data dir
 	MDLDataDir = "mdldata"
 
-	// SuperNodeDefaultLogLevel defines supernode log level
-	SuperNodeDefaultLogLevel = "debug"
+	// LogConfigDefaultCompress defines supernode log compress
+	LogConfigDefaultCompress = true
+	// LogConfigDefaultMaxSizeMB defines supernode log max size
+	LogConfigDefaultMaxSizeMB = 100
+	// LogConfigDefaultMaxAgeDays defines supernode log max age
+	LogConfigDefaultMaxAgeDays = 3
+	// LogConfigDefaultMaxBackups defines supernode log max backups
+	LogConfigDefaultMaxBackups = 10
+
+	// SuperNodeDefaultCommonLogLevel defines supernode common log level
+	SuperNodeDefaultCommonLogLevel = "info"
+	// SuperNodeDefaultP2PLogLevel defines supernode p2p log level
+	SuperNodeDefaultP2PLogLevel = "error"
+	// SuperNodeDefaultMetaDBLogLevel defines supernode meta db log level
+	SuperNodeDefaultMetaDBLogLevel = "error"
+	// SuperNodeDefaultDDLogLevel defines supernode dupe detection log level
+	SuperNodeDefaultDDLogLevel = "error"
+
 	// WalletNodeDefaultLogLevel defines walletnode log level
-	WalletNodeDefaultLogLevel = "debug"
+	WalletNodeDefaultLogLevel = "info"
 
 	// RQServiceDefaultPort defines rqservice port
 	RQServiceDefaultPort = 50051

@@ -11,8 +11,13 @@ import (
 const (
 	// WalletDefaultConfig - default config for walletnode
 	WalletDefaultConfig = `
-log-level: {{.LogLevel}}
-log-file: {{.LogFilePath}}
+log-config:
+	log-level: {{.LogLevel}}
+	log-file: {{.LogFilePath}}
+	log-compress: {{.LogCompress}}
+	log-max-size-mb: {{.LogMaxSizeMB}}
+	log-max-age-days: {{.LogMaxAgeDays}}
+	log-max-backups: {{.LogMaxBackups}}
 quiet: true
 temp-dir: {{.WNTempDir}}
 work-dir: {{.WNWorkDir}}
@@ -30,8 +35,18 @@ raptorq:
 
 	// SupernodeDefaultConfig - default config for supernode
 	SupernodeDefaultConfig = `
-log-level: {{.LogLevel}}
-log-file: {{.LogFilePath}}
+log-config:
+	log-file: {{.LogFilePath}}
+	log-compress: {{.LogCompress}}
+	log-max-size-mb: {{.LogMaxSizeMB}}
+	log-max-age-days: {{.LogMaxAgeDays}}
+	log-max-backups: {{.LogMaxBackups}}
+	log-levels:
+		common: {{.LogLevelCommon}}
+		p2p: {{.LogLevelP2P}}
+		metadb: {{.LogLevelMetadb}}
+		dd: {{.LogLevelDD}}
+	
 quiet: true
 temp-dir: {{.SNTempDir}}
 work-dir: {{.SNWorkDir}}
@@ -108,19 +123,30 @@ python3 -m  http.server 80`
 
 // WalletNodeConfig defines configurations for walletnode
 type WalletNodeConfig struct {
-	LogLevel    string
-	LogFilePath string
-	WNTempDir   string
-	WNWorkDir   string
-	RQDir       string
-	RaptorqPort int
-	BurnAddress string
+	LogLevel      string
+	LogFilePath   string
+	LogCompress   bool
+	LogMaxSizeMB  int
+	LogMaxAgeDays int
+	LogMaxBackups int
+	WNTempDir     string
+	WNWorkDir     string
+	RQDir         string
+	RaptorqPort   int
+	BurnAddress   string
 }
 
 // SuperNodeConfig defines configurations for supernode
 type SuperNodeConfig struct {
-	LogLevel                        string
 	LogFilePath                     string
+	LogCompress                     bool
+	LogMaxSizeMB                    int
+	LogMaxAgeDays                   int
+	LogMaxBackups                   int
+	LogLevelCommon                  string
+	LogLevelP2P                     string
+	LogLevelMetadb                  string
+	LogLevelDD                      string
 	SNTempDir                       string
 	SNWorkDir                       string
 	RQDir                           string

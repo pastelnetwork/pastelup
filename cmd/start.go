@@ -1320,8 +1320,15 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			LogLevel:                        constants.SuperNodeDefaultLogLevel,
 			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
+			LogCompress:                     constants.LogConfigDefaultCompress,
+			LogMaxSizeMB:                    constants.LogConfigDefaultMaxSizeMB,
+			LogMaxAgeDays:                   constants.LogConfigDefaultMaxAgeDays,
+			LogMaxBackups:                   constants.LogConfigDefaultMaxBackups,
+			LogLevelCommon:                  constants.SuperNodeDefaultCommonLogLevel,
+			LogLevelP2P:                     constants.SuperNodeDefaultP2PLogLevel,
+			LogLevelMetadb:                  constants.SuperNodeDefaultMetaDBLogLevel,
+			LogLevelDD:                      constants.SuperNodeDefaultDDLogLevel,
 			SNTempDir:                       snTempDirPath,
 			SNWorkDir:                       config.WorkingDir,
 			RQDir:                           rqWorkDirPath,

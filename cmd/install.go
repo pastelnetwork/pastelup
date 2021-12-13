@@ -369,13 +369,17 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.WalletNode), configs.WalletDefaultConfig, &configs.WalletNodeConfig{
-			LogLevel:    constants.WalletNodeDefaultLogLevel,
-			LogFilePath: config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
-			WNTempDir:   wnTempDirPath,
-			WNWorkDir:   config.WorkingDir,
-			RQDir:       rqWorkDirPath,
-			BurnAddress: burnAddress,
-			RaptorqPort: constants.RQServiceDefaultPort,
+			LogLevel:      constants.WalletNodeDefaultLogLevel,
+			LogFilePath:   config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
+			LogCompress:   constants.LogConfigDefaultCompress,
+			LogMaxSizeMB:  constants.LogConfigDefaultMaxSizeMB,
+			LogMaxAgeDays: constants.LogConfigDefaultMaxAgeDays,
+			LogMaxBackups: constants.LogConfigDefaultMaxBackups,
+			WNTempDir:     wnTempDirPath,
+			WNWorkDir:     config.WorkingDir,
+			RQDir:         rqWorkDirPath,
+			BurnAddress:   burnAddress,
+			RaptorqPort:   constants.RQServiceDefaultPort,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get walletnode config: %v", err)
@@ -425,19 +429,28 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			LogLevel:      constants.SuperNodeDefaultLogLevel,
-			LogFilePath:   config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
-			SNTempDir:     snTempDirPath,
-			SNWorkDir:     config.WorkingDir,
-			RQDir:         rqWorkDirPath,
-			DDDir:         filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
-			SuperNodePort: portList[constants.SNPort],
-			P2PPort:       portList[constants.P2PPort],
-			P2PDataDir:    p2pDataPath,
-			MDLPort:       portList[constants.MDLPort],
-			RAFTPort:      portList[constants.RAFTPort],
-			MDLDataDir:    mdlDataPath,
-			RaptorqPort:   constants.RQServiceDefaultPort,
+			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
+			LogCompress:                     constants.LogConfigDefaultCompress,
+			LogMaxSizeMB:                    constants.LogConfigDefaultMaxSizeMB,
+			LogMaxAgeDays:                   constants.LogConfigDefaultMaxAgeDays,
+			LogMaxBackups:                   constants.LogConfigDefaultMaxBackups,
+			LogLevelCommon:                  constants.SuperNodeDefaultCommonLogLevel,
+			LogLevelP2P:                     constants.SuperNodeDefaultP2PLogLevel,
+			LogLevelMetadb:                  constants.SuperNodeDefaultMetaDBLogLevel,
+			LogLevelDD:                      constants.SuperNodeDefaultDDLogLevel,
+			SNTempDir:                       snTempDirPath,
+			SNWorkDir:                       config.WorkingDir,
+			RQDir:                           rqWorkDirPath,
+			DDDir:                           filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
+			SuperNodePort:                   portList[constants.SNPort],
+			P2PPort:                         portList[constants.P2PPort],
+			P2PDataDir:                      p2pDataPath,
+			MDLPort:                         portList[constants.MDLPort],
+			RAFTPort:                        portList[constants.RAFTPort],
+			MDLDataDir:                      mdlDataPath,
+			RaptorqPort:                     constants.RQServiceDefaultPort,
+			NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
+			StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
 		})
 		if err != nil {
 			return errors.Errorf("failed to get supernode config: %v", err)

@@ -1,7 +1,7 @@
 # Pastelup
 `pastelup` is a utility that can install `supernode`/`walletnode` and start.
 
-In order to build `pastelup`, pls install `golang` and `upx`:
+In order to build `pastelup`, please install `golang` and `upx`:
 ```
 sudo apt-get install upx
 ```
@@ -27,8 +27,8 @@ USAGE:
    Pastelup install node [command options] [arguments...]
 
 OPTIONS:
-   --dir value, -d value       Optional, Location where to create pastel node directory (default: "/home/bacnh/pastel")
-   --work-dir value, -w value  Optional, Location where to create working directory (default: "/home/bacnh/.pastel")
+   --dir value, -d value       Optional, Location to create pastel node directory (default: "/home/bacnh/pastel")
+   --work-dir value, -w value  Optional, Location to create working directory (default: "/home/bacnh/.pastel")
    --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
    --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
    --peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"
@@ -104,8 +104,8 @@ For testnet:
 The above command will:
 - ask for passphrase
 - create and register new SN's PastelID
-- ask for collateral transaction txid and vout index
-  - if no collateral were sent yet, it will offer to create new address and will wait until collateral is sent to it and transaction is confirmed
+- asks for collateral transaction txid and vout index
+  - if no collateral was sent yet, it will offer to create new address and will wait until collateral is sent to it and the transaction is confirmed
 - create masternode.conf file
 - start pasteld as masternode
 - activate pasteld as masternode
@@ -153,10 +153,10 @@ OPTIONS:
    --bin value                 Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file  or a folder of binary to remote host
    --help, -h                  show help (default: false)
 ```
-`pastelup update` will do folowing steps:
+`pastelup update` will do the folowing steps:
 - Copy `pastelup` tool specified by `--utility-path' to `/tmp` folder of remote side
-- Stop `supernode` serivces by `pastel-ulity stop supernode`
-- Copy the file specified at `--bin` to `--dir` at remote side. If path is directory, it will copy all files inside that folder to remote side
+- Stop `supernode` services by `pastel-ulity stop supernode`
+- Copy the file specified at `--bin` to `--dir` at remote side. If the path is a directory, it will copy all files inside that folder to the remote side
 - Start `supernode` again with masternode config `--name`
 
 a) To update supernode bin to remote side:
@@ -170,7 +170,7 @@ a) To update supernode bin to remote side:
   --user-pw=<pw of remote user> \
   --ssh-key=<private key path>
 ```
-b) To update all binaries at once. Create a local folder and copy all binaries into a folder and execute below command with `--bin` points to that folder path:
+b) To update all binaries at once, create a local folder and copy all binaries into a folder and execute below command with `--bin` pointing to that folder path:
 ```
 ./pastelup update supernode remote \ 
   --bin=<path fo that folder> \
@@ -202,7 +202,7 @@ c) In case `--bin` is missing, the tool will update the latest from the download
 
 ### Start supernode-coldhot
 
-How cold-hot is working: https://pastel.wiki/en/home/how-to-start-mn
+How cold-hot config works: https://pastel.wiki/en/home/how-to-start-mn
 
 Usage:
 ```
@@ -218,13 +218,13 @@ Usage:
 
 `pastelup install <node|walletnode|supernode> ...` supports the following common parameters:
 
-- `--dir value, -d value       Optional, Location where to create pastel node directory (default: "$HOME/pastel")`
-- `--work-dir value, -w value  Optional, Location where to create working directory (default: "$HOME/.pastel")`
+- `--dir value, -d value       Optional, Location to create pastel node directory (default: "$HOME/pastel")`
+- `--work-dir value, -w value  Optional, Location to create working directory (default: "$HOME/.pastel")`
 - `--network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")`
 - `--force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)`
 - `--peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"`
 - `--release value, -r value   Optional, Pastel version to install (default: "beta")`
-- `--enable-service            Optional, start all apps automatically as systemd service`
+- `--enable-service            Optional, start all apps automatically as systemd services`
 - `--user-pw value             Optional, password of current sudo user - so no sudo password request is prompted`
 - `--help, -h                  show help (default: false)`
 

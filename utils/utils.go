@@ -422,12 +422,47 @@ func GetChecksum(_ context.Context, fileName string) (checksum string, err error
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
+// CalChecksumOfFolder get checksum of all files under the folder
+func CalChecksumOfFolder(_ context.Context, ddSupportPath string) (string, error) {
+	if _, err := os.Stat(ddSupportPath); os.IsNotExist(err) {
+		return "", errors.Errorf("folder missing: %v", err)
+	}
+
+	hasher := sha256.New()
+
+	err := filepath.Walk(ddSupportPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() {
+			f, err := os.Open(path)
+			if err != nil {
+				return errors.Errorf("open file failed: %v", err)
+			}
+			defer f.Close()
+
+			if _, err := io.Copy(hasher, f); err != nil {
+				return fmt.Errorf("copy file failed: %s", err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", errors.Errorf("cal checksum of folder failed: %v", err)
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
 // GetInstalledPackages returns a map which contains install packages
 func GetInstalledPackages(ctx context.Context) map[string]bool {
 	m := make(map[string]bool)
 	switch GetOS() {
 	case constants.Linux:
-		cmd := exec.Command("bash", "-c", "dpkg-query -l | grep ii | awk '{ print $2 }'")
+		cmd := exec.Command("bash", "-c", "dpkg-query -l |  awk {' print $1,$2 '}")
 		stdout, err := cmd.Output()
 		if err != nil {
 			log.WithContext(ctx).Errorf("failed to execute cmd: %v", err)
@@ -436,9 +471,9 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 
 		packages := strings.Split(string(stdout), "\n")
 		for _, p := range packages {
-			tokens := strings.Split(p, ":")
-			if tokens[0] != "" {
-				m[tokens[0]] = true
+			tokens := strings.Split(p, " ")
+			if tokens[0] == "ii" && tokens[1] != "" {
+				m[tokens[1]] = true
 			}
 		}
 	case constants.Mac:

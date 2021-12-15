@@ -715,6 +715,13 @@ func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config,
 }
 
 func downloadComponents(ctx context.Context, config *configs.Config, installCommand constants.ToolType, version string, dstFolder string) (err error) {
+	if _, err := os.Stat(config.PastelExecDir); os.IsNotExist(err) {
+		if err := utils.CreateFolder(ctx, config.PastelExecDir, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("create folder: %s", config.PastelExecDir)
+			return err
+		}
+	}
+
 	commandName := filepath.Base(string(installCommand))
 	log.WithContext(ctx).Infof("Downloading %s...", commandName)
 

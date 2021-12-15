@@ -472,8 +472,9 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 		packages := strings.Split(string(stdout), "\n")
 		for _, p := range packages {
 			tokens := strings.Split(p, " ")
-			if tokens[0] == "ii" && tokens[1] != "" {
-				m[tokens[1]] = true
+			if tokens[0] == "ii" {
+				pkg := strings.Split(tokens[1], ":")
+				m[pkg[0]] = true
 			}
 		}
 	case constants.Mac:

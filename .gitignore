@@ -2,6 +2,7 @@
 .idea
 pastel-cli
 pastel-utility
+pastelup
 pasteld
 pastel
 dist/

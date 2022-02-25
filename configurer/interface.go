@@ -18,4 +18,6 @@ type IConfigurer interface {
 	GetWalletNodeConfFile(workingDir string) string
 	GetRQServiceConfFile(workingDir string) string
 	GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error)
+	SetOriginalArgs(tooltype constants.ToolType, args []string)
+	GetOriginalArgs(tooltype constants.ToolType) []string
 }

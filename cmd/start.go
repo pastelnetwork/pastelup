@@ -580,7 +580,7 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 		if flagDevMode {
 			wnServiceArgs = append(wnServiceArgs, "--swagger")
 		}
-
+		wnServiceArgs = mergeCmdArgs(wnServiceArgs, config.Configurer.GetOriginalArgs(constants.WalletNode))
 		log.WithContext(ctx).Infof("Options : %s", wnServiceArgs)
 		if err := runPastelService(ctx, config, constants.WalletNode, walletnodeExecName, wnServiceArgs...); err != nil {
 			log.WithContext(ctx).WithError(err).Error("walletnode service failed")

@@ -6,12 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 type updateCommand uint8
@@ -21,6 +23,8 @@ const (
 	updateWalletNode
 	updateSuperNode
 	updateSuperNodeRemote
+	updateRQService
+	updateDDService
 )
 
 var (
@@ -29,6 +33,8 @@ var (
 		updateWalletNode:      "walletnode",
 		updateSuperNode:       "supernode",
 		updateSuperNodeRemote: "remote",
+		updateRQService:       "rq-service",
+		updateDDService:       "dd-service",
 	}
 )
 
@@ -123,10 +129,11 @@ func setupUpdateCommand() *cli.Command {
 
 	updateNodeSubCommand := setupUpdateSubCommand(config, updateNode, runUpdateNodeSubCommand)
 	updateWalletNnodeSubCommand := setupUpdateSubCommand(config, updateWalletNode, runUpdateWalletNodeSubCommand)
-
 	updateSuperNodeRemoteSubCommand := setupUpdateSubCommand(config, updateSuperNodeRemote, runUpdateSuperNodeRemoteSubCommand)
 	updateSuperNodeSubCommand := setupUpdateSubCommand(config, updateSuperNode, runUpdateSuperNodeSubCommand)
 	updateSuperNodeSubCommand.AddSubcommands(updateSuperNodeRemoteSubCommand)
+	updateRQServiceSubCommand := setupUpdateSubCommand(config, updateRQService, runUpdateRQServiceSubCommand)
+	updateDDServiceSubCommand := setupUpdateSubCommand(config, updateDDService, runUpdateDDServiceSubCommand)
 
 	// Add update command
 	updateCommand := cli.NewCommand("update")
@@ -135,6 +142,8 @@ func setupUpdateCommand() *cli.Command {
 	updateCommand.AddSubcommands(updateNodeSubCommand)
 	updateCommand.AddSubcommands(updateWalletNnodeSubCommand)
 	updateCommand.AddSubcommands(updateSuperNodeSubCommand)
+	updateCommand.AddSubcommands(updateRQServiceSubCommand)
+	updateCommand.AddSubcommands(updateDDServiceSubCommand)
 
 	return updateCommand
 }
@@ -318,6 +327,12 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 		log.WithContext(ctx).Info("Pasteld service is not running!")
 	}
 
+	if archiveName, err := archiveWorkDir(config.Configurer.DefaultHomeDir(), config.Configurer.DefaultWorkingDir()); err != nil {
+		log.WithContext(ctx).Error("Failed to archive %v directory: %v", config.Configurer.DefaultWorkingDir(), err)
+	} else {
+		log.WithContext(ctx).Info("Archived working dir as %v", archiveName)
+	}
+
 	log.WithContext(ctx).Info("Updating node component ...")
 	if err = runComponentsInstall(ctx, config, constants.PastelD); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update node component")
@@ -333,8 +348,11 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 }
 
 func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	isPasteldAlreadyRunning := false
+	isRunning, originalArgs := GetProcessCmdInput(constants.WalletNode)
+	log.WithContext(ctx).Info(fmt.Sprintf("detected wallet node as isRunning=%v, originalArgs=%v", isRunning, originalArgs))
+	config.Configurer.SetOriginalArgs(constants.WalletNode, originalArgs)
 
+	isPasteldAlreadyRunning := false
 	log.WithContext(ctx).Info("Checking if pasteld is running ...")
 	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
 		log.WithContext(ctx).Info("Pasteld service is already running!")
@@ -344,6 +362,14 @@ func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) 
 	} else {
 		log.WithContext(ctx).Info("Pasteld service is not running!")
 	}
+
+	if archiveName, err := archiveWorkDir(config.Configurer.DefaultHomeDir(), config.Configurer.DefaultWorkingDir()); err != nil {
+		log.WithContext(ctx).Error("Failed to archive %v directory: %v", config.Configurer.DefaultWorkingDir(), err)
+	} else {
+		log.WithContext(ctx).Info("Archived working dir as %v", archiveName)
+	}
+
+	runUpdateRQServiceSubCommand(ctx, config)
 
 	log.WithContext(ctx).Info("Updating walletnode component ...")
 	if err = runComponentsInstall(ctx, config, constants.WalletNode); err != nil {
@@ -357,4 +383,61 @@ func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) 
 	}
 
 	return nil
+}
+
+func runUpdateRQServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	log.WithContext(ctx).Info("Updating RQ service...")
+	log.WithContext(ctx).Info("Stopping RQ service if already running...")
+	stopRQServiceSubCommand(ctx, config)
+	log.WithContext(ctx).Info("Downloading latest RQ service image...")
+	err = runComponentsInstall(ctx, config, constants.RQService)
+	if err != nil {
+		log.WithContext(ctx).Error("Failed to download new version of RQ service: %v", err)
+		return
+	}
+	err = runRQService(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Error("Failed to start RQ service after update: %v", err)
+		return
+	}
+	return nil
+}
+
+func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	log.WithContext(ctx).Info("Updating DD service...")
+	log.WithContext(ctx).Info("Stopping DD service if already running...")
+	stopDDServiceSubCommand(ctx, config)
+	log.WithContext(ctx).Info("Downloading latest DD service image...")
+	err = runComponentsInstall(ctx, config, constants.DDImgService)
+	if err != nil {
+		log.WithContext(ctx).Error("Failed to download new version of DD service: %v", err)
+		return
+	}
+	err = runDDService(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Error("Failed to start DD service after update: %v", err)
+		return
+	}
+	return nil
+}
+
+// archiveWorkDir is used in preparation for downloading new
+func archiveWorkDir(homeDir, workDir string) (string, error) {
+	now := time.Now().Unix()
+	archiveBaseDir := homeDir + "/.pastel_archives"
+	if exists := utils.CheckFileExist(archiveBaseDir); !exists {
+		err := os.Mkdir(archiveBaseDir, 0755)
+		if err != nil {
+			return "", err
+		}
+	}
+	archiveName := fmt.Sprintf("archive_%v", now)
+	archivePath := archiveBaseDir + "/" + archiveName
+
+	cmd := fmt.Sprintf("cp -R %v %v", workDir, archivePath)
+	_, err := RunCMD("bash", "-c", cmd)
+	if err != nil {
+		return "", err
+	}
+	return archivePath, nil
 }

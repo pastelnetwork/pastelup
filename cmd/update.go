@@ -326,8 +326,10 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 	} else {
 		log.WithContext(ctx).Info("Pasteld service is not running!")
 	}
-
-	if archiveName, err := archiveWorkDir(config.Configurer.DefaultHomeDir(), config.Configurer.DefaultWorkingDir()); err != nil {
+	homeDir := config.Configurer.DefaultHomeDir()
+	dirToArchive := config.Configurer.DefaultWorkingDir()
+	workDir := config.Configurer.WorkDir()
+	if archiveName, err := archiveWorkDir(homeDir, dirToArchive, workDir); err != nil {
 		log.WithContext(ctx).Error("Failed to archive %v directory: %v", config.Configurer.DefaultWorkingDir(), err)
 	} else {
 		log.WithContext(ctx).Info("Archived working dir as %v", archiveName)
@@ -348,10 +350,6 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 }
 
 func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	isRunning, originalArgs := GetProcessCmdInput(constants.WalletNode)
-	log.WithContext(ctx).Info(fmt.Sprintf("detected wallet node as isRunning=%v, originalArgs=%v", isRunning, originalArgs))
-	config.Configurer.SetOriginalArgs(constants.WalletNode, originalArgs)
-
 	isPasteldAlreadyRunning := false
 	log.WithContext(ctx).Info("Checking if pasteld is running ...")
 	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
@@ -363,8 +361,11 @@ func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) 
 		log.WithContext(ctx).Info("Pasteld service is not running!")
 	}
 
-	if archiveName, err := archiveWorkDir(config.Configurer.DefaultHomeDir(), config.Configurer.DefaultWorkingDir()); err != nil {
-		log.WithContext(ctx).Error("Failed to archive %v directory: %v", config.Configurer.DefaultWorkingDir(), err)
+	homeDir := config.Configurer.DefaultHomeDir()
+	dirToArchive := config.Configurer.DefaultWorkingDir()
+	workDir := config.Configurer.WorkDir()
+	if archiveName, err := archiveWorkDir(homeDir, dirToArchive, workDir); err != nil {
+		log.WithContext(ctx).Error("Failed to archive %v directory: %v", dirToArchive, err)
 	} else {
 		log.WithContext(ctx).Info("Archived working dir as %v", archiveName)
 	}
@@ -407,6 +408,13 @@ func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (
 	log.WithContext(ctx).Info("Updating DD service...")
 	log.WithContext(ctx).Info("Stopping DD service if already running...")
 	stopDDServiceSubCommand(ctx, config)
+	homeDir := config.Configurer.DefaultHomeDir()
+	dirToArchive := filepath.Join(config.Configurer.DefaultWorkingDir(), constants.DupeDetectionServiceDir)
+	if archiveName, err := archiveWorkDir(homeDir, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
+		log.WithContext(ctx).Error("Failed to archive %v directory: %v", dirToArchive, err)
+	} else {
+		log.WithContext(ctx).Info("Archived working dir as %v", archiveName)
+	}
 	log.WithContext(ctx).Info("Downloading latest DD service image...")
 	err = runComponentsInstall(ctx, config, constants.DDImgService)
 	if err != nil {
@@ -422,7 +430,7 @@ func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (
 }
 
 // archiveWorkDir is used in preparation for downloading new
-func archiveWorkDir(homeDir, workDir string) (string, error) {
+func archiveWorkDir(homeDir, dirToArchive, archiveSource string) (string, error) {
 	now := time.Now().Unix()
 	archiveBaseDir := homeDir + "/.pastel_archives"
 	if exists := utils.CheckFileExist(archiveBaseDir); !exists {
@@ -431,10 +439,9 @@ func archiveWorkDir(homeDir, workDir string) (string, error) {
 			return "", err
 		}
 	}
-	archiveName := fmt.Sprintf("archive_%v", now)
+	archiveName := fmt.Sprintf("%s_archive_%v", archiveSource, now)
 	archivePath := archiveBaseDir + "/" + archiveName
-
-	cmd := fmt.Sprintf("cp -R %v %v", workDir, archivePath)
+	cmd := fmt.Sprintf("cp -R %v %v", dirToArchive, archivePath)
 	_, err := RunCMD("bash", "-c", cmd)
 	if err != nil {
 		return "", err

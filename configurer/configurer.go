@@ -36,6 +36,10 @@ func (c *configurer) DefaultHomeDir() string {
 	return c.homeDir
 }
 
+func (c *configurer) WorkDir() string {
+	return c.workingDir
+}
+
 // DefaultWorkingDir returns the default config path.
 func (c *configurer) DefaultWorkingDir() string {
 	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDataDir()), c.workingDir)

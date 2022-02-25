@@ -542,12 +542,3 @@ func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.C
 
 	return client, nil
 }
-
-func mergeCmdArgs(srcArgs []string, additionalArgs []string) []string {
-	for _, arg := range additionalArgs {
-		if !utils.Contains(srcArgs, arg) {
-			srcArgs = append(srcArgs, arg)
-		}
-	}
-	return srcArgs
-}

@@ -9,6 +9,7 @@ import (
 // IConfigurer returns a interface of Configurer
 type IConfigurer interface {
 	DefaultHomeDir() string
+	WorkDir() string // get workdir without absolutePath
 	DefaultWorkingDir() string
 	DefaultZksnarkDir() string
 	DefaultPastelExecutableDir() string
@@ -18,6 +19,4 @@ type IConfigurer interface {
 	GetWalletNodeConfFile(workingDir string) string
 	GetRQServiceConfFile(workingDir string) string
 	GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error)
-	SetOriginalArgs(tooltype constants.ToolType, args []string)
-	GetOriginalArgs(tooltype constants.ToolType) []string
 }

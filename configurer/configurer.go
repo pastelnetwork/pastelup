@@ -28,7 +28,6 @@ type configurer struct {
 	homeDir             string
 	architecture        constants.ArchitectureType
 	osType              constants.OSType
-	originalArgs        map[constants.ToolType][]string
 }
 
 // GetHomeDir returns the home path.
@@ -78,18 +77,6 @@ func (c *configurer) DefaultZksnarkDir() string {
 // DefaultPastelExecutableDir returns the default pastel executable path.
 func (c *configurer) DefaultPastelExecutableDir() string {
 	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDir()), c.pastelExecutableDir)
-}
-
-func (c *configurer) SetOriginalArgs(tooltype constants.ToolType, args []string) {
-	c.originalArgs[tooltype] = args
-}
-
-func (c *configurer) GetOriginalArgs(tooltype constants.ToolType) []string {
-	args, ok := c.originalArgs[tooltype]
-	if !ok {
-		return []string{}
-	}
-	return args
 }
 
 // GetDownloadURL returns download url of the pastel executables.

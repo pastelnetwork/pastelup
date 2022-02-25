@@ -330,7 +330,7 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 	dirToArchive := config.Configurer.DefaultWorkingDir()
 	workDir := config.Configurer.WorkDir()
 	if archiveName, err := archiveWorkDir(homeDir, dirToArchive, workDir); err != nil {
-		log.WithContext(ctx).Error("Failed to archive %v directory: %v", config.Configurer.DefaultWorkingDir(), err)
+		log.WithContext(ctx).Error("Failed to archive %v directory: %v", dirToArchive, err)
 	} else {
 		log.WithContext(ctx).Info("Archived working dir as %v", archiveName)
 	}

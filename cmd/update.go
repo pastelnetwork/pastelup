@@ -284,31 +284,36 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 }
 
 func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	// check if pasteld is running at remote host
-	isPasteldAlreadyRunning := false
-
-	log.WithContext(ctx).Info("Checking if pasteld is running ...")
-	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
-		log.WithContext(ctx).Info("Pasteld service is already running!")
-		isPasteldAlreadyRunning = true
-
-		log.WithContext(ctx).Info("Stopping SuperNode service ...")
-		runStopSuperNodeSubCommand(ctx, config)
-	} else {
-		log.WithContext(ctx).Info("Pasteld service is not running!")
+	log.WithContext(ctx).Info("Updating SuperNode component ...")
+	// update node
+	err = runUpdateNodeSubCommand(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Info(fmt.Sprintf("Failed to update node component: %v", err))
 	}
-
+	log.WithContext(ctx).Info("Stopping SuperNode component and dependencies ...")
+	runStopSuperNodeSubCommand(ctx, config)
+	// update rq-service
+	err = runUpdateRQServiceSubCommand(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Info(fmt.Sprintf("Failed to update rq-service component: %v", err))
+	}
+	// update dd service
+	err = runUpdateDDServiceSubCommand(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Info(fmt.Sprintf("Failed to update dd-service component: %v", err))
+	}
+	// install latest superNode
 	log.WithContext(ctx).Info("Updating SuperNode component ...")
 	if err = runComponentsInstall(ctx, config, constants.SuperNode); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update supernode component")
 		return err
 	}
-
-	if isPasteldAlreadyRunning {
-		log.WithContext(ctx).Info("Starting SuperNode service ...")
-		runLocalSuperNodeSubCommand(ctx, config)
+	// restart superNode
+	log.WithContext(ctx).Info("Starting SuperNode service ...")
+	err = runLocalSuperNodeSubCommand(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to restart SuperNode component: %v", err))
 	}
-
 	return nil
 }
 
@@ -330,9 +335,10 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 	dirToArchive := config.Configurer.DefaultWorkingDir()
 	workDir := config.Configurer.WorkDir()
 	if archiveName, err := archiveWorkDir(homeDir, dirToArchive, workDir); err != nil {
-		log.WithContext(ctx).Error("Failed to archive %v directory: %v", dirToArchive, err)
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
 	} else {
-		log.WithContext(ctx).Info("Archived working dir as %v", archiveName)
+		log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
+
 	}
 
 	log.WithContext(ctx).Info("Updating node component ...")
@@ -350,39 +356,31 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 }
 
 func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	isPasteldAlreadyRunning := false
-	log.WithContext(ctx).Info("Checking if pasteld is running ...")
-	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
-		log.WithContext(ctx).Info("Pasteld service is already running!")
-		isPasteldAlreadyRunning = true
-		log.WithContext(ctx).Info("Stopping Wallet Node service ...")
-		runStopWalletSubCommand(ctx, config)
-	} else {
-		log.WithContext(ctx).Info("Pasteld service is not running!")
+	log.WithContext(ctx).Info("Updating node component ...")
+	err = runUpdateNodeSubCommand(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Info(fmt.Sprintf("Failed to update node component: %v", err))
 	}
-
-	homeDir := config.Configurer.DefaultHomeDir()
-	dirToArchive := config.Configurer.DefaultWorkingDir()
-	workDir := config.Configurer.WorkDir()
-	if archiveName, err := archiveWorkDir(homeDir, dirToArchive, workDir); err != nil {
-		log.WithContext(ctx).Error("Failed to archive %v directory: %v", dirToArchive, err)
-	} else {
-		log.WithContext(ctx).Info("Archived working dir as %v", archiveName)
+	// at this point, we have ran the update node command which created the archive of the working dir (.pastel)
+	// and installed + restarted the node
+	// now we need to update+restart rq-service
+	err = runUpdateRQServiceSubCommand(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Info(fmt.Sprintf("Failed to update rq-service component: %v", err))
 	}
-
-	runUpdateRQServiceSubCommand(ctx, config)
-
+	// now we need to update+restart walletnode itself
+	log.WithContext(ctx).Info("Stopping walletnode component ...")
+	runStopWalletSubCommand(ctx, config)
 	log.WithContext(ctx).Info("Updating walletnode component ...")
 	if err = runComponentsInstall(ctx, config, constants.WalletNode); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update wallet node component")
 		return err
 	}
-
-	if isPasteldAlreadyRunning {
-		log.WithContext(ctx).Info("Starting Wallet Node service ...")
-		runStartWalletSubCommand(ctx, config)
+	log.WithContext(ctx).Info("Starting Wallet Node service ...")
+	err = runStartWalletSubCommand(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Info(fmt.Sprintf("Failed to restart walletnode component: %v", err))
 	}
-
 	return nil
 }
 
@@ -409,21 +407,21 @@ func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (
 	log.WithContext(ctx).Info("Stopping DD service if already running...")
 	stopDDServiceSubCommand(ctx, config)
 	homeDir := config.Configurer.DefaultHomeDir()
-	dirToArchive := filepath.Join(config.Configurer.DefaultWorkingDir(), constants.DupeDetectionServiceDir)
+	dirToArchive := filepath.Join(homeDir, constants.DupeDetectionServiceDir)
 	if archiveName, err := archiveWorkDir(homeDir, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
-		log.WithContext(ctx).Error("Failed to archive %v directory: %v", dirToArchive, err)
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
 	} else {
-		log.WithContext(ctx).Info("Archived working dir as %v", archiveName)
+		log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
 	}
 	log.WithContext(ctx).Info("Downloading latest DD service image...")
 	err = runComponentsInstall(ctx, config, constants.DDImgService)
 	if err != nil {
-		log.WithContext(ctx).Error("Failed to download new version of DD service: %v", err)
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to download new version of DD service: %v", err))
 		return
 	}
 	err = runDDService(ctx, config)
 	if err != nil {
-		log.WithContext(ctx).Error("Failed to start DD service after update: %v", err)
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to start DD service after update: %v", err))
 		return
 	}
 	return nil

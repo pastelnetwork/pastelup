@@ -314,16 +314,19 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 			}
 			continue
 		}
-		pid, err := FindRunningProcessPid(string(service))
+		pid, err := GetRunningProcessPid(service)
 		if err != nil {
-			log.WithContext(ctx).Info(fmt.Sprintf("Failed validating if '%v' service is running: %v", service, err))
+			log.WithContext(ctx).Error(fmt.Sprintf("Failed validating if '%v' service is running: %v", service, err))
 			return err
 		}
 		if pid != 0 {
 			servicesToStop = append(servicesToStop, service)
 		}
 	}
-	question := fmt.Sprintf("To perform this update, we need to kill these services: %v. Is this ok? (y/n)", servicesToStop)
+	if len(servicesToStop) == 0 {
+		return nil
+	}
+	question := fmt.Sprintf("To perform this update, we need to kill these services: %v. Is this ok? Y/N", servicesToStop)
 	ok, _ := AskUserToContinue(ctx, question)
 	if !ok {
 		return fmt.Errorf("user did not accept confirmation to stop services")
@@ -333,6 +336,10 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 			stopPatelCLI(ctx, config)
 		} else {
 			stopService(ctx, service, config)
+			err := KillProcess(ctx, service) // kill process incase the service wasnt registered
+			if err != nil {
+				log.WithContext(ctx).Error(fmt.Sprintf("Failed killing '%v' service's process: %v", service, err))
+			}
 		}
 	}
 	return nil

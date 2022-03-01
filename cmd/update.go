@@ -63,6 +63,11 @@ var (
 			constants.WalletNode,
 			constants.RQService,
 		},
+		constants.DDImgService: {
+			constants.DDService,
+			constants.DDImgService,
+		},
+		constants.RQService: {constants.RQService},
 	}
 )
 
@@ -374,17 +379,15 @@ func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) 
 
 func runUpdateRQServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating RQ service...")
-	dependentServices := []constants.ToolType{constants.RQService}
-	err = stopServicesWithConfirmation(ctx, config, dependentServices)
+	servicesToStop := updateServicesToStop[constants.RQService]
+	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
 		return err
 	}
-	log.WithContext(ctx).Info("Downloading latest RQ service image...")
-	err = runComponentsInstall(ctx, config, constants.RQService)
+	err = updateService(ctx, config, constants.RQService)
 	if err != nil {
-		log.WithContext(ctx).Error("Failed to download new version of RQ service: %v", err)
-		return
+		return err
 	}
 	log.WithContext(ctx).Info("Successfully updated rq-service component")
 	return nil
@@ -392,9 +395,8 @@ func runUpdateRQServiceSubCommand(ctx context.Context, config *configs.Config) (
 
 func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating DD service...")
-	log.WithContext(ctx).Info("Updating RQ service...")
-	dependentServices := []constants.ToolType{constants.DDService, constants.DDImgService}
-	err = stopServicesWithConfirmation(ctx, config, dependentServices)
+	servicesToStop := updateServicesToStop[constants.DDService]
+	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
 		return err
@@ -406,18 +408,17 @@ func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (
 	} else {
 		log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
 	}
-	log.WithContext(ctx).Info("Downloading latest DD service image...")
-	err = runComponentsInstall(ctx, config, constants.DDService)
+	err = updateService(ctx, config, constants.DDService)
 	if err != nil {
-		log.WithContext(ctx).Error(fmt.Sprintf("Failed to download new version of DD service: %v", err))
-		return
+		return err
 	}
 	log.WithContext(ctx).Info("Successfully updated dd-service component")
 	return nil
 }
 
+// updateService does the actial install of the latest image of the specified service
 func updateService(ctx context.Context, config *configs.Config, service constants.ToolType) error {
-	log.WithContext(ctx).Info(fmt.Sprintf("Updating %v component ...", service))
+	log.WithContext(ctx).Info(fmt.Sprintf("Downloading latest version of %v component ...", service))
 	if err := runComponentsInstall(ctx, config, service); err != nil {
 		log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Failed to update %v component", service))
 		return err
@@ -425,6 +426,7 @@ func updateService(ctx context.Context, config *configs.Config, service constant
 	return nil
 }
 
+// archiveWorkDir runs archive dir on the users work dir (i.e. ~/.pastel if on linux)
 func archiveWorkDir(ctx context.Context, config *configs.Config) error {
 	homeDir := config.Configurer.DefaultHomeDir()
 	dirToArchive := config.Configurer.DefaultWorkingDir()

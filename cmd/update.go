@@ -37,28 +37,32 @@ var (
 		updateDDService:       "dd-service",
 	}
 	updateDependencies = map[constants.ToolType][]constants.ToolType{
-		constants.SuperNode: []constants.ToolType{
+		constants.SuperNode: {
 			constants.PastelD,
 			constants.SuperNode,
 			constants.RQService,
 			constants.DDService,
-			constants.WalletNode},
-		constants.WalletNode: []constants.ToolType{
+			constants.WalletNode,
+		},
+		constants.WalletNode: {
 			constants.PastelD,
 			constants.RQService,
-			constants.WalletNode},
+			constants.WalletNode,
+		},
 	}
 	updateServicesToStop = map[constants.ToolType][]constants.ToolType{
-		constants.SuperNode: []constants.ToolType{
+		constants.SuperNode: {
 			constants.PastelD,
 			constants.SuperNode,
 			constants.DDService,
 			constants.DDImgService,
-			constants.RQService},
-		constants.WalletNode: []constants.ToolType{
+			constants.RQService,
+		},
+		constants.WalletNode: {
 			constants.PastelD,
 			constants.WalletNode,
-			constants.RQService},
+			constants.RQService,
+		},
 	}
 )
 
@@ -328,7 +332,7 @@ func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (
 
 func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating node component ...")
-	err = stopPasetlCLIWithConfirmation(ctx, config)
+	err = stopServicesWithConfirmation(ctx, config, []constants.ToolType{constants.PastelD})
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to stop pastel-cli")
 		return err

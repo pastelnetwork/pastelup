@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-delve/delve/pkg/config"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
@@ -305,12 +304,12 @@ func stopDDService(ctx context.Context, config *configs.Config) {
 	}
 }
 
-func stopServicesWithConfirmation(ctx context.Context, config *config.Config, services []constants.ToolType) error {
+func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, services []constants.ToolType) error {
 	servicesToStop := []constants.ToolType{}
 	for _, service := range services {
 		if service == constants.PastelD {
 			_, err := RunPastelCLI(ctx, config, "getinfo")
-			if err != nil {
+			if err == nil { // this means the pastel-cli is running
 				servicesToStop = append(servicesToStop, service)
 			}
 			continue

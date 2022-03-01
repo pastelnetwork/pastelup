@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-delve/delve/pkg/config"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
@@ -302,4 +303,38 @@ func stopDDService(ctx context.Context, config *configs.Config) {
 			}
 		}
 	}
+}
+
+func stopServicesWithConfirmation(ctx context.Context, config *config.Config, services []constants.ToolType) error {
+	servicesToStop := []constants.ToolType{}
+	for _, service := range services {
+		if service == constants.PastelD {
+			_, err := RunPastelCLI(ctx, config, "getinfo")
+			if err != nil {
+				servicesToStop = append(servicesToStop, service)
+			}
+			continue
+		}
+		pid, err := FindRunningProcessPid(string(service))
+		if err != nil {
+			log.WithContext(ctx).Info(fmt.Sprintf("Failed validating if '%v' service is running: %v", service, err))
+			return err
+		}
+		if pid != 0 {
+			servicesToStop = append(servicesToStop, service)
+		}
+	}
+	question := fmt.Sprintf("To perform this update, we need to kill these services: %v. Is this ok? (y/n)", servicesToStop)
+	ok, _ := AskUserToContinue(ctx, question)
+	if !ok {
+		return fmt.Errorf("user did not accept confirmation to stop services")
+	}
+	for _, service := range servicesToStop {
+		if service == constants.PastelD {
+			stopPatelCLI(ctx, config)
+		} else {
+			stopService(ctx, service, config)
+		}
+	}
+	return nil
 }

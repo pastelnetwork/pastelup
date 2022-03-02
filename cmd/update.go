@@ -324,6 +324,10 @@ func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (
 		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
 		return err
 	}
+	err = archiveWorkDir(ctx, config)
+	if err != nil {
+		return err
+	}
 	servicesToUpdate := updateDependencies[constants.SuperNode]
 	for _, service := range servicesToUpdate {
 		err = updateService(ctx, config, service)

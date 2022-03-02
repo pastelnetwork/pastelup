@@ -35,6 +35,11 @@ func (c *configurer) DefaultHomeDir() string {
 	return c.homeDir
 }
 
+// WorkDir returns the working directory (i.e. "Pastel") without the absolute path
+func (c *configurer) WorkDir() string {
+	return c.workingDir
+}
+
 // DefaultWorkingDir returns the default config path.
 func (c *configurer) DefaultWorkingDir() string {
 	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDataDir()), c.workingDir)

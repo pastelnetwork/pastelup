@@ -303,3 +303,44 @@ func stopDDService(ctx context.Context, config *configs.Config) {
 		}
 	}
 }
+
+func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, services []constants.ToolType) error {
+	servicesToStop := []constants.ToolType{}
+	for _, service := range services {
+		if service == constants.PastelD {
+			_, err := RunPastelCLI(ctx, config, "getinfo")
+			if err == nil { // this means the pastel-cli is running
+				servicesToStop = append(servicesToStop, service)
+			}
+			continue
+		}
+		pid, err := GetRunningProcessPid(service)
+		if err != nil {
+			log.WithContext(ctx).Error(fmt.Sprintf("Failed validating if '%v' service is running: %v", service, err))
+			return err
+		}
+		if pid != 0 {
+			servicesToStop = append(servicesToStop, service)
+		}
+	}
+	if len(servicesToStop) == 0 {
+		return nil
+	}
+	question := fmt.Sprintf("To perform this update, we need to kill these services: %v. Is this ok? Y/N", servicesToStop)
+	ok, _ := AskUserToContinue(ctx, question)
+	if !ok {
+		return fmt.Errorf("user did not accept confirmation to stop services")
+	}
+	for _, service := range servicesToStop {
+		if service == constants.PastelD {
+			stopPatelCLI(ctx, config)
+		} else {
+			stopService(ctx, service, config)
+			err := KillProcess(ctx, service) // kill process incase the service wasnt registered
+			if err != nil {
+				log.WithContext(ctx).Error(fmt.Sprintf("Failed killing '%v' service's process: %v", service, err))
+			}
+		}
+	}
+	return nil
+}

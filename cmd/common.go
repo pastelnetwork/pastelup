@@ -103,6 +103,26 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
+// GetProcessCmdInput gets the arguments of a process. returns true if it was running and false if it wasnt or there was an error
+func GetProcessCmdInput(toolType constants.ToolType) (bool, []string) {
+	var cmdArgs []string
+	pid, err := GetRunningProcessPid(toolType)
+	if err != nil {
+		return false, cmdArgs
+	}
+	output, err := RunCMD("bash", "-c", fmt.Sprintf("ps -o args= -f -p %v", pid))
+	if err != nil {
+		return false, cmdArgs
+	}
+	args := strings.Split(output, " ")
+	for i, arg := range args {
+		if i != 0 && arg != "" {
+			cmdArgs = append(cmdArgs, strings.Trim(arg, "\n"))
+		}
+	}
+	return true, cmdArgs
+}
+
 // CheckProcessRunning checks if the process is running
 func CheckProcessRunning(toolType constants.ToolType) bool {
 	if pid, err := GetRunningProcessPid(toolType); pid != 0 && err == nil {

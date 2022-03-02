@@ -9,6 +9,7 @@ import (
 // IConfigurer returns a interface of Configurer
 type IConfigurer interface {
 	DefaultHomeDir() string
+	WorkDir() string // get workdir without absolutePath
 	DefaultWorkingDir() string
 	DefaultZksnarkDir() string
 	DefaultPastelExecutableDir() string

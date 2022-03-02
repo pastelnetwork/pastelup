@@ -6,12 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 type updateCommand uint8
@@ -21,6 +23,8 @@ const (
 	updateWalletNode
 	updateSuperNode
 	updateSuperNodeRemote
+	updateRQService
+	updateDDService
 )
 
 var (
@@ -29,6 +33,41 @@ var (
 		updateWalletNode:      "walletnode",
 		updateSuperNode:       "supernode",
 		updateSuperNodeRemote: "remote",
+		updateRQService:       "rq-service",
+		updateDDService:       "dd-service",
+	}
+	updateDependencies = map[constants.ToolType][]constants.ToolType{
+		constants.SuperNode: {
+			constants.PastelD,
+			constants.SuperNode,
+			constants.RQService,
+			constants.DDService,
+			constants.WalletNode,
+		},
+		constants.WalletNode: {
+			constants.PastelD,
+			constants.RQService,
+			constants.WalletNode,
+		},
+	}
+	updateServicesToStop = map[constants.ToolType][]constants.ToolType{
+		constants.SuperNode: {
+			constants.PastelD,
+			constants.SuperNode,
+			constants.DDService,
+			constants.DDImgService,
+			constants.RQService,
+		},
+		constants.WalletNode: {
+			constants.PastelD,
+			constants.WalletNode,
+			constants.RQService,
+		},
+		constants.DDImgService: {
+			constants.DDService,
+			constants.DDImgService,
+		},
+		constants.RQService: {constants.RQService},
 	}
 )
 
@@ -123,10 +162,11 @@ func setupUpdateCommand() *cli.Command {
 
 	updateNodeSubCommand := setupUpdateSubCommand(config, updateNode, runUpdateNodeSubCommand)
 	updateWalletNnodeSubCommand := setupUpdateSubCommand(config, updateWalletNode, runUpdateWalletNodeSubCommand)
-
 	updateSuperNodeRemoteSubCommand := setupUpdateSubCommand(config, updateSuperNodeRemote, runUpdateSuperNodeRemoteSubCommand)
 	updateSuperNodeSubCommand := setupUpdateSubCommand(config, updateSuperNode, runUpdateSuperNodeSubCommand)
 	updateSuperNodeSubCommand.AddSubcommands(updateSuperNodeRemoteSubCommand)
+	updateRQServiceSubCommand := setupUpdateSubCommand(config, updateRQService, runUpdateRQServiceSubCommand)
+	updateDDServiceSubCommand := setupUpdateSubCommand(config, updateDDService, runUpdateDDServiceSubCommand)
 
 	// Add update command
 	updateCommand := cli.NewCommand("update")
@@ -135,6 +175,8 @@ func setupUpdateCommand() *cli.Command {
 	updateCommand.AddSubcommands(updateNodeSubCommand)
 	updateCommand.AddSubcommands(updateWalletNnodeSubCommand)
 	updateCommand.AddSubcommands(updateSuperNodeSubCommand)
+	updateCommand.AddSubcommands(updateRQServiceSubCommand)
+	updateCommand.AddSubcommands(updateDDServiceSubCommand)
 
 	return updateCommand
 }
@@ -275,86 +317,149 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 }
 
 func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	// check if pasteld is running at remote host
-	isPasteldAlreadyRunning := false
-
-	log.WithContext(ctx).Info("Checking if pasteld is running ...")
-	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
-		log.WithContext(ctx).Info("Pasteld service is already running!")
-		isPasteldAlreadyRunning = true
-
-		log.WithContext(ctx).Info("Stopping SuperNode service ...")
-		runStopSuperNodeSubCommand(ctx, config)
-	} else {
-		log.WithContext(ctx).Info("Pasteld service is not running!")
-	}
-
 	log.WithContext(ctx).Info("Updating SuperNode component ...")
-	if err = runComponentsInstall(ctx, config, constants.SuperNode); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to update supernode component")
+	servicesToStop := updateServicesToStop[constants.SuperNode]
+	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
 		return err
 	}
-
-	if isPasteldAlreadyRunning {
-		log.WithContext(ctx).Info("Starting SuperNode service ...")
-		runLocalSuperNodeSubCommand(ctx, config)
+	err = archiveWorkDir(ctx, config)
+	if err != nil {
+		return err
 	}
-
+	servicesToUpdate := updateDependencies[constants.SuperNode]
+	for _, service := range servicesToUpdate {
+		err = updateService(ctx, config, service)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Failed to stop dependent service '%v': %v", service, err))
+			return err
+		}
+	}
 	return nil
 }
 
 func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	isPasteldAlreadyRunning := false
-
-	log.WithContext(ctx).Info("Checking if pasteld is running ...")
-
-	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
-		log.WithContext(ctx).Info("Pasteld service is already running!")
-		isPasteldAlreadyRunning = true
-
-		log.WithContext(ctx).Info("Stopping Node service ...")
-		runStopNodeSubCommand(ctx, config)
-	} else {
-		log.WithContext(ctx).Info("Pasteld service is not running!")
-	}
-
 	log.WithContext(ctx).Info("Updating node component ...")
+	err = stopServicesWithConfirmation(ctx, config, []constants.ToolType{constants.PastelD})
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to stop pastel-cli")
+		return err
+	}
+	err = archiveWorkDir(ctx, config)
+	if err != nil {
+		return err
+	}
 	if err = runComponentsInstall(ctx, config, constants.PastelD); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update node component")
 		return err
 	}
-
-	if isPasteldAlreadyRunning {
-		log.WithContext(ctx).Info("Starting Node service ...")
-		runStartNodeSubCommand(ctx, config)
-	}
-
 	return nil
 }
 
 func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	isPasteldAlreadyRunning := false
-
-	log.WithContext(ctx).Info("Checking if pasteld is running ...")
-	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
-		log.WithContext(ctx).Info("Pasteld service is already running!")
-		isPasteldAlreadyRunning = true
-		log.WithContext(ctx).Info("Stopping Wallet Node service ...")
-		runStopWalletSubCommand(ctx, config)
-	} else {
-		log.WithContext(ctx).Info("Pasteld service is not running!")
-	}
-
-	log.WithContext(ctx).Info("Updating walletnode component ...")
-	if err = runComponentsInstall(ctx, config, constants.WalletNode); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to update wallet node component")
+	log.WithContext(ctx).Info("Updating node component ...")
+	servicesToStop := updateServicesToStop[constants.WalletNode]
+	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
 		return err
 	}
-
-	if isPasteldAlreadyRunning {
-		log.WithContext(ctx).Info("Starting Wallet Node service ...")
-		runStartWalletSubCommand(ctx, config)
+	err = archiveWorkDir(ctx, config)
+	if err != nil {
+		return err
 	}
-
+	servicesToUpdate := updateDependencies[constants.WalletNode]
+	for _, service := range servicesToUpdate {
+		err = updateService(ctx, config, service)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Failed to stop dependent service '%v': %v", service, err))
+			return err
+		}
+	}
+	log.WithContext(ctx).Info("Successfully updated wallet node component and its dependencies")
 	return nil
+}
+
+func runUpdateRQServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	log.WithContext(ctx).Info("Updating RQ service...")
+	servicesToStop := updateServicesToStop[constants.RQService]
+	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
+		return err
+	}
+	err = updateService(ctx, config, constants.RQService)
+	if err != nil {
+		return err
+	}
+	log.WithContext(ctx).Info("Successfully updated rq-service component")
+	return nil
+}
+
+func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	log.WithContext(ctx).Info("Updating DD service...")
+	servicesToStop := updateServicesToStop[constants.DDService]
+	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
+		return err
+	}
+	homeDir := config.Configurer.DefaultHomeDir()
+	dirToArchive := filepath.Join(homeDir, constants.DupeDetectionServiceDir)
+	if archiveName, err := archiveDir(homeDir, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
+	} else {
+		log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
+	}
+	err = updateService(ctx, config, constants.DDService)
+	if err != nil {
+		return err
+	}
+	log.WithContext(ctx).Info("Successfully updated dd-service component")
+	return nil
+}
+
+// updateService does the actial install of the latest image of the specified service
+func updateService(ctx context.Context, config *configs.Config, service constants.ToolType) error {
+	log.WithContext(ctx).Info(fmt.Sprintf("Downloading latest version of %v component ...", service))
+	if err := runComponentsInstall(ctx, config, service); err != nil {
+		log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Failed to update %v component", service))
+		return err
+	}
+	return nil
+}
+
+// archiveWorkDir runs archive dir on the users work dir (i.e. ~/.pastel if on linux)
+func archiveWorkDir(ctx context.Context, config *configs.Config) error {
+	homeDir := config.Configurer.DefaultHomeDir()
+	dirToArchive := config.Configurer.DefaultWorkingDir()
+	workDir := config.Configurer.WorkDir()
+	archiveName, err := archiveDir(homeDir, dirToArchive, workDir)
+	if err != nil {
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
+		return err
+	}
+	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
+	return nil
+}
+
+// archiveDir is makes a copy of the specified dir to a new dir in ~/.pastel_archives dir
+func archiveDir(homeDir, dirToArchive, archiveSource string) (string, error) {
+	now := time.Now().Unix()
+	archiveBaseDir := homeDir + "/.pastel_archives"
+	if exists := utils.CheckFileExist(archiveBaseDir); !exists {
+		err := os.Mkdir(archiveBaseDir, 0755)
+		if err != nil {
+			return "", err
+		}
+	}
+	archiveName := fmt.Sprintf("%s_archive_%v", archiveSource, now)
+	archivePath := archiveBaseDir + "/" + archiveName
+	cmd := fmt.Sprintf("cp -R %v %v", dirToArchive, archivePath)
+	_, err := RunCMD("bash", "-c", cmd)
+	if err != nil {
+		return "", err
+	}
+	return archivePath, nil
 }

@@ -163,7 +163,7 @@ a) To update supernode bin to remote side:
 
 ```
 ./pastelup update supernode remote \
-  --bin=$HOME/pastel/supernode-ubuntu20.04-amd64 \
+  --bin=$HOME/pastel/supernode-linux-amd64 \
   --name=<masternode name> \
   --ssh-ip=<remote ip> \
   --ssh-user=<remote user> \

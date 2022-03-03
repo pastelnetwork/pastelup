@@ -98,7 +98,7 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 		name = constants.DupeDetectionArchiveName
 		tool = constants.DDService
 	default:
-		return nil, "", errors.Errorf("unknow tool: %s", tool)
+		return nil, "", errors.Errorf("unknown tool: %s", tool)
 	}
 
 	urlString := fmt.Sprintf(

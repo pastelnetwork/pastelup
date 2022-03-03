@@ -9,7 +9,7 @@ CGO    ?= 0
 BINARY ?= pastelup
 
 # Version
-VERSION = $(shell git rev-parse --short=8 HEAD)
+VERSION = $(shell git describe --tag)
 
 # Target build and specific extention name
 PLATFORMS ?= darwin/amd64 windows/amd64/.exe linux/amd64
@@ -30,6 +30,6 @@ release: $(PLATFORMS)
 # upx dist/$(BINARY)-$(os)-$(arch)$(ext
 $(PLATFORMS):
 	CGO_ENABLED=$(CGO) GOOS=$(os) GOARCH=$(arch) go build  $(GCFLAGS) -ldflags=$(LDFLAGS) -o dist/$(BINARY)-$(os)-$(arch)$(ext) main.go
-	upx dist/$(BINARY)-$(os)-$(arch)$(ext)
+	#upx dist/$(BINARY)-$(os)-$(arch)$(ext)
 
 .PHONY: release $(PLATFORMS)

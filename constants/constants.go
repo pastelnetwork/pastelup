@@ -164,7 +164,7 @@ var PastelCliName = map[OSType]string{
 // WalletNodeExecName - The name of the wallet node
 var WalletNodeExecName = map[OSType]string{
 	Windows: "walletnode-win-amd64.exe",
-	Linux:   "walletnode-ubuntu20.04-amd64",
+	Linux:   "walletnode-linux-amd64",
 	Mac:     "walletnode-darwin-amd64",
 	Unknown: "",
 }
@@ -172,7 +172,7 @@ var WalletNodeExecName = map[OSType]string{
 // SuperNodeExecName - The name of the pastel wallet node
 var SuperNodeExecName = map[OSType]string{
 	Windows: "",
-	Linux:   "supernode-ubuntu20.04-amd64",
+	Linux:   "supernode-linux-amd64",
 	Mac:     "",
 	Unknown: "",
 }
@@ -180,14 +180,14 @@ var SuperNodeExecName = map[OSType]string{
 // PastelUpExecName - The name of the pastelup
 var PastelUpExecName = map[OSType]string{
 	Windows: "pastel-utility-windows-amd64.exe",
-	Linux:   "pastel-utility-ubuntu20.04-amd64",
+	Linux:   "pastel-utility-linux-amd64",
 	Mac:     "pastel-utility-darwin-amd64",
 }
 
 // PastelExecArchiveName - The name of the pastel executable files
 var PastelExecArchiveName = map[OSType]string{
 	Windows: "pastel-win-amd64.zip",
-	Linux:   "pastel-ubuntu20.04-amd64.zip",
+	Linux:   "pastel-linux-amd64.zip",
 	Mac:     "pastel-darwin-amd64.zip",
 	Unknown: "",
 }
@@ -244,18 +244,10 @@ const (
 	RAFTPort int = 4
 )
 
-// PastelRQServiceArchiveName - The name of the pastel rqservice files
-var PastelRQServiceArchiveName = map[OSType]string{
-	Windows: "rqservice-win-amd64.zip",
-	Linux:   "rqservice-ubuntu20.04-amd64.zip",
-	Mac:     "rqservice-darwin-amd64.zip",
-	Unknown: "",
-}
-
 // PastelRQServiceExecName - The name of the rqservice executable files
 var PastelRQServiceExecName = map[OSType]string{
 	Windows: "rq-service-win-amd64.exe",
-	Linux:   "rq-service-ubuntu20.04-x64",
+	Linux:   "rq-service-linux-amd64",
 	Mac:     "rq-service-darwin-amd64",
 	Unknown: "",
 }

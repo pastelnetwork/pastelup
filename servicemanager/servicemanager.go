@@ -166,6 +166,11 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.To
 		log.WithContext(ctx).Infof("skipping start service because %v is not a registered service", app)
 		return nil
 	}
+	isRunning, _ := sm.IsRunning(ctx, app)
+	if isRunning {
+		log.WithContext(ctx).Infof("service %v is already running: noop", app)
+		return nil
+	}
 	_, err := runCommand("systemctl", "--user", "start", sm.ServiceName(app))
 	if err != nil {
 		return fmt.Errorf("unable to start service (%v): %v", app, err)
@@ -174,7 +179,7 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.To
 }
 
 func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.ToolType) error {
-	isRunning, err := sm.IsRunning(ctx, app)
+	isRunning, err := sm.IsRunning(ctx, app) // if not registered, this will be false
 	if err != nil {
 		return err
 	}

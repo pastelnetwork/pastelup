@@ -11,6 +11,8 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastel-utility/servicemanager"
+	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
 type stopCommand uint8
@@ -41,6 +43,10 @@ var (
 		snServiceStop:       "supernode-service",
 	}
 )
+
+var serviceToProcessOverrides = map[string]string{
+	string(constants.DDService): constants.DupeDetectionExecFileName,
+}
 
 func setupStopSubCommand(config *configs.Config,
 	stopCommand stopCommand,
@@ -135,49 +141,32 @@ func setupStopCommand() *cli.Command {
 }
 
 func runStopNodeSubCommand(ctx context.Context, config *configs.Config) {
-
 	stopPatelCLI(ctx, config)
-
-	log.WithContext(ctx).Info("End successfully")
+	log.WithContext(ctx).Info("Stopped node successfully")
 }
 
 func runStopWalletSubCommand(ctx context.Context, config *configs.Config) {
-
-	// *************  Kill process wallet node  *************
-	stopService(ctx, constants.WalletNode, config)
-
-	// *************  Kill process rqservice  *************
-	stopService(ctx, constants.RQService, config)
-
-	// *************  Stop pasteld node  *************
-	stopPatelCLI(ctx, config)
-
+	servicesToStop := []constants.ToolType{
+		constants.WalletNode,
+		constants.RQService,
+		constants.PastelD}
+	stopServices(ctx, servicesToStop, config)
 	log.WithContext(ctx).Info("Walletnode stopped successfully")
 }
 
 func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
-
-	// *************  Kill process super node  *************
-	stopService(ctx, constants.SuperNode, config)
-
-	// *************  Kill process rqservice  *************
-	stopService(ctx, constants.RQService, config)
-
-	// *************  Kill process dd-service  *************
-	stopDDService(ctx, config)
-	//stopService(ctx, constants.DDService, config)
-
-	// *************  Kill process dd-img-server  *************
-	stopService(ctx, constants.DDImgService, config)
-
-	// *************  Stop pasteld node  *************
-	stopPatelCLI(ctx, config)
-
+	servicesToStop := []constants.ToolType{
+		constants.SuperNode,
+		constants.RQService,
+		constants.DDImgService,
+		constants.DDService,
+		constants.PastelD}
+	stopServices(ctx, servicesToStop, config)
 	log.WithContext(ctx).Info("Suppernode stopped successfully")
 }
 
+// special handling for remote command
 func runStopSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) {
-
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
@@ -185,20 +174,15 @@ func runStopSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Confi
 		return
 	}
 	defer client.Close()
-
 	// Execute stop remote supernode
 	log.WithContext(ctx).Info("Executing stop remote supernode...")
-
 	stopOptions := ""
-
 	if len(config.PastelExecDir) > 0 {
 		stopOptions = fmt.Sprintf("--dir %s", config.PastelExecDir)
 	}
-
 	if len(config.WorkingDir) > 0 {
 		stopOptions = fmt.Sprintf("%s --work-dir %s", stopOptions, config.WorkingDir)
 	}
-
 	stopSuperNodeCmd := fmt.Sprintf("%s stop supernode %s", constants.RemotePastelupPath, stopOptions)
 	if err := client.ShellCmd(ctx, stopSuperNodeCmd); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to execute stop supernode on remote host")
@@ -209,99 +193,48 @@ func runStopSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Confi
 }
 
 func runStopAllSubCommand(ctx context.Context, config *configs.Config) {
-
-	// *************  Kill process super node  *************
-	stopService(ctx, constants.SuperNode, config)
-
-	// *************  Kill process wallet node  *************
-	stopService(ctx, constants.WalletNode, config)
-
-	// *************  Kill process rqservice  *************
-	stopService(ctx, constants.RQService, config)
-
-	// *************  Kill process dd-service  *************
-	stopDDService(ctx, config)
-
-	// *************  Kill process dd-img-server  *************
-	stopService(ctx, constants.DDImgService, config)
-
-	// *************  Stop pasteld node  *************
-	stopPatelCLI(ctx, config)
-
+	servicesToStop := []constants.ToolType{
+		constants.SuperNode,
+		constants.RQService,
+		constants.WalletNode,
+		constants.DDImgService,
+		constants.DDService,
+		constants.PastelD}
+	stopServices(ctx, servicesToStop, config)
 	log.WithContext(ctx).Info("All stopped successfully")
 }
 
 func stopRQServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopService(ctx, constants.RQService, config)
+	stopServices(ctx, []constants.ToolType{constants.RQService}, config)
 }
 
 func stopDDServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopDDService(ctx, config)
+	stopServices(ctx, []constants.ToolType{constants.DDService}, config)
 }
 
 func stopWNServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopService(ctx, constants.WalletNode, config)
+	stopServices(ctx, []constants.ToolType{constants.WalletNode}, config)
 }
 
 func stopSNServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopService(ctx, constants.SuperNode, config)
+	stopServices(ctx, []constants.ToolType{constants.SuperNode}, config)
 }
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) {
-
 	log.WithContext(ctx).Info("Stopping Pasteld")
-	if err := stopSystemdService(ctx, string(constants.PastelD), config); err != nil {
-		// Check if pasteld is already running
-		if _, err = RunPastelCLI(ctx, config, "getinfo"); err != nil {
-			log.WithContext(ctx).Info("Pasteld is not running!")
-			return
-		}
-
-		if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
-		}
-		time.Sleep(5 * time.Second)
-		if CheckProcessRunning(constants.PastelD) {
-			log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
-		} else {
-			log.WithContext(ctx).Info("Pasteld stopped")
-		}
+	if _, err := RunPastelCLI(ctx, config, "getinfo"); err != nil {
+		log.WithContext(ctx).Info("Pasteld is not running!")
+		return
 	}
-}
-
-func stopService(ctx context.Context, tool constants.ToolType, config *configs.Config) {
-
-	log.WithContext(ctx).Infof("Stopping %s process", tool)
-
-	// Check if service is installed and running, then check if it is running
-	if err := stopSystemdService(ctx, string(tool), config); err != nil {
-		if err := KillProcess(ctx, tool); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to kill %s", tool)
-		}
-		if CheckProcessRunning(tool) {
-			log.WithContext(ctx).Warnf("Failed to kill %s, it is still running", tool)
-		} else {
-			log.WithContext(ctx).Infof("%s stopped", tool)
-		}
+	if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
 	}
-
-	log.WithContext(ctx).Infof("The %s process ended", tool)
-}
-
-func stopDDService(ctx context.Context, config *configs.Config) {
-	log.WithContext(ctx).Info("Stopping dd-service process")
-
-	if err := stopSystemdService(ctx, string(constants.DDService), config); err != nil {
-		if pid, err := FindRunningProcessPid(constants.DupeDetectionExecFileName); err != nil {
-			log.WithContext(ctx).Infof("dd-service is not running")
-		} else if pid != 0 {
-			if err := KillProcessByPid(ctx, pid); err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to kill dd-service'")
-			} else {
-				log.WithContext(ctx).Info("The dd-service process ended.")
-			}
-		}
+	time.Sleep(5 * time.Second)
+	if CheckProcessRunning(constants.PastelD) {
+		log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
+		return
 	}
+	log.WithContext(ctx).Info("Pasteld stopped")
 }
 
 func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, services []constants.ToolType) error {
@@ -331,14 +264,37 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 	if !ok {
 		return fmt.Errorf("user did not accept confirmation to stop services")
 	}
-	for _, service := range servicesToStop {
+	return stopServices(ctx, servicesToStop, config)
+}
+
+func stopServices(ctx context.Context, services []constants.ToolType, config *configs.Config) error {
+	servicesEnabled := false
+	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	if err != nil {
+		log.WithContext(ctx).Warnf("services not enabled for your OS %v", utils.GetOS())
+	} else {
+		servicesEnabled = true
+	}
+	for _, service := range services {
 		if service == constants.PastelD {
 			stopPatelCLI(ctx, config)
 		} else {
-			stopService(ctx, service, config)
-			err := KillProcess(ctx, service) // kill process incase the service wasnt registered
+			if servicesEnabled {
+				err = sm.StopService(ctx, service)
+				if err != nil {
+					log.WithContext(ctx).Errorf("unable to stop service %v: %v", service, err)
+					return err
+				}
+			}
+			process := service
+			override, ok := serviceToProcessOverrides[string(service)]
+			if ok {
+				process = constants.ToolType(override)
+			}
+			err := KillProcess(ctx, process) // kill process incase the service wasnt registered
 			if err != nil {
-				log.WithContext(ctx).Error(fmt.Sprintf("Failed killing '%v' service's process: %v", service, err))
+				log.WithContext(ctx).Error(fmt.Sprintf("unable to kill process %v: %v", service, err))
+				return err
 			}
 		}
 	}

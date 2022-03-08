@@ -21,7 +21,7 @@ type ServiceManager interface {
 	RegisterService(context.Context, constants.ToolType, ResgistrationParams) error
 	StartService(context.Context, constants.ToolType) error
 	StopService(context.Context, constants.ToolType) error
-	IsRunning(context.Context, constants.ToolType) (bool, error)
+	IsRunning(context.Context, constants.ToolType) bool
 	IsRegistered(context.Context, constants.ToolType) (bool, error)
 	ServiceName(constants.ToolType) string
 }
@@ -151,12 +151,12 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 
 	// Enable service
 	// @todo -- should this be optional? implications are at device reboot or startup, these services start automatically
-	log.WithContext(ctx).Info("Setting service for auto start on boot")
-	if out, err := runCommand("systemctl", "--user", "enable", appServiceFileName); err != nil {
-		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to enable " + appServiceFileName + " service")
-		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
-	}
+	// log.WithContext(ctx).Info("Setting service for auto start on boot")
+	// if out, err := runCommand("systemctl", "--user", "enable", appServiceFileName); err != nil {
+	// 	log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+	// 		WithError(err).Error("unable to enable " + appServiceFileName + " service")
+	// 	return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
+	// }
 	return nil
 }
 
@@ -166,7 +166,7 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.To
 		log.WithContext(ctx).Infof("skipping start service because %v is not a registered service", app)
 		return nil
 	}
-	isRunning, _ := sm.IsRunning(ctx, app)
+	isRunning := sm.IsRunning(ctx, app)
 	if isRunning {
 		log.WithContext(ctx).Infof("service %v is already running: noop", app)
 		return nil
@@ -179,26 +179,20 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.To
 }
 
 func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.ToolType) error {
-	isRunning, err := sm.IsRunning(ctx, app) // if not registered, this will be false
-	if err != nil {
-		return err
-	}
+	isRunning := sm.IsRunning(ctx, app) // if not registered, this will be false
 	if !isRunning {
 		return nil // service isnt running, no need to stop
 	}
-	_, err = runCommand("systemctl", "--user", "stop", sm.ServiceName(app))
+	_, err := runCommand("systemctl", "--user", "stop", sm.ServiceName(app))
 	if err != nil {
 		return fmt.Errorf("unable to stop service (%v): %v", app, err)
 	}
 	return nil
 }
 
-func (sm LinuxSystemdManager) IsRunning(ctx context.Context, app constants.ToolType) (bool, error) {
-	res, err := runCommand("systemctl", "--user", "is-active", sm.ServiceName(app))
-	if err != nil {
-		return false, fmt.Errorf("unable to determine if service (%v) is running: %v", app, err)
-	}
-	return res == "active", nil
+func (sm LinuxSystemdManager) IsRunning(ctx context.Context, app constants.ToolType) bool {
+	res, _ := runCommand("systemctl", "--user", "is-active", sm.ServiceName(app))
+	return res == "active" || res == "activating"
 }
 
 // IsRegistered checks if the associated app's system command file exists, if it does it returns true, else it returns false

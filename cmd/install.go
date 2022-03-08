@@ -1091,7 +1091,7 @@ func installServices(ctx context.Context, apps []constants.ToolType, config *con
 	// verify services are up and running
 	var nonRunningServices []constants.ToolType
 	for _, app := range apps {
-		isRunning, _ := sm.IsRunning(ctx, app)
+		isRunning := sm.IsRunning(ctx, app)
 		if !isRunning {
 			nonRunningServices = append(nonRunningServices, app)
 		}

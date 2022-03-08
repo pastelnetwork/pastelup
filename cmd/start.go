@@ -18,6 +18,7 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/configs"
 	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastel-utility/servicemanager"
 	"github.com/pastelnetwork/pastel-utility/structure"
 	"github.com/pastelnetwork/pastel-utility/utils"
 	"github.com/pkg/errors"
@@ -482,9 +483,8 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 	}
 
 	if len(flagNodeExtIP) == 0 {
-
 		log.WithContext(ctx).Info("--ip flag is ommited, trying to get our WAN IP address")
-		externalIP, err := GetExternalIPAddress()
+		externalIP, err := utils.GetExternalIPAddress()
 		if err != nil {
 			err := fmt.Errorf("cannot get external ip address")
 			log.WithContext(ctx).WithError(err).Error("Missing parameter --ip")
@@ -510,20 +510,29 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 
 // Sub Command
 func runRQService(ctx context.Context, config *configs.Config) error {
-
-	if err := startSystemdService(ctx, string(constants.RQService), config); err != nil {
-		rqExecName := constants.PastelRQServiceExecName[utils.GetOS()]
-
-		var rqServiceArgs []string
-		rqServiceArgs = append(rqServiceArgs,
-			fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir)))
-
-		if err := runPastelService(ctx, config, constants.RQService, rqExecName, rqServiceArgs...); err != nil {
-			log.WithContext(ctx).WithError(err).Error("rqservice failed")
+	serviceEnabled := false
+	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	if err != nil {
+		log.WithContext(ctx).Errorf(err.Error()) // err returned from New function is descriptive enough
+	} else {
+		serviceEnabled = true
+	}
+	if serviceEnabled {
+		// if the service isnt registed, this will be a noop
+		err := sm.StartService(ctx, constants.RQService)
+		if err != nil {
+			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
 			return err
 		}
 	}
-
+	rqExecName := constants.PastelRQServiceExecName[utils.GetOS()]
+	var rqServiceArgs []string
+	configFile := config.Configurer.GetRQServiceConfFile(config.WorkingDir)
+	rqServiceArgs = append(rqServiceArgs, fmt.Sprintf("--config-file=%s", configFile))
+	if err := runPastelService(ctx, config, constants.RQService, rqExecName, rqServiceArgs...); err != nil {
+		log.WithContext(ctx).WithError(err).Error("rqservice failed")
+		return err
+	}
 	return nil
 }
 
@@ -645,7 +654,7 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 	}
 
 	if len(extIP) == 0 {
-		if extIP, err = GetExternalIPAddress(); err != nil {
+		if extIP, err = utils.GetExternalIPAddress(); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Could not get external IP address")
 			return err
 		}
@@ -719,7 +728,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 	if len(flagNodeExtIP) == 0 && !coldHot { //coldHot will try to get WAN address in the step that is executed on remote host
 
 		log.WithContext(ctx).Info("--ip flag is ommited, trying to get our WAN IP address")
-		externalIP, err := GetExternalIPAddress()
+		externalIP, err := utils.GetExternalIPAddress()
 		if err != nil {
 			err := fmt.Errorf("cannot get external ip address")
 			log.WithContext(ctx).WithError(err).Error("Missing parameter --ip")

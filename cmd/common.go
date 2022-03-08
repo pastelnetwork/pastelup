@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +27,7 @@ import (
 	"github.com/pastelnetwork/pastel-utility/utils"
 )
 
+// @todo move all invocations to use utils.CheckFileExists
 func checkPastelFilePath(ctx context.Context, dirPath string, filePath string) (fullPath string, err error) {
 
 	fullPath = filepath.Join(dirPath, filePath)
@@ -41,29 +40,6 @@ func checkPastelFilePath(ctx context.Context, dirPath string, filePath string) (
 	}
 
 	return fullPath, err
-}
-
-// GetExternalIPAddress runs shell command and returns external IP address
-func GetExternalIPAddress() (externalIP string, err error) {
-
-	resp, err := http.Get(constants.IPCheckURL)
-	if err != nil {
-		return "", err
-	}
-
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	// Validate body
-	if net.ParseIP(string(body)) == nil {
-		return "", errors.Errorf("invalid IP response from %s", constants.IPCheckURL)
-	}
-
-	return string(body), nil
 }
 
 // ParsePastelConf parse configuration of pasteld.

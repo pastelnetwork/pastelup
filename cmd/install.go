@@ -916,13 +916,9 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
 		} else {
 			log.WithContext(ctx).Infof("Pastel param file %s already exists and checksum matched, so skipping download.", zksnarkParamsName)
 		}
-
 	}
-
 	log.WithContext(ctx).Info("Pastel params downloaded.\n")
-
 	return nil
-
 }
 
 func openPorts(ctx context.Context, config *configs.Config, portList []int) (err error) {
@@ -1124,7 +1120,7 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 		}
 
 		// Get external IP
-		if extIP, err = GetExternalIPAddress(); err != nil {
+		if extIP, err = utils.GetExternalIPAddress(); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Could not get external IP address")
 			return err
 		}
@@ -1227,29 +1223,23 @@ func installAppService(ctx context.Context, appName string, config *configs.Conf
 
 func checkServiceInstalled(appName string) error {
 	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
-
 	if _, err := os.Stat(filepath.Join(constants.SystemdUserDir, appServiceFileName)); os.IsNotExist(err) {
 		return fmt.Errorf(appServiceFileName + " is not yet installed")
 	}
-
 	return nil
 }
 
 func checkServiceRunning(appName string) error {
 	appServiceFileName := constants.SystemdServicePrefix + appName + ".service"
-
 	_, err := RunCMD("systemctl", "--user", "is-active", "--quiet", appServiceFileName)
-
 	return err
 }
 
 // Check if app is installed as service - if yes, then start it
 func startSystemdService(ctx context.Context, appName string, _ *configs.Config) error {
-
 	if err := checkServiceInstalled(appName); err != nil {
 		return fmt.Errorf("Service " + appName + " is not installed as service")
 	}
-
 	// Start app, if it is not running
 	err := checkServiceRunning(appName)
 	if err == nil {
@@ -1260,9 +1250,7 @@ func startSystemdService(ctx context.Context, appName string, _ *configs.Config)
 
 		// Start service
 		log.WithContext(ctx).Info("Starting service " + appServiceFileName)
-
 		out, err := RunCMD("systemctl", "--user", "start", appServiceFileName)
-
 		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out}).
 				WithError(err).Error("unable to start " + appServiceFileName)
@@ -1270,13 +1258,11 @@ func startSystemdService(ctx context.Context, appName string, _ *configs.Config)
 			return fmt.Errorf("err starting "+appServiceFileName+" - err: %s", err)
 		}
 	}
-
 	return nil
 }
 
 // Stop systemd service if it is running, return nil if the service is found
 func stopSystemdService(ctx context.Context, appName string, _ *configs.Config) error {
-
 	if err := checkServiceInstalled(appName); err != nil {
 		return fmt.Errorf("Service " + appName + " is not installed as service")
 	}

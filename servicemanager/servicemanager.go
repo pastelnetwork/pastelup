@@ -180,6 +180,9 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 
 	// Enable service
 	// @todo -- should this be optional? implications are at device reboot or startup, these services start automatically
+	// furthermore, this prevents from being able to stop the service, when its enabled, if we try to stop it, it will restart.
+	// we would need to keep disabling, stopping, re-enabling and starting. Adds additonal complexity for not much gain for users.
+
 	// log.WithContext(ctx).Info("Setting service for auto start on boot")
 	// if out, err := runCommand("systemctl", "--user", "enable", appServiceFileName); err != nil {
 	// 	log.WithContext(ctx).WithFields(log.Fields{"message": out}).

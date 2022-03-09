@@ -322,11 +322,11 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		log.WithContext(ctx).Infof("initiating in %s mode", config.Network)
 	}
 
-	err := StopPastelDAndWait(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).Errorf("unable to stop pasteld: %v", err)
-		return err
-	}
+	// need to stop pastel-cli else we'll get a text file busy error
+	sm, _ := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm.StopService(ctx, constants.PastelD)
+	RunPastelCLI(ctx, config, "stop") // it will fail if not running; so dont catch err
+	time.Sleep(10 * time.Second)      // buffer period to stop
 
 	// create installation directory, example ~/pastel
 	if err := createInstallDir(ctx, config, config.PastelExecDir); err != nil {

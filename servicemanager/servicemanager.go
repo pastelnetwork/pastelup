@@ -34,7 +34,35 @@ func New(os constants.OSType, homeDir string) (ServiceManager, error) {
 			homeDir: homeDir,
 		}, nil
 	}
-	return nil, fmt.Errorf("services are not comptabile with your OS (%v)", os)
+	// if you dont want to check error, we return a noop manager that will do nothing since
+	// the user's system is not supported for system management
+	return NoopManager{}, fmt.Errorf("services are not comptabile with your OS (%v)", os)
+}
+
+type NoopManager struct{}
+
+func (nm NoopManager) RegisterService(context.Context, constants.ToolType, ResgistrationParams) error {
+	return nil
+}
+
+func (nm NoopManager) StartService(context.Context, constants.ToolType) error {
+	return nil
+}
+
+func (nm NoopManager) StopService(context.Context, constants.ToolType) error {
+	return nil
+}
+
+func (nm NoopManager) IsRunning(context.Context, constants.ToolType) bool {
+	return false
+}
+
+func (nm NoopManager) IsRegistered(context.Context, constants.ToolType) (bool, error) {
+	return false, nil
+}
+
+func (nm NoopManager) ServiceName(constants.ToolType) string {
+	return ""
 }
 
 type LinuxSystemdManager struct {

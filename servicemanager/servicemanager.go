@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastel-utility/configs"
@@ -192,6 +193,8 @@ func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.Too
 
 func (sm LinuxSystemdManager) IsRunning(ctx context.Context, app constants.ToolType) bool {
 	res, _ := runCommand("systemctl", "--user", "is-active", sm.ServiceName(app))
+	res = strings.TrimSpace(res)
+	log.WithContext(ctx).Infof("%v is-active status: %v", sm.ServiceName(app), res)
 	return res == "active" || res == "activating"
 }
 

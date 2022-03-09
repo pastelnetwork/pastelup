@@ -301,7 +301,6 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 	if config.EnableService {
 		err = installServices(ctx, []constants.ToolType{constants.DDImgService}, config)
 		if err != nil {
-			log.WithContext(ctx).Errorf("unable to install %v service: %v", constants.DDImgService, err)
 			return err
 		}
 	}
@@ -321,6 +320,12 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
 		}
 		log.WithContext(ctx).Infof("initiating in %s mode", config.Network)
+	}
+
+	err := StopPastelDAndWait(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Errorf("unable to stop pasteld: %v", err)
+		return err
 	}
 
 	// create installation directory, example ~/pastel
@@ -532,7 +537,6 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		}
 		err := installServices(ctx, serviceApps, config)
 		if err != nil {
-			log.WithContext(ctx).Errorf(err.Error())
 			return err
 		}
 	}

@@ -7,8 +7,8 @@ sudo apt-get install upx
 ```
 and then:
 ```
-git clone https://github.com/pastelnetwork/pastel-utility.git
-cd pastel-utility
+git clone https://github.com/pastelnetwork/pastelup.git
+cd pastelup
 make
 ```
 
@@ -206,7 +206,7 @@ How cold-hot config works: https://pastel.wiki/en/home/how-to-start-mn
 
 Usage:
 ```
-./pastel-utility start supernode-coldhot \
+./pastelup start supernode-coldhot \
    --ssh-ip 10.211.55.5 \
    --ssh-user bacnh \
    --ssh-key=$HOME/.ssh/id_rsa 

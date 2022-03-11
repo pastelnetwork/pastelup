@@ -9,7 +9,7 @@ import (
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
-	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/pastelup/configs"
 
 	pb "github.com/pastelnetwork/gonode/proto/healthcheck"
 	"google.golang.org/grpc"

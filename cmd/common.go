@@ -23,10 +23,10 @@ import (
 	"github.com/go-errors/errors"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/structure"
-	"github.com/pastelnetwork/pastel-utility/utils"
+	"github.com/pastelnetwork/pastelup/configs"
+	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/structure"
+	"github.com/pastelnetwork/pastelup/utils"
 )
 
 func checkPastelFilePath(ctx context.Context, dirPath string, filePath string) (fullPath string, err error) {

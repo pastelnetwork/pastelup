@@ -21,11 +21,11 @@ const (
 	// PastelConfName - pastel config file name
 	PastelConfName string = "pastel.conf"
 
-	// PastelUtilityConfigFilePath - The path of the config of pastel-utility
-	PastelUtilityConfigFilePath string = "./pastel-utility.conf"
+	// PastelUtilityConfigFilePath - The path of the config of pastelup
+	PastelUtilityConfigFilePath string = "./pastelup.conf"
 
-	// PastelUtilityLogFilePath - The path of the log of pastel-utility
-	PastelUtilityLogFilePath string = "./pastel-utility-remote-log.txt"
+	// PastelUtilityLogFilePath - The path of the log of pastelup
+	PastelUtilityLogFilePath string = "./pastelup-remote-log.txt"
 
 	// PipRequirmentsFileName - pip install requirements file name
 	PipRequirmentsFileName string = "requirements.in"
@@ -179,9 +179,9 @@ var SuperNodeExecName = map[OSType]string{
 
 // PastelUpExecName - The name of the pastelup
 var PastelUpExecName = map[OSType]string{
-	Windows: "pastel-utility-windows-amd64.exe",
-	Linux:   "pastel-utility-linux-amd64",
-	Mac:     "pastel-utility-darwin-amd64",
+	Windows: "pastelup-windows-amd64.exe",
+	Linux:   "pastelup-linux-amd64",
+	Mac:     "pastelup-darwin-amd64",
 }
 
 // PastelExecArchiveName - The name of the pastel executable files

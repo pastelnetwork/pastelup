@@ -8,7 +8,7 @@ $sudo docker-compose run supernode
      Retype Password:a
 3.Once install supernode in remote container, we need to add "testnet=1" in pastel.conf
    $sudo docker container ls -a
-   $sudo docker exec pastel-utility-remote-container /bin/sh/c "echo 'testnet=1' >> /root/.pastel/pastel.conf"
+   $sudo docker exec pastelup-remote-container /bin/sh/c "echo 'testnet=1' >> /root/.pastel/pastel.conf"
 
 4. Miner container will need to input account address. You need to input account address generated from remote container.
  e.g Input Account address: 

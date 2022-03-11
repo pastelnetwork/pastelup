@@ -3,7 +3,7 @@ package configurer
 import (
 	"net/url"
 
-	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastelup/constants"
 )
 
 // IConfigurer returns a interface of Configurer

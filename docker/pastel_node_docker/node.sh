@@ -1,5 +1,5 @@
 #!/bin/bash
-./pastel-utility install node
-./pastel-utility start node
+./pastelup install node
+./pastelup start node
 
 

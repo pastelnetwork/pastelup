@@ -1,4 +1,4 @@
-module github.com/pastelnetwork/pastel-utility
+module github.com/pastelnetwork/pastelup
 
 go 1.17
 

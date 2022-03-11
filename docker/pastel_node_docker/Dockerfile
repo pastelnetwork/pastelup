@@ -4,10 +4,10 @@ RUN  apt-get update \
   && apt-get -qq -y install curl\
   && apt-get install -y libgomp1\
   && rm -rf /var/lib/apt/lists/*
-COPY ./pastel-utility /
+COPY ./pastelup /
 COPY ./node.sh /
 RUN chmod 777 /node.sh
-RUN chmod 777 /pastel-utility
+RUN chmod 777 /pastelup
 ENTRYPOINT ["/node.sh"]
 
 

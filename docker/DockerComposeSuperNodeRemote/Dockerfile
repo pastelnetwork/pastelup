@@ -33,10 +33,10 @@ RUN  apt-get update \
   && apt-get install -y fonts-liberation\  
   && apt-get install -y ufw\
   && rm -rf /var/lib/apt/lists/*
-COPY ./pastel-utility /
+COPY ./pastelup /
 COPY ./ssh_config /etc/ssh/
 COPY ./sshd_config /etc/ssh/
-RUN chmod 777 /pastel-utility
+RUN chmod 777 /pastelup
 
 
 EXPOSE 22

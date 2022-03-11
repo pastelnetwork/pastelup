@@ -5,7 +5,7 @@ services:
         build: .
         container_name: pastelnode
         command: >
-                bash -c "./pastel-utility install node --force || true
-                && ./pastel-utility start node
+                bash -c "./pastelup install node --force || true
+                && ./pastelup start node
                 && ps -A
                 "

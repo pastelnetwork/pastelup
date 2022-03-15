@@ -18,7 +18,7 @@ import (
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
-// ServiceManger handles registering, starting and stopping system processes on the clients respective OS system manager (i.e. linux -> systemctl)
+// ServiceManager handles registering, starting and stopping system processes on the clients respective OS system manager (i.e. linux -> systemctl)
 type ServiceManager interface {
 	RegisterService(context.Context, constants.ToolType, ResgistrationParams) error
 	StartService(context.Context, constants.ToolType) error

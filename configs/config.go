@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/pastel-utility/configurer"
+	"github.com/pastelnetwork/pastelup/configurer"
 )
 
 const (

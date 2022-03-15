@@ -12,10 +12,10 @@ import (
 
 	"github.com/pastelnetwork/gonode/common/errors"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/structure"
-	"github.com/pastelnetwork/pastel-utility/utils"
+	"github.com/pastelnetwork/pastelup/configs"
+	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/structure"
+	"github.com/pastelnetwork/pastelup/utils"
 	"gopkg.in/yaml.v2"
 )
 
@@ -592,7 +592,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 
 	log.WithContext(ctx).Info("copying supernode config..")
 	if err := r.sshClient.Scp(supernodeConfigPath, remoteSnConfigPath); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to copy pastel-utility executable to remote host")
+		log.WithContext(ctx).WithError(err).Error("Failed to copy pastelup executable to remote host")
 		return err
 	}
 
@@ -602,7 +602,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 	}
 
 	if err := r.sshClient.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", remoteSnConfigPath)); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastel-utility")
+		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastelup")
 		return err
 	}
 

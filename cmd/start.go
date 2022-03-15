@@ -16,11 +16,11 @@ import (
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/servicemanager"
-	"github.com/pastelnetwork/pastel-utility/structure"
-	"github.com/pastelnetwork/pastel-utility/utils"
+	"github.com/pastelnetwork/pastelup/configs"
+	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/servicemanager"
+	"github.com/pastelnetwork/pastelup/structure"
+	"github.com/pastelnetwork/pastelup/utils"
 	"github.com/pkg/errors"
 )
 

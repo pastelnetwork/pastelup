@@ -32,5 +32,5 @@ RUN  apt-get update \
   && apt-get install -y libasound2\
   && apt-get install -y fonts-liberation\  
   && rm -rf /var/lib/apt/lists/*
-COPY ./pastel-utility /
-RUN chmod 777 /pastel-utility
+COPY ./pastelup /
+RUN chmod 777 /pastelup

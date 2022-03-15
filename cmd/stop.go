@@ -9,10 +9,10 @@ import (
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
-	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/servicemanager"
-	"github.com/pastelnetwork/pastel-utility/utils"
+	"github.com/pastelnetwork/pastelup/configs"
+	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/servicemanager"
+	"github.com/pastelnetwork/pastelup/utils"
 )
 
 type stopCommand uint8

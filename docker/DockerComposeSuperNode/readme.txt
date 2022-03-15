@@ -1,4 +1,4 @@
-1.Docker file , docker-compose.yml, pastel-utility file should be in same path.
+1.Docker file , docker-compose.yml, pastelup file should be in same path.
 //run docker-compose with below command. Super Node should be done with "docker-compose run" for user interactive mode.
 
 $sudo docker-compose run miner

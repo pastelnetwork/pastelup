@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/tj/assert"
 )
 

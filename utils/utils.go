@@ -29,7 +29,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/pastel-utility/constants"
+	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pkg/errors"
 )
 

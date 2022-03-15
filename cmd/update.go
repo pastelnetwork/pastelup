@@ -11,9 +11,9 @@ import (
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
-	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/utils"
+	"github.com/pastelnetwork/pastelup/configs"
+	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/utils"
 )
 
 type updateCommand uint8
@@ -229,7 +229,7 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 		}
 
 	} else {
-		/* Stop supernode services using pastel-utility */
+		/* Stop supernode services using pastelup */
 		log.WithContext(ctx).Info("Stopping Supernode service ...")
 
 		remoteOptions := ""

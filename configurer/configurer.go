@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/go-errors/errors"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/utils"
+	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/utils"
 )
 
 const (

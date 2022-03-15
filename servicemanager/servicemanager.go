@@ -13,20 +13,22 @@ import (
 	"strings"
 
 	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/pastel-utility/configs"
-	"github.com/pastelnetwork/pastel-utility/constants"
-	"github.com/pastelnetwork/pastel-utility/utils"
+	"github.com/pastelnetwork/pastelup/configs"
+	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/utils"
 )
 
+// ServiceManger handles registering, starting and stopping system processes on the clients respective OS system manager (i.e. linux -> systemctl)
 type ServiceManager interface {
 	RegisterService(context.Context, constants.ToolType, ResgistrationParams) error
 	StartService(context.Context, constants.ToolType) error
 	StopService(context.Context, constants.ToolType) error
 	IsRunning(context.Context, constants.ToolType) bool
-	IsRegistered(context.Context, constants.ToolType) (bool, error)
+	IsRegistered(constants.ToolType) (bool, error)
 	ServiceName(constants.ToolType) string
 }
 
+// New returns a new serviceManager, if the OS does not have one configured, the error will be set and Noop Manager will be returned
 func New(os constants.OSType, homeDir string) (ServiceManager, error) {
 	switch os {
 	case constants.Linux:
@@ -39,36 +41,46 @@ func New(os constants.OSType, homeDir string) (ServiceManager, error) {
 	return NoopManager{}, fmt.Errorf("services are not comptabile with your OS (%v)", os)
 }
 
+// NoopManager can be used to do nothing if the OS doesnt have a system manager configured
 type NoopManager struct{}
 
+// RegisterService registers a service with the OS system manager
 func (nm NoopManager) RegisterService(context.Context, constants.ToolType, ResgistrationParams) error {
 	return nil
 }
 
+// StartService starts the given service as long as it is registered
 func (nm NoopManager) StartService(context.Context, constants.ToolType) error {
 	return nil
 }
 
+// StopService stops a running service, it it isnt running it is a no-op
 func (nm NoopManager) StopService(context.Context, constants.ToolType) error {
 	return nil
 }
 
+// IsRunning checks to see if the service is running
 func (nm NoopManager) IsRunning(context.Context, constants.ToolType) bool {
 	return false
 }
 
-func (nm NoopManager) IsRegistered(context.Context, constants.ToolType) (bool, error) {
+// IsRegistered checks if the associated app's system command file exists, if it does it returns true, else it returns false
+// if err is not nil, there was an error checking the existence of the file
+func (nm NoopManager) IsRegistered(constants.ToolType) (bool, error) {
 	return false, nil
 }
 
+// ServiceName returns the formatted service name given a tooltype
 func (nm NoopManager) ServiceName(constants.ToolType) string {
 	return ""
 }
 
+// LinuxSystemdManager is a service manager for linux based OS
 type LinuxSystemdManager struct {
 	homeDir string
 }
 
+// ResgistrationParams additional flags to pass during service registration
 type ResgistrationParams struct {
 	Force       bool
 	FlagDevMode bool
@@ -77,7 +89,7 @@ type ResgistrationParams struct {
 
 // RegisterService registers the service and starts it
 func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants.ToolType, params ResgistrationParams) error {
-	if isRegistered, _ := sm.IsRegistered(ctx, app); isRegistered {
+	if isRegistered, _ := sm.IsRegistered(app); isRegistered {
 		return nil // already registered
 	}
 	systemdDir := filepath.Join(sm.homeDir, constants.SystemdUserDir)
@@ -192,8 +204,9 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 	return nil
 }
 
+// StartService starts the given service as long as it is registered
 func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.ToolType) error {
-	isRegisted, _ := sm.IsRegistered(ctx, app)
+	isRegisted, _ := sm.IsRegistered(app)
 	if !isRegisted {
 		log.WithContext(ctx).Infof("skipping start service because %v is not a registered service", app)
 		return nil
@@ -210,6 +223,7 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.To
 	return nil
 }
 
+// StopService stops a running service, it it isnt running it is a no-op
 func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.ToolType) error {
 	isRunning := sm.IsRunning(ctx, app) // if not registered, this will be false
 	if !isRunning {
@@ -222,6 +236,7 @@ func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.Too
 	return nil
 }
 
+// IsRunning checks to see if the service is running
 func (sm LinuxSystemdManager) IsRunning(ctx context.Context, app constants.ToolType) bool {
 	res, _ := runCommand("systemctl", "--user", "is-active", sm.ServiceName(app))
 	res = strings.TrimSpace(res)
@@ -231,7 +246,7 @@ func (sm LinuxSystemdManager) IsRunning(ctx context.Context, app constants.ToolT
 
 // IsRegistered checks if the associated app's system command file exists, if it does it returns true, else it returns false
 // if err is not nil, there was an error checking the existence of the file
-func (sm LinuxSystemdManager) IsRegistered(ctx context.Context, app constants.ToolType) (bool, error) {
+func (sm LinuxSystemdManager) IsRegistered(app constants.ToolType) (bool, error) {
 	fp := filepath.Join(sm.homeDir, constants.SystemdUserDir, sm.ServiceName(app))
 	if _, err := os.Stat(fp); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -242,6 +257,7 @@ func (sm LinuxSystemdManager) IsRegistered(ctx context.Context, app constants.To
 	return true, nil
 }
 
+// ServiceName returns the formatted service name given a tooltype
 func (sm LinuxSystemdManager) ServiceName(app constants.ToolType) string {
 	return fmt.Sprintf("%v%v.service", constants.SystemdServicePrefix, app)
 }

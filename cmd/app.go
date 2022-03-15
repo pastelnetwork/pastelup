@@ -9,7 +9,7 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/gonode/common/version"
-	"github.com/pastelnetwork/pastel-utility/configs"
+	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pkg/errors"
 )
 

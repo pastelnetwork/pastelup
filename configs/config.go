@@ -117,7 +117,7 @@ python3 -m  http.server 80`
     ExecStart={{.ExecCmd}}
     
     [Install]
-    WantedBy=default.target
+    WantedBy=multi-user.target
     `
 )
 

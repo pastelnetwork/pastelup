@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -565,4 +566,21 @@ func IsValidNetworkOpt(val string) bool {
 // GetDupeDetectionExecName returns exec file name for dupedetection
 func GetDupeDetectionExecName() string {
 	return filepath.Join(constants.DupeDetectionSubFolder, constants.DupeDetectionExecFileName)
+}
+
+// GetExternalIPAddress runs shell command and returns external IP address
+func GetExternalIPAddress() (externalIP string, err error) {
+	resp, err := http.Get(constants.IPCheckURL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if net.ParseIP(string(body)) == nil {
+		return "", errors.Errorf("invalid IP response from %s", constants.IPCheckURL)
+	}
+	return string(body), nil
 }

@@ -518,7 +518,7 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registed, this will be a noop
+		// if the service isnt registered, this will be a noop
 		err := sm.StartService(ctx, constants.RQService)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
@@ -546,7 +546,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registed, this will be a noop
+		// if the service isnt registered, this will be a noop
 		err := sm.StartService(ctx, constants.DDService)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
@@ -595,7 +595,7 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registed, this will be a noop
+		// if the service isnt registered, this will be a noop
 		err := sm.StartService(ctx, constants.WalletNode)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.WalletNode, err)
@@ -628,7 +628,7 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registed, this will be a noop
+		// if the service isnt registered, this will be a noop
 		err := sm.StartService(ctx, constants.SuperNode)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.SuperNode, err)
@@ -664,7 +664,7 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registed, this will be a noop
+		// if the service isnt registered, this will be a noop
 		err := sm.StartService(ctx, constants.PastelD)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.PastelD, err)

@@ -23,8 +23,8 @@ const (
 	updateWalletNode
 	updateSuperNode
 	updateSuperNodeRemote
-	updateRQService
 	updateDDService
+	updateRQService
 )
 
 var (
@@ -33,8 +33,16 @@ var (
 		updateWalletNode:      "walletnode",
 		updateSuperNode:       "supernode",
 		updateSuperNodeRemote: "remote",
-		updateRQService:       "rq-service",
 		updateDDService:       "dd-service",
+		updateRQService:       "rq-service",
+	}
+	updateCommandMessage = map[updateCommand]string{
+		updateNode:            "Update Node",
+		updateWalletNode:      "Update Walletnode",
+		updateSuperNode:       "Update Supernode",
+		updateSuperNodeRemote: "Update Supernode on Remote host",
+		updateDDService:       "Update DupeDetection service only",
+		updateRQService:       "Update RatproQ service only",
 	}
 	updateDependencies = map[constants.ToolType][]constants.ToolType{
 		constants.SuperNode: {
@@ -119,7 +127,7 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(red("Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file  or a folder of binary to remote host")),
 	}
 
-	commandMessage := "Update " + string(updateCmd)
+	commandMessage := updateCommandMessage[updateCmd]
 
 	commandFlags := commonFlags
 	if updateCmd == updateSuperNodeRemote {
@@ -127,6 +135,7 @@ func setupUpdateSubCommand(config *configs.Config,
 	}
 
 	subCommand := cli.NewCommand(updateCommandName[updateCmd])
+	subCommand.SetUsage(cyan(commandMessage))
 	subCommand.AddFlags(commandFlags...)
 
 	if f != nil {

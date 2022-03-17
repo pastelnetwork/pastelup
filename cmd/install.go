@@ -28,11 +28,29 @@ const (
 	walletInstall
 	superNodeInstall
 	remoteInstall
-	dupedetectionInstall
-	dupedetectionImgServerInstall
+	ddServiceInstall
+	ddServiceImgServerInstall
 	//highLevel
 )
 
+var (
+	installCmdName = map[installCommand]string{
+		nodeInstall:               "node",
+		walletInstall:             "walletnode",
+		superNodeInstall:          "supernode",
+		remoteInstall:             "remote",
+		ddServiceInstall:          "dd-service",
+		ddServiceImgServerInstall: "imgserver",
+	}
+	installCmdMessage = map[installCommand]string{
+		nodeInstall:               "Install node",
+		walletInstall:             "Install Walletnode",
+		superNodeInstall:          "Install Supernode",
+		remoteInstall:             "Install Supernode on Remote host",
+		ddServiceInstall:          "Install Dupe Detection service",
+		ddServiceImgServerInstall: "Install Dupe Detection Image Server",
+	}
+)
 var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 	constants.DDImgService: {constants.DDImgService},
 	constants.PastelD:      {constants.PastelD},
@@ -116,31 +134,22 @@ func setupSubCommand(config *configs.Config,
 	var commandName, commandMessage string
 	var commandFlags []*cli.Flag
 
+	commandName = installCmdName[installCommand]
+	commandMessage = installCmdMessage[installCommand]
+
 	switch installCommand {
 	case nodeInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
-		commandName = "node"
-		commandMessage = "Install node"
 	case walletInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
-		commandName = string(constants.WalletNode)
-		commandMessage = "Install walletnode"
 	case superNodeInstall:
 		commandFlags = append(dirsFlags, commonFlags[:]...)
-		commandName = string(constants.SuperNode)
-		commandMessage = "Install supernode"
 	case remoteInstall:
 		commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
-		commandName = "remote"
-		commandMessage = "Install supernode remote"
-	case dupedetectionInstall:
+	case ddServiceInstall:
 		commandFlags = append(dirsFlags, dupeFlags[:]...)
-		commandName = "dupedetection"
-		commandMessage = "Install dupedetection"
-	case dupedetectionImgServerInstall:
+	case ddServiceImgServerInstall:
 		commandFlags = append(dirsFlags, dupeFlags[:]...)
-		commandName = "imgserver"
-		commandMessage = "Install dupedetection image server"
 	default:
 		commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
 	}
@@ -184,8 +193,8 @@ func setupInstallCommand() *cli.Command {
 	installSuperNodeSubCommand := setupSubCommand(config, superNodeInstall, runInstallSuperNodeSubCommand)
 	installSuperNodeRemoteSubCommand := setupSubCommand(config, remoteInstall, runInstallSuperNodeRemoteSubCommand)
 	installSuperNodeSubCommand.AddSubcommands(installSuperNodeRemoteSubCommand)
-	installDupeDetecionSubCommand := setupSubCommand(config, dupedetectionInstall, runInstallDupeDetectionSubCommand)
-	installDupeDetecionImgServerSubCommand := setupSubCommand(config, dupedetectionImgServerInstall, runInstallDupeDetectionImgServerSubCommand)
+	installDupeDetecionSubCommand := setupSubCommand(config, ddServiceInstall, runInstallDupeDetectionSubCommand)
+	installDupeDetecionImgServerSubCommand := setupSubCommand(config, ddServiceImgServerInstall, runInstallDupeDetectionImgServerSubCommand)
 
 	installCommand := cli.NewCommand("install")
 	installCommand.SetUsage(blue("Performs installation and initialization of the system for both WalletNode and SuperNodes"))

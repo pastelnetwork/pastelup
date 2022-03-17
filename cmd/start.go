@@ -63,11 +63,38 @@ const (
 	superNodeStart
 	superNodeRemoteStart
 	superNodeColdHotStart
-	rqService
 	ddService
+	rqService
 	wnService
 	snService
 	masterNode
+)
+
+var (
+	startCmdName = map[startCommand]string{
+		nodeStart:             "node",
+		walletStart:           "walletnode",
+		superNodeStart:        "supernode",
+		superNodeRemoteStart:  "remote",
+		superNodeColdHotStart: "supernode-coldhot",
+		ddService:             "dd-service",
+		rqService:             "rq-service",
+		wnService:             "walletnode-service",
+		snService:             "supernode-service",
+		masterNode:            "masterNode",
+	}
+	startCmdMessage = map[startCommand]string{
+		nodeStart:             "Start node",
+		walletStart:           "Start Walletnode",
+		superNodeStart:        "Start Supernode",
+		superNodeRemoteStart:  "Start Supernode on Remote host",
+		superNodeColdHotStart: "Start Supernode in Cold/Hot mode",
+		ddService:             "Start Dupe Detection service only",
+		rqService:             "Start RaptorQ service only",
+		wnService:             "Start Walletnode service onlyu",
+		snService:             "Start Supernode service only",
+		masterNode:            "Start only pasteld node as Masternode",
+	}
 )
 
 func setupStartSubCommand(config *configs.Config,
@@ -158,48 +185,31 @@ func setupStartSubCommand(config *configs.Config,
 	var commandName, commandMessage string
 	var commandFlags []*cli.Flag
 
+	commandName = startCmdName[startCommand]
+	commandMessage = startCmdMessage[startCommand]
+
 	switch startCommand {
 	case nodeStart:
 		commandFlags = commonFlags
-		commandName = "node"
-		commandMessage = "Start node"
 	case walletStart:
 		commandFlags = append(walletNodeFlags, commonFlags[:]...)
-		commandName = string(constants.WalletNode)
-		commandMessage = "Start walletnode"
 	case superNodeStart:
 		commandFlags = append(superNodeFlags, commonFlags[:]...)
-		commandName = string(constants.SuperNode)
-		commandMessage = "Start supernode"
 	case superNodeRemoteStart:
 		superNodeFlags = append(superNodeFlags, superNodeRemoteFlags...)
 		commandFlags = append(superNodeFlags, commonFlags[:]...)
-		commandName = "remote"
-		commandMessage = "Start remote supernode"
 	case superNodeColdHotStart:
 		commandFlags = append(append(superNodeFlags, commonFlags[:]...), superNodeColdHotFlags[:]...)
-		commandName = string(constants.SuperNode) + "-coldhot"
-		commandMessage = "Start supernode in Cold/Hod mode"
 	case rqService:
 		commandFlags = commonFlags
-		commandName = string(constants.RQService)
-		commandMessage = "Start RaptorQ service only"
 	case ddService:
 		commandFlags = commonFlags
-		commandName = string(constants.DDService)
-		commandMessage = "Start dupe detection service only"
 	case wnService:
 		commandFlags = append(walletNodeFlags, commonFlags[:]...)
-		commandName = string(constants.WalletNode) + "-service"
-		commandMessage = "Start WalletNode service only"
 	case snService:
 		commandFlags = commonFlags
-		commandName = string(constants.SuperNode) + "-service"
-		commandMessage = "Start SuperNode service only"
 	case masterNode:
 		commandFlags = append(masternodeFlags, commonFlags[:]...)
-		commandName = "masternode"
-		commandMessage = "Start pasteld node as Masternode only"
 	default:
 		commandFlags = append(append(walletNodeFlags, commonFlags[:]...), superNodeFlags[:]...)
 	}

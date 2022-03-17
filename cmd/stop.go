@@ -23,24 +23,34 @@ const (
 	superNodeStop
 	superNodeRemoteStop
 	allStop
-	rqServiceStop
 	ddServiceStop
+	rqServiceStop
 	wnServiceStop
 	snServiceStop
 )
 
 var (
-	// Stop commands
 	stopCmdName = map[stopCommand]string{
 		nodeStop:            "node",
 		walletStop:          "walletnode",
 		superNodeStop:       "supernode",
 		superNodeRemoteStop: "remote",
 		allStop:             "all",
-		rqServiceStop:       "rq-service",
 		ddServiceStop:       "dd-service",
+		rqServiceStop:       "rq-service",
 		wnServiceStop:       "walletnode-service",
 		snServiceStop:       "supernode-service",
+	}
+	stopCmdMessage = map[stopCommand]string{
+		nodeStop:            "Stop node",
+		walletStop:          "Stop Walletnode",
+		superNodeStop:       "Stop Supernode",
+		superNodeRemoteStop: "Stop Supernode on Remote Host",
+		allStop:             "Stop all Pastel services",
+		ddServiceStop:       "Stop Dupe Detection service only",
+		rqServiceStop:       "Stop RaptorQ service only",
+		wnServiceStop:       "Stop Walletnode service only",
+		snServiceStop:       "Stop Supernode service only",
 	}
 )
 
@@ -76,11 +86,7 @@ func setupStopSubCommand(config *configs.Config,
 	}
 
 	commandName := stopCmdName[stopCommand]
-	commandMessage := "Stop " + commandName
-
-	if stopCommand >= allStop {
-		commandMessage += " only"
-	}
+	commandMessage := stopCmdMessage[stopCommand]
 
 	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))

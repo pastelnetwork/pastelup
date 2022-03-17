@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/dustin/go-humanize"
+	"github.com/kickback-app/api/utils"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pkg/errors"
@@ -583,4 +585,28 @@ func GetExternalIPAddress() (externalIP string, err error) {
 		return "", errors.Errorf("invalid IP response from %s", constants.IPCheckURL)
 	}
 	return string(body), nil
+}
+
+func ClearDir(ctx context.Context, dir string, skipFiles []string) error {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		log.WithContext(ctx).Errorf("Failed to read directory files: %v", err)
+		return err
+	}
+	for _, file := range files {
+		if !utils.Contains(skipFiles, file.Name()) {
+			if file.IsDir() {
+				err = ClearDir(ctx, path.Join(dir, file.Name()), []string{})
+				if err != nil {
+					log.WithContext(ctx).Warn(fmt.Sprintf("Unable to delete %v during clean operation: %v", file.Name(), err))
+					return err
+				}
+			}
+			err := os.Remove(path.Join(dir, file.Name()))
+			if err != nil {
+				log.WithContext(ctx).Warn(fmt.Sprintf("Unable to delete %v during clean operation: %v", file.Name(), err))
+			}
+		}
+	}
+	return nil
 }

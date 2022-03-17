@@ -447,10 +447,14 @@ func archiveWorkDir(ctx context.Context, config *configs.Config) error {
 	if config.Clean {
 		pathToClean := path.Join(homeDir, workDir)
 		log.WithContext(ctx).Infof("Clean flag set, cleaning work dir (%v)", pathToClean)
-		cleanCmd := fmt.Sprintf("rm %v -v !(\"pastel.conf\"|\"wallet.dat\"|\"masternode.conf\")", pathToClean)
-		_, err := RunCMD("bash", "-c", cleanCmd)
+		files, err := ioutil.ReadDir(pathToClean)
 		if err != nil {
+			log.WithContext(ctx).Errorf("Failed to read directory files: %v", err)
 			return err
+		}
+
+		for _, file := range files {
+			log.WithContext(ctx).Infof("File=%v, isDir=%v", file.Name(), file.IsDir())
 		}
 	}
 	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))

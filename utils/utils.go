@@ -29,7 +29,6 @@ import (
 	"golang.org/x/term"
 
 	"github.com/dustin/go-humanize"
-	"github.com/kickback-app/api/utils"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pkg/errors"
@@ -594,7 +593,7 @@ func ClearDir(ctx context.Context, dir string, skipFiles []string) error {
 		return err
 	}
 	for _, file := range files {
-		if !utils.Contains(skipFiles, file.Name()) {
+		if !Contains(skipFiles, file.Name()) {
 			if file.IsDir() {
 				err = ClearDir(ctx, path.Join(dir, file.Name()), []string{})
 				if err != nil {

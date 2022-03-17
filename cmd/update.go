@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -92,7 +93,7 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Location where to create working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
 
 		cli.NewFlag("clean", &config.Clean).SetAliases("c").
-			SetUsage(green("Optional, Clean .pastel folder")).SetValue(config.Configurer.DefaultWorkingDir()),
+			SetUsage(green("Optional, Clean .pastel folder")),
 	}
 
 	if updateCmd == updateSuperNodeRemote || updateCmd == updateSuperNode {
@@ -410,7 +411,7 @@ func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (
 	}
 	homeDir := config.Configurer.DefaultHomeDir()
 	dirToArchive := filepath.Join(homeDir, constants.DupeDetectionServiceDir)
-	if archiveName, err := archiveDir(homeDir, dirToArchive, constants.DupeDetectionServiceDir, config.Clean); err != nil {
+	if archiveName, err := archiveDir(homeDir, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
 	} else {
 		log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
@@ -438,17 +439,26 @@ func archiveWorkDir(ctx context.Context, config *configs.Config) error {
 	homeDir := config.Configurer.DefaultHomeDir()
 	dirToArchive := config.Configurer.DefaultWorkingDir()
 	workDir := config.Configurer.WorkDir()
-	archiveName, err := archiveDir(homeDir, dirToArchive, workDir, config.Clean)
+	archiveName, err := archiveDir(homeDir, dirToArchive, workDir)
 	if err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
 		return err
+	}
+	if config.Clean {
+		pathToClean := path.Join(homeDir, workDir)
+		log.WithContext(ctx).Infof("Clean flag set, cleaning work dir (%v)", pathToClean)
+		cleanCmd := fmt.Sprintf("rm %v -v !(\"pastel.conf\"|\"wallet.dat\"|\"masternode.conf\")", pathToClean)
+		_, err := RunCMD("bash", "-c", cleanCmd)
+		if err != nil {
+			return err
+		}
 	}
 	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
 	return nil
 }
 
 // archiveDir is makes a copy of the specified dir to a new dir in ~/.pastel_archives dir
-func archiveDir(homeDir, dirToArchive, archiveSource string, clean bool) (string, error) {
+func archiveDir(homeDir, dirToArchive, archiveSource string) (string, error) {
 	now := time.Now().Unix()
 	archiveBaseDir := homeDir + "/.pastel_archives"
 	if exists := utils.CheckFileExist(archiveBaseDir); !exists {
@@ -463,13 +473,6 @@ func archiveDir(homeDir, dirToArchive, archiveSource string, clean bool) (string
 	_, err := RunCMD("bash", "-c", cmd)
 	if err != nil {
 		return "", err
-	}
-	if clean {
-		cleanCmd := "rm -v !(\"pastel.conf\"|\"wallet.dat\"|\"masternode.conf\")"
-		_, err := RunCMD("bash", "-c", cleanCmd)
-		if err != nil {
-			return "", err
-		}
 	}
 	return archivePath, nil
 }

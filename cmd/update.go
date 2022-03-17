@@ -353,7 +353,7 @@ func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) 
 }
 
 func stopAndUpdateService(ctx context.Context, service constants.ToolType, config *configs.Config) error {
-	servicesToStop := updateServicesToStop[constants.WalletNode]
+	servicesToStop := updateServicesToStop[service]
 	err := stopServicesWithConfirmation(ctx, config, servicesToStop)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
@@ -363,7 +363,7 @@ func stopAndUpdateService(ctx context.Context, service constants.ToolType, confi
 	if err != nil {
 		return err
 	}
-	servicesToUpdate := updateDependencies[constants.WalletNode]
+	servicesToUpdate := updateDependencies[service]
 	for _, service := range servicesToUpdate {
 		err = updateService(ctx, config, service)
 		if err != nil {

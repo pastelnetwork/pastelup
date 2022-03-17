@@ -8,6 +8,7 @@ type Init struct {
 	RPCUser          string `json:"rpc-user,omitempty"`
 	RPCPwd           string `json:"rpc-pwd,omitempty"`
 	Force            bool   `json:"force,omitempty"`
+	Clean            bool   `json:"clean,omitempty"`
 	Peers            string `json:"peers"`
 	PastelExecDir    string `json:"pastelexecdir,omitempty"`
 	Version          string `json:"nodeversion,omitempty"`

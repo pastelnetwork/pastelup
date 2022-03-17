@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -57,6 +58,7 @@ var (
 			constants.RQService,
 			constants.WalletNode,
 		},
+		constants.PastelD: {constants.PastelD},
 	}
 	updateServicesToStop = map[constants.ToolType][]constants.ToolType{
 		constants.SuperNode: {
@@ -76,6 +78,7 @@ var (
 			constants.DDImgService,
 		},
 		constants.RQService: {constants.RQService},
+		constants.PastelD:   {constants.PastelD},
 	}
 )
 
@@ -98,6 +101,9 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Location where to create pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 			SetUsage(green("Optional, Location where to create working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
+
+		cli.NewFlag("clean", &config.Clean).SetAliases("c").
+			SetUsage(green("Optional, Clean .pastel folder")),
 	}
 
 	if updateCmd == updateSuperNodeRemote || updateCmd == updateSuperNode {
@@ -327,49 +333,37 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 
 func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating SuperNode component ...")
-	servicesToStop := updateServicesToStop[constants.SuperNode]
-	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
-		return err
-	}
-	err = archiveWorkDir(ctx, config)
+	err = stopAndUpdateService(ctx, constants.SuperNode, config)
 	if err != nil {
 		return err
 	}
-	servicesToUpdate := updateDependencies[constants.SuperNode]
-	for _, service := range servicesToUpdate {
-		err = updateService(ctx, config, service)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Failed to stop dependent service '%v': %v", service, err))
-			return err
-		}
-	}
+	log.WithContext(ctx).Info("Successfully updated SuperNode component and its dependencies")
 	return nil
 }
 
 func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating node component ...")
-	err = stopServicesWithConfirmation(ctx, config, []constants.ToolType{constants.PastelD})
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to stop pastel-cli")
-		return err
-	}
-	err = archiveWorkDir(ctx, config)
+	err = stopAndUpdateService(ctx, constants.PastelD, config)
 	if err != nil {
 		return err
 	}
-	if err = runComponentsInstall(ctx, config, constants.PastelD); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to update node component")
-		return err
-	}
+	log.WithContext(ctx).Info("Successfully updated Node component and its dependencies")
 	return nil
 }
 
 func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Info("Updating node component ...")
-	servicesToStop := updateServicesToStop[constants.WalletNode]
-	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
+	log.WithContext(ctx).Info("Updating WalletNode component ...")
+	err = stopAndUpdateService(ctx, constants.WalletNode, config)
+	if err != nil {
+		return err
+	}
+	log.WithContext(ctx).Info("Successfully updated WalletNode component and its dependencies")
+	return nil
+}
+
+func stopAndUpdateService(ctx context.Context, service constants.ToolType, config *configs.Config) error {
+	servicesToStop := updateServicesToStop[service]
+	err := stopServicesWithConfirmation(ctx, config, servicesToStop)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
 		return err
@@ -378,15 +372,14 @@ func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) 
 	if err != nil {
 		return err
 	}
-	servicesToUpdate := updateDependencies[constants.WalletNode]
+	servicesToUpdate := updateDependencies[service]
 	for _, service := range servicesToUpdate {
 		err = updateService(ctx, config, service)
 		if err != nil {
-			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Failed to stop dependent service '%v': %v", service, err))
+			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Failed to update dependent service '%v': %v", service, err))
 			return err
 		}
 	}
-	log.WithContext(ctx).Info("Successfully updated wallet node component and its dependencies")
 	return nil
 }
 
@@ -448,6 +441,16 @@ func archiveWorkDir(ctx context.Context, config *configs.Config) error {
 	if err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
 		return err
+	}
+	if config.Clean {
+		pathToClean := path.Join(homeDir, workDir)
+		log.WithContext(ctx).Infof("Clean flag set, cleaning work dir (%v)", pathToClean)
+		filesToPreserve := []string{"pastel.conf", "wallet.dat", "masternode.conf"}
+		err = utils.ClearDir(ctx, pathToClean, filesToPreserve)
+		if err != nil {
+			log.WithContext(ctx).Error(fmt.Sprintf("Failed to clean directory:  %v", err))
+			return err
+		}
 	}
 	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
 	return nil

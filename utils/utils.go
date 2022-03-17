@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -583,4 +584,31 @@ func GetExternalIPAddress() (externalIP string, err error) {
 		return "", errors.Errorf("invalid IP response from %s", constants.IPCheckURL)
 	}
 	return string(body), nil
+}
+
+// ClearDir removes all contents in the provided directory unless they are in the skipFiles array.
+// this recursively calls itself to clear out files in subdirs.
+// skipFiles only works for top-level files in the original dir provided, it doesnt get applied to subdirs.
+func ClearDir(ctx context.Context, dir string, skipFiles []string) error {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		log.WithContext(ctx).Errorf("Failed to read directory files: %v", err)
+		return err
+	}
+	for _, file := range files {
+		if !Contains(skipFiles, file.Name()) {
+			if file.IsDir() {
+				err = ClearDir(ctx, path.Join(dir, file.Name()), []string{})
+				if err != nil {
+					log.WithContext(ctx).Warn(fmt.Sprintf("Unable to delete %v during clean operation: %v", file.Name(), err))
+					return err
+				}
+			}
+			err := os.Remove(path.Join(dir, file.Name()))
+			if err != nil {
+				log.WithContext(ctx).Warn(fmt.Sprintf("Unable to delete %v during clean operation: %v", file.Name(), err))
+			}
+		}
+	}
+	return nil
 }

@@ -246,6 +246,7 @@ func stopPatelCLI(ctx context.Context, config *configs.Config) {
 func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, services []constants.ToolType) error {
 	servicesToStop := []constants.ToolType{}
 	for _, service := range services {
+		log.WithContext(ctx).Infof("Stopping %s...", string(service))
 		if service == constants.PastelD {
 			_, err := RunPastelCLI(ctx, config, "getinfo")
 			if err == nil { // this means the pastel-cli is running
@@ -261,6 +262,7 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 		if pid != 0 {
 			servicesToStop = append(servicesToStop, service)
 		}
+		log.WithContext(ctx).Infof("%s stopped", string(service))
 	}
 	if len(servicesToStop) == 0 {
 		return nil
@@ -282,6 +284,7 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 		servicesEnabled = true
 	}
 	for _, service := range services {
+		log.WithContext(ctx).Infof("Stopping %s service...", string(service))
 		if service == constants.PastelD {
 			stopPatelCLI(ctx, config)
 		} else {
@@ -303,6 +306,7 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 				return err
 			}
 		}
+		log.WithContext(ctx).Infof("%s service stopped", string(service))
 	}
 	return nil
 }

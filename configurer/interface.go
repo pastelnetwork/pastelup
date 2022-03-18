@@ -13,6 +13,7 @@ type IConfigurer interface {
 	DefaultWorkingDir() string
 	DefaultZksnarkDir() string
 	DefaultPastelExecutableDir() string
+	DefaultArchiveDir() string
 	GetSuperNodeLogFile(workingDir string) string
 	GetWalletNodeLogFile(workingDir string) string
 	GetSuperNodeConfFile(workingDir string) string

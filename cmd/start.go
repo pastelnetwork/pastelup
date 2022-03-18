@@ -110,6 +110,8 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
 		cli.NewFlag("reindex", &flagReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
+		cli.NewFlag("legacy", &config.Legacy).
+			SetUsage(green("Optional, pasteld version is < 1.1")).SetValue(false),
 	}
 
 	walletNodeFlags := []*cli.Flag{
@@ -674,7 +676,7 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registered, this will be a noop
+		// if the service isn't registered, this will be a noop
 		err := sm.StartService(ctx, constants.PastelD)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.PastelD, err)

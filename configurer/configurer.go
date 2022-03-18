@@ -26,6 +26,7 @@ type configurer struct {
 	zksnarkDir          string
 	pastelExecutableDir string
 	homeDir             string
+	archiveDir          string
 	architecture        constants.ArchitectureType
 	osType              constants.OSType
 }
@@ -80,6 +81,11 @@ func (c *configurer) DefaultPastelExecutableDir() string {
 	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDir()), c.pastelExecutableDir)
 }
 
+// DefaultArchiveDir returns the default pastel arhive path.
+func (c *configurer) DefaultArchiveDir() string {
+	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDataDir()), c.archiveDir)
+}
+
 // GetDownloadURL returns download url of the pastel executables.
 func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error) {
 	var name string
@@ -127,6 +133,7 @@ func newLinuxConfigurer(homeDir string) IConfigurer {
 		zksnarkDir:          ".pastel-params",
 		pastelExecutableDir: "pastel",
 		homeDir:             homeDir,
+		archiveDir:          ".pastel_archives",
 		architecture:        constants.AMD64,
 		osType:              constants.Linux,
 	}
@@ -143,6 +150,7 @@ func newDarwinConfigurer(homeDir string) IConfigurer {
 		zksnarkDir:          "PastelParams",
 		pastelExecutableDir: "PastelWallet",
 		homeDir:             homeDir,
+		archiveDir:          "PastelArchives",
 		architecture:        constants.AMD64,
 		osType:              constants.Mac,
 	}
@@ -159,6 +167,7 @@ func newWindowsConfigurer(homeDir string) IConfigurer {
 		zksnarkDir:          "PastelParams",
 		pastelExecutableDir: "PastelWallet",
 		homeDir:             homeDir,
+		archiveDir:          "PastelArchives",
 		architecture:        constants.AMD64,
 		osType:              constants.Windows,
 	}

@@ -418,7 +418,12 @@ func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
 
 	zksnarkPath := config.Configurer.DefaultZksnarkDir()
 
-	for _, zksnarkParamsName := range configs.ZksnarkParamsNames {
+	zkParams := configs.ZksnarkParamsNamesV2
+	if config.Legacy {
+		zkParams = append(zkParams, configs.ZksnarkParamsNamesV1...)
+	}
+
+	for _, zksnarkParamsName := range zkParams {
 		zksnarkParamsPath := filepath.Join(zksnarkPath, zksnarkParamsName)
 
 		log.WithContext(ctx).Infof("Checking pastel param file : %s", zksnarkParamsPath)

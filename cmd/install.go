@@ -90,7 +90,7 @@ func setupSubCommand(config *configs.Config,
 			cli.NewFlag("user-pw", &config.UserPw).
 				SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 			cli.NewFlag("sn-only", &config.InstallSNOnly).
-				SetUsage(green("Optional, installl supernode only")),
+				SetUsage(green("Optional, install supernode only")),
 		}
 		commonFlags = append(commonFlags, serviceFlags...)
 	}
@@ -215,6 +215,10 @@ func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) (er
 }
 
 func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	if utils.GetOS() != constants.Linux {
+		log.WithContext(ctx).Error("Supernode can only be installed on Linux")
+		return fmt.Errorf("Supernode can only be installed on Linux. You are on: %s", string(utils.GetOS()))
+	}
 	return runComponentsInstall(ctx, config, constants.SuperNode)
 }
 
@@ -331,16 +335,28 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		log.WithContext(ctx).Infof("initiating in %s mode", config.Network)
 	}
 
-	// need to stop pastel-cli else we'll get a text file busy error
-	sm, _ := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
-	sm.StopService(ctx, constants.PastelD)
-	RunPastelCLI(ctx, config, "stop") // it will fail if not running; so dont catch err
-	time.Sleep(10 * time.Second)      // buffer period to stop
+	possibleCliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
+	if utils.CheckFileExist(possibleCliPath) {
+		log.WithContext(ctx).Info("Trying to stop pasteld...")
+		// need to stop pasteld else we'll get a text file busy error
+		sm, _ := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+		sm.StopService(ctx, constants.PastelD)
+		RunPastelCLI(ctx, config, "stop")
+		time.Sleep(10 * time.Second) // buffer period to stop
+		log.WithContext(ctx).Info("pasteld stopped or was not running")
+	}
 
-	// create installation directory, example ~/pastel
-	if err := createInstallDir(ctx, config, config.PastelExecDir); err != nil {
-		//error was logged inside createInstallDir
-		return err
+	if utils.CheckFileExist(config.PastelExecDir) && config.OpMode == "update" {
+		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Update will overwrite content of %v. Do you want continue? Y/N", config.PastelExecDir)); !yes {
+			log.WithContext(ctx).Info("Directory %v already exists. Operation canceled by user...", config.PastelExecDir)
+			return fmt.Errorf("Operation canceled by user...")
+		}
+	} else {
+		// create installation directory, example ~/pastel
+		if err := createInstallDir(ctx, config, config.PastelExecDir); err != nil {
+			//error was logged inside createInstallDir
+			return err
+		}
 	}
 
 	if err := checkInstalledPackages(ctx, config, installCommand); err != nil {
@@ -845,7 +861,7 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	}
 
 	// download zksnark params
-	if err := downloadZksnarkParams(ctx, config.Configurer.DefaultZksnarkDir(), config.Force); err != nil &&
+	if err := downloadZksnarkParams(ctx, config.Configurer.DefaultZksnarkDir(), config.Force, config.Version); err != nil &&
 		!(os.IsExist(err) && !config.Force) {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download Zksnark parameters into folder %s", config.Configurer.DefaultZksnarkDir())
 		return fmt.Errorf("failed to download Zksnark parameters into folder %s - %v", config.Configurer.DefaultZksnarkDir(), err)
@@ -890,9 +906,15 @@ func updatePastelConfigFile(ctx context.Context, filePath string, config *config
 	return nil
 }
 
-func downloadZksnarkParams(ctx context.Context, path string, force bool) error {
+func downloadZksnarkParams(ctx context.Context, path string, force bool, version string) error {
 	log.WithContext(ctx).Info("Downloading pastel-param files:")
-	for _, zksnarkParamsName := range configs.ZksnarkParamsNames {
+
+	zkParams := configs.ZksnarkParamsNamesV2
+	if version != "beta" { //@TODO remove after Cezanne release
+		zkParams = append(zkParams, configs.ZksnarkParamsNamesV1...)
+	}
+
+	for _, zksnarkParamsName := range zkParams {
 		checkSum := ""
 		zksnarkParamsPath := filepath.Join(path, zksnarkParamsName)
 		log.WithContext(ctx).Infof("Downloading: %s", zksnarkParamsPath)

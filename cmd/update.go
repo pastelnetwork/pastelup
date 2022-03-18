@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"time"
 
+	cp "github.com/otiai10/copy"
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/sys"
@@ -43,24 +43,15 @@ var (
 		updateSuperNode:       "Update Supernode",
 		updateSuperNodeRemote: "Update Supernode on Remote host",
 		updateDDService:       "Update DupeDetection service only",
-		updateRQService:       "Update RatproQ service only",
-	}
-	updateDependencies = map[constants.ToolType][]constants.ToolType{
-		constants.SuperNode: {
-			constants.PastelD,
-			constants.SuperNode,
-			constants.RQService,
-			constants.DDService,
-			constants.WalletNode,
-		},
-		constants.WalletNode: {
-			constants.PastelD,
-			constants.RQService,
-			constants.WalletNode,
-		},
-		constants.PastelD: {constants.PastelD},
+		updateRQService:       "Update RaptorQ service only",
 	}
 	updateServicesToStop = map[constants.ToolType][]constants.ToolType{
+		constants.PastelD: {constants.PastelD},
+		constants.WalletNode: {
+			constants.PastelD,
+			constants.WalletNode,
+			constants.RQService,
+		},
 		constants.SuperNode: {
 			constants.PastelD,
 			constants.SuperNode,
@@ -68,17 +59,11 @@ var (
 			constants.DDImgService,
 			constants.RQService,
 		},
-		constants.WalletNode: {
-			constants.PastelD,
-			constants.WalletNode,
-			constants.RQService,
-		},
-		constants.DDImgService: {
+		constants.DDService: {
 			constants.DDService,
 			constants.DDImgService,
 		},
 		constants.RQService: {constants.RQService},
-		constants.PastelD:   {constants.PastelD},
 	}
 )
 
@@ -101,6 +86,8 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Location where to create pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 			SetUsage(green("Optional, Location where to create working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
+		cli.NewFlag("archive-dir", &config.ArchiveDir).
+			SetUsage(green("Optional, Location where to store archived backup before update")).SetValue(config.Configurer.DefaultArchiveDir()),
 
 		cli.NewFlag("clean", &config.Clean).SetAliases("c").
 			SetUsage(green("Optional, Clean .pastel folder")),
@@ -176,7 +163,7 @@ func setupUpdateCommand() *cli.Command {
 	config.OpMode = "update"
 
 	updateNodeSubCommand := setupUpdateSubCommand(config, updateNode, runUpdateNodeSubCommand)
-	updateWalletNnodeSubCommand := setupUpdateSubCommand(config, updateWalletNode, runUpdateWalletNodeSubCommand)
+	updateWalletNodeSubCommand := setupUpdateSubCommand(config, updateWalletNode, runUpdateWalletNodeSubCommand)
 	updateSuperNodeRemoteSubCommand := setupUpdateSubCommand(config, updateSuperNodeRemote, runUpdateSuperNodeRemoteSubCommand)
 	updateSuperNodeSubCommand := setupUpdateSubCommand(config, updateSuperNode, runUpdateSuperNodeSubCommand)
 	updateSuperNodeSubCommand.AddSubcommands(updateSuperNodeRemoteSubCommand)
@@ -188,7 +175,7 @@ func setupUpdateCommand() *cli.Command {
 	updateCommand.SetUsage(blue("Perform update components for each service: Node, Walletnode and Supernode"))
 
 	updateCommand.AddSubcommands(updateNodeSubCommand)
-	updateCommand.AddSubcommands(updateWalletNnodeSubCommand)
+	updateCommand.AddSubcommands(updateWalletNodeSubCommand)
 	updateCommand.AddSubcommands(updateSuperNodeSubCommand)
 	updateCommand.AddSubcommands(updateRQServiceSubCommand)
 	updateCommand.AddSubcommands(updateDDServiceSubCommand)
@@ -331,19 +318,9 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 	return nil
 }
 
-func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Info("Updating SuperNode component ...")
-	err = stopAndUpdateService(ctx, constants.SuperNode, config)
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Successfully updated SuperNode component and its dependencies")
-	return nil
-}
-
 func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating node component ...")
-	err = stopAndUpdateService(ctx, constants.PastelD, config)
+	err = stopAndUpdateService(ctx, constants.PastelD, true, nil, config)
 	if err != nil {
 		return err
 	}
@@ -351,9 +328,19 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 	return nil
 }
 
+func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	log.WithContext(ctx).Info("Updating SuperNode component ...")
+	err = stopAndUpdateService(ctx, constants.SuperNode, true, nil, config)
+	if err != nil {
+		return err
+	}
+	log.WithContext(ctx).Info("Successfully updated SuperNode component and its dependencies")
+	return nil
+}
+
 func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating WalletNode component ...")
-	err = stopAndUpdateService(ctx, constants.WalletNode, config)
+	err = stopAndUpdateService(ctx, constants.WalletNode, true, nil, config)
 	if err != nil {
 		return err
 	}
@@ -361,37 +348,9 @@ func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) 
 	return nil
 }
 
-func stopAndUpdateService(ctx context.Context, service constants.ToolType, config *configs.Config) error {
-	servicesToStop := updateServicesToStop[service]
-	err := stopServicesWithConfirmation(ctx, config, servicesToStop)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
-		return err
-	}
-	err = archiveWorkDir(ctx, config)
-	if err != nil {
-		return err
-	}
-	servicesToUpdate := updateDependencies[service]
-	for _, service := range servicesToUpdate {
-		err = updateService(ctx, config, service)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Failed to update dependent service '%v': %v", service, err))
-			return err
-		}
-	}
-	return nil
-}
-
 func runUpdateRQServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating RQ service...")
-	servicesToStop := updateServicesToStop[constants.RQService]
-	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
-		return err
-	}
-	err = updateService(ctx, config, constants.RQService)
+	err = stopAndUpdateService(ctx, constants.RQService, true, nil, config)
 	if err != nil {
 		return err
 	}
@@ -401,20 +360,20 @@ func runUpdateRQServiceSubCommand(ctx context.Context, config *configs.Config) (
 
 func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating DD service...")
-	servicesToStop := updateServicesToStop[constants.DDService]
-	err = stopServicesWithConfirmation(ctx, config, servicesToStop)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
-		return err
+
+	archiveDDDir := func() error {
+		homeDir := config.Configurer.DefaultHomeDir()
+		dirToArchive := filepath.Join(homeDir, constants.DupeDetectionServiceDir)
+		if err := archiveDir(ctx, config, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
+			log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
+			return err
+		} else {
+			log.WithContext(ctx).Info(fmt.Sprintf("%v directory archived", dirToArchive))
+			return nil
+		}
 	}
-	homeDir := config.Configurer.DefaultHomeDir()
-	dirToArchive := filepath.Join(homeDir, constants.DupeDetectionServiceDir)
-	if archiveName, err := archiveDir(homeDir, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
-		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
-	} else {
-		log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
-	}
-	err = updateService(ctx, config, constants.DDService)
+
+	err = stopAndUpdateService(ctx, constants.DDService, true, archiveDDDir, config)
 	if err != nil {
 		return err
 	}
@@ -422,11 +381,37 @@ func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (
 	return nil
 }
 
-// updateService does the actial install of the latest image of the specified service
-func updateService(ctx context.Context, config *configs.Config, service constants.ToolType) error {
-	log.WithContext(ctx).Info(fmt.Sprintf("Downloading latest version of %v component ...", service))
-	if err := runComponentsInstall(ctx, config, service); err != nil {
-		log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Failed to update %v component", service))
+func stopAndUpdateService(ctx context.Context, updateCommand constants.ToolType, backUpWorkDir bool, extraStep func() error, config *configs.Config) error {
+	servicesToStop := updateServicesToStop[updateCommand]
+	err := stopServicesWithConfirmation(ctx, config, servicesToStop)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
+		return err
+	}
+	if backUpWorkDir {
+		err = archiveWorkDir(ctx, config)
+		if err != nil {
+			return err
+		}
+	}
+	if extraStep != nil {
+		if err = extraStep(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to run extra step")
+			return err
+		}
+	}
+	if err = updateService(ctx, config, updateCommand); err != nil {
+		log.WithContext(ctx).WithError(err).Error(fmt.Printf("Failed to update '%v': %v", updateCommand, err))
+		return err
+	}
+	return nil
+}
+
+// updateService does the actual installation of the latest image of the specified service
+func updateService(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
+	log.WithContext(ctx).Info(fmt.Sprintf("Downloading latest version of %v component ...", installCommand))
+	if err := runComponentsInstall(ctx, config, installCommand); err != nil {
+		log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Failed to update %v component", installCommand))
 		return err
 	}
 	return nil
@@ -434,44 +419,43 @@ func updateService(ctx context.Context, config *configs.Config, service constant
 
 // archiveWorkDir runs archive dir on the users work dir (i.e. ~/.pastel if on linux)
 func archiveWorkDir(ctx context.Context, config *configs.Config) error {
-	homeDir := config.Configurer.DefaultHomeDir()
-	dirToArchive := config.Configurer.DefaultWorkingDir()
-	workDir := config.Configurer.WorkDir()
-	archiveName, err := archiveDir(homeDir, dirToArchive, workDir)
-	if err != nil {
-		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
+	if err := archiveDir(ctx, config, config.WorkingDir, config.Configurer.WorkDir()); err != nil {
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", config.WorkingDir, err))
 		return err
 	}
 	if config.Clean {
-		pathToClean := path.Join(homeDir, workDir)
-		log.WithContext(ctx).Infof("Clean flag set, cleaning work dir (%v)", pathToClean)
+		//pathToClean := path.Join(homeDir, workDir)
+		log.WithContext(ctx).Infof("Clean flag set, cleaning work dir (%v)", config.WorkingDir)
 		filesToPreserve := []string{"pastel.conf", "wallet.dat", "masternode.conf"}
-		err = utils.ClearDir(ctx, pathToClean, filesToPreserve)
-		if err != nil {
+		if err := utils.ClearDir(ctx, config.WorkingDir, filesToPreserve); err != nil {
 			log.WithContext(ctx).Error(fmt.Sprintf("Failed to clean directory:  %v", err))
 			return err
 		}
 	}
-	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", dirToArchive, archiveName))
+	log.WithContext(ctx).Info(fmt.Sprintf("Working directory %v archived", config.WorkingDir))
 	return nil
 }
 
 // archiveDir is makes a copy of the specified dir to a new dir in ~/.pastel_archives dir
-func archiveDir(homeDir, dirToArchive, archiveSource string) (string, error) {
+func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archivePrefix string) error {
 	now := time.Now().Unix()
-	archiveBaseDir := homeDir + "/.pastel_archives"
+	archiveBaseDir := config.ArchiveDir
+	archiveName := fmt.Sprintf("%s_archive_%v", archivePrefix, now)
+	log.WithContext(ctx).Info(fmt.Sprintf("Archiving %v directory to %v as %v", dirToArchive, archiveBaseDir, archiveName))
+
 	if exists := utils.CheckFileExist(archiveBaseDir); !exists {
 		err := os.Mkdir(archiveBaseDir, 0755)
 		if err != nil {
-			return "", err
+			return err
 		}
 	}
-	archiveName := fmt.Sprintf("%s_archive_%v", archiveSource, now)
-	archivePath := archiveBaseDir + "/" + archiveName
-	cmd := fmt.Sprintf("cp -R %v %v", dirToArchive, archivePath)
-	_, err := RunCMD("bash", "-c", cmd)
+
+	archivePath := filepath.Join(archiveBaseDir, archiveName)
+	err := cp.Copy(dirToArchive, archivePath)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return archivePath, nil
+
+	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", config.WorkingDir, archiveName))
+	return nil
 }

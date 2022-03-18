@@ -18,6 +18,8 @@ type Init struct {
 	InstallSNOnly    bool   `json:"sn-only,omitempty"`
 	BinComponentPath string `json:"bin-path,omitempty"`
 	OpMode           string `json:"opmode,omitempty"`
+	ArchiveDir       string `json:"archivedir,omitempty"`
+	Legacy           bool   `json:"legacy,omitempty"`
 
 	// Configs for remote session
 	RemoteWorkingDir    string `json:"remoteworkingdir,omitempty"`

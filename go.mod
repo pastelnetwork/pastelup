@@ -26,6 +26,7 @@ require (
 )
 
 require (
+	github.com/otiai10/copy v1.7.0
 	github.com/pastelnetwork/gonode/proto v0.0.0-20210829143729-0507e3d6306c
 	google.golang.org/grpc v1.40.0
 )

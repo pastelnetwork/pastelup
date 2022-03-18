@@ -36,7 +36,7 @@ func New(os constants.OSType, homeDir string) (ServiceManager, error) {
 			homeDir: homeDir,
 		}, nil
 	}
-	// if you dont want to check error, we return a noop manager that will do nothing since
+	// if you don't want to check error, we return a noop manager that will do nothing since
 	// the user's system is not supported for system management
 	return NoopManager{}, fmt.Errorf("services are not comptabile with your OS (%v)", os)
 }

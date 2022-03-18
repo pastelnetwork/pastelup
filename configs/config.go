@@ -189,12 +189,14 @@ type SystemdServiceScript struct {
 }
 
 // ZksnarkParamsNames - slice of zksnark parameters
-var ZksnarkParamsNames = []string{
+var ZksnarkParamsNamesV2 = []string{
 	"sapling-spend.params",
 	"sapling-output.params",
+	"sprout-groth16.params",
+}
+var ZksnarkParamsNamesV1 = []string{
 	"sprout-proving.key",
 	"sprout-verifying.key",
-	"sprout-groth16.params",
 }
 
 // Config contains configuration of all components of the WalletNode.

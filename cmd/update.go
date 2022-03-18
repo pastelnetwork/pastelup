@@ -320,7 +320,7 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 
 func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating node component ...")
-	err = stopAndUpdateService(ctx, constants.PastelD, true, nil, config)
+	err = stopAndUpdateService(ctx, config, constants.PastelD, true, false)
 	if err != nil {
 		return err
 	}
@@ -330,7 +330,7 @@ func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err e
 
 func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating SuperNode component ...")
-	err = stopAndUpdateService(ctx, constants.SuperNode, true, nil, config)
+	err = stopAndUpdateService(ctx, config, constants.SuperNode, true, true)
 	if err != nil {
 		return err
 	}
@@ -340,7 +340,7 @@ func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (
 
 func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating WalletNode component ...")
-	err = stopAndUpdateService(ctx, constants.WalletNode, true, nil, config)
+	err = stopAndUpdateService(ctx, config, constants.WalletNode, true, false)
 	if err != nil {
 		return err
 	}
@@ -350,7 +350,7 @@ func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) 
 
 func runUpdateRQServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating RQ service...")
-	err = stopAndUpdateService(ctx, constants.RQService, true, nil, config)
+	err = stopAndUpdateService(ctx, config, constants.RQService, true, false)
 	if err != nil {
 		return err
 	}
@@ -361,19 +361,7 @@ func runUpdateRQServiceSubCommand(ctx context.Context, config *configs.Config) (
 func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Updating DD service...")
 
-	archiveDDDir := func() error {
-		homeDir := config.Configurer.DefaultHomeDir()
-		dirToArchive := filepath.Join(homeDir, constants.DupeDetectionServiceDir)
-		if err := archiveDir(ctx, config, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
-			log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
-			return err
-		} else {
-			log.WithContext(ctx).Info(fmt.Sprintf("%v directory archived", dirToArchive))
-			return nil
-		}
-	}
-
-	err = stopAndUpdateService(ctx, constants.DDService, true, archiveDDDir, config)
+	err = stopAndUpdateService(ctx, config, constants.DDService, true, true)
 	if err != nil {
 		return err
 	}
@@ -381,7 +369,9 @@ func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (
 	return nil
 }
 
-func stopAndUpdateService(ctx context.Context, updateCommand constants.ToolType, backUpWorkDir bool, extraStep func() error, config *configs.Config) error {
+func stopAndUpdateService(ctx context.Context, config *configs.Config, updateCommand constants.ToolType,
+	backUpWorkDir bool, backUpDDDir bool) error {
+
 	servicesToStop := updateServicesToStop[updateCommand]
 	err := stopServicesWithConfirmation(ctx, config, servicesToStop)
 	if err != nil {
@@ -394,8 +384,8 @@ func stopAndUpdateService(ctx context.Context, updateCommand constants.ToolType,
 			return err
 		}
 	}
-	if extraStep != nil {
-		if err = extraStep(); err != nil {
+	if backUpDDDir {
+		if err = archiveDDDir(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to run extra step")
 			return err
 		}
@@ -458,4 +448,16 @@ func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archi
 
 	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", config.WorkingDir, archiveName))
 	return nil
+}
+
+func archiveDDDir(ctx context.Context, config *configs.Config) error {
+	homeDir := config.Configurer.DefaultHomeDir()
+	dirToArchive := filepath.Join(homeDir, constants.DupeDetectionServiceDir)
+	if err := archiveDir(ctx, config, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
+		return err
+	} else {
+		log.WithContext(ctx).Info(fmt.Sprintf("%v directory archived", dirToArchive))
+		return nil
+	}
 }

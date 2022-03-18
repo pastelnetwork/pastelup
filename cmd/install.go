@@ -351,6 +351,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			log.WithContext(ctx).Info("Directory %v already exists. Operation canceled by user...", config.PastelExecDir)
 			return fmt.Errorf("Operation canceled by user...")
 		}
+		config.Force = true
 	} else {
 		// create installation directory, example ~/pastel
 		if err := createInstallDir(ctx, config, config.PastelExecDir); err != nil {

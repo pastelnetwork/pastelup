@@ -25,39 +25,33 @@ type installCommand uint8
 
 const (
 	nodeInstall installCommand = iota
-	walletInstall
+	walletNodeInstall
 	superNodeInstall
 	remoteInstall
 	rqServiceInstall
 	ddServiceInstall
 	ddServiceImgServerInstall
-	wnServiceInstall
-	snServiceInstall
 	//highLevel
 )
 
 var (
 	installCmdName = map[installCommand]string{
 		nodeInstall:               "node",
-		walletInstall:             "walletnode",
+		walletNodeInstall:         "walletnode",
 		superNodeInstall:          "supernode",
-		remoteInstall:             "remote",
 		rqServiceInstall:          "rq-service",
 		ddServiceInstall:          "dd-service",
 		ddServiceImgServerInstall: "imgserver",
-		wnServiceInstall:          "walletnode-service",
-		snServiceInstall:          "supernode-service",
+		remoteInstall:             "remote",
 	}
 	installCmdMessage = map[installCommand]string{
 		nodeInstall:               "Install node",
-		walletInstall:             "Install Walletnode",
+		walletNodeInstall:         "Install Walletnode",
 		superNodeInstall:          "Install Supernode",
-		remoteInstall:             "Install Supernode on Remote host",
 		rqServiceInstall:          "Install RaptorQ service",
 		ddServiceInstall:          "Install Dupe Detection service only",
 		ddServiceImgServerInstall: "Install Dupe Detection Image Server only",
-		wnServiceInstall:          "Install Walletnode service only",
-		snServiceInstall:          "Install Supernode service only",
+		remoteInstall:             "Install on Remote host",
 	}
 )
 var appToServiceMap = map[constants.ToolType][]constants.ToolType{
@@ -79,22 +73,26 @@ var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 
 func setupSubCommand(config *configs.Config,
 	installCommand installCommand,
+	remote bool,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 	commonFlags := []*cli.Flag{
-		cli.NewFlag("network", &config.Network).SetAliases("n").
-			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
-		cli.NewFlag("peers", &config.Peers).SetAliases("p").
-			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
 		cli.NewFlag("enable-service", &config.EnableService).
 			SetUsage(green("Optional, start all apps automatically as system service (i.e. for linux OS, systemd)")),
 	}
 
-	if installCommand == superNodeInstall || installCommand == remoteInstall {
+	pastelFlags := []*cli.Flag{
+		cli.NewFlag("network", &config.Network).SetAliases("n").
+			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
+		cli.NewFlag("peers", &config.Peers).SetAliases("p").
+			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
+	}
+
+	if installCommand == superNodeInstall || remote {
 		serviceFlags := []*cli.Flag{
 			cli.NewFlag("user-pw", &config.UserPw).
 				SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
@@ -104,7 +102,7 @@ func setupSubCommand(config *configs.Config,
 
 	var dirsFlags []*cli.Flag
 
-	if installCommand != remoteInstall {
+	if !remote {
 		dirsFlags = []*cli.Flag{
 			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
 				SetUsage(green("Optional, Location where to create pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
@@ -133,32 +131,16 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 	}
 
-	dupeFlags := []*cli.Flag{
-		cli.NewFlag("force", &config.Force).SetAliases("f").
-			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
+	commandName := installCmdName[installCommand]
+	commandMessage := installCmdMessage[installCommand]
+	commandFlags := append(dirsFlags, commonFlags[:]...)
+	if installCommand == nodeInstall ||
+		installCommand == walletNodeInstall ||
+		installCommand == superNodeInstall {
+		commandFlags = append(commandFlags, pastelFlags[:]...)
 	}
-
-	var commandName, commandMessage string
-	var commandFlags []*cli.Flag
-
-	commandName = installCmdName[installCommand]
-	commandMessage = installCmdMessage[installCommand]
-
-	switch installCommand {
-	case nodeInstall:
-		commandFlags = append(dirsFlags, commonFlags[:]...)
-	case walletInstall:
-		commandFlags = append(dirsFlags, commonFlags[:]...)
-	case superNodeInstall:
-		commandFlags = append(dirsFlags, commonFlags[:]...)
-	case remoteInstall:
-		commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
-	case ddServiceInstall:
-		commandFlags = append(dirsFlags, dupeFlags[:]...)
-	case ddServiceImgServerInstall:
-		commandFlags = append(dirsFlags, dupeFlags[:]...)
-	default:
-		commandFlags = append(append(dirsFlags, commonFlags[:]...), remoteFlags[:]...)
+	if remote {
+		commandFlags = append(commandFlags, remoteFlags[:]...)
 	}
 
 	subCommand := cli.NewCommand(commandName)
@@ -195,30 +177,36 @@ func setupInstallCommand() *cli.Command {
 	config := configs.InitConfig()
 	config.OpMode = "install"
 
-	installNodeSubCommand := setupSubCommand(config, nodeInstall, runInstallNodeSubCommand)
-	installWalletSubCommand := setupSubCommand(config, walletInstall, runInstallWalletSubCommand)
-	installSuperNodeSubCommand := setupSubCommand(config, superNodeInstall, runInstallSuperNodeSubCommand)
-	installSuperNodeRemoteSubCommand := setupSubCommand(config, remoteInstall, runInstallSuperNodeRemoteSubCommand)
-	installSuperNodeSubCommand.AddSubcommands(installSuperNodeRemoteSubCommand)
-	installDupeDetecionSubCommand := setupSubCommand(config, ddServiceInstall, runInstallDupeDetectionSubCommand)
-	installDupeDetecionImgServerSubCommand := setupSubCommand(config, ddServiceImgServerInstall, runInstallDupeDetectionImgServerSubCommand)
+	installNodeSubCommand := setupSubCommand(config, nodeInstall, false, runInstallNodeSubCommand)
+	installWalletNodeSubCommand := setupSubCommand(config, walletNodeInstall, false, runInstallWalletNodeSubCommand)
+	installSuperNodeSubCommand := setupSubCommand(config, superNodeInstall, false, runInstallSuperNodeSubCommand)
+	installRQSubCommand := setupSubCommand(config, rqServiceInstall, false, runInstallRaptorQSubCommand)
+	installDDSubCommand := setupSubCommand(config, ddServiceInstall, false, runInstallDupeDetectionSubCommand)
+	installDDImgServerSubCommand := setupSubCommand(config, ddServiceImgServerInstall, false, runInstallDupeDetectionImgServerSubCommand)
+
+	installNodeSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
+	installSuperNodeSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
+	installRQSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
+	installDDSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
+	installDDImgServerSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
 
 	installCommand := cli.NewCommand("install")
 	installCommand.SetUsage(blue("Performs installation and initialization of the system for both WalletNode and SuperNodes"))
-	installCommand.AddSubcommands(installNodeSubCommand)
-	installCommand.AddSubcommands(installWalletSubCommand)
+	installCommand.AddSubcommands(installWalletNodeSubCommand)
 	installCommand.AddSubcommands(installSuperNodeSubCommand)
-	installCommand.AddSubcommands(installDupeDetecionSubCommand)
-	installCommand.AddSubcommands(installDupeDetecionImgServerSubCommand)
+	installCommand.AddSubcommands(installNodeSubCommand)
+	installCommand.AddSubcommands(installRQSubCommand)
+	installCommand.AddSubcommands(installDDSubCommand)
+	installCommand.AddSubcommands(installDDImgServerSubCommand)
 	return installCommand
 }
 
 func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	return runComponentsInstall(ctx, config, constants.PastelD)
+	return runMultiComponentsInstall(ctx, config, constants.PastelD)
 }
 
-func runInstallWalletSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	return runComponentsInstall(ctx, config, constants.WalletNode)
+func runInstallWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	return runMultiComponentsInstall(ctx, config, constants.WalletNode)
 }
 
 func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
@@ -226,10 +214,52 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 		log.WithContext(ctx).Error("Supernode can only be installed on Linux")
 		return fmt.Errorf("Supernode can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
-	return runComponentsInstall(ctx, config, constants.SuperNode)
+	return runMultiComponentsInstall(ctx, config, constants.SuperNode)
 }
 
-func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) (err error) {
+func runInstallRaptorQSubCommand(ctx context.Context, config *configs.Config) error {
+	// create, if needed, installation directory, example ~/pastel
+	if err := checkInstallDir(ctx, config, config.PastelExecDir, config.OpMode); err != nil {
+		//error was logged inside checkInstallDir
+		log.WithContext(ctx).Errorf("unable to install RQService component: %v", err)
+		return err
+	}
+	err := installRQService(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Errorf("unable to install RQService component: %v", err)
+		return err
+	}
+	return nil
+}
+
+func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) error {
+	// create, if needed, installation directory, example ~/pastel
+	if err := checkInstallDir(ctx, config, config.PastelExecDir, config.OpMode); err != nil {
+		//error was logged inside checkInstallDir
+		return err
+	}
+	err := installDupeDetection(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).Errorf("unable to install DupeDetection component: %v", err)
+		return err
+	}
+	if config.EnableService {
+		err = installServices(ctx, []constants.ToolType{constants.DDImgService}, config)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
+	if !config.EnableService {
+		return nil
+	}
+	return installServices(ctx, appToServiceMap[constants.DDImgService], config)
+}
+
+func runRemoteInstallSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
@@ -312,29 +342,7 @@ func runInstallSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Co
 	return nil
 }
 
-func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) error {
-	err := installDupeDetection(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).Errorf("unable to install DupeDetection component: %v", err)
-		return err
-	}
-	if config.EnableService {
-		err = installServices(ctx, []constants.ToolType{constants.DDImgService}, config)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
-	if !config.EnableService {
-		return nil
-	}
-	return installServices(ctx, appToServiceMap[constants.DDImgService], config)
-}
-
-func runComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
+func runMultiComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
 	if config.OpMode == "install" {
 		if !utils.IsValidNetworkOpt(config.Network) {
 			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
@@ -342,29 +350,26 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 		log.WithContext(ctx).Infof("initiating in %s mode", config.Network)
 	}
 
-	possibleCliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
-	if utils.CheckFileExist(possibleCliPath) {
-		log.WithContext(ctx).Info("Trying to stop pasteld...")
+	if installCommand == constants.PastelD ||
+		installCommand == constants.WalletNode ||
+		(installCommand == constants.SuperNode) {
+
 		// need to stop pasteld else we'll get a text file busy error
-		sm, _ := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
-		sm.StopService(ctx, constants.PastelD)
-		RunPastelCLI(ctx, config, "stop")
-		time.Sleep(10 * time.Second) // buffer period to stop
-		log.WithContext(ctx).Info("pasteld stopped or was not running")
+		possibleCliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
+		if utils.CheckFileExist(possibleCliPath) {
+			log.WithContext(ctx).Info("Trying to stop pasteld...")
+			sm, _ := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+			sm.StopService(ctx, constants.PastelD)
+			RunPastelCLI(ctx, config, "stop")
+			time.Sleep(10 * time.Second) // buffer period to stop
+			log.WithContext(ctx).Info("pasteld stopped or was not running")
+		}
 	}
 
-	if utils.CheckFileExist(config.PastelExecDir) && config.OpMode == "update" {
-		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Update will overwrite content of %v. Do you want continue? Y/N", config.PastelExecDir)); !yes {
-			log.WithContext(ctx).Info("Directory %v already exists. Operation canceled by user...", config.PastelExecDir)
-			return fmt.Errorf("Operation canceled by user...")
-		}
-		config.Force = true
-	} else {
-		// create installation directory, example ~/pastel
-		if err := createInstallDir(ctx, config, config.PastelExecDir); err != nil {
-			//error was logged inside createInstallDir
-			return err
-		}
+	// create, if needed, installation directory, example ~/pastel
+	if err := checkInstallDir(ctx, config, config.PastelExecDir, config.OpMode); err != nil {
+		//error was logged inside checkInstallDir
+		return err
 	}
 
 	if err := checkInstalledPackages(ctx, config, installCommand); err != nil {
@@ -376,23 +381,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	if installCommand == constants.PastelD ||
 		installCommand == constants.WalletNode ||
 		(installCommand == constants.SuperNode) {
-
-		pasteldName := constants.PasteldName[utils.GetOS()]
-		pastelCliName := constants.PastelCliName[utils.GetOS()]
-
-		if err := downloadComponents(ctx, config, constants.PastelD, config.Version, ""); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.PastelD)
-			return err
-		}
-		if err := makeExecutable(ctx, config.PastelExecDir, pasteldName); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", pasteldName)
-			return err
-		}
-		if err := makeExecutable(ctx, config.PastelExecDir, pastelCliName); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", pastelCliName)
-			return err
-		}
-		if err := setupBasePasteWorkingEnvironment(ctx, config); err != nil {
+		if err := installPastelCore(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install Pastel Node")
 			return err
 		}
@@ -400,165 +389,27 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	// install rqservice and its config
 	if installCommand == constants.WalletNode ||
 		installCommand == constants.SuperNode {
-
-		toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
-		toolConfig, err := utils.GetServiceConfig(string(constants.RQService), configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
-			HostName: "127.0.0.1",
-			Port:     constants.RQServiceDefaultPort,
-		})
-		if err != nil {
-			return errors.Errorf("failed to get rqservice config: %v", err)
-		}
-
-		if err = downloadComponents(ctx, config, constants.RQService, config.Version, ""); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
-			return err
-		}
-		if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
-			return err
-		}
-
-		if err = setupComponentWorkingEnvironment(ctx, config,
-			string(constants.RQService),
-			config.Configurer.GetRQServiceConfFile(config.WorkingDir),
-			toolConfig,
-		); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+		if err := installRQService(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install RaptorQ service")
 			return err
 		}
 	}
 	// install WalletNode and its config
 	if installCommand == constants.WalletNode {
-		toolPath := constants.WalletNodeExecName[utils.GetOS()]
-		burnAddress := constants.BurnAddressMainnet
-		if config.Network == constants.NetworkTestnet {
-			burnAddress = constants.BurnAddressTestnet
-		} else if config.Network == constants.NetworkRegTest {
-			burnAddress = constants.BurnAddressTestnet
-		}
-		wnTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
-		rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
-		toolConfig, err := utils.GetServiceConfig(string(constants.WalletNode), configs.WalletDefaultConfig, &configs.WalletNodeConfig{
-			LogLevel:      constants.WalletNodeDefaultLogLevel,
-			LogFilePath:   config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
-			LogCompress:   constants.LogConfigDefaultCompress,
-			LogMaxSizeMB:  constants.LogConfigDefaultMaxSizeMB,
-			LogMaxAgeDays: constants.LogConfigDefaultMaxAgeDays,
-			LogMaxBackups: constants.LogConfigDefaultMaxBackups,
-			WNTempDir:     wnTempDirPath,
-			WNWorkDir:     config.WorkingDir,
-			RQDir:         rqWorkDirPath,
-			BurnAddress:   burnAddress,
-			RaptorqPort:   constants.RQServiceDefaultPort,
-		})
-		if err != nil {
-			return errors.Errorf("failed to get walletnode config: %v", err)
-		}
-		if err = downloadComponents(ctx, config, constants.WalletNode, config.Version, ""); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
-			return err
-		}
-		if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
-			return err
-		}
-		if err = setupComponentWorkingEnvironment(ctx, config,
-			string(constants.WalletNode),
-			config.Configurer.GetWalletNodeConfFile(config.WorkingDir),
-			toolConfig,
-		); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+		if err := installWNService(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install WalletNode service")
 			return err
 		}
 	}
 
+	// install SuperNode, dd-service and their configs; open ports
 	if installCommand == constants.SuperNode {
-		// install SuperNode, dd-service and their configs; open ports
-		portList := GetSNPortList(config)
-
-		snTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
-		rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
-		p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
-		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
-
-		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
-			LogCompress:                     constants.LogConfigDefaultCompress,
-			LogMaxSizeMB:                    constants.LogConfigDefaultMaxSizeMB,
-			LogMaxAgeDays:                   constants.LogConfigDefaultMaxAgeDays,
-			LogMaxBackups:                   constants.LogConfigDefaultMaxBackups,
-			LogLevelCommon:                  constants.SuperNodeDefaultCommonLogLevel,
-			LogLevelP2P:                     constants.SuperNodeDefaultP2PLogLevel,
-			LogLevelMetadb:                  constants.SuperNodeDefaultMetaDBLogLevel,
-			LogLevelDD:                      constants.SuperNodeDefaultDDLogLevel,
-			SNTempDir:                       snTempDirPath,
-			SNWorkDir:                       config.WorkingDir,
-			RQDir:                           rqWorkDirPath,
-			DDDir:                           filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
-			SuperNodePort:                   portList[constants.SNPort],
-			P2PPort:                         portList[constants.P2PPort],
-			P2PDataDir:                      p2pDataPath,
-			MDLPort:                         portList[constants.MDLPort],
-			RAFTPort:                        portList[constants.RAFTPort],
-			MDLDataDir:                      mdlDataPath,
-			RaptorqPort:                     constants.RQServiceDefaultPort,
-			NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
-			StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
-		})
-		if err != nil {
-			return errors.Errorf("failed to get supernode config: %v", err)
-		}
-
-		toolPath := constants.SuperNodeExecName[utils.GetOS()]
-
-		if err = downloadComponents(ctx, config, constants.SuperNode, config.Version, ""); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
-			return err
-		}
-		if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
-			return err
-		}
-		if err = setupComponentWorkingEnvironment(ctx, config,
-			string(constants.SuperNode),
-			config.Configurer.GetSuperNodeConfFile(config.WorkingDir),
-			toolConfig); err != nil {
-
-			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
-			return err
-		}
-
-		if err = installDupeDetection(ctx, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
-			return err
-		}
-
-		if err := utils.CreateFolder(ctx, snTempDirPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", snTempDirPath)
-			return err
-		}
-
-		if err := utils.CreateFolder(ctx, rqWorkDirPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", rqWorkDirPath)
-			return err
-		}
-
-		if err := utils.CreateFolder(ctx, p2pDataPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", p2pDataPath)
-			return err
-		}
-
-		if err := utils.CreateFolder(ctx, mdlDataPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", mdlDataPath)
-			return err
-		}
-		// Open ports
-		if err = openPorts(ctx, config, portList); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to open ports")
+		if err := installSNService(ctx, config, true); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install WalletNode service")
 			return err
 		}
 	}
+
 	// do service installation if enabled
 	if config.EnableService {
 		serviceApps := appToServiceMap[installCommand]
@@ -570,24 +421,335 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	return nil
 }
 
-func createInstallDir(ctx context.Context, config *configs.Config, installPath string) error {
+func installPastelCore(ctx context.Context, config *configs.Config) error {
+	pasteldName := constants.PasteldName[utils.GetOS()]
+	pastelCliName := constants.PastelCliName[utils.GetOS()]
+
+	if err := downloadComponents(ctx, config, constants.PastelD, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.PastelD)
+		return err
+	}
+	if err := makeExecutable(ctx, config.PastelExecDir, pasteldName); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", pasteldName)
+		return err
+	}
+	if err := makeExecutable(ctx, config.PastelExecDir, pastelCliName); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", pastelCliName)
+		return err
+	}
+	if err := setupBasePasteWorkingEnvironment(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to install Pastel Node")
+		return err
+	}
+	return nil
+}
+
+func installRQService(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Installing rq-service...")
+
+	if err := checkInstalledPackages(ctx, config, constants.RQService); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing packages...")
+		return err
+	}
+
+	toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
+	rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
+
+	toolConfig, err := utils.GetServiceConfig(string(constants.RQService), configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
+		HostName: "127.0.0.1",
+		Port:     constants.RQServiceDefaultPort,
+	})
+	if err != nil {
+		return errors.Errorf("failed to get rqservice config: %v", err)
+	}
+
+	if err = downloadComponents(ctx, config, constants.RQService, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+		return err
+	}
+	if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
+		return err
+	}
+
+	if err := utils.CreateFolder(ctx, rqWorkDirPath, config.Force); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", rqWorkDirPath)
+		return err
+	}
+
+	if err = setupComponentWorkingEnvironment(ctx, config,
+		string(constants.RQService),
+		config.Configurer.GetRQServiceConfFile(config.WorkingDir),
+		toolConfig,
+	); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+		return err
+	}
+	return nil
+}
+
+func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
+	log.WithContext(ctx).Info("Installing dd-service...")
+
+	if err := checkInstalledPackages(ctx, config, constants.DDService); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Missing packages...")
+		return err
+	}
+
+	// Download dd-service
+	if err = downloadComponents(ctx, config, constants.DDService, config.Version, constants.DupeDetectionSubFolder); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
+		return err
+	}
+
+	// Install pip pkg from requirements.in
+	subCmd := []string{"-m", "pip", "install", "-r"}
+	subCmd = append(subCmd, filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName))
+
+	log.WithContext(ctx).Info("Installing Pip: ", subCmd)
+	if utils.GetOS() == constants.Windows {
+		if err := RunCMDWithInteractive("python", subCmd...); err != nil {
+			return err
+		}
+	} else {
+		if err := RunCMDWithInteractive("python3", subCmd...); err != nil {
+			return err
+		}
+	}
+
+	log.WithContext(ctx).Info("Pip install finished")
+
+	appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
+	var pathList []interface{}
+	for _, configItem := range constants.DupeDetectionConfigs {
+		dupeDetectionDirPath := filepath.Join(appBaseDir, configItem)
+		if err = utils.CreateFolder(ctx, dupeDetectionDirPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create directory : %s", dupeDetectionDirPath)
+			return err
+		}
+		pathList = append(pathList, dupeDetectionDirPath)
+	}
+
+	targetDir := filepath.Join(appBaseDir, constants.DupeDetectionSupportFilePath)
+	tmpDir := filepath.Join(targetDir, "temp.zip")
+	for _, url := range constants.DupeDetectionSupportDownloadURL {
+		// Get ddSupportContent and cal checksum
+		ddSupportContent := constants.DupeDetectionSupportContents[path.Base(url)]
+		if len(ddSupportContent) > 0 {
+			ddSupportPath := filepath.Join(targetDir, ddSupportContent)
+			fileInfo, err := os.Stat(ddSupportPath)
+			if err == nil {
+				var checksum string
+				log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support: %s", ddSupportContent)
+
+				if fileInfo.IsDir() {
+					checksum, err = utils.CalChecksumOfFolder(ctx, ddSupportPath)
+				} else {
+					checksum, err = utils.GetChecksum(ctx, ddSupportPath)
+				}
+
+				if err != nil {
+					log.WithContext(ctx).WithError(err).Errorf("Failed to get checksum: %s", ddSupportPath)
+					return err
+				}
+
+				log.WithContext(ctx).Infof("Checksum of DupeDetection Support: %s is %s", ddSupportContent, checksum)
+
+				// Compare checksum
+				if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
+					log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checkum matched, so skipping download.", ddSupportPath)
+					continue
+				}
+			}
+		}
+
+		if !strings.Contains(url, ".zip") {
+			if err = utils.DownloadFile(ctx, filepath.Join(targetDir, path.Base(url)), url); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to download file: %s", url)
+				return err
+			}
+			continue
+		}
+
+		if err = utils.DownloadFile(ctx, tmpDir, url); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file: %s", url)
+			return err
+		}
+
+		log.WithContext(ctx).Infof("Extracting archive file : %s", tmpDir)
+		if err = processArchive(ctx, targetDir, tmpDir); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to extract archive file : %s", tmpDir)
+			return err
+		}
+	}
+
+	if config.OpMode == "install" {
+		ddConfigPath := filepath.Join(targetDir, constants.DupeDetectionConfigFilename)
+		err = utils.CreateFile(ctx, ddConfigPath, config.Force)
+		if err != nil {
+			log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", ddConfigPath)
+			return err
+		}
+		if err = utils.WriteFile(ddConfigPath, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
+			return err
+		}
+		os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
+	}
+	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")
+	return nil
+}
+
+func installWNService(ctx context.Context, config *configs.Config) error {
+	toolPath := constants.WalletNodeExecName[utils.GetOS()]
+	burnAddress := constants.BurnAddressMainnet
+	if config.Network == constants.NetworkTestnet {
+		burnAddress = constants.BurnAddressTestnet
+	} else if config.Network == constants.NetworkRegTest {
+		burnAddress = constants.BurnAddressTestnet
+	}
+	wnTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
+	rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
+	toolConfig, err := utils.GetServiceConfig(string(constants.WalletNode), configs.WalletDefaultConfig, &configs.WalletNodeConfig{
+		LogLevel:      constants.WalletNodeDefaultLogLevel,
+		LogFilePath:   config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
+		LogCompress:   constants.LogConfigDefaultCompress,
+		LogMaxSizeMB:  constants.LogConfigDefaultMaxSizeMB,
+		LogMaxAgeDays: constants.LogConfigDefaultMaxAgeDays,
+		LogMaxBackups: constants.LogConfigDefaultMaxBackups,
+		WNTempDir:     wnTempDirPath,
+		WNWorkDir:     config.WorkingDir,
+		RQDir:         rqWorkDirPath,
+		BurnAddress:   burnAddress,
+		RaptorqPort:   constants.RQServiceDefaultPort,
+	})
+	if err != nil {
+		return errors.Errorf("failed to get walletnode config: %v", err)
+	}
+	if err = downloadComponents(ctx, config, constants.WalletNode, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+		return err
+	}
+	if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
+		return err
+	}
+	if err = setupComponentWorkingEnvironment(ctx, config,
+		string(constants.WalletNode),
+		config.Configurer.GetWalletNodeConfFile(config.WorkingDir),
+		toolConfig,
+	); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+		return err
+	}
+	return nil
+}
+
+func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts bool) error {
+	portList := GetSNPortList(config)
+
+	snTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
+	rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
+	p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
+	mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
+
+	toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
+		LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
+		LogCompress:                     constants.LogConfigDefaultCompress,
+		LogMaxSizeMB:                    constants.LogConfigDefaultMaxSizeMB,
+		LogMaxAgeDays:                   constants.LogConfigDefaultMaxAgeDays,
+		LogMaxBackups:                   constants.LogConfigDefaultMaxBackups,
+		LogLevelCommon:                  constants.SuperNodeDefaultCommonLogLevel,
+		LogLevelP2P:                     constants.SuperNodeDefaultP2PLogLevel,
+		LogLevelMetadb:                  constants.SuperNodeDefaultMetaDBLogLevel,
+		LogLevelDD:                      constants.SuperNodeDefaultDDLogLevel,
+		SNTempDir:                       snTempDirPath,
+		SNWorkDir:                       config.WorkingDir,
+		RQDir:                           rqWorkDirPath,
+		DDDir:                           filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
+		SuperNodePort:                   portList[constants.SNPort],
+		P2PPort:                         portList[constants.P2PPort],
+		P2PDataDir:                      p2pDataPath,
+		MDLPort:                         portList[constants.MDLPort],
+		RAFTPort:                        portList[constants.RAFTPort],
+		MDLDataDir:                      mdlDataPath,
+		RaptorqPort:                     constants.RQServiceDefaultPort,
+		NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
+		StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
+	})
+	if err != nil {
+		return errors.Errorf("failed to get supernode config: %v", err)
+	}
+
+	toolPath := constants.SuperNodeExecName[utils.GetOS()]
+
+	if err = downloadComponents(ctx, config, constants.SuperNode, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+		return err
+	}
+	if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
+		return err
+	}
+	if err = setupComponentWorkingEnvironment(ctx, config,
+		string(constants.SuperNode),
+		config.Configurer.GetSuperNodeConfFile(config.WorkingDir),
+		toolConfig); err != nil {
+
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+		return err
+	}
+
+	if err = installDupeDetection(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
+		return err
+	}
+
+	if err := utils.CreateFolder(ctx, snTempDirPath, config.Force); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", snTempDirPath)
+		return err
+	}
+
+	if err := utils.CreateFolder(ctx, p2pDataPath, config.Force); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", p2pDataPath)
+		return err
+	}
+
+	if err := utils.CreateFolder(ctx, mdlDataPath, config.Force); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", mdlDataPath)
+		return err
+	}
+
+	if tryOpenPorts {
+		// Open ports
+		if err = openPorts(ctx, config, portList); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to open ports")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func checkInstallDir(ctx context.Context, config *configs.Config, installPath string, opMode string) error {
 	defer log.WithContext(ctx).Infof("Install path is %s", installPath)
 
-	if err := utils.CreateFolder(ctx, installPath, config.Force); os.IsExist(err) {
-
-		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("%s - %s. Do you want continue to install? Y/N",
-			err.Error(), installPath)); !yes {
-
-			log.WithContext(ctx).Warn("Exiting...")
-			return fmt.Errorf("user terminated installation")
+	if utils.CheckFileExist(config.PastelExecDir) {
+		if config.OpMode == "install" {
+			log.WithContext(ctx).Infof("Directory %s already exists...", installPath)
 		}
 
+		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("%s will overwrite content of %s. Do you want continue? Y/N", opMode, installPath)); !yes {
+			log.WithContext(ctx).Info("Operation canceled by user. Exiting...")
+			return fmt.Errorf("user terminated installation...")
+		}
 		config.Force = true
-		if err = utils.CreateFolder(ctx, installPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Exiting...")
-			return fmt.Errorf("failed to create install directory - %s (%v)", installPath, err)
-		}
-	} else if err != nil {
+		return nil
+	} else if config.OpMode == "update" {
+		log.WithContext(ctx).Infof("Previous installation doesn't exist at %s. Noting to update. Exiting...", config.PastelExecDir)
+		return fmt.Errorf("nothing to update. Exiting...")
+	}
+
+	if err := utils.CreateFolder(ctx, installPath, config.Force); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Exiting...")
 		return fmt.Errorf("failed to create install directory - %s (%v)", installPath, err)
 	}
@@ -596,8 +758,15 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 }
 
 func checkInstalledPackages(ctx context.Context, config *configs.Config, tool constants.ToolType) (err error) {
+
 	if config.OpMode == "update" && utils.GetOS() == constants.Linux {
-		return installOrUpgradePackagesLinux(ctx, config, "upgrade", constants.DependenciesPackages[tool][utils.GetOS()])
+
+		pkgsToUpgrade := constants.DependenciesPackages[tool][utils.GetOS()]
+		if len(pkgsToUpgrade) == 0 {
+			return nil
+		}
+
+		return installOrUpgradePackagesLinux(ctx, config, "upgrade", pkgsToUpgrade)
 	}
 
 	installedCmd := utils.GetInstalledPackages(ctx)
@@ -970,120 +1139,6 @@ func openPorts(ctx context.Context, config *configs.Config, portList []int) (err
 		log.WithContext(ctx).Info(out)
 	}
 
-	return nil
-}
-
-func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Info("Installing dd-service...")
-
-	if err := checkInstalledPackages(ctx, config, constants.DDService); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Missing packages...")
-		return err
-	}
-
-	// Download dd-service
-	if config.Version == "" {
-		config.Version = "beta"
-	}
-	if err = downloadComponents(ctx, config, constants.DDService, config.Version, constants.DupeDetectionSubFolder); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
-		return err
-	}
-
-	// Install pip pkg from requirements.in
-	subCmd := []string{"-m", "pip", "install", "-r"}
-	subCmd = append(subCmd, filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName))
-
-	log.WithContext(ctx).Info("Installing Pip: ", subCmd)
-	if utils.GetOS() == constants.Windows {
-		if err := RunCMDWithInteractive("python", subCmd...); err != nil {
-			return err
-		}
-	} else {
-		if err := RunCMDWithInteractive("python3", subCmd...); err != nil {
-			return err
-		}
-	}
-
-	log.WithContext(ctx).Info("Pip install finished")
-
-	appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
-	var pathList []interface{}
-	for _, configItem := range constants.DupeDetectionConfigs {
-		dupeDetectionDirPath := filepath.Join(appBaseDir, configItem)
-		if err = utils.CreateFolder(ctx, dupeDetectionDirPath, config.Force); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to create directory : %s", dupeDetectionDirPath)
-			return err
-		}
-		pathList = append(pathList, dupeDetectionDirPath)
-	}
-
-	targetDir := filepath.Join(appBaseDir, constants.DupeDetectionSupportFilePath)
-	tmpDir := filepath.Join(targetDir, "temp.zip")
-	for _, url := range constants.DupeDetectionSupportDownloadURL {
-		// Get ddSupportContent and cal checksum
-		ddSupportContent := constants.DupeDetectionSupportContents[path.Base(url)]
-		if len(ddSupportContent) > 0 {
-			ddSupportPath := filepath.Join(targetDir, ddSupportContent)
-			fileInfo, err := os.Stat(ddSupportPath)
-			if err == nil {
-				var checksum string
-				log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support: %s", ddSupportContent)
-
-				if fileInfo.IsDir() {
-					checksum, err = utils.CalChecksumOfFolder(ctx, ddSupportPath)
-				} else {
-					checksum, err = utils.GetChecksum(ctx, ddSupportPath)
-				}
-
-				if err != nil {
-					log.WithContext(ctx).WithError(err).Errorf("Failed to get checksum: %s", ddSupportPath)
-					return err
-				}
-
-				log.WithContext(ctx).Infof("Checksum of DupeDetection Support: %s is %s", ddSupportContent, checksum)
-
-				// Compare checksum
-				if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
-					log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checkum matched, so skipping download.", ddSupportPath)
-					continue
-				}
-			}
-		}
-
-		if !strings.Contains(url, ".zip") {
-			if err = utils.DownloadFile(ctx, filepath.Join(targetDir, path.Base(url)), url); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to download file: %s", url)
-				return err
-			}
-			continue
-		}
-
-		if err = utils.DownloadFile(ctx, tmpDir, url); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file: %s", url)
-			return err
-		}
-
-		log.WithContext(ctx).Infof("Extracting archive file : %s", tmpDir)
-		if err = processArchive(ctx, targetDir, tmpDir); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to extract archive file : %s", tmpDir)
-			return err
-		}
-	}
-
-	if config.OpMode == "install" {
-		ddConfigPath := filepath.Join(targetDir, constants.DupeDetectionConfigFilename)
-		err = utils.CreateFile(ctx, ddConfigPath, config.Force)
-		if err != nil {
-			log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", ddConfigPath)
-			return err
-		}
-		if err = utils.WriteFile(ddConfigPath, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
-			return err
-		}
-		os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
-	}
-	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")
 	return nil
 }
 

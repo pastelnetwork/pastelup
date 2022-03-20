@@ -310,15 +310,16 @@ func GetVersionSubURL(version string) string {
 
 // DependenciesPackages defines some dependencies
 var DependenciesPackages = map[ToolType]map[OSType][]string{
+	PastelD:    DependenciesPackagesPastelD,
 	WalletNode: DependenciesPackagesWalletNode,
 	SuperNode:  DependenciesPackagesSuperNode,
-	PastelD:    DependenciesPackagesPastelD,
 	DDService:  DependenciesPackagesDDService,
+	RQService:  DependenciesPackagesRQService,
 }
 
-// DependenciesPackagesDDService defines some dependencies for walletnode
-var DependenciesPackagesDDService = map[OSType][]string{
-	Linux:   {"python3-pip", "google-chrome-stable"},
+// DependenciesPackagesPastelD defines some dependencies for pasteld
+var DependenciesPackagesPastelD = map[OSType][]string{
+	Linux:   {"libgomp1"},
 	Mac:     {},
 	Windows: {},
 	Unknown: {},
@@ -340,19 +341,22 @@ var DependenciesPackagesSuperNode = map[OSType][]string{
 	Unknown: {},
 }
 
-// DependenciesPackagesPastelD defines some dependencies for pasteld
-var DependenciesPackagesPastelD = map[OSType][]string{
-	Linux:   {"libgomp1"},
+// DependenciesPackagesDDService defines some dependencies for walletnode
+var DependenciesPackagesDDService = map[OSType][]string{
+	Linux:   {"python3-pip", "google-chrome-stable"},
 	Mac:     {},
 	Windows: {},
 	Unknown: {},
 }
 
-/*// DependenciesDupeDetectionPackages is dependencies for dupe detection service
-var DependenciesDupeDetectionPackages = []string{
-	"pyimgur", "scikit-learn-intelex",
+// DependenciesPackagesRQService is dependencies for dupe detection service
+var DependenciesPackagesRQService = map[OSType][]string{
+	Linux:   {},
+	Mac:     {},
+	Windows: {},
+	Unknown: {},
 }
-*/
+
 // NetworkModes are valid network nmodes
 var NetworkModes = []string{
 	NetworkMainnet,

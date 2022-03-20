@@ -406,7 +406,7 @@ func stopAndUpdateService(ctx context.Context, config *configs.Config, updateCom
 // updateService does the actual installation of the latest image of the specified service
 func updateService(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
 	log.WithContext(ctx).Info(fmt.Sprintf("Downloading latest version of %v component ...", installCommand))
-	if err := runComponentsInstall(ctx, config, installCommand); err != nil {
+	if err := runMultiComponentsInstall(ctx, config, installCommand); err != nil {
 		log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Failed to update %v component", installCommand))
 		return err
 	}

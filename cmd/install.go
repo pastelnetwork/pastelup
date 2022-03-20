@@ -28,8 +28,11 @@ const (
 	walletInstall
 	superNodeInstall
 	remoteInstall
+	rqServiceInstall
 	ddServiceInstall
 	ddServiceImgServerInstall
+	wnServiceInstall
+	snServiceInstall
 	//highLevel
 )
 
@@ -39,16 +42,22 @@ var (
 		walletInstall:             "walletnode",
 		superNodeInstall:          "supernode",
 		remoteInstall:             "remote",
+		rqServiceInstall:          "rq-service",
 		ddServiceInstall:          "dd-service",
 		ddServiceImgServerInstall: "imgserver",
+		wnServiceInstall:          "walletnode-service",
+		snServiceInstall:          "supernode-service",
 	}
 	installCmdMessage = map[installCommand]string{
 		nodeInstall:               "Install node",
 		walletInstall:             "Install Walletnode",
 		superNodeInstall:          "Install Supernode",
 		remoteInstall:             "Install Supernode on Remote host",
-		ddServiceInstall:          "Install Dupe Detection service",
-		ddServiceImgServerInstall: "Install Dupe Detection Image Server",
+		rqServiceInstall:          "Install RaptorQ service",
+		ddServiceInstall:          "Install Dupe Detection service only",
+		ddServiceImgServerInstall: "Install Dupe Detection Image Server only",
+		wnServiceInstall:          "Install Walletnode service only",
+		snServiceInstall:          "Install Supernode service only",
 	}
 )
 var appToServiceMap = map[constants.ToolType][]constants.ToolType{
@@ -89,8 +98,6 @@ func setupSubCommand(config *configs.Config,
 		serviceFlags := []*cli.Flag{
 			cli.NewFlag("user-pw", &config.UserPw).
 				SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
-			cli.NewFlag("sn-only", &config.InstallSNOnly).
-				SetUsage(green("Optional, install supernode only")),
 		}
 		commonFlags = append(commonFlags, serviceFlags...)
 	}
@@ -392,7 +399,7 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	}
 	// install rqservice and its config
 	if installCommand == constants.WalletNode ||
-		(installCommand == constants.SuperNode && !config.InstallSNOnly) {
+		installCommand == constants.SuperNode {
 
 		toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
 		toolConfig, err := utils.GetServiceConfig(string(constants.RQService), configs.RQServiceDefaultConfig, &configs.RQServiceConfig{
@@ -522,31 +529,29 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 			return err
 		}
 
-		if !config.InstallSNOnly {
-			if err = installDupeDetection(ctx, config); err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
-				return err
-			}
+		if err = installDupeDetection(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
+			return err
+		}
 
-			if err := utils.CreateFolder(ctx, snTempDirPath, config.Force); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", snTempDirPath)
-				return err
-			}
+		if err := utils.CreateFolder(ctx, snTempDirPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", snTempDirPath)
+			return err
+		}
 
-			if err := utils.CreateFolder(ctx, rqWorkDirPath, config.Force); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", rqWorkDirPath)
-				return err
-			}
+		if err := utils.CreateFolder(ctx, rqWorkDirPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", rqWorkDirPath)
+			return err
+		}
 
-			if err := utils.CreateFolder(ctx, p2pDataPath, config.Force); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", p2pDataPath)
-				return err
-			}
+		if err := utils.CreateFolder(ctx, p2pDataPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", p2pDataPath)
+			return err
+		}
 
-			if err := utils.CreateFolder(ctx, mdlDataPath, config.Force); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", mdlDataPath)
-				return err
-			}
+		if err := utils.CreateFolder(ctx, mdlDataPath, config.Force); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", mdlDataPath)
+			return err
 		}
 		// Open ports
 		if err = openPorts(ctx, config, portList); err != nil {
@@ -557,10 +562,6 @@ func runComponentsInstall(ctx context.Context, config *configs.Config, installCo
 	// do service installation if enabled
 	if config.EnableService {
 		serviceApps := appToServiceMap[installCommand]
-		// override in this special case
-		if installCommand == constants.SuperNode && config.InstallSNOnly {
-			serviceApps = []constants.ToolType{constants.PastelD, constants.SuperNode}
-		}
 		err := installServices(ctx, serviceApps, config)
 		if err != nil {
 			return err
@@ -596,10 +597,9 @@ func createInstallDir(ctx context.Context, config *configs.Config, installPath s
 
 func checkInstalledPackages(ctx context.Context, config *configs.Config, tool constants.ToolType) (err error) {
 	if config.OpMode == "update" && utils.GetOS() == constants.Linux {
-		return updateReqPackageLinux(ctx, config, constants.DependenciesPackages[tool][utils.GetOS()])
+		return installOrUpgradePackagesLinux(ctx, config, "upgrade", constants.DependenciesPackages[tool][utils.GetOS()])
 	}
 
-	// TODO: 1) must offer to install missing packages
 	installedCmd := utils.GetInstalledPackages(ctx)
 	var notInstall []string
 	for _, p := range constants.DependenciesPackages[tool][utils.GetOS()] {
@@ -611,8 +611,13 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	if len(notInstall) == 0 {
 		return nil
 	}
-
 	pkgsStr := strings.Join(notInstall, ",")
+
+	if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+pkgsStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
+		log.WithContext(ctx).Warn("Exiting...")
+		return fmt.Errorf("user terminated installation")
+	}
+
 	// TODO: devise a mechanism for installing pkgs for mac & windows
 	if utils.GetOS() != constants.Linux {
 		log.WithContext(ctx).WithField("missing-packages", pkgsStr).
@@ -622,50 +627,60 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		return fmt.Errorf("missing required pkgs: %s", pkgsStr)
 	}
 
-	return installMissingReqPackagesLinux(ctx, config, notInstall)
+	return installOrUpgradePackagesLinux(ctx, config, "install", notInstall)
 }
 
-func updateReqPackageLinux(ctx context.Context, config *configs.Config, pkgs []string) error {
+func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, what string, pkgs []string) error {
+	var out string
 	var err error
 
-	log.WithContext(ctx).Info("Doing upgrade packages ...")
+	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
+		Infof("system will now %s packages", what)
+
+	var sudoStr string
+	if len(config.UserPw) > 0 {
+		sudoStr = "echo" + config.UserPw + "| sudo -S"
+	} else {
+		sudoStr = "sudo"
+	}
 
 	// Update repo
-	if len(config.UserPw) > 0 {
-		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get update")
-	} else {
-		_, err = RunCMD("bash", "-c", "sudo apt-get update")
-	}
+	_, err = RunCMD(sudoStr, "apt", "update")
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update")
 		return err
 	}
 
-	// Update each package
 	for _, pkg := range pkgs {
-		if len(config.UserPw) > 0 {
-			_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get -y upgrade "+pkg)
-		} else {
-			_, err = RunCMD("bash", "-c", "sudo apt-get -y upgrade "+pkg)
+		log.WithContext(ctx).Infof("%sing package %s", what, pkg)
+
+		if pkg == "google-chrome-stable" {
+			if err := addGoogleRepo(ctx, config); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
+				return err
+			}
+			_, err = RunCMD(sudoStr, "apt", "update")
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to update")
+				return err
+			}
 		}
+
+		out, err = RunCMD(sudoStr, "apt", "-y", what, pkg) //"install" or "upgrade"
 		if err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
+			log.WithContext(ctx).WithFields(log.Fields{"message": out, "package": pkg}).
+				WithError(err).Errorf("unable to %s package", what)
 			return err
 		}
 	}
 
-	log.WithContext(ctx).Info("Upgraded all packages")
+	log.WithContext(ctx).Infof("Packages %sed", what)
 	return nil
 }
 
-func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config, pkgs []string) error {
-	var out string
+func addGoogleRepo(ctx context.Context, config *configs.Config) error {
 	var err error
 
-	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
-		Info("system will now install missing packages")
-
-	// Add google ssl key
 	log.WithContext(ctx).Info("Adding google ssl key ...")
 
 	_, err = RunCMD("bash", "-c", "wget -q -O - "+constants.GooglePubKeyURL+" > /tmp/google-key.pub")
@@ -674,11 +689,14 @@ func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config,
 		return err
 	}
 
+	var sudoStr string
 	if len(config.UserPw) > 0 {
-		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-key add /tmp/google-key.pub 2>/dev/null")
+		sudoStr = "echo" + config.UserPw + "| sudo -S"
 	} else {
-		_, err = RunCMD("bash", "-c", "sudo apt-key add /tmp/google-key.pub 2>/dev/null")
+		sudoStr = "sudo"
 	}
+
+	_, err = RunCMD(sudoStr, "apt-key", "add", "/tmp/google-key.pub")
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to add google ssl key")
 		return err
@@ -693,45 +711,13 @@ func installMissingReqPackagesLinux(ctx context.Context, config *configs.Config,
 		return err
 	}
 
-	if len(config.UserPw) > 0 {
-		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S mv /tmp/google-chrome.list "+constants.UbuntuSourceListPath+" 2>/dev/null")
-	} else {
-		_, err = RunCMD("bash", "-c", "sudo mv /tmp/google-chrome.list "+constants.UbuntuSourceListPath+" 2>/dev/null")
-	}
+	_, err = RunCMD(sudoStr, "mv", "/tmp/google-chrome.list", constants.UbuntuSourceListPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to move /tmp/google-chrome.list to " + constants.UbuntuSourceListPath)
 		return err
 	}
 
 	log.WithContext(ctx).Info("Added google ppa repo")
-
-	// Update
-	if len(config.UserPw) > 0 {
-		_, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get update")
-	} else {
-		_, err = RunCMD("bash", "-c", "sudo apt-get update")
-	}
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to update")
-		return err
-	}
-
-	for _, pkg := range pkgs {
-
-		if len(config.UserPw) > 0 {
-			out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S apt-get install  -y "+pkg)
-		} else {
-			out, err = RunCMD("sudo", "apt-get", "install", "-y", pkg)
-		}
-
-		if err != nil {
-			log.WithContext(ctx).WithFields(log.Fields{"message": out, "package": pkg}).
-				WithError(err).Error("unable to install required package")
-
-			return fmt.Errorf("err installing required pkg : %s - err: %s", pkg, err)
-		}
-	}
-
 	return nil
 }
 
@@ -862,11 +848,11 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	}
 
 	// download zksnark params
-	if err := downloadZksnarkParams(ctx, config.Configurer.DefaultZksnarkDir(), config.Force, config.Version); err != nil &&
-		!(os.IsExist(err) && !config.Force) {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to download Zksnark parameters into folder %s", config.Configurer.DefaultZksnarkDir())
-		return fmt.Errorf("failed to download Zksnark parameters into folder %s - %v", config.Configurer.DefaultZksnarkDir(), err)
-	}
+	//if err := downloadZksnarkParams(ctx, config.Configurer.DefaultZksnarkDir(), config.Force, config.Version); err != nil &&
+	//	!(os.IsExist(err) && !config.Force) {
+	//	log.WithContext(ctx).WithError(err).Errorf("Failed to download Zksnark parameters into folder %s", config.Configurer.DefaultZksnarkDir())
+	//	return fmt.Errorf("failed to download Zksnark parameters into folder %s - %v", config.Configurer.DefaultZksnarkDir(), err)
+	//}
 
 	return nil
 }

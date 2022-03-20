@@ -313,12 +313,12 @@ var DependenciesPackages = map[ToolType]map[OSType][]string{
 	WalletNode: DependenciesPackagesWalletNode,
 	SuperNode:  DependenciesPackagesSuperNode,
 	PastelD:    DependenciesPackagesPastelD,
-	DDService:  DependenciesPackagesWalletDDService,
+	DDService:  DependenciesPackagesDDService,
 }
 
-// DependenciesPackagesWalletDDService defines some dependencies for walletnode
-var DependenciesPackagesWalletDDService = map[OSType][]string{
-	Linux:   {"python3-pip"},
+// DependenciesPackagesDDService defines some dependencies for walletnode
+var DependenciesPackagesDDService = map[OSType][]string{
+	Linux:   {"python3-pip", "google-chrome-stable"},
 	Mac:     {},
 	Windows: {},
 	Unknown: {},
@@ -334,7 +334,7 @@ var DependenciesPackagesWalletNode = map[OSType][]string{
 
 // DependenciesPackagesSuperNode defines some dependencies for supernode
 var DependenciesPackagesSuperNode = map[OSType][]string{
-	Linux:   {"libgomp1", "ufw", "python3-pip", "curl", "google-chrome-stable"},
+	Linux:   {"libgomp1", "ufw", "curl"},
 	Mac:     {},
 	Windows: {},
 	Unknown: {},
@@ -348,11 +348,11 @@ var DependenciesPackagesPastelD = map[OSType][]string{
 	Unknown: {},
 }
 
-// DependenciesDupeDetectionPackages is dependencies for dupe detection service
+/*// DependenciesDupeDetectionPackages is dependencies for dupe detection service
 var DependenciesDupeDetectionPackages = []string{
 	"pyimgur", "scikit-learn-intelex",
 }
-
+*/
 // NetworkModes are valid network nmodes
 var NetworkModes = []string{
 	NetworkMainnet,

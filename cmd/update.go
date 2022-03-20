@@ -26,6 +26,8 @@ const (
 	updateSuperNodeRemote
 	updateDDService
 	updateRQService
+	updateWNService
+	updateSNService
 )
 
 var (
@@ -36,6 +38,8 @@ var (
 		updateSuperNodeRemote: "remote",
 		updateDDService:       "dd-service",
 		updateRQService:       "rq-service",
+		updateWNService:       "walletnode-service",
+		updateSNService:       "supernode-service",
 	}
 	updateCommandMessage = map[updateCommand]string{
 		updateNode:            "Update Node",
@@ -44,6 +48,8 @@ var (
 		updateSuperNodeRemote: "Update Supernode on Remote host",
 		updateDDService:       "Update DupeDetection service only",
 		updateRQService:       "Update RaptorQ service only",
+		updateWNService:       "Update Walletnode service only",
+		updateSNService:       "Update Supernode service only",
 	}
 	updateServicesToStop = map[constants.ToolType][]constants.ToolType{
 		constants.PastelD: {constants.PastelD},

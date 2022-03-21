@@ -31,7 +31,8 @@ const (
 	rqServiceInstall
 	ddServiceInstall
 	ddServiceImgServerInstall
-	//highLevel
+	snServiceInstall
+	wnServiceInstall
 )
 
 var (
@@ -55,8 +56,7 @@ var (
 	}
 )
 var appToServiceMap = map[constants.ToolType][]constants.ToolType{
-	constants.DDImgService: {constants.DDImgService},
-	constants.PastelD:      {constants.PastelD},
+	constants.PastelD: {constants.PastelD},
 	constants.WalletNode: {
 		constants.PastelD,
 		constants.RQService,
@@ -68,7 +68,9 @@ var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 		constants.DDService,
 		constants.SuperNode,
 	},
-	constants.DDService: {constants.DDService},
+	constants.RQService:    {constants.RQService},
+	constants.DDService:    {constants.DDService},
+	constants.DDImgService: {constants.DDImgService},
 }
 
 func setupSubCommand(config *configs.Config,
@@ -202,11 +204,11 @@ func setupInstallCommand() *cli.Command {
 }
 
 func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	return runMultiComponentsInstall(ctx, config, constants.PastelD)
+	return runServicesInstall(ctx, config, constants.PastelD, true)
 }
 
 func runInstallWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	return runMultiComponentsInstall(ctx, config, constants.WalletNode)
+	return runServicesInstall(ctx, config, constants.WalletNode, true)
 }
 
 func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
@@ -214,42 +216,19 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 		log.WithContext(ctx).Error("Supernode can only be installed on Linux")
 		return fmt.Errorf("Supernode can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
-	return runMultiComponentsInstall(ctx, config, constants.SuperNode)
+	return runServicesInstall(ctx, config, constants.SuperNode, true)
 }
 
 func runInstallRaptorQSubCommand(ctx context.Context, config *configs.Config) error {
-	// create, if needed, installation directory, example ~/pastel
-	if err := checkInstallDir(ctx, config, config.PastelExecDir, config.OpMode); err != nil {
-		//error was logged inside checkInstallDir
-		log.WithContext(ctx).Errorf("unable to install RQService component: %v", err)
-		return err
-	}
-	err := installRQService(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).Errorf("unable to install RQService component: %v", err)
-		return err
-	}
-	return nil
+	return runServicesInstall(ctx, config, constants.RQService, false)
 }
 
 func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) error {
-	// create, if needed, installation directory, example ~/pastel
-	if err := checkInstallDir(ctx, config, config.PastelExecDir, config.OpMode); err != nil {
-		//error was logged inside checkInstallDir
-		return err
+	if utils.GetOS() != constants.Linux {
+		log.WithContext(ctx).Error("Dupe Detection service can only be installed on Linux")
+		return fmt.Errorf("Dupe Detection service can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
-	err := installDupeDetection(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).Errorf("unable to install DupeDetection component: %v", err)
-		return err
-	}
-	if config.EnableService {
-		err = installServices(ctx, []constants.ToolType{constants.DDImgService}, config)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return runServicesInstall(ctx, config, constants.DDService, false)
 }
 
 func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
@@ -342,7 +321,7 @@ func runRemoteInstallSubCommand(ctx context.Context, config *configs.Config) (er
 	return nil
 }
 
-func runMultiComponentsInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
+func runServicesInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType, withDependencies bool) error {
 	if config.OpMode == "install" {
 		if !utils.IsValidNetworkOpt(config.Network) {
 			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
@@ -351,8 +330,8 @@ func runMultiComponentsInstall(ctx context.Context, config *configs.Config, inst
 	}
 
 	if installCommand == constants.PastelD ||
-		installCommand == constants.WalletNode ||
-		(installCommand == constants.SuperNode) {
+		(installCommand == constants.WalletNode && withDependencies) ||
+		(installCommand == constants.SuperNode && withDependencies) {
 
 		// need to stop pasteld else we'll get a text file busy error
 		possibleCliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
@@ -372,23 +351,24 @@ func runMultiComponentsInstall(ctx context.Context, config *configs.Config, inst
 		return err
 	}
 
-	if err := checkInstalledPackages(ctx, config, installCommand); err != nil {
+	if err := checkInstalledPackages(ctx, config, installCommand, withDependencies); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing packages...")
 		return err
 	}
 
 	// install pasteld and pastel-cli; setup working dir (~/.pastel) and pastel.conf
 	if installCommand == constants.PastelD ||
-		installCommand == constants.WalletNode ||
-		(installCommand == constants.SuperNode) {
+		(installCommand == constants.WalletNode && withDependencies) ||
+		(installCommand == constants.SuperNode && withDependencies) {
 		if err := installPastelCore(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install Pastel Node")
 			return err
 		}
 	}
 	// install rqservice and its config
-	if installCommand == constants.WalletNode ||
-		installCommand == constants.SuperNode {
+	if installCommand == constants.RQService ||
+		(installCommand == constants.WalletNode && withDependencies) ||
+		(installCommand == constants.SuperNode && withDependencies) {
 		if err := installRQService(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install RaptorQ service")
 			return err
@@ -404,15 +384,28 @@ func runMultiComponentsInstall(ctx context.Context, config *configs.Config, inst
 
 	// install SuperNode, dd-service and their configs; open ports
 	if installCommand == constants.SuperNode {
-		if err := installSNService(ctx, config, true); err != nil {
+		if err := installSNService(ctx, config, withDependencies /*only open ports when full system install*/); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install WalletNode service")
+			return err
+		}
+	}
+
+	if installCommand == constants.DDService ||
+		(installCommand == constants.SuperNode && withDependencies) {
+		if err := installDupeDetection(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
 			return err
 		}
 	}
 
 	// do service installation if enabled
 	if config.EnableService {
-		serviceApps := appToServiceMap[installCommand]
+		var serviceApps []constants.ToolType
+		if withDependencies {
+			serviceApps = appToServiceMap[installCommand]
+		} else {
+			serviceApps = append(serviceApps, installCommand)
+		}
 		err := installServices(ctx, serviceApps, config)
 		if err != nil {
 			return err
@@ -422,6 +415,8 @@ func runMultiComponentsInstall(ctx context.Context, config *configs.Config, inst
 }
 
 func installPastelCore(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Installing PastelCore service...")
+
 	pasteldName := constants.PasteldName[utils.GetOS()]
 	pastelCliName := constants.PastelCliName[utils.GetOS()]
 
@@ -446,11 +441,6 @@ func installPastelCore(ctx context.Context, config *configs.Config) error {
 
 func installRQService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing rq-service...")
-
-	if err := checkInstalledPackages(ctx, config, constants.RQService); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Missing packages...")
-		return err
-	}
 
 	toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
 	rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
@@ -490,11 +480,6 @@ func installRQService(ctx context.Context, config *configs.Config) error {
 
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Installing dd-service...")
-
-	if err := checkInstalledPackages(ctx, config, constants.DDService); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Missing packages...")
-		return err
-	}
 
 	// Download dd-service
 	if err = downloadComponents(ctx, config, constants.DDService, config.Version, constants.DupeDetectionSubFolder); err != nil {
@@ -600,6 +585,8 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 }
 
 func installWNService(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Installing WalletNode service...")
+
 	toolPath := constants.WalletNodeExecName[utils.GetOS()]
 	burnAddress := constants.BurnAddressMainnet
 	if config.Network == constants.NetworkTestnet {
@@ -645,6 +632,8 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 }
 
 func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts bool) error {
+	log.WithContext(ctx).Info("Installing SuperNode service...")
+
 	portList := GetSNPortList(config)
 
 	snTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
@@ -696,11 +685,6 @@ func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts 
 		toolConfig); err != nil {
 
 		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
-		return err
-	}
-
-	if err = installDupeDetection(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
 		return err
 	}
 
@@ -757,46 +741,82 @@ func checkInstallDir(ctx context.Context, config *configs.Config, installPath st
 	return nil
 }
 
-func checkInstalledPackages(ctx context.Context, config *configs.Config, tool constants.ToolType) (err error) {
+func checkInstalledPackages(ctx context.Context, config *configs.Config, tool constants.ToolType, withDependencies bool) (err error) {
 
-	if config.OpMode == "update" && utils.GetOS() == constants.Linux {
+	var packagesRequiredDirty []string
 
-		pkgsToUpgrade := constants.DependenciesPackages[tool][utils.GetOS()]
-		if len(pkgsToUpgrade) == 0 {
-			return nil
-		}
-
-		return installOrUpgradePackagesLinux(ctx, config, "upgrade", pkgsToUpgrade)
+	var appServices []constants.ToolType
+	if withDependencies {
+		appServices = appToServiceMap[tool]
+	} else {
+		appServices = append(appServices, tool)
 	}
 
-	installedCmd := utils.GetInstalledPackages(ctx)
-	var notInstall []string
-	for _, p := range constants.DependenciesPackages[tool][utils.GetOS()] {
-		if _, ok := installedCmd[p]; !ok {
-			notInstall = append(notInstall, p)
-		}
+	for _, srv := range appServices {
+		packagesRequiredDirty = append(packagesRequiredDirty, constants.DependenciesPackages[srv][utils.GetOS()]...)
 	}
-
-	if len(notInstall) == 0 {
+	if len(packagesRequiredDirty) == 0 {
 		return nil
 	}
-	pkgsStr := strings.Join(notInstall, ",")
+	//remove duplicates
+	keyGuard := make(map[string]bool)
+	packagesRequired := []string{}
+	for _, item := range packagesRequiredDirty {
+		if _, value := keyGuard[item]; !value {
+			keyGuard[item] = true
+			packagesRequired = append(packagesRequired, item)
+		}
+	}
 
-	if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+pkgsStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
+	if utils.GetOS() != constants.Linux {
+		reqPkgsStr := strings.Join(packagesRequired, ",")
+		log.WithContext(ctx).WithField("required-packages", reqPkgsStr).
+			WithError(errors.New("install/update required pkgs")).
+			Error("automatic install/update for required packages only set up for linux")
+	}
+
+	packagesInstalled := utils.GetInstalledPackages(ctx)
+	var packagesMissing []string
+	var packagesToUpdate []string
+	for _, p := range packagesRequired {
+		if _, ok := packagesInstalled[p]; !ok {
+			packagesMissing = append(packagesMissing, p)
+		} else {
+			packagesToUpdate = append(packagesToUpdate, p)
+		}
+	}
+
+	if config.OpMode == "update" &&
+		utils.GetOS() == constants.Linux &&
+		len(packagesToUpdate) != 0 {
+
+		pkgsUpdStr := strings.Join(packagesToUpdate, ",")
+
+		if yes, _ := AskUserToContinue(ctx, "Some system packages ["+pkgsUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
+			log.WithContext(ctx).Warn("Exiting...")
+			return fmt.Errorf("user terminated installation")
+		}
+
+		if err := installOrUpgradePackagesLinux(ctx, config, "upgrade", packagesToUpdate); err != nil {
+			log.WithContext(ctx).WithField("packages-update", packagesToUpdate).
+				WithError(err).
+				Errorf("failed to update required pkgs - %s", pkgsUpdStr)
+			return err
+		}
+	}
+
+	if len(packagesMissing) == 0 {
+		return nil
+	}
+
+	pkgsMissStr := strings.Join(packagesMissing, ",")
+
+	if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+pkgsMissStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
 		log.WithContext(ctx).Warn("Exiting...")
 		return fmt.Errorf("user terminated installation")
 	}
 
-	// TODO: devise a mechanism for installing pkgs for mac & windows
-	if utils.GetOS() != constants.Linux {
-		log.WithContext(ctx).WithField("missing-packages", pkgsStr).
-			WithError(errors.New("missing required pkgs")).
-			Error("automatic install for required pkgs only set up for linux")
-
-		return fmt.Errorf("missing required pkgs: %s", pkgsStr)
-	}
-
-	return installOrUpgradePackagesLinux(ctx, config, "install", notInstall)
+	return installOrUpgradePackagesLinux(ctx, config, "install", packagesMissing)
 }
 
 func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, what string, pkgs []string) error {
@@ -1017,11 +1037,11 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	}
 
 	// download zksnark params
-	//if err := downloadZksnarkParams(ctx, config.Configurer.DefaultZksnarkDir(), config.Force, config.Version); err != nil &&
-	//	!(os.IsExist(err) && !config.Force) {
-	//	log.WithContext(ctx).WithError(err).Errorf("Failed to download Zksnark parameters into folder %s", config.Configurer.DefaultZksnarkDir())
-	//	return fmt.Errorf("failed to download Zksnark parameters into folder %s - %v", config.Configurer.DefaultZksnarkDir(), err)
-	//}
+	if err := downloadZksnarkParams(ctx, config.Configurer.DefaultZksnarkDir(), config.Force, config.Version); err != nil &&
+		!(os.IsExist(err) && !config.Force) {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download Zksnark parameters into folder %s", config.Configurer.DefaultZksnarkDir())
+		return fmt.Errorf("failed to download Zksnark parameters into folder %s - %v", config.Configurer.DefaultZksnarkDir(), err)
+	}
 
 	return nil
 }
@@ -1158,7 +1178,7 @@ func installServices(ctx context.Context, apps []constants.ToolType, config *con
 			log.WithContext(ctx).Errorf("unable to register service %v: %v", app, err)
 			return err
 		}
-		err = sm.StartService(ctx, app) // if app already running, this will be a noop
+		_, err := sm.StartService(ctx, app) // if app already running, this will be a noop
 		if err != nil {
 			log.WithContext(ctx).Errorf("unable to start service %v: %v", app, err)
 			return err

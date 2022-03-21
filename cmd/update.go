@@ -123,7 +123,7 @@ func setupUpdateSubCommand(config *configs.Config,
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
 		cli.NewFlag("bin", &config.BinComponentPath).SetRequired().
-			SetUsage(red("Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file  or a folder of binary to remote host")),
+			SetUsage(red("Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file or a folder of binary to remote host")),
 	}
 
 	commandMessage := updateCommandMessage[updateCmd]
@@ -176,6 +176,9 @@ func setupUpdateCommand() *cli.Command {
 	updateRQServiceSubCommand := setupUpdateSubCommand(config, updateRQService, runUpdateRQServiceSubCommand)
 	updateDDServiceSubCommand := setupUpdateSubCommand(config, updateDDService, runUpdateDDServiceSubCommand)
 
+	updateWNServiceSubCommand := setupUpdateSubCommand(config, updateWNService, runUpdateWNServiceSubCommand)
+	updateSNServiceSubCommand := setupUpdateSubCommand(config, updateSNService, runUpdateSNServiceSubCommand)
+
 	// Add update command
 	updateCommand := cli.NewCommand("update")
 	updateCommand.SetUsage(blue("Perform update components for each service: Node, Walletnode and Supernode"))
@@ -185,6 +188,8 @@ func setupUpdateCommand() *cli.Command {
 	updateCommand.AddSubcommands(updateSuperNodeSubCommand)
 	updateCommand.AddSubcommands(updateRQServiceSubCommand)
 	updateCommand.AddSubcommands(updateDDServiceSubCommand)
+	updateCommand.AddSubcommands(updateWNServiceSubCommand)
+	updateCommand.AddSubcommands(updateSNServiceSubCommand)
 
 	return updateCommand
 }
@@ -325,60 +330,45 @@ func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Con
 }
 
 func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Info("Updating node component ...")
-	err = stopAndUpdateService(ctx, config, constants.PastelD, true, false)
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Successfully updated Node component and its dependencies")
-	return nil
+	return stopAndUpdateService(ctx, config, constants.PastelD, true, false, true)
 }
 
 func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Info("Updating SuperNode component ...")
-	err = stopAndUpdateService(ctx, config, constants.SuperNode, true, true)
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Successfully updated SuperNode component and its dependencies")
-	return nil
+	return stopAndUpdateService(ctx, config, constants.SuperNode, true, true, true)
 }
 
 func runUpdateWalletNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Info("Updating WalletNode component ...")
-	err = stopAndUpdateService(ctx, config, constants.WalletNode, true, false)
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Successfully updated WalletNode component and its dependencies")
-	return nil
+	return stopAndUpdateService(ctx, config, constants.WalletNode, true, false, true)
 }
 
 func runUpdateRQServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Info("Updating RQ service...")
-	err = stopAndUpdateService(ctx, config, constants.RQService, true, false)
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Successfully updated rq-service component")
-	return nil
+	return stopAndUpdateService(ctx, config, constants.RQService, false, false, false)
 }
 
 func runUpdateDDServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	log.WithContext(ctx).Info("Updating DD service...")
+	return stopAndUpdateService(ctx, config, constants.DDService, false, true, false)
+}
 
-	err = stopAndUpdateService(ctx, config, constants.DDService, true, true)
-	if err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Successfully updated dd-service component")
-	return nil
+func runUpdateWNServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	return stopAndUpdateService(ctx, config, constants.WalletNode, false, false, false)
+}
+
+func runUpdateSNServiceSubCommand(ctx context.Context, config *configs.Config) (err error) {
+	return stopAndUpdateService(ctx, config, constants.SuperNode, false, false, false)
 }
 
 func stopAndUpdateService(ctx context.Context, config *configs.Config, updateCommand constants.ToolType,
-	backUpWorkDir bool, backUpDDDir bool) error {
+	backUpWorkDir bool, backUpDDDir bool, withDependencies bool) error {
 
-	servicesToStop := updateServicesToStop[updateCommand]
+	log.WithContext(ctx).Infof("Updating %s component ...", string(updateCommand))
+
+	var servicesToStop []constants.ToolType
+	if withDependencies {
+		servicesToStop = appToServiceMap[updateCommand]
+	} else {
+		servicesToStop = append(servicesToStop, updateCommand)
+	}
+
 	err := stopServicesWithConfirmation(ctx, config, servicesToStop)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
@@ -396,17 +386,34 @@ func stopAndUpdateService(ctx context.Context, config *configs.Config, updateCom
 			return err
 		}
 	}
-	if err = updateService(ctx, config, updateCommand); err != nil {
+	if err = updateSolution(ctx, config, updateCommand, withDependencies); err != nil {
 		log.WithContext(ctx).WithError(err).Error(fmt.Printf("Failed to update '%v': %v", updateCommand, err))
 		return err
+	}
+	log.WithContext(ctx).Infof("Successfully updated %s component and its dependencies", string(updateCommand))
+
+	log.WithContext(ctx).Info("Updated services need to be restarted:")
+	if updateCommand == constants.WalletNode ||
+		updateCommand == constants.SuperNode {
+		log.WithContext(ctx).Infof(blue("\t\t'pastelup start %s'"), string(updateCommand))
+	} else {
+		for _, srv := range servicesToStop {
+			var cmdStr string
+			if string(srv) == "pasteld" {
+				cmdStr = "node"
+			} else {
+				cmdStr = string(srv)
+			}
+			log.WithContext(ctx).Infof(blue("\t\t'pastelup start %s'"), cmdStr)
+		}
 	}
 	return nil
 }
 
-// updateService does the actual installation of the latest image of the specified service
-func updateService(ctx context.Context, config *configs.Config, installCommand constants.ToolType) error {
+// updateSolution does the actual installation of the latest updateSolution - node, walletnode, supernode
+func updateSolution(ctx context.Context, config *configs.Config, installCommand constants.ToolType, withDependencies bool) error {
 	log.WithContext(ctx).Info(fmt.Sprintf("Downloading latest version of %v component ...", installCommand))
-	if err := runMultiComponentsInstall(ctx, config, installCommand); err != nil {
+	if err := runServicesInstall(ctx, config, installCommand, withDependencies); err != nil {
 		log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Failed to update %v component", installCommand))
 		return err
 	}

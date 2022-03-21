@@ -526,10 +526,13 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 	}
 	if serviceEnabled {
 		// if the service isnt registered, this will be a noop
-		err := sm.StartService(ctx, constants.RQService)
+		srvStarted, err := sm.StartService(ctx, constants.RQService)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
 			return err
+		}
+		if srvStarted {
+			return nil
 		}
 	}
 	rqExecName := constants.PastelRQServiceExecName[utils.GetOS()]
@@ -553,11 +556,14 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registered, this will be a noop
-		err := sm.StartService(ctx, constants.DDService)
+		// if the service isn't registered, this will be a noop
+		srvStarted, err := sm.StartService(ctx, constants.DDService)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
 			return err
+		}
+		if srvStarted {
+			return nil
 		}
 	}
 
@@ -603,10 +609,13 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 	}
 	if serviceEnabled {
 		// if the service isnt registered, this will be a noop
-		err := sm.StartService(ctx, constants.WalletNode)
+		srvStarted, err := sm.StartService(ctx, constants.WalletNode)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.WalletNode, err)
 			return err
+		}
+		if srvStarted {
+			return nil
 		}
 	}
 	walletnodeExecName := constants.WalletNodeExecName[utils.GetOS()]
@@ -636,28 +645,27 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 	}
 	if serviceEnabled {
 		// if the service isnt registered, this will be a noop
-		err := sm.StartService(ctx, constants.SuperNode)
+		srvStarted, err := sm.StartService(ctx, constants.SuperNode)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.SuperNode, err)
-			return err
+		}
+		if srvStarted {
+			return nil
 		}
 	}
-	if err != nil {
-		supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
-		supernodeExecName := constants.SuperNodeExecName[utils.GetOS()]
-		log.WithContext(ctx).Infof("Starting Supernode service - %s", supernodeExecName)
+	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
+	supernodeExecName := constants.SuperNodeExecName[utils.GetOS()]
+	log.WithContext(ctx).Infof("Starting Supernode service - %s", supernodeExecName)
 
-		var snServiceArgs []string
-		snServiceArgs = append(snServiceArgs,
-			fmt.Sprintf("--config-file=%s", supernodeConfigPath))
+	var snServiceArgs []string
+	snServiceArgs = append(snServiceArgs,
+		fmt.Sprintf("--config-file=%s", supernodeConfigPath))
 
-		log.WithContext(ctx).Infof("Options : %s", snServiceArgs)
-		if err := runPastelService(ctx, config, constants.SuperNode, supernodeExecName, snServiceArgs...); err != nil {
-			log.WithContext(ctx).WithError(err).Error("supernode failed")
-			return err
-		}
+	log.WithContext(ctx).Infof("Options : %s", snServiceArgs)
+	if err := runPastelService(ctx, config, constants.SuperNode, supernodeExecName, snServiceArgs...); err != nil {
+		log.WithContext(ctx).WithError(err).Error("supernode failed")
+		return err
 	}
-
 	return nil
 }
 
@@ -672,21 +680,17 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 	}
 	if serviceEnabled {
 		// if the service isn't registered, this will be a noop
-		err := sm.StartService(ctx, constants.PastelD)
+		srvStarted, err := sm.StartService(ctx, constants.PastelD)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.PastelD, err)
 			return err
 		}
-	}
-
-	// Check if pasteld is already running
-	if _, err = RunPastelCLI(ctx, config, "getinfo"); err == nil {
-		log.WithContext(ctx).Info("Pasteld service is already running!")
-		return nil
+		if srvStarted {
+			return nil
+		}
 	}
 
 	var pastelDPath string
-
 	if pastelDPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PasteldName[utils.GetOS()]); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Could not find pasteld")
 		return err

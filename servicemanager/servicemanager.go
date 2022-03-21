@@ -21,7 +21,7 @@ import (
 // ServiceManager handles registering, starting and stopping system processes on the clients respective OS system manager (i.e. linux -> systemctl)
 type ServiceManager interface {
 	RegisterService(context.Context, constants.ToolType, ResgistrationParams) error
-	StartService(context.Context, constants.ToolType) error
+	StartService(context.Context, constants.ToolType) (bool, error)
 	StopService(context.Context, constants.ToolType) error
 	IsRunning(context.Context, constants.ToolType) bool
 	IsRegistered(constants.ToolType) (bool, error)
@@ -50,8 +50,8 @@ func (nm NoopManager) RegisterService(context.Context, constants.ToolType, Resgi
 }
 
 // StartService starts the given service as long as it is registered
-func (nm NoopManager) StartService(context.Context, constants.ToolType) error {
-	return nil
+func (nm NoopManager) StartService(context.Context, constants.ToolType) (bool, error) {
+	return false, nil
 }
 
 // StopService stops a running service, it it isnt running it is a no-op
@@ -205,25 +205,25 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 }
 
 // StartService starts the given service as long as it is registered
-func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.ToolType) error {
+func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.ToolType) (bool, error) {
 	isRegisted, _ := sm.IsRegistered(app)
 	if !isRegisted {
 		log.WithContext(ctx).Infof("skipping start service because %v is not a registered service", app)
-		return nil
+		return false, nil
 	}
 	isRunning := sm.IsRunning(ctx, app)
 	if isRunning {
 		log.WithContext(ctx).Infof("service %v is already running: noop", app)
-		return nil
+		return true, nil
 	}
 	_, err := runCommand("systemctl", "--user", "start", sm.ServiceName(app))
 	if err != nil {
-		return fmt.Errorf("unable to start service (%v): %v", app, err)
+		return false, fmt.Errorf("unable to start service (%v): %v", app, err)
 	}
-	return nil
+	return true, nil
 }
 
-// StopService stops a running service, it it isnt running it is a no-op
+// StopService stops a running service, it isn't running it is a no-op
 func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.ToolType) error {
 	isRunning := sm.IsRunning(ctx, app) // if not registered, this will be false
 	if !isRunning {

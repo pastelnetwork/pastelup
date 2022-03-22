@@ -39,6 +39,7 @@ func NewApp() *cli.App {
 		setupStopCommand(),
 		setupShowCommand(),
 		setupUpdateCommand(),
+		setupInitCommand(),
 		setupInfoCommand(),
 		setupPingCommand(),
 	)

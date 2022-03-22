@@ -244,7 +244,7 @@ func (sm LinuxSystemdManager) IsRunning(ctx context.Context, app constants.ToolT
 	return res == "active" || res == "activating"
 }
 
-// IsRegistered checks if the associated app's system command file exists, if it does it returns true, else it returns false
+// IsRegistered checks if the associated app's system command file exists, if it does, it returns true, else it returns false
 // if err is not nil, there was an error checking the existence of the file
 func (sm LinuxSystemdManager) IsRegistered(app constants.ToolType) (bool, error) {
 	fp := filepath.Join(sm.homeDir, constants.SystemdUserDir, sm.ServiceName(app))

@@ -71,14 +71,14 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 }
 
 func (r *ColdHotRunner) handleArgs() (err error) {
-	if len(r.config.RemotePastelExecDir) == 0 {
-		r.config.RemotePastelExecDir = r.config.Configurer.DefaultPastelExecutableDir()
+	if len(r.config.PastelExecDir) == 0 {
+		r.config.PastelExecDir = r.config.Configurer.DefaultPastelExecutableDir()
 	}
 
-	r.opts.remotePastelCli = filepath.Join(r.config.RemotePastelExecDir, constants.PastelCliName[utils.GetOS()])
+	r.opts.remotePastelCli = filepath.Join(r.config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
 	r.opts.remotePastelCli = strings.ReplaceAll(r.opts.remotePastelCli, "\\", "/")
 
-	r.opts.remotePasteld = filepath.Join(r.config.RemotePastelExecDir, constants.PasteldName[utils.GetOS()])
+	r.opts.remotePasteld = filepath.Join(r.config.PastelExecDir, constants.PasteldName[utils.GetOS()])
 	r.opts.remotePasteld = strings.ReplaceAll(r.opts.remotePasteld, "\\", "/")
 
 	r.opts.remotePastelUp = constants.RemotePastelupPath
@@ -261,7 +261,7 @@ func (r *ColdHotRunner) runRemoteNodeAsMasterNode(ctx context.Context, numOfSync
 	log.WithContext(ctx).Info("Running remote node as masternode ...")
 	go func() {
 		cmdLine := fmt.Sprintf("%s --masternode --txindex=1 --reindex --masternodeprivkey=%s --externalip=%s  --data-dir=%s %s --daemon ",
-			r.opts.remotePasteld, flagMasterNodePrivateKey, flagNodeExtIP, r.config.RemoteWorkingDir, r.opts.testnetOption)
+			r.opts.remotePasteld, flagMasterNodePrivateKey, flagNodeExtIP, r.config.WorkingDir, r.opts.testnetOption)
 
 		log.WithContext(ctx).Infof("start remote node as masternode%s\n", cmdLine)
 
@@ -308,7 +308,7 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context) erro
 
 	go func() {
 		cmdLine := fmt.Sprintf("%s --reindex --externalip=%s --data-dir=%s --daemon %s",
-			r.opts.remotePasteld, flagNodeExtIP, r.config.RemoteWorkingDir, r.opts.testnetOption)
+			r.opts.remotePasteld, flagNodeExtIP, r.config.WorkingDir, r.opts.testnetOption)
 		log.WithContext(ctx).Infof("starting pasteld on the remote node - %s\n", cmdLine)
 		if err := r.sshClient.Cmd(cmdLine).Run(); err != nil {
 			log.WithContext(ctx).WithError(err).Error("unable to start pasteld on remote")
@@ -350,8 +350,8 @@ func (r *ColdHotRunner) runServiceRemote(ctx context.Context, service string) (e
 	log.WithContext(ctx).WithField("service", service).Info("starting service on remote")
 
 	cmd := fmt.Sprintf("%s %s %s", r.opts.remotePastelUp, "start", service)
-	if r.config.RemoteWorkingDir != "" {
-		cmd = fmt.Sprintf("%s --work-dir=%s", cmd, r.config.RemoteWorkingDir)
+	if r.config.WorkingDir != "" {
+		cmd = fmt.Sprintf("%s --work-dir=%s", cmd, r.config.WorkingDir)
 	}
 
 	out, err := r.sshClient.Cmd(cmd).Output()
@@ -409,7 +409,7 @@ func stopRemoteNode(ctx context.Context, client *utils.Client, cliPath string) e
 func (r *ColdHotRunner) runRemoteNode(ctx context.Context, numOfSyncedBlocks int) error {
 	go func() {
 		if err := r.sshClient.Cmd(fmt.Sprintf("%s --reindex --externalip=%s --data-dir=%s --daemon %s",
-			r.opts.remotePasteld, flagNodeExtIP, r.config.RemoteWorkingDir, r.opts.testnetOption)).Run(); err != nil {
+			r.opts.remotePasteld, flagNodeExtIP, r.config.WorkingDir, r.opts.testnetOption)).Run(); err != nil {
 			fmt.Println("pasteld run err: ", err.Error())
 		}
 	}()
@@ -509,13 +509,13 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 
 		portList := GetSNPortList(config)
 
-		snTempDirPath := filepath.Join(config.RemoteWorkingDir, constants.TempDir)
-		rqWorkDirPath := filepath.Join(config.RemoteWorkingDir, constants.RQServiceDir)
-		p2pDataPath := filepath.Join(config.RemoteWorkingDir, constants.P2PDataDir)
-		mdlDataPath := filepath.Join(config.RemoteWorkingDir, constants.MDLDataDir)
+		snTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
+		rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
+		p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
+		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.RemoteWorkingDir),
+			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
 			LogCompress:                     constants.LogConfigDefaultCompress,
 			LogMaxSizeMB:                    constants.LogConfigDefaultMaxSizeMB,
 			LogMaxAgeDays:                   constants.LogConfigDefaultMaxAgeDays,
@@ -525,7 +525,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 			LogLevelMetadb:                  constants.SuperNodeDefaultMetaDBLogLevel,
 			LogLevelDD:                      constants.SuperNodeDefaultDDLogLevel,
 			SNTempDir:                       snTempDirPath,
-			SNWorkDir:                       config.RemoteWorkingDir,
+			SNWorkDir:                       config.WorkingDir,
 			RQDir:                           rqWorkDirPath,
 			DDDir:                           filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
 			SuperNodePort:                   portList[constants.SNPort],
@@ -587,7 +587,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context, 
 
 	log.WithContext(ctx).Info("Supernode config updated")
 
-	remoteSnConfigPath := r.config.Configurer.GetSuperNodeConfFile(r.config.RemoteWorkingDir)
+	remoteSnConfigPath := r.config.Configurer.GetSuperNodeConfFile(r.config.WorkingDir)
 	remoteSnConfigPath = strings.ReplaceAll(remoteSnConfigPath, "\\", "/")
 
 	log.WithContext(ctx).Info("copying supernode config..")

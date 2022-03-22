@@ -94,12 +94,9 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 	}
 
-	if installCommand == superNodeInstall || remote {
-		serviceFlags := []*cli.Flag{
-			cli.NewFlag("user-pw", &config.UserPw).
-				SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
-		}
-		commonFlags = append(commonFlags, serviceFlags...)
+	userFlags := []*cli.Flag{
+		cli.NewFlag("user-pw", &config.UserPw).
+			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -113,9 +110,9 @@ func setupSubCommand(config *configs.Config,
 		}
 	} else {
 		dirsFlags = []*cli.Flag{
-			cli.NewFlag("remote-dir", &config.RemotePastelExecDir).SetAliases("d").
+			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
 				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/pastel)")),
-			cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).SetAliases("w").
+			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/.pastel)")),
 		}
 	}
@@ -128,13 +125,20 @@ func setupSubCommand(config *configs.Config,
 		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-user-pw", &config.UserPw).
-			SetUsage(red("Required, password of remote user - so no sudo request is promoted")).SetRequired(),
+			SetUsage(red("Required, password of remote user - so no sudo password request is prompted")).SetRequired(),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 	}
 
-	commandName := installCmdName[installCommand]
-	commandMessage := installCmdMessage[installCommand]
+	var commandName, commandMessage string
+	if !remote {
+		commandName = installCmdName[installCommand]
+		commandMessage = installCmdMessage[installCommand]
+	} else {
+		commandName = installCmdName[remoteInstall]
+		commandMessage = installCmdMessage[remoteInstall]
+	}
+
 	commandFlags := append(dirsFlags, commonFlags[:]...)
 	if installCommand == nodeInstall ||
 		installCommand == walletNodeInstall ||
@@ -143,6 +147,8 @@ func setupSubCommand(config *configs.Config,
 	}
 	if remote {
 		commandFlags = append(commandFlags, remoteFlags[:]...)
+	} else if installCommand == superNodeInstall {
+		commandFlags = append(commandFlags, userFlags...)
 	}
 
 	subCommand := cli.NewCommand(commandName)
@@ -186,11 +192,12 @@ func setupInstallCommand() *cli.Command {
 	installDDSubCommand := setupSubCommand(config, ddServiceInstall, false, runInstallDupeDetectionSubCommand)
 	installDDImgServerSubCommand := setupSubCommand(config, ddServiceImgServerInstall, false, runInstallDupeDetectionImgServerSubCommand)
 
-	installNodeSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
-	installSuperNodeSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
-	installRQSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
-	installDDSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
-	installDDImgServerSubCommand.AddSubcommands(setupSubCommand(config, remoteInstall, true, runRemoteInstallSubCommand))
+	installNodeSubCommand.AddSubcommands(setupSubCommand(config, nodeInstall, true, runRemoteInstallSubCommand))
+	installWalletNodeSubCommand.AddSubcommands(setupSubCommand(config, walletNodeInstall, true, runRemoteInstallSubCommand))
+	installSuperNodeSubCommand.AddSubcommands(setupSubCommand(config, superNodeInstall, true, runRemoteInstallSubCommand))
+	installRQSubCommand.AddSubcommands(setupSubCommand(config, rqServiceInstall, true, runRemoteInstallSubCommand))
+	installDDSubCommand.AddSubcommands(setupSubCommand(config, ddServiceInstall, true, runRemoteInstallSubCommand))
+	installDDImgServerSubCommand.AddSubcommands(setupSubCommand(config, ddServiceImgServerInstall, true, runRemoteInstallSubCommand))
 
 	installCommand := cli.NewCommand("install")
 	installCommand.SetUsage(blue("Performs installation and initialization of the system for both WalletNode and SuperNodes"))
@@ -276,12 +283,12 @@ func runRemoteInstallSubCommand(ctx context.Context, config *configs.Config) (er
 	log.WithContext(ctx).Info("Installing Supernode ...")
 
 	remoteOptions := ""
-	if len(config.RemotePastelExecDir) > 0 {
-		remoteOptions = fmt.Sprintf("%s --dir=%s", remoteOptions, config.RemotePastelExecDir)
+	if len(config.PastelExecDir) > 0 {
+		remoteOptions = fmt.Sprintf("%s --dir=%s", remoteOptions, config.PastelExecDir)
 	}
 
-	if len(config.RemoteWorkingDir) > 0 {
-		remoteOptions = fmt.Sprintf("%s --work-dir=%s", remoteOptions, config.RemoteWorkingDir)
+	if len(config.WorkingDir) > 0 {
+		remoteOptions = fmt.Sprintf("%s --work-dir=%s", remoteOptions, config.WorkingDir)
 	}
 
 	if config.Force {

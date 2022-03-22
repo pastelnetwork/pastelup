@@ -23,33 +23,33 @@ const (
 	updateNode updateCommand = iota
 	updateWalletNode
 	updateSuperNode
-	updateSuperNodeRemote
 	updateDDService
 	updateRQService
 	updateWNService
 	updateSNService
+	updateRemote
 )
 
 var (
 	updateCommandName = map[updateCommand]string{
-		updateNode:            "node",
-		updateWalletNode:      "walletnode",
-		updateSuperNode:       "supernode",
-		updateSuperNodeRemote: "remote",
-		updateDDService:       "dd-service",
-		updateRQService:       "rq-service",
-		updateWNService:       "walletnode-service",
-		updateSNService:       "supernode-service",
+		updateNode:       "node",
+		updateWalletNode: "walletnode",
+		updateSuperNode:  "supernode",
+		updateDDService:  "dd-service",
+		updateRQService:  "rq-service",
+		updateWNService:  "walletnode-service",
+		updateSNService:  "supernode-service",
+		updateRemote:     "remote",
 	}
 	updateCommandMessage = map[updateCommand]string{
-		updateNode:            "Update Node",
-		updateWalletNode:      "Update Walletnode",
-		updateSuperNode:       "Update Supernode",
-		updateSuperNodeRemote: "Update Supernode on Remote host",
-		updateDDService:       "Update DupeDetection service only",
-		updateRQService:       "Update RaptorQ service only",
-		updateWNService:       "Update Walletnode service only",
-		updateSNService:       "Update Supernode service only",
+		updateNode:       "Update Node",
+		updateWalletNode: "Update Walletnode",
+		updateSuperNode:  "Update Supernode",
+		updateDDService:  "Update DupeDetection service only",
+		updateRQService:  "Update RaptorQ service only",
+		updateWNService:  "Update Walletnode service only",
+		updateSNService:  "Update Supernode service only",
+		updateRemote:     "Update on Remote host",
 	}
 	updateServicesToStop = map[constants.ToolType][]constants.ToolType{
 		constants.PastelD: {constants.PastelD},
@@ -74,7 +74,7 @@ var (
 )
 
 func setupUpdateSubCommand(config *configs.Config,
-	updateCmd updateCommand,
+	updateCmd updateCommand, remote bool,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 
@@ -88,29 +88,40 @@ func setupUpdateSubCommand(config *configs.Config,
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
 
-		cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-			SetUsage(green("Optional, Location where to create pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
-		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-			SetUsage(green("Optional, Location where to create working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
-		cli.NewFlag("archive-dir", &config.ArchiveDir).
-			SetUsage(green("Optional, Location where to store archived backup before update")).SetValue(config.Configurer.DefaultArchiveDir()),
-
 		cli.NewFlag("clean", &config.Clean).SetAliases("c").
 			SetUsage(green("Optional, Clean .pastel folder")),
 	}
 
-	if updateCmd == updateSuperNodeRemote || updateCmd == updateSuperNode {
-		commonFlags = append(commonFlags,
-			cli.NewFlag("user-pw", &config.UserPw).
-				SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
-		)
+	var dirsFlags []*cli.Flag
+
+	if !remote {
+		dirsFlags = []*cli.Flag{
+			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
+				SetUsage(green("Optional, Location where to create pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
+			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+				SetUsage(green("Optional, Location where to create working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
+			cli.NewFlag("archive-dir", &config.ArchiveDir).
+				SetUsage(green("Optional, Location where to store archived backup before update")).SetValue(config.Configurer.DefaultArchiveDir()),
+		}
+	} else {
+		dirsFlags = []*cli.Flag{
+			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
+				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/pastel)")),
+			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/.pastel)")),
+			cli.NewFlag("archive-dir", &config.ArchiveDir).
+				SetUsage(green("Optional, Location where to store archived backup before update on the remote computer (default: $HOME/.pastel_archive)")),
+		}
 	}
 
-	if updateCmd == updateSuperNodeRemote || updateCmd == updateSuperNode || updateCmd == updateWalletNode {
-		commonFlags = append(commonFlags,
-			cli.NewFlag("name", &flagMasterNodeName).
-				SetUsage(red("Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)")).SetRequired(),
-		)
+	userFlags := []*cli.Flag{
+		cli.NewFlag("user-pw", &config.UserPw).
+			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
+	}
+
+	superNodeFlags := []*cli.Flag{
+		cli.NewFlag("name", &flagMasterNodeName).
+			SetUsage(red("Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)")).SetRequired(),
 	}
 
 	remoteFlags := []*cli.Flag{
@@ -120,20 +131,34 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, Username of user at remote host")),
+		cli.NewFlag("ssh-user-pw", &config.UserPw).
+			SetUsage(red("Required, password of remote user - so no sudo password request is prompted")).SetRequired(),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
 		cli.NewFlag("bin", &config.BinComponentPath).SetRequired().
 			SetUsage(red("Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file or a folder of binary to remote host")),
 	}
 
-	commandMessage := updateCommandMessage[updateCmd]
-
-	commandFlags := commonFlags
-	if updateCmd == updateSuperNodeRemote {
-		commandFlags = append(commandFlags, remoteFlags...)
+	var commandName, commandMessage string
+	if !remote {
+		commandName = updateCommandName[updateCmd]
+		commandMessage = updateCommandMessage[updateCmd]
+	} else {
+		commandName = updateCommandName[updateRemote]
+		commandMessage = updateCommandMessage[updateRemote]
 	}
 
-	subCommand := cli.NewCommand(updateCommandName[updateCmd])
+	commandFlags := append(dirsFlags, commonFlags[:]...)
+	if updateCmd == updateSuperNode {
+		commandFlags = append(commandFlags, superNodeFlags...)
+	}
+	if remote {
+		commandFlags = append(commandFlags, remoteFlags[:]...)
+	} else if updateCmd == updateSuperNode {
+		commandFlags = append(commandFlags, userFlags...)
+	}
+
+	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))
 	subCommand.AddFlags(commandFlags...)
 
@@ -168,16 +193,21 @@ func setupUpdateCommand() *cli.Command {
 	config := configs.InitConfig()
 	config.OpMode = "update"
 
-	updateNodeSubCommand := setupUpdateSubCommand(config, updateNode, runUpdateNodeSubCommand)
-	updateWalletNodeSubCommand := setupUpdateSubCommand(config, updateWalletNode, runUpdateWalletNodeSubCommand)
-	updateSuperNodeRemoteSubCommand := setupUpdateSubCommand(config, updateSuperNodeRemote, runUpdateSuperNodeRemoteSubCommand)
-	updateSuperNodeSubCommand := setupUpdateSubCommand(config, updateSuperNode, runUpdateSuperNodeSubCommand)
-	updateSuperNodeSubCommand.AddSubcommands(updateSuperNodeRemoteSubCommand)
-	updateRQServiceSubCommand := setupUpdateSubCommand(config, updateRQService, runUpdateRQServiceSubCommand)
-	updateDDServiceSubCommand := setupUpdateSubCommand(config, updateDDService, runUpdateDDServiceSubCommand)
+	updateNodeSubCommand := setupUpdateSubCommand(config, updateNode, false, runUpdateNodeSubCommand)
+	updateWalletNodeSubCommand := setupUpdateSubCommand(config, updateWalletNode, false, runUpdateWalletNodeSubCommand)
+	updateSuperNodeSubCommand := setupUpdateSubCommand(config, updateSuperNode, false, runUpdateSuperNodeSubCommand)
+	updateRQServiceSubCommand := setupUpdateSubCommand(config, updateRQService, false, runUpdateRQServiceSubCommand)
+	updateDDServiceSubCommand := setupUpdateSubCommand(config, updateDDService, false, runUpdateDDServiceSubCommand)
+	updateWNServiceSubCommand := setupUpdateSubCommand(config, updateWNService, false, runUpdateWNServiceSubCommand)
+	updateSNServiceSubCommand := setupUpdateSubCommand(config, updateSNService, false, runUpdateSNServiceSubCommand)
 
-	updateWNServiceSubCommand := setupUpdateSubCommand(config, updateWNService, runUpdateWNServiceSubCommand)
-	updateSNServiceSubCommand := setupUpdateSubCommand(config, updateSNService, runUpdateSNServiceSubCommand)
+	updateNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateNode, true, runUpdateRemoteSubCommand))
+	updateWalletNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateWalletNode, true, runUpdateRemoteSubCommand))
+	updateSuperNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateSuperNode, true, runUpdateRemoteSubCommand))
+	updateRQServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateRQService, true, runUpdateRemoteSubCommand))
+	updateDDServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateDDService, true, runUpdateRemoteSubCommand))
+	updateWNServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateWNService, true, runUpdateRemoteSubCommand))
+	updateSNServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateSNService, true, runUpdateRemoteSubCommand))
 
 	// Add update command
 	updateCommand := cli.NewCommand("update")
@@ -194,7 +224,7 @@ func setupUpdateCommand() *cli.Command {
 	return updateCommand
 }
 
-func runUpdateSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) (err error) {
+func runUpdateRemoteSubCommand(ctx context.Context, config *configs.Config) (err error) {
 
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)

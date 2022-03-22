@@ -35,23 +35,6 @@ var (
 
 	// walletnode flag
 	flagDevMode bool
-
-	// masternode flags
-	flagMasterNodeIsActivate bool
-
-	flagMasterNodeName       string
-	flagMasterNodeIsCreate   bool
-	flagMasterNodeIsUpdate   bool
-	flagMasterNodeTxID       string
-	flagMasterNodeInd        string
-	flagMasterNodePort       int
-	flagMasterNodePrivateKey string
-	flagMasterNodePastelID   string
-	flagMasterNodePassPhrase string
-	flagMasterNodeRPCIP      string
-	flagMasterNodeRPCPort    int
-	flagMasterNodeP2PIP      string
-	flagMasterNodeP2PPort    int
 )
 
 type startCommand uint8
@@ -60,120 +43,79 @@ const (
 	nodeStart startCommand = iota
 	walletStart
 	superNodeStart
-	superNodeRemoteStart
-	superNodeColdHotStart
 	ddService
 	rqService
 	wnService
 	snService
 	masterNode
+	remoteStart
 )
 
 var (
 	startCmdName = map[startCommand]string{
-		nodeStart:             "node",
-		walletStart:           "walletnode",
-		superNodeStart:        "supernode",
-		superNodeRemoteStart:  "remote",
-		superNodeColdHotStart: "supernode-coldhot",
-		ddService:             "dd-service",
-		rqService:             "rq-service",
-		wnService:             "walletnode-service",
-		snService:             "supernode-service",
-		masterNode:            "masterNode",
+		nodeStart:      "node",
+		walletStart:    "walletnode",
+		superNodeStart: "supernode",
+		ddService:      "dd-service",
+		rqService:      "rq-service",
+		wnService:      "walletnode-service",
+		snService:      "supernode-service",
+		masterNode:     "masterNode",
+		remoteStart:    "remote",
 	}
 	startCmdMessage = map[startCommand]string{
-		nodeStart:             "Start node",
-		walletStart:           "Start Walletnode",
-		superNodeStart:        "Start Supernode",
-		superNodeRemoteStart:  "Start Supernode on Remote host",
-		superNodeColdHotStart: "Start Supernode in Cold/Hot mode",
-		ddService:             "Start Dupe Detection service only",
-		rqService:             "Start RaptorQ service only",
-		wnService:             "Start Walletnode service onlyu",
-		snService:             "Start Supernode service only",
-		masterNode:            "Start only pasteld node as Masternode",
+		nodeStart:      "Start node",
+		walletStart:    "Start Walletnode",
+		superNodeStart: "Start Supernode",
+		ddService:      "Start Dupe Detection service only",
+		rqService:      "Start RaptorQ service only",
+		wnService:      "Start Walletnode service onlyu",
+		snService:      "Start Supernode service only",
+		masterNode:     "Start only pasteld node as Masternode",
+		remoteStart:    "Start on Remote host",
 	}
 )
 
 func setupStartSubCommand(config *configs.Config,
-	startCommand startCommand,
+	startCommand startCommand, remote bool,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 	commonFlags := []*cli.Flag{
 		cli.NewFlag("ip", &flagNodeExtIP).
 			SetUsage(green("Optional, WAN address of the host")),
-		cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-			SetUsage(green("Optional, Location of pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
-		cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-			SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
 		cli.NewFlag("reindex", &flagReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
 		cli.NewFlag("legacy", &config.Legacy).
 			SetUsage(green("Optional, pasteld version is < 1.1")).SetValue(false),
 	}
 
+	var dirsFlags []*cli.Flag
+
+	if !remote {
+		dirsFlags = []*cli.Flag{
+			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
+				SetUsage(green("Optional, Location of pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
+			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+				SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
+		}
+	} else {
+		dirsFlags = []*cli.Flag{
+			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
+				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/pastel)")),
+			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/.pastel)")),
+		}
+	}
+
 	walletNodeFlags := []*cli.Flag{
 		cli.NewFlag("development-mode", &flagDevMode),
 	}
 
-	superNodeFlags := []*cli.Flag{
-
+	superNodeStartFlags := []*cli.Flag{
+		cli.NewFlag("name", &flagMasterNodeName).
+			SetUsage(yellow("Required, name of the Masternode to start")).SetRequired(),
 		cli.NewFlag("activate", &flagMasterNodeIsActivate).
 			SetUsage(green("Optional, if specified, will try to enable node as Masternode (start-alias).")),
-		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage(yellow("Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)")).SetRequired(),
-		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
-			SetUsage(green("Optional, Masternode private key, if omitted, new masternode private key will be created")),
-
-		cli.NewFlag("create", &flagMasterNodeIsCreate).
-			SetUsage(green("Optional, if specified, will create Masternode record in the masternode.conf.")),
-		cli.NewFlag("update", &flagMasterNodeIsUpdate).
-			SetUsage(green("Optional, if specified, will update Masternode record in the masternode.conf.")),
-		cli.NewFlag("txid", &flagMasterNodeTxID).
-			SetUsage(yellow("Required (only if --update or --create specified), collateral payment txid , transaction id of 5M collateral MN payment")),
-		cli.NewFlag("ind", &flagMasterNodeInd).
-			SetUsage(yellow("Required (only if --update or --create specified), collateral payment output index , output index in the transaction of 5M collateral MN payment")),
-		cli.NewFlag("pastelid", &flagMasterNodePastelID).
-			SetUsage(green("Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered")),
-		cli.NewFlag("passphrase", &flagMasterNodePassPhrase).
-			SetUsage(yellow("Required (only if --update or --create specified), passphrase to pastelid private key")),
-		cli.NewFlag("port", &flagMasterNodePort).
-			SetUsage(green("Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet)")),
-		cli.NewFlag("rpc-ip", &flagMasterNodeRPCIP).
-			SetUsage(green("Optional, supernode IP address. If omitted, value passed to --ip will be used")),
-		cli.NewFlag("rpc-port", &flagMasterNodeRPCPort).
-			SetUsage(green("Optional, supernode port, default - 4444 (14444 for Testnet")),
-		cli.NewFlag("p2p-ip", &flagMasterNodeP2PIP).
-			SetUsage(green("Optional, Kademlia IP address, if omitted, value passed to --ip will be used")),
-		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort).
-			SetUsage(green("Optional, Kademlia port, default - 4445 (14445 for Testnet)")),
-	}
-
-	superNodeColdHotFlags := []*cli.Flag{
-		cli.NewFlag("ssh-ip", &config.RemoteIP).
-			SetUsage(red("Required (only if --remote specified), remote supernode specific, SSH address of the remote HOT node")),
-		cli.NewFlag("ssh-port", &config.RemotePort).
-			SetUsage(green("Optional, remote supernode specific, SSH port of the remote HOT node")).SetValue(22),
-		cli.NewFlag("ssh-user", &config.RemoteUser).
-			SetUsage(yellow("Optional, SSH user")),
-		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
-			SetUsage(yellow("Optional, Path to SSH private key")),
-		cli.NewFlag("remote-dir", &config.RemotePastelExecDir).
-			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel)")),
-		cli.NewFlag("remote-work-dir", &config.RemoteWorkingDir).
-			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel")).SetValue("$HOME/.pastel"),
-	}
-
-	superNodeRemoteFlags := []*cli.Flag{
-		cli.NewFlag("ssh-ip", &config.RemoteIP).
-			SetUsage(red("Required (only if --remote specified), remote supernode specific, SSH address of the remote HOT node")),
-		cli.NewFlag("ssh-port", &config.RemotePort).
-			SetUsage(green("Optional, remote supernode specific, SSH port of the remote HOT node")).SetValue(22),
-		cli.NewFlag("ssh-user", &config.RemoteUser).
-			SetUsage(yellow("Optional, SSH user")),
-		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
-			SetUsage(yellow("Optional, Path to SSH private key")),
 	}
 
 	masternodeFlags := []*cli.Flag{
@@ -181,36 +123,37 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(yellow("Required, name of the Masternode to start")).SetRequired(),
 	}
 
+	remoteStartFlags := []*cli.Flag{
+		cli.NewFlag("ssh-ip", &config.RemoteIP).
+			SetUsage(red("Required, SSH address of the remote node")),
+		cli.NewFlag("ssh-port", &config.RemotePort).
+			SetUsage(green("Optional, SSH port of the remote node")).SetValue(22),
+		cli.NewFlag("ssh-user", &config.RemoteUser).
+			SetUsage(yellow("Optional, SSH user")),
+		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
+			SetUsage(yellow("Optional, Path to SSH private key")),
+	}
+
 	var commandName, commandMessage string
-	var commandFlags []*cli.Flag
+	if !remote {
+		commandName = startCmdName[startCommand]
+		commandMessage = startCmdMessage[startCommand]
+	} else {
+		commandName = startCmdName[remoteStart]
+		commandMessage = startCmdMessage[remoteStart]
+	}
 
-	commandName = startCmdName[startCommand]
-	commandMessage = startCmdMessage[startCommand]
-
-	switch startCommand {
-	case nodeStart:
-		commandFlags = commonFlags
-	case walletStart:
-		commandFlags = append(walletNodeFlags, commonFlags[:]...)
-	case superNodeStart:
-		commandFlags = append(superNodeFlags, commonFlags[:]...)
-	case superNodeRemoteStart:
-		superNodeFlags = append(superNodeFlags, superNodeRemoteFlags...)
-		commandFlags = append(superNodeFlags, commonFlags[:]...)
-	case superNodeColdHotStart:
-		commandFlags = append(append(superNodeFlags, commonFlags[:]...), superNodeColdHotFlags[:]...)
-	case rqService:
-		commandFlags = commonFlags
-	case ddService:
-		commandFlags = commonFlags
-	case wnService:
-		commandFlags = append(walletNodeFlags, commonFlags[:]...)
-	case snService:
-		commandFlags = commonFlags
-	case masterNode:
-		commandFlags = append(masternodeFlags, commonFlags[:]...)
-	default:
-		commandFlags = append(append(walletNodeFlags, commonFlags[:]...), superNodeFlags[:]...)
+	commandFlags := append(dirsFlags, commonFlags[:]...)
+	if startCommand == walletStart ||
+		startCommand == wnService {
+		commandFlags = append(commonFlags, walletNodeFlags[:]...)
+	} else if startCommand == superNodeStart {
+		commandFlags = append(commonFlags, superNodeStartFlags[:]...)
+	} else if startCommand == masterNode {
+		commandFlags = append(commonFlags, masternodeFlags[:]...)
+	}
+	if remote {
+		commandFlags = append(commandFlags, remoteStartFlags[:]...)
 	}
 
 	subCommand := cli.NewCommand(commandName)
@@ -258,25 +201,42 @@ func setupStartSubCommand(config *configs.Config,
 func setupStartCommand() *cli.Command {
 	config := configs.InitConfig()
 
-	startNodeSubCommand := setupStartSubCommand(config, nodeStart, runStartNodeSubCommand)
-	startWalletSubCommand := setupStartSubCommand(config, walletStart, runStartWalletSubCommand)
-	startSuperNodeRemoteSubCommand := setupStartSubCommand(config, superNodeRemoteStart, runSuperNodeRemoteSubCommand)
-	startSuperNodeSubCommand := setupStartSubCommand(config, superNodeStart, runLocalSuperNodeSubCommand)
-	startSuperNodeSubCommand.AddSubcommands(startSuperNodeRemoteSubCommand)
-	startSuperNodeCOldHotSubCommand := setupStartSubCommand(config, superNodeColdHotStart, runSuperNodeColdHotSubCommand)
+	startNodeSubCommand := setupStartSubCommand(config, nodeStart, false, runStartNodeSubCommand)
+	startWalletNodeSubCommand := setupStartSubCommand(config, walletStart, false, runStartWalletNodeSubCommand)
+	startSuperNodeSubCommand := setupStartSubCommand(config, superNodeStart, false, runStartSuperNodeSubCommand)
 
-	startRQServiceCommand := setupStartSubCommand(config, rqService, runRQService)
-	startDDServiceCommand := setupStartSubCommand(config, ddService, runDDService)
-	startWNServiceCommand := setupStartSubCommand(config, wnService, runWalletNodeService)
-	startSNServiceCommand := setupStartSubCommand(config, snService, runSuperNodeService)
-	startMasternodeCommand := setupStartSubCommand(config, masterNode, runStartMasternode)
+	startRQServiceCommand := setupStartSubCommand(config, rqService, false, runRQService)
+	startDDServiceCommand := setupStartSubCommand(config, ddService, false, runDDService)
+	startWNServiceCommand := setupStartSubCommand(config, wnService, false, runWalletNodeService)
+	startSNServiceCommand := setupStartSubCommand(config, snService, false, runSuperNodeService)
+	startMasternodeCommand := setupStartSubCommand(config, masterNode, false, runStartMasternode)
+
+	startSuperNodeRemoteSubCommand := setupStartSubCommand(config, superNodeStart, true, runRemoteSuperNodeStartSubCommand)
+	startSuperNodeSubCommand.AddSubcommands(startSuperNodeRemoteSubCommand)
+
+	startWalletNodeRemoteSubCommand := setupStartSubCommand(config, superNodeStart, true, runRemoteWalletNodeStartSubCommand)
+	startWalletNodeSubCommand.AddSubcommands(startWalletNodeRemoteSubCommand)
+
+	startNodeRemoteSubCommand := setupStartSubCommand(config, nodeStart, true, runRemoteNodeStartSubCommand)
+	startNodeSubCommand.AddSubcommands(startNodeRemoteSubCommand)
+
+	startRQServiceRemoteCommand := setupStartSubCommand(config, rqService, true, runRemoteRQServiceStartSubCommand)
+	startRQServiceCommand.AddSubcommands(startRQServiceRemoteCommand)
+
+	startDDServiceRemoteCommand := setupStartSubCommand(config, ddService, true, runRemoteDDServiceStartSubCommand)
+	startDDServiceCommand.AddSubcommands(startDDServiceRemoteCommand)
+
+	startWNServiceRemoteCommand := setupStartSubCommand(config, wnService, true, runRemoteWNServiceStartSubCommand)
+	startWNServiceCommand.AddSubcommands(startWNServiceRemoteCommand)
+
+	startSNServiceRemoteCommand := setupStartSubCommand(config, snService, true, runRemoteSNServiceStartSubCommand)
+	startSNServiceCommand.AddSubcommands(startSNServiceRemoteCommand)
 
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
 	startCommand.AddSubcommands(startNodeSubCommand)
-	startCommand.AddSubcommands(startWalletSubCommand)
+	startCommand.AddSubcommands(startWalletNodeSubCommand)
 	startCommand.AddSubcommands(startSuperNodeSubCommand)
-	startCommand.AddSubcommands(startSuperNodeCOldHotSubCommand)
 
 	startCommand.AddSubcommands(startRQServiceCommand)
 	startCommand.AddSubcommands(startDDServiceCommand)
@@ -300,7 +260,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 }
 
 // Sub Command
-func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error {
+func runStartWalletNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	// *************  1. Start pastel node  *************
 	if err := runPastelNode(ctx, config, flagReIndex, flagNodeExtIP, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
@@ -323,8 +283,17 @@ func runStartWalletSubCommand(ctx context.Context, config *configs.Config) error
 }
 
 // Sub Command
-func runLocalSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
+func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Starting supernode")
+	if err := runStartSuperNode(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to start supernode")
+		return err
+	}
+	log.WithContext(ctx).Info("Supernode started successfully")
+	return nil
+}
 
+func runStartSuperNode(ctx context.Context, config *configs.Config, ) error {
 	// *************  1. Parse pastel config parameters  *************
 	log.WithContext(ctx).Info("Reading pastel.conf")
 	if err := ParsePastelConf(ctx, config); err != nil {
@@ -398,7 +367,30 @@ func runLocalSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 	return nil
 }
 
-func runSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) error {
+func runRemoteNodeStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "node")
+}
+func runRemoteSuperNodeStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "supernode")
+}
+func runRemoteWalletNodeStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "walletnode")
+}
+func runRemoteRQServiceStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "rq-service")
+}
+func runRemoteDDServiceStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "dd-service")
+}
+func runRemoteWNServiceStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "walletnode-service")
+}
+func runRemoteSNServiceStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "supernode-service")
+}
+
+func runRemoteStart(ctx context.Context, config *configs.Config, tool string) error {
+	log.WithContext(ctx).Infof("Starting remote %s", tool)
 
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)
@@ -419,58 +411,34 @@ func runSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) e
 		startOptions = fmt.Sprintf("%s --activate", startOptions)
 	}
 
-	if len(flagMasterNodePrivateKey) > 0 {
-		startOptions = fmt.Sprintf("%s --pkey=%s", startOptions, flagMasterNodePrivateKey)
+	if len(flagNodeExtIP) > 0 {
+		startOptions = fmt.Sprintf("%s --ip=%s", startOptions, flagNodeExtIP)
+	}
+	if flagReIndex {
+		startOptions = fmt.Sprintf("%s --reindex", startOptions)
+	}
+	if config.Legacy {
+		startOptions = fmt.Sprintf("%s --legacy", startOptions)
+	}
+	if flagDevMode {
+		startOptions = fmt.Sprintf("%s --development-mode", startOptions)
+	}
+	if len(config.PastelExecDir) > 0 {
+		startOptions = fmt.Sprintf("%s --dir=%s", startOptions, config.PastelExecDir)
+	}
+	if len(config.WorkingDir) > 0 {
+		startOptions = fmt.Sprintf("%s --work-dir=%s", startOptions, config.WorkingDir)
 	}
 
-	if flagMasterNodeIsUpdate {
-		startOptions = fmt.Sprintf("%s --update", startOptions)
-	}
-
-	if len(flagMasterNodeTxID) > 0 {
-		startOptions = fmt.Sprintf("%s --txid=%s", startOptions, flagMasterNodeTxID)
-	}
-
-	if len(flagMasterNodeInd) > 0 {
-		startOptions = fmt.Sprintf("%s --ind=%s", startOptions, flagMasterNodeInd)
-	}
-
-	if len(flagMasterNodePastelID) > 0 {
-		startOptions = fmt.Sprintf("%s --pastelid=%s", startOptions, flagMasterNodePastelID)
-	}
-
-	if len(flagMasterNodePassPhrase) > 0 {
-		startOptions = fmt.Sprintf("%s --passphrase=%s", startOptions, flagMasterNodePassPhrase)
-	}
-
-	if flagMasterNodePort > 0 {
-		startOptions = fmt.Sprintf("%s --port=%d", startOptions, flagMasterNodePort)
-	}
-
-	if len(flagMasterNodeRPCIP) > 0 {
-		startOptions = fmt.Sprintf("%s --rpc-ip=%s", startOptions, flagMasterNodeRPCIP)
-	}
-
-	if flagMasterNodeRPCPort > 0 {
-		startOptions = fmt.Sprintf("%s --rpc-port=%d", startOptions, flagMasterNodeRPCPort)
-	}
-
-	if len(flagMasterNodeP2PIP) > 0 {
-		startOptions = fmt.Sprintf("%s --p2p-ip=%s", startOptions, flagMasterNodeP2PIP)
-	}
-
-	if flagMasterNodeP2PPort > 0 {
-		startOptions = fmt.Sprintf("%s --p2p-port=%d", startOptions, flagMasterNodeP2PPort)
-	}
-
-	startSuperNodeCmd := fmt.Sprintf("%s start supernode %s", constants.RemotePastelupPath, startOptions)
+	startSuperNodeCmd := fmt.Sprintf("%s start %s %s", constants.RemotePastelupPath, tool, startOptions)
 
 	err = client.ShellCmd(ctx, startSuperNodeCmd)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to start Supernode services")
+		log.WithContext(ctx).WithError(err).Errorf("Failed to start remote %s services", tool)
 		return err
 	}
 
+	log.WithContext(ctx).Infof("Remote %s started successfully", tool)
 	return nil
 }
 
@@ -922,7 +890,7 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 				return err
 			}
 		} else {
-			pastelcliPath := filepath.Join(config.RemotePastelExecDir, constants.PastelCliName[utils.GetOS()])
+			pastelcliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
 			out, err := client.Cmd(fmt.Sprintf("%s %s %s", pastelcliPath, "pastelid newkey",
 				flagMasterNodePassPhrase)).Output()
 			if err != nil {
@@ -944,28 +912,6 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 	return nil
 }
 
-func runSuperNodeColdHotSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	runner := &ColdHotRunner{
-		config: config,
-		opts:   &ColdHotRunnerOpts{},
-	}
-
-	log.WithContext(ctx).Info("run supernode coldhot init")
-	if err := runner.Init(ctx); err != nil {
-		log.WithContext(ctx).WithError(err).Error("init coldhot runner failed.")
-		return err
-	}
-
-	log.WithContext(ctx).Info("running supernode coldhot runner")
-	if err := runner.Run(ctx); err != nil {
-		log.WithContext(ctx).WithError(err).Error("run coldhot runner failed.")
-		return err
-	}
-	log.WithContext(ctx).Info("run supernode coldhot successfull")
-
-	return nil
-}
-
 func checkMasternodePrivKey(ctx context.Context, config *configs.Config, client *utils.Client) (err error) {
 	if len(flagMasterNodePrivateKey) == 0 {
 		log.WithContext(ctx).Info("Masternode private key is empty - will create new one")
@@ -978,7 +924,7 @@ func checkMasternodePrivKey(ctx context.Context, config *configs.Config, client 
 				return err
 			}
 		} else {
-			pastelcliPath := filepath.Join(config.RemotePastelExecDir, constants.PastelCliName[utils.GetOS()])
+			pastelcliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
 			cmd := fmt.Sprintf("%s %s", pastelcliPath, "masternode genkey")
 			out, err := client.Cmd(cmd).Output()
 			if err != nil {

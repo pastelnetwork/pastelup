@@ -44,6 +44,7 @@ func checkPastelFilePath(ctx context.Context, dirPath string, filePath string) (
 
 // ParsePastelConf parse configuration of pasteld.
 func ParsePastelConf(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Infof("parsing pastel conf at %s", config.WorkingDir)
 
 	pastelConfPath := filepath.Join(config.WorkingDir, constants.PastelConfName)
 	if _, err := os.Stat(pastelConfPath); os.IsNotExist(err) {

@@ -113,14 +113,14 @@ func setupStartSubCommand(config *configs.Config,
 
 	superNodeStartFlags := []*cli.Flag{
 		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage(yellow("Required, name of the Masternode to start")).SetRequired(),
+			SetUsage(red("Required, name of the Masternode to start")).SetRequired(),
 		cli.NewFlag("activate", &flagMasterNodeIsActivate).
 			SetUsage(green("Optional, if specified, will try to enable node as Masternode (start-alias).")),
 	}
 
 	masternodeFlags := []*cli.Flag{
 		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage(yellow("Required, name of the Masternode to start")).SetRequired(),
+			SetUsage(red("Required, name of the Masternode to start")).SetRequired(),
 	}
 
 	remoteStartFlags := []*cli.Flag{
@@ -146,11 +146,11 @@ func setupStartSubCommand(config *configs.Config,
 	commandFlags := append(dirsFlags, commonFlags[:]...)
 	if startCommand == walletStart ||
 		startCommand == wnService {
-		commandFlags = append(commonFlags, walletNodeFlags[:]...)
+		commandFlags = append(commandFlags, walletNodeFlags[:]...)
 	} else if startCommand == superNodeStart {
-		commandFlags = append(commonFlags, superNodeStartFlags[:]...)
+		commandFlags = append(commandFlags, superNodeStartFlags[:]...)
 	} else if startCommand == masterNode {
-		commandFlags = append(commonFlags, masternodeFlags[:]...)
+		commandFlags = append(commandFlags, masternodeFlags[:]...)
 	}
 	if remote {
 		commandFlags = append(commandFlags, remoteStartFlags[:]...)
@@ -293,7 +293,7 @@ func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 	return nil
 }
 
-func runStartSuperNode(ctx context.Context, config *configs.Config, ) error {
+func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 	// *************  1. Parse pastel config parameters  *************
 	log.WithContext(ctx).Info("Reading pastel.conf")
 	if err := ParsePastelConf(ctx, config); err != nil {

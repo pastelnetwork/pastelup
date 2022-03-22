@@ -83,7 +83,7 @@ func setupInitSubCommand(config *configs.Config,
 
 	superNodeInitFlags := []*cli.Flag{
 		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage(yellow("Required, name of the Masternode to create or update in the masternode.conf")).SetRequired(),
+			SetUsage(red("Required, name of the Masternode to create or update in the masternode.conf")).SetRequired(),
 
 		cli.NewFlag("new", &flagMasterNodeIsCreate).
 			SetUsage(red("Required (if --update is not used), if specified, will add new Masternode record in the masternode.conf.")),
@@ -116,7 +116,17 @@ func setupInitSubCommand(config *configs.Config,
 			SetUsage(green("Optional, if specified, will try to enable node as Masternode (start-alias).")),
 	}
 
-	superNodeColdHotFlags := []*cli.Flag{
+	remoteStartFlags := []*cli.Flag{
+		cli.NewFlag("ssh-ip", &config.RemoteIP).
+			SetUsage(red("Required, SSH address of the remote node")),
+		cli.NewFlag("ssh-port", &config.RemotePort).
+			SetUsage(green("Optional, SSH port of the remote node")).SetValue(22),
+		cli.NewFlag("ssh-user", &config.RemoteUser).
+			SetUsage(yellow("Optional, SSH user")),
+		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
+			SetUsage(yellow("Optional, Path to SSH private key")),
+	}
+	coldhotStartFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
 			SetUsage(red("Required, SSH address of the remote HOT node")),
 		cli.NewFlag("ssh-port", &config.RemotePort).
@@ -128,19 +138,22 @@ func setupInitSubCommand(config *configs.Config,
 	}
 
 	var commandName, commandMessage string
-	if !remote {
-		commandName = initCmdName[initCommand]
-		commandMessage = initCmdMessage[initCommand]
-	} else {
+	if remote && initCommand != coldHotInit {
 		commandName = initCmdName[remoteInit]
 		commandMessage = initCmdMessage[remoteInit]
+	} else {
+		commandName = initCmdName[initCommand]
+		commandMessage = initCmdMessage[initCommand]
 	}
 
 	commandFlags := append(dirsFlags, commonFlags[:]...)
-	commandFlags = append(dirsFlags, superNodeInitFlags[:]...)
+	commandFlags = append(commandFlags, superNodeInitFlags[:]...)
 
+	if remote && initCommand != coldHotInit {
+		commandFlags = append(commandFlags, remoteStartFlags[:]...)
+	}
 	if initCommand == coldHotInit {
-		commandFlags = append(commonFlags, superNodeColdHotFlags[:]...)
+		commandFlags = append(commandFlags, coldhotStartFlags[:]...)
 	}
 
 	subCommand := cli.NewCommand(commandName)

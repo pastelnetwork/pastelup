@@ -232,6 +232,9 @@ func setupStartCommand() *cli.Command {
 	startSNServiceRemoteCommand := setupStartSubCommand(config, snService, true, runRemoteSNServiceStartSubCommand)
 	startSNServiceCommand.AddSubcommands(startSNServiceRemoteCommand)
 
+	startMasternodeRemoteCommand := setupStartSubCommand(config, masterNode, true, runRemoteSNServiceStartSubCommand)
+	startMasternodeCommand.AddSubcommands(startMasternodeRemoteCommand)
+
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
 	startCommand.AddSubcommands(startNodeSubCommand)

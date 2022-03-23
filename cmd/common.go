@@ -337,8 +337,8 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 	return getifno, nil
 }
 
-// CheckPastelDRunning whether pasteld is running
-func CheckPastelDRunning(ctx context.Context, config *configs.Config) bool {
+// WaitingForPastelDToStart whether pasteld is running
+func WaitingForPastelDToStart(ctx context.Context, config *configs.Config) bool {
 	var failCnt = 0
 	var err error
 

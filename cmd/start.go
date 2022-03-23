@@ -313,9 +313,20 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 	}
 	log.WithContext(ctx).Info("Finished checking arguments!")
 
+	pastelDIsRunning := false
+	if CheckProcessRunning(constants.PastelD) {
+		log.WithContext(ctx).Infof("pasteld is already running")
+		if yes, _ := AskUserToContinue(ctx,
+			"Do you want to stop it and continue? Y/N"); !yes {
+			log.WithContext(ctx).Warn("Exiting...")
+			return fmt.Errorf("user terminated installation")
+		}
+		pastelDIsRunning = true
+	}
+
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
 		log.WithContext(ctx).Info("Prepare masternode parameters")
-		if err := prepareMasterNodeParameters(ctx, config); err != nil {
+		if err := prepareMasterNodeParameters(ctx, config, !pastelDIsRunning); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
 			return err
 		}
@@ -325,6 +336,13 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 		}
 		if err := createOrUpdateSuperNodeConfig(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
+			return err
+		}
+	}
+
+	if pastelDIsRunning {
+		if err := StopPastelDAndWait(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Cannot stop pasteld")
 			return err
 		}
 	}
@@ -701,7 +719,7 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 	pasteldArgs = append(pasteldArgs, "--daemon")
 	go RunCMD(pastelDPath, pasteldArgs...)
 
-	if !CheckPastelDRunning(ctx, config) {
+	if !WaitingForPastelDToStart(ctx, config) {
 		err = fmt.Errorf("pasteld was not started")
 		log.WithContext(ctx).WithError(err).Error("pasteld didn't start")
 		return err
@@ -823,7 +841,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 }
 
 ///// Run helpers
-func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (err error) {
+func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, startPasteld bool) (err error) {
 
 	// this function must only be called when --create or --update
 	if !flagMasterNodeIsCreate && !flagMasterNodeIsUpdate {
@@ -839,10 +857,12 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 		bReIndex = flagReIndex
 	}
 
-	log.WithContext(ctx).Infof("Starting pasteld")
-	if err = runPastelNode(ctx, config, bReIndex, flagNodeExtIP, ""); err != nil {
-		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
-		return err
+	if startPasteld {
+		log.WithContext(ctx).Infof("Starting pasteld")
+		if err = runPastelNode(ctx, config, bReIndex, flagNodeExtIP, ""); err != nil {
+			log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
+			return err
+		}
 	}
 
 	// Check masternode status
@@ -871,7 +891,13 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 		return err
 	}
 
-	return StopPastelDAndWait(ctx, config)
+	if startPasteld {
+		if err = StopPastelDAndWait(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Cannot stop pasteld")
+			return err
+		}
+	}
+	return nil
 }
 
 func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Client) (err error) {

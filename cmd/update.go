@@ -493,8 +493,7 @@ func archiveDDDir(ctx context.Context, config *configs.Config) error {
 	if err := archiveDir(ctx, config, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
 		return err
-	} else {
-		log.WithContext(ctx).Info(fmt.Sprintf("%v directory archived", dirToArchive))
-		return nil
 	}
+	log.WithContext(ctx).Info(fmt.Sprintf("%v directory archived", dirToArchive))
+	return nil
 }

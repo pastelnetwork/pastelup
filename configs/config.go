@@ -188,12 +188,14 @@ type SystemdServiceScript struct {
 	WorkDir string
 }
 
-// ZksnarkParamsNames - slice of zksnark parameters
+// ZksnarkParamsNamesV2 - slice of zksnark parameters
 var ZksnarkParamsNamesV2 = []string{
 	"sapling-spend.params",
 	"sapling-output.params",
 	"sprout-groth16.params",
 }
+
+// ZksnarkParamsNamesV1 - slice of zksnark parameters
 var ZksnarkParamsNamesV1 = []string{
 	"sprout-proving.key",
 	"sprout-verifying.key",

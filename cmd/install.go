@@ -734,14 +734,14 @@ func checkInstallDir(ctx context.Context, config *configs.Config, installPath st
 		if !config.Force {
 			if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("%s will overwrite content of %s. Do you want continue? Y/N", opMode, installPath)); !yes {
 				log.WithContext(ctx).Info("Operation canceled by user. Exiting...")
-				return fmt.Errorf("user terminated installation...")
+				return fmt.Errorf("user terminated installation")
 			}
 		}
 		config.Force = true
 		return nil
 	} else if config.OpMode == "update" {
 		log.WithContext(ctx).Infof("Previous installation doesn't exist at %s. Noting to update. Exiting...", config.PastelExecDir)
-		return fmt.Errorf("nothing to update. Exiting...")
+		return fmt.Errorf("nothing to update. Exiting")
 	}
 
 	if err := utils.CreateFolder(ctx, installPath, config.Force); err != nil {

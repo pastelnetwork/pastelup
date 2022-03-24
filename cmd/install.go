@@ -221,7 +221,7 @@ func runInstallWalletNodeSubCommand(ctx context.Context, config *configs.Config)
 func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	if utils.GetOS() != constants.Linux {
 		log.WithContext(ctx).Error("Supernode can only be installed on Linux")
-		return fmt.Errorf("Supernode can only be installed on Linux. You are on: %s", string(utils.GetOS()))
+		return fmt.Errorf("supernode can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
 	return runServicesInstall(ctx, config, constants.SuperNode, true)
 }
@@ -233,7 +233,7 @@ func runInstallRaptorQSubCommand(ctx context.Context, config *configs.Config) er
 func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) error {
 	if utils.GetOS() != constants.Linux {
 		log.WithContext(ctx).Error("Dupe Detection service can only be installed on Linux")
-		return fmt.Errorf("Dupe Detection service can only be installed on Linux. You are on: %s", string(utils.GetOS()))
+		return fmt.Errorf("dupe Detection service can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
 	return runServicesInstall(ctx, config, constants.DDService, false)
 }
@@ -733,7 +733,7 @@ func checkInstallDir(ctx context.Context, config *configs.Config, installPath st
 		}
 		if !config.Force {
 			if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("%s will overwrite content of %s. Do you want continue? Y/N", opMode, installPath)); !yes {
-				log.WithContext(ctx).Info("Operation canceled by user. Exiting...")
+				log.WithContext(ctx).Info("operation canceled by user. Exiting...")
 				return fmt.Errorf("user terminated installation")
 			}
 		}

@@ -51,26 +51,6 @@ var (
 		updateSNService:  "Update Supernode service only",
 		updateRemote:     "Update on Remote host",
 	}
-	updateServicesToStop = map[constants.ToolType][]constants.ToolType{
-		constants.PastelD: {constants.PastelD},
-		constants.WalletNode: {
-			constants.PastelD,
-			constants.WalletNode,
-			constants.RQService,
-		},
-		constants.SuperNode: {
-			constants.PastelD,
-			constants.SuperNode,
-			constants.DDService,
-			constants.DDImgService,
-			constants.RQService,
-		},
-		constants.DDService: {
-			constants.DDService,
-			constants.DDImgService,
-		},
-		constants.RQService: {constants.RQService},
-	}
 )
 
 func setupUpdateSubCommand(config *configs.Config,

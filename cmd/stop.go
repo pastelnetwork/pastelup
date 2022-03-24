@@ -264,13 +264,15 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 		}
 		log.WithContext(ctx).Infof("%s stopped", string(service))
 	}
-	if len(servicesToStop) == 0 || config.Force {
+	if len(servicesToStop) == 0 {
 		return nil
 	}
-	question := fmt.Sprintf("To perform this update, we need to kill these services: %v. Is this ok? Y/N", servicesToStop)
-	ok, _ := AskUserToContinue(ctx, question)
-	if !ok {
-		return fmt.Errorf("user did not accept confirmation to stop services")
+	if !config.Force {
+		question := fmt.Sprintf("To perform this update, we need to kill these services: %v. Is this ok? Y/N", servicesToStop)
+		ok, _ := AskUserToContinue(ctx, question)
+		if !ok {
+			return fmt.Errorf("user did not accept confirmation to stop services")
+		}
 	}
 	return stopServices(ctx, servicesToStop, config)
 }

@@ -192,6 +192,13 @@ func RunPastelCLI(ctx context.Context, config *configs.Config, args ...string) (
 	return RunCMD(pastelCliPath, args...)
 }
 
+func RunSudoCMD(config *configs.Config, args ...string) (string, error) {
+	if len(config.UserPw) > 0 {
+		return RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S "+strings.Join(args, " "))
+	}
+	return RunCMD("sudo", args...)
+}
+
 // RunCMD runs shell command and returns output and error
 func RunCMD(command string, args ...string) (string, error) {
 	return RunCMDWithEnvVariable(command, "", "", args...)

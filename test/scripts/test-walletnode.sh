@@ -4,6 +4,10 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+pasteldExecPath=~/pastel/pasteld
+rqServiceExecPath=~/pastel/rq-service-linux-amd64
+walletNodeServiceExecPath=~/pastel/walletnode-linux-amd64
+
 ensureServiceRunning() 
 {
     if pgrep "$@" > /dev/null
@@ -21,7 +25,7 @@ ensureExecutableUpdated()
     # $1 -> the file path of the executable
     # $2 -> the original timestamp to check against
     # $3 -> the name of the service (for logging)
-    
+
     currLastModified=$(date -r $1 '+%s')
     if [ "$currLastModified" -gt "$2" ]; 
     then
@@ -59,27 +63,68 @@ else
 fi
 
 # get file timestamps to compare to updated files for validation
-pasteldLastModified=$(date -r ~/pastel/pasteld '+%s')
+pasteldLastModified=$(date -r $pasteldExecPath '+%s')
 echo "pasteld last modified detected to be $pasteldLastModified"
-rqServiceLastModified=$(date -r ~/pastel/rq-service-linux-amd64 '+%s')
+rqServiceLastModified=$(date -r $rqServiceExecPath '+%s')
 echo "rq-service last modified detected to be $rqServiceLastModified"
-walletNodeLastModified=$(date -r ~/pastel/walletnode-linux-amd64 '+%s')
+walletNodeLastModified=$(date -r $walletNodeServiceExecPath '+%s')
 echo "walletnode last modified detected to be $walletNodeLastModified"
 
 # verify we can update node
 echo "updating node..."
-pastelup update node --force # pass in force to avoid having to say "yes" to stopping current running processes
-ensureExecutableUpdated "~/pastel/pasteld" $pasteldLastModified "pasetld"
+pastelup update node --force --user-pw="$USR_PW" # pass in force to avoid having to say "yes" to stopping current running processes
+ensureExecutableUpdated $pasteldExecPath $pasteldLastModified "pasetld"
 
 # verify we can update rq-service
 echo "updating rq-service..."
-pastelup update node --force # pass in force to avoid having to say "yes" to stopping current running processes
-ensureExecutableUpdated "~/pastel/rq-service-linux-amd64" $rqServiceLastModified "rq-service"
+pastelup update rq-service --force --user-pw="$USR_PW"  # pass in force to avoid having to say "yes" to stopping current running processes
+ensureExecutableUpdated $rqServiceExecPath $rqServiceLastModified "rq-service"
 
 # verify we can update walletnode-service
 echo "updating walletnode-service..." 
-pastelup update walletnode-service --force # pass in force to avoid having to say "yes" to stopping current running processes
-ensureExecutableUpdated "~/pastel/walletnode-linux-amd64" $walletNodeLastModified "walletnode-service"
+pastelup update walletnode-service --force --user-pw="$USR_PW"  # pass in force to avoid having to say "yes" to stopping current running processes
+ensureExecutableUpdated $walletNodeServiceExecPath $walletNodeLastModified "walletnode-service"
 
+echo "starting node..."
+pastelup start node
+echo "starting rq-service..."
+pastelup start rq-service
+echo "starting walletnode-service..."
+pastelup start walletnode-service
 
-sleep 1h
+# validate expected processes are running
+ensureServiceRunning "pasteld"
+ensureServiceRunning "walletnode"
+ensureServiceRunning "rq-service"
+
+# re-init last modified timestamps
+pasteldLastModified=$(date -r $pasteldExecPath '+%s')
+echo "pasteld last modified detected to be $pasteldLastModified"
+rqServiceLastModified=$(date -r $rqServiceExecPath '+%s')
+echo "rq-service last modified detected to be $rqServiceLastModified"
+walletNodeLastModified=$(date -r $walletNodeServiceExecPath '+%s')
+echo "walletnode last modified detected to be $walletNodeLastModified"
+
+pastelup update walletnode --force --user-pw="$USR_PW"  # pass in force to avoid having to say "yes" to stopping current running processes
+ensureExecutableUpdated $pasteldExecPath $pasteldLastModified "pasetld"
+ensureExecutableUpdated $rqServiceExecPath $rqServiceLastModified "rq-service"
+ensureExecutableUpdated $walletNodeServiceExecPath $walletNodeLastModified "walletnode-service"
+
+# verify archive worked
+archiveCount=$(ls -a ~/.pastel_archives | wc -l)
+echo "archive count is: $archiveCount"
+if [ "$archiveCount" -ge "4" ];  # should have 2 for . & .. dirs + 2 archive dirs
+then
+    printf "${GREEN}validated archive creation${NC}\n"
+else
+    printf "${RED}archive count less than expected ${NC}\n"
+    exit 1
+fi
+
+pastelup start walletnode
+ensureServiceRunning "pasteld"
+ensureServiceRunning "walletnode"
+ensureServiceRunning "rq-service"
+
+echo "successsfully completed wallet node testing suite"
+exit 0

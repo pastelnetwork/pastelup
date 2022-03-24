@@ -87,9 +87,10 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
-
 		cli.NewFlag("clean", &config.Clean).SetAliases("c").
 			SetUsage(green("Optional, Clean .pastel folder")),
+		cli.NewFlag("user-pw", &config.UserPw).
+			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -112,11 +113,6 @@ func setupUpdateSubCommand(config *configs.Config,
 			cli.NewFlag("archive-dir", &config.ArchiveDir).
 				SetUsage(green("Optional, Location where to store archived backup before update on the remote computer (default: $HOME/.pastel_archive)")),
 		}
-	}
-
-	userFlags := []*cli.Flag{
-		cli.NewFlag("user-pw", &config.UserPw).
-			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	superNodeFlags := []*cli.Flag{
@@ -154,8 +150,6 @@ func setupUpdateSubCommand(config *configs.Config,
 	}
 	if remote {
 		commandFlags = append(commandFlags, remoteFlags[:]...)
-	} else if updateCmd == updateSuperNode {
-		commandFlags = append(commandFlags, userFlags...)
 	}
 
 	subCommand := cli.NewCommand(commandName)

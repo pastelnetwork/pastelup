@@ -348,6 +348,9 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 			sm.StopService(ctx, constants.PastelD)
 			RunPastelCLI(ctx, config, "stop")
 			time.Sleep(10 * time.Second) // buffer period to stop
+			// ensure the process is killed else will run into a text file busy error
+			// when installing latest executable
+			KillProcess(ctx, constants.PastelD)
 			log.WithContext(ctx).Info("pasteld stopped or was not running")
 		}
 	}
@@ -835,20 +838,12 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
 		Infof("system will now %s packages", what)
 
-	var sudoStr string
-	if len(config.UserPw) > 0 {
-		sudoStr = "echo" + config.UserPw + "| sudo -S"
-	} else {
-		sudoStr = "sudo"
-	}
-
 	// Update repo
-	_, err = RunCMD(sudoStr, "apt", "update")
+	_, err = RunSudoCMD(config, "apt", "update")
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update")
 		return err
 	}
-
 	for _, pkg := range pkgs {
 		log.WithContext(ctx).Infof("%sing package %s", what, pkg)
 
@@ -857,21 +852,19 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 				log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
 				return err
 			}
-			_, err = RunCMD(sudoStr, "apt", "update")
+			_, err = RunSudoCMD(config, "apt", "update")
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed to update")
 				return err
 			}
 		}
-
-		out, err = RunCMD(sudoStr, "apt", "-y", what, pkg) //"install" or "upgrade"
+		out, err = RunSudoCMD(config, "apt", "-y", what, pkg) //"install" or "upgrade"
 		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out, "package": pkg}).
 				WithError(err).Errorf("unable to %s package", what)
 			return err
 		}
 	}
-
 	log.WithContext(ctx).Infof("Packages %sed", what)
 	return nil
 }
@@ -887,14 +880,7 @@ func addGoogleRepo(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	var sudoStr string
-	if len(config.UserPw) > 0 {
-		sudoStr = "echo" + config.UserPw + "| sudo -S"
-	} else {
-		sudoStr = "sudo"
-	}
-
-	_, err = RunCMD(sudoStr, "apt-key", "add", "/tmp/google-key.pub")
+	_, err = RunSudoCMD(config, "apt-key", "add", "/tmp/google-key.pub")
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to add google ssl key")
 		return err
@@ -909,7 +895,7 @@ func addGoogleRepo(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	_, err = RunCMD(sudoStr, "mv", "/tmp/google-chrome.list", constants.UbuntuSourceListPath)
+	_, err = RunSudoCMD(config, "mv", "/tmp/google-chrome.list", constants.UbuntuSourceListPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to move /tmp/google-chrome.list to " + constants.UbuntuSourceListPath)
 		return err

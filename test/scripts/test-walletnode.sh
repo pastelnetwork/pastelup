@@ -111,9 +111,12 @@ ensureExecutableUpdated $rqServiceExecPath $rqServiceLastModified "rq-service"
 ensureExecutableUpdated $walletNodeServiceExecPath $walletNodeLastModified "walletnode-service"
 
 # verify archive worked
-archiveCount=$(ls -a ~/.pastel_archives | wc -l)
+archiveCount=$(ls -a ~/.pastel_archives | grep .pastel_archive_ | wc -l)
 echo "archive count is: $archiveCount"
-if [ "$archiveCount" -ge "4" ];  # should have 2 for . & .. dirs + 2 archive dirs
+ # should have 2 archive dirs ->
+ #      1. from update node 
+ #      2. from update walletnode
+if [ "$archiveCount" -eq "2" ]; 
 then
     printf "${GREEN}validated archive creation${NC}\n"
 else

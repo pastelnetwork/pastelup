@@ -14,12 +14,11 @@ RUN go build .
 FROM ubuntu:20.04
 ARG GOLANG_WORK_DIR=/go/src/github.com/pasetlnetwork/pastelup/
 
-# TODO: remove vim (used for testing)
-RUN apt-get update && apt-get install -y git wget curl sudo gnupg2 libgomp1 jq vim
+RUN apt-get update && apt-get install -y git wget curl sudo gnupg2 libgomp1 jq
 RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata
 
 ENV USR_PW="ubuntu"
-RUN useradd -rm -d /home/ubuntu -s /bin/bash -g root -G sudo -u 1001 ubuntu -p "$(openssl passwd -1 ubuntu)"
+RUN useradd -rm -d /home/ubuntu -s /bin/bash -g root -G sudo -u 1001 ubuntu -p "$(openssl passwd -1 $USR_PW)"
 
 USER ubuntu
 WORKDIR /home/ubuntu

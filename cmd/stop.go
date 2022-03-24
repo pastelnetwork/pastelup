@@ -264,7 +264,7 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 		}
 		log.WithContext(ctx).Infof("%s stopped", string(service))
 	}
-	if len(servicesToStop) == 0 {
+	if len(servicesToStop) == 0 || config.Force {
 		return nil
 	}
 	question := fmt.Sprintf("To perform this update, we need to kill these services: %v. Is this ok? Y/N", servicesToStop)

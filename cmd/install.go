@@ -728,10 +728,11 @@ func checkInstallDir(ctx context.Context, config *configs.Config, installPath st
 		if config.OpMode == "install" {
 			log.WithContext(ctx).Infof("Directory %s already exists...", installPath)
 		}
-
-		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("%s will overwrite content of %s. Do you want continue? Y/N", opMode, installPath)); !yes {
-			log.WithContext(ctx).Info("Operation canceled by user. Exiting...")
-			return fmt.Errorf("user terminated installation...")
+		if !config.Force {
+			if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("%s will overwrite content of %s. Do you want continue? Y/N", opMode, installPath)); !yes {
+				log.WithContext(ctx).Info("Operation canceled by user. Exiting...")
+				return fmt.Errorf("user terminated installation...")
+			}
 		}
 		config.Force = true
 		return nil
@@ -798,10 +799,11 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		len(packagesToUpdate) != 0 {
 
 		pkgsUpdStr := strings.Join(packagesToUpdate, ",")
-
-		if yes, _ := AskUserToContinue(ctx, "Some system packages ["+pkgsUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
-			log.WithContext(ctx).Warn("Exiting...")
-			return fmt.Errorf("user terminated installation")
+		if !config.Force {
+			if yes, _ := AskUserToContinue(ctx, "Some system packages ["+pkgsUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
+				log.WithContext(ctx).Warn("Exiting...")
+				return fmt.Errorf("user terminated installation")
+			}
 		}
 
 		if err := installOrUpgradePackagesLinux(ctx, config, "upgrade", packagesToUpdate); err != nil {
@@ -817,12 +819,12 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	}
 
 	pkgsMissStr := strings.Join(packagesMissing, ",")
-
-	if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+pkgsMissStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
-		log.WithContext(ctx).Warn("Exiting...")
-		return fmt.Errorf("user terminated installation")
+	if !config.Force {
+		if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+pkgsMissStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
+			log.WithContext(ctx).Warn("Exiting...")
+			return fmt.Errorf("user terminated installation")
+		}
 	}
-
 	return installOrUpgradePackagesLinux(ctx, config, "install", packagesMissing)
 }
 

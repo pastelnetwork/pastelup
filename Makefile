@@ -33,3 +33,16 @@ $(PLATFORMS):
 	#upx dist/$(BINARY)-$(os)-$(arch)$(ext)
 
 .PHONY: release $(PLATFORMS)
+
+build-test-img:
+	docker build -t pastel-test -f ./test/Dockerfile .
+
+test-walletnode:
+	docker rm pastel-walletnode-test || true
+	docker run \
+		--name pastel-walletnode-test \
+		--mount type=bind,source=${PWD}/test/scripts/test-walletnode.sh,target=/home/ubuntu/test-walletnode.sh \
+		--entrypoint '/bin/sh' \
+		pastel-test \
+		-c "./test-walletnode.sh"
+

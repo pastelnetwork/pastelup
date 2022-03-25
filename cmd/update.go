@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -95,11 +94,6 @@ func setupUpdateSubCommand(config *configs.Config,
 		}
 	}
 
-	superNodeFlags := []*cli.Flag{
-		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage(red("Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)")).SetRequired(),
-	}
-
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
 			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
@@ -111,8 +105,6 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(red("Required, password of remote user - so no sudo password request is prompted")).SetRequired(),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
-		cli.NewFlag("bin", &config.BinComponentPath).SetRequired().
-			SetUsage(red("Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file or a folder of binary to remote host")),
 	}
 
 	var commandName, commandMessage string
@@ -125,9 +117,6 @@ func setupUpdateSubCommand(config *configs.Config,
 	}
 
 	commandFlags := append(dirsFlags, commonFlags[:]...)
-	if updateCmd == updateSuperNode {
-		commandFlags = append(commandFlags, superNodeFlags...)
-	}
 	if remote {
 		commandFlags = append(commandFlags, remoteFlags[:]...)
 	}
@@ -175,13 +164,13 @@ func setupUpdateCommand() *cli.Command {
 	updateWNServiceSubCommand := setupUpdateSubCommand(config, updateWNService, false, runUpdateWNServiceSubCommand)
 	updateSNServiceSubCommand := setupUpdateSubCommand(config, updateSNService, false, runUpdateSNServiceSubCommand)
 
-	updateNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateNode, true, runUpdateRemoteSubCommand))
-	updateWalletNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateWalletNode, true, runUpdateRemoteSubCommand))
-	updateSuperNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateSuperNode, true, runUpdateRemoteSubCommand))
-	updateRQServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateRQService, true, runUpdateRemoteSubCommand))
-	updateDDServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateDDService, true, runUpdateRemoteSubCommand))
-	updateWNServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateWNService, true, runUpdateRemoteSubCommand))
-	updateSNServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateSNService, true, runUpdateRemoteSubCommand))
+	updateNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateNode, true, runUpdateRemoteNode))
+	updateWalletNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateWalletNode, true, runUpdateRemoteWalletNode))
+	updateSuperNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateSuperNode, true, runUpdateRemoteSuperNode))
+	updateRQServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateRQService, true, runUpdateRemoteRQService))
+	updateDDServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateDDService, true, runUpdateRemoteDDService))
+	updateWNServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateWNService, true, runUpdateRemoteWNService))
+	updateSNServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateSNService, true, runUpdateRemoteSNService))
 
 	// Add update command
 	updateCommand := cli.NewCommand("update")
@@ -197,138 +186,59 @@ func setupUpdateCommand() *cli.Command {
 
 	return updateCommand
 }
+func runUpdateRemoteNode(ctx context.Context, config *configs.Config) (err error) {
+	return runRemoteUpdate(ctx, config, "node")
+}
+func runUpdateRemoteWalletNode(ctx context.Context, config *configs.Config) (err error) {
+	return runRemoteUpdate(ctx, config, "walletnode")
+}
+func runUpdateRemoteSuperNode(ctx context.Context, config *configs.Config) (err error) {
+	return runRemoteUpdate(ctx, config, "supernode")
+}
+func runUpdateRemoteRQService(ctx context.Context, config *configs.Config) (err error) {
+	return runRemoteUpdate(ctx, config, "rq-service")
+}
+func runUpdateRemoteDDService(ctx context.Context, config *configs.Config) (err error) {
+	return runRemoteUpdate(ctx, config, "dd-service")
+}
+func runUpdateRemoteWNService(ctx context.Context, config *configs.Config) (err error) {
+	return runRemoteUpdate(ctx, config, "walletnode-service")
+}
+func runUpdateRemoteSNService(ctx context.Context, config *configs.Config) (err error) {
+	return runRemoteUpdate(ctx, config, "supernode-service")
+}
 
-func runUpdateRemoteSubCommand(ctx context.Context, config *configs.Config) (err error) {
+func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (err error) {
+	log.WithContext(ctx).Infof("Updating remote %s", tool)
 
-	// Connect to remote
-	client, err := prepareRemoteSession(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
-		return
+	updateOptions := tool
+
+	if len(config.PastelExecDir) > 0 {
+		updateOptions = fmt.Sprintf("%s --dir %s", updateOptions, config.PastelExecDir)
 	}
-	defer client.Close()
 
-	// in case config.BinComponentPath empty then execute command at remote host to upgrade supernode
-	if len(config.BinComponentPath) == 0 {
-		log.WithContext(ctx).Info("Upgrading supernode at remote host ...")
-
-		updateOptions := ""
-
-		if len(config.PastelExecDir) > 0 {
-			updateOptions = fmt.Sprintf("--dir %s", config.PastelExecDir)
-		}
-
-		if len(config.WorkingDir) > 0 {
-			updateOptions = fmt.Sprintf("%s --work-dir %s", updateOptions, config.WorkingDir)
-		}
-
-		if config.Force {
-			updateOptions = fmt.Sprintf("%s --force", updateOptions)
-		}
-
-		if len(config.UserPw) > 0 {
-			updateOptions = fmt.Sprintf("--user-pw %s", config.UserPw)
-		}
-
-		if len(flagMasterNodeName) > 0 {
-			updateOptions = fmt.Sprintf("%s --name %s", updateOptions, flagMasterNodeName)
-		}
-
-		if len(config.Version) > 0 {
-			updateOptions = fmt.Sprintf("%s --release=%s", updateOptions, config.Version)
-		}
-
-		updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update supernode %s", constants.RemotePastelupPath, updateOptions)
-		err = client.ShellCmd(ctx, updateSuperNodeCmd)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to update Supernode services")
-			return err
-		}
-
-	} else {
-		/* Stop supernode services using pastelup */
-		log.WithContext(ctx).Info("Stopping Supernode service ...")
-
-		remoteOptions := ""
-
-		if len(config.PastelExecDir) > 0 {
-			remoteOptions = fmt.Sprintf("--dir %s", config.PastelExecDir)
-		}
-
-		if len(config.WorkingDir) > 0 {
-			remoteOptions = fmt.Sprintf("%s --work-dir %s", remoteOptions, config.WorkingDir)
-		}
-
-		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode %s", constants.RemotePastelupPath, remoteOptions)
-		err = client.ShellCmd(ctx, stopSuperNodeCmd)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to stop Supernode services")
-			return err
-		}
-
-		log.WithContext(ctx).Info("Successfully stop supernode at remote host")
-
-		/* Copy the binary (pastel-cli, pasteld, pastel-cli, rq-service, supernode) from local folder to remote location to overwrite binary */
-		fileInfo, err := os.Stat(config.BinComponentPath)
-		if err != nil {
-			return err
-		}
-
-		if fileInfo.IsDir() {
-			log.WithContext(ctx).Infof("Copying all files in %s to remote host %s", config.BinComponentPath, config.PastelExecDir)
-			files, err := ioutil.ReadDir(config.BinComponentPath)
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to read directory ", config.BinComponentPath)
-				return err
-			}
-
-			for _, file := range files {
-				log.WithContext(ctx).Infof("Copying %s to remote host %s", file.Name(), config.PastelExecDir)
-				sourceBin := filepath.Join(config.BinComponentPath, file.Name())
-				destBin := filepath.Join(config.PastelExecDir, file.Name())
-
-				if err := client.Scp(sourceBin, destBin); err != nil {
-					log.WithContext(ctx).WithError(err).Error("Failed to copy file ", file.Name())
-					return err
-				}
-
-				// chmod +x for the copied file
-				if err := client.ShellCmd(ctx, destBin); err != nil {
-					log.WithContext(ctx).WithError(err).Error("Failed to chmod +x file ", file.Name())
-					return err
-				}
-			}
-		} else {
-			log.WithContext(ctx).Infof("Copying file %s to %s at remote host", config.BinComponentPath, config.PastelExecDir)
-			destBin := filepath.Join(config.PastelExecDir, fileInfo.Name())
-			if err := client.Scp(config.BinComponentPath, destBin); err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to copy file ", fileInfo.Name())
-				return err
-			}
-
-			// chmod +x copied file
-			if err := client.ShellCmd(ctx, fmt.Sprintf("chmod +x %s", destBin)); err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to chmod +x file ", fileInfo.Name())
-				return err
-			}
-		}
-		log.WithContext(ctx).Info("Successfully copied app binary executable to remote host")
-
-		/* Start service supernode again */
-		log.WithContext(ctx).Info("Starting Supernode service ...")
-
-		if len(flagMasterNodeName) > 0 {
-			remoteOptions = fmt.Sprintf("--name=%s", flagMasterNodeName)
-		}
-
-		startSuperNodeCmd := fmt.Sprintf("%s start supernode %s", constants.RemotePastelupPath, remoteOptions)
-
-		err = client.ShellCmd(ctx, startSuperNodeCmd)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to start Supernode services")
-			return err
-		}
+	if len(config.WorkingDir) > 0 {
+		updateOptions = fmt.Sprintf("%s --work-dir %s", updateOptions, config.WorkingDir)
 	}
+
+	if config.Force {
+		updateOptions = fmt.Sprintf("%s --force", updateOptions)
+	}
+
+	if len(config.UserPw) > 0 {
+		updateOptions = fmt.Sprintf("--user-pw %s", config.UserPw)
+	}
+
+	if len(config.Version) > 0 {
+		updateOptions = fmt.Sprintf("%s --release=%s", updateOptions, config.Version)
+	}
+
+	updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update %s", constants.RemotePastelupPath, updateOptions)
+
+	if err := executeRemoteCommand(ctx, config, updateSuperNodeCmd, false); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update remote %s", tool)
+	}
+	log.WithContext(ctx).Infof("Remote %s updated", tool)
 
 	return nil
 }

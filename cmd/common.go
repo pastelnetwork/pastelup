@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	errors2 "github.com/pkg/errors"
-
 	"github.com/go-errors/errors"
 	ps "github.com/mitchellh/go-ps"
+	errors2 "github.com/pkg/errors"
+
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
@@ -532,4 +532,57 @@ func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.C
 	log.WithContext(ctx).Info("successfully install pastelup executable to remote host")
 
 	return client, nil
+}
+
+func executeRemoteCommand(ctx context.Context, config *configs.Config, command string, tryStop bool) error {
+	// Connect to remote
+	client, err := prepareRemoteSession(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
+		return fmt.Errorf("failed to prepare remote session: %v", err)
+	}
+	defer client.Close()
+
+	if tryStop {
+		if err = checkAndStopRemoteServices(ctx, config, client); err != nil {
+			return err
+		}
+	}
+
+	err = client.ShellCmd(ctx, command)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed while executing remote command")
+		return err
+	}
+
+	return nil
+}
+
+func checkAndStopRemoteServices(ctx context.Context, config *configs.Config, client *utils.Client) error {
+
+	checkIfRunningCommand := "ps afx | grep -E 'pasteld|rq-service|dd-service|supernode' | grep -v grep"
+	if out, _ := client.Cmd(checkIfRunningCommand).Output(); len(out) != 0 {
+		log.WithContext(ctx).Info("Supernode is running on remote host")
+
+		if yes, _ := AskUserToContinue(ctx,
+			"Do you want to stop it and continue? Y/N"); !yes {
+			log.WithContext(ctx).Warn("Exiting...")
+			return fmt.Errorf("user terminated installation")
+		}
+
+		log.WithContext(ctx).Info("Stopping supernode services...")
+		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", constants.RemotePastelupPath)
+		err := client.ShellCmd(ctx, stopSuperNodeCmd)
+		if err != nil {
+			if config.Force {
+				log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
+			} else {
+				log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
+				return err
+			}
+		} else {
+			log.WithContext(ctx).Info("Supernode stopped")
+		}
+	}
+	return nil
 }

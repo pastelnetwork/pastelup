@@ -252,16 +252,8 @@ func runInitColdHotSuperNodeSubCommand(ctx context.Context, config *configs.Conf
 }
 
 func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Infof("Initializing remote supernode")
 
-	// Connect to remote
-	client, err := prepareRemoteSession(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
-		return fmt.Errorf("failed to prepare remote session: %v", err)
-	}
-	defer client.Close()
-
-	// Start remote node
 	startOptions := ""
 
 	if len(flagMasterNodeName) > 0 {
@@ -334,13 +326,12 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 		startOptions = fmt.Sprintf("%s --work-dir=%s", startOptions, config.WorkingDir)
 	}
 
-	startSuperNodeCmd := fmt.Sprintf("%s start supernode %s", constants.RemotePastelupPath, startOptions)
-
-	err = client.ShellCmd(ctx, startSuperNodeCmd)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to start Supernode services")
+	initSuperNodeCmd := fmt.Sprintf("%s init supernode %s", constants.RemotePastelupPath, startOptions)
+	if err := executeRemoteCommand(ctx, config, initSuperNodeCmd, false); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to init remote Supernode services")
 		return err
 	}
+	log.WithContext(ctx).Infof("Remote supernode initialized")
 
 	return nil
 }

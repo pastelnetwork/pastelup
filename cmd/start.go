@@ -232,6 +232,9 @@ func setupStartCommand() *cli.Command {
 	startSNServiceRemoteCommand := setupStartSubCommand(config, snService, true, runRemoteSNServiceStartSubCommand)
 	startSNServiceCommand.AddSubcommands(startSNServiceRemoteCommand)
 
+	startMasternodeRemoteCommand := setupStartSubCommand(config, masterNode, true, runRemoteSNServiceStartSubCommand)
+	startMasternodeCommand.AddSubcommands(startMasternodeRemoteCommand)
+
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
 	startCommand.AddSubcommands(startNodeSubCommand)
@@ -310,9 +313,20 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 	}
 	log.WithContext(ctx).Info("Finished checking arguments!")
 
+	pastelDIsRunning := false
+	if CheckProcessRunning(constants.PastelD) {
+		log.WithContext(ctx).Infof("pasteld is already running")
+		if yes, _ := AskUserToContinue(ctx,
+			"Do you want to stop it and continue? Y/N"); !yes {
+			log.WithContext(ctx).Warn("Exiting...")
+			return fmt.Errorf("user terminated installation")
+		}
+		pastelDIsRunning = true
+	}
+
 	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
 		log.WithContext(ctx).Info("Prepare masternode parameters")
-		if err := prepareMasterNodeParameters(ctx, config); err != nil {
+		if err := prepareMasterNodeParameters(ctx, config, !pastelDIsRunning); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
 			return err
 		}
@@ -322,6 +336,13 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 		}
 		if err := createOrUpdateSuperNodeConfig(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
+			return err
+		}
+	}
+
+	if pastelDIsRunning {
+		if err := StopPastelDAndWait(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Cannot stop pasteld")
 			return err
 		}
 	}
@@ -392,19 +413,11 @@ func runRemoteSNServiceStartSubCommand(ctx context.Context, config *configs.Conf
 func runRemoteStart(ctx context.Context, config *configs.Config, tool string) error {
 	log.WithContext(ctx).Infof("Starting remote %s", tool)
 
-	// Connect to remote
-	client, err := prepareRemoteSession(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
-		return fmt.Errorf("failed to prepare remote session: %v", err)
-	}
-	defer client.Close()
-
 	// Start remote node
-	startOptions := ""
+	startOptions := tool
 
 	if len(flagMasterNodeName) > 0 {
-		startOptions = fmt.Sprintf("--name=%s", flagMasterNodeName)
+		startOptions = fmt.Sprintf("%s --name=%s", startOptions, flagMasterNodeName)
 	}
 
 	if flagMasterNodeIsActivate {
@@ -430,11 +443,10 @@ func runRemoteStart(ctx context.Context, config *configs.Config, tool string) er
 		startOptions = fmt.Sprintf("%s --work-dir=%s", startOptions, config.WorkingDir)
 	}
 
-	startSuperNodeCmd := fmt.Sprintf("%s start %s %s", constants.RemotePastelupPath, tool, startOptions)
+	startSuperNodeCmd := fmt.Sprintf("%s start %s", constants.RemotePastelupPath, startOptions)
 
-	err = client.ShellCmd(ctx, startSuperNodeCmd)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to start remote %s services", tool)
+	if err := executeRemoteCommand(ctx, config, startSuperNodeCmd, false); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to init remote Supernode services")
 		return err
 	}
 
@@ -698,7 +710,7 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 	pasteldArgs = append(pasteldArgs, "--daemon")
 	go RunCMD(pastelDPath, pasteldArgs...)
 
-	if !CheckPastelDRunning(ctx, config) {
+	if !WaitingForPastelDToStart(ctx, config) {
 		err = fmt.Errorf("pasteld was not started")
 		log.WithContext(ctx).WithError(err).Error("pasteld didn't start")
 		return err
@@ -820,7 +832,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 }
 
 ///// Run helpers
-func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (err error) {
+func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, startPasteld bool) (err error) {
 
 	// this function must only be called when --create or --update
 	if !flagMasterNodeIsCreate && !flagMasterNodeIsUpdate {
@@ -836,10 +848,12 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 		bReIndex = flagReIndex
 	}
 
-	log.WithContext(ctx).Infof("Starting pasteld")
-	if err = runPastelNode(ctx, config, bReIndex, flagNodeExtIP, ""); err != nil {
-		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
-		return err
+	if startPasteld {
+		log.WithContext(ctx).Infof("Starting pasteld")
+		if err = runPastelNode(ctx, config, bReIndex, flagNodeExtIP, ""); err != nil {
+			log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
+			return err
+		}
 	}
 
 	// Check masternode status
@@ -868,7 +882,13 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config) (e
 		return err
 	}
 
-	return StopPastelDAndWait(ctx, config)
+	if startPasteld {
+		if err = StopPastelDAndWait(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Cannot stop pasteld")
+			return err
+		}
+	}
+	return nil
 }
 
 func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Client) (err error) {

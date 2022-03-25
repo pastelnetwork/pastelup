@@ -192,12 +192,12 @@ func setupInstallCommand() *cli.Command {
 	installDDSubCommand := setupSubCommand(config, ddServiceInstall, false, runInstallDupeDetectionSubCommand)
 	installDDImgServerSubCommand := setupSubCommand(config, ddServiceImgServerInstall, false, runInstallDupeDetectionImgServerSubCommand)
 
-	installNodeSubCommand.AddSubcommands(setupSubCommand(config, nodeInstall, true, runRemoteInstallSubCommand))
-	installWalletNodeSubCommand.AddSubcommands(setupSubCommand(config, walletNodeInstall, true, runRemoteInstallSubCommand))
-	installSuperNodeSubCommand.AddSubcommands(setupSubCommand(config, superNodeInstall, true, runRemoteInstallSubCommand))
-	installRQSubCommand.AddSubcommands(setupSubCommand(config, rqServiceInstall, true, runRemoteInstallSubCommand))
-	installDDSubCommand.AddSubcommands(setupSubCommand(config, ddServiceInstall, true, runRemoteInstallSubCommand))
-	installDDImgServerSubCommand.AddSubcommands(setupSubCommand(config, ddServiceImgServerInstall, true, runRemoteInstallSubCommand))
+	installNodeSubCommand.AddSubcommands(setupSubCommand(config, nodeInstall, true, runRemoteInstallNode))
+	installWalletNodeSubCommand.AddSubcommands(setupSubCommand(config, walletNodeInstall, true, runRemoteInstallWalletNode))
+	installSuperNodeSubCommand.AddSubcommands(setupSubCommand(config, superNodeInstall, true, runRemoteInstallSuperNode))
+	installRQSubCommand.AddSubcommands(setupSubCommand(config, rqServiceInstall, true, runRemoteInstallRQService))
+	installDDSubCommand.AddSubcommands(setupSubCommand(config, ddServiceInstall, true, runRemoteInstallDDService))
+	installDDImgServerSubCommand.AddSubcommands(setupSubCommand(config, ddServiceImgServerInstall, true, runRemoteInstallImgServer))
 
 	installCommand := cli.NewCommand("install")
 	installCommand.SetUsage(blue("Performs installation and initialization of the system for both WalletNode and SuperNodes"))
@@ -245,44 +245,29 @@ func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *con
 	return installServices(ctx, appToServiceMap[constants.DDImgService], config)
 }
 
-func runRemoteInstallSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	// Connect to remote
-	client, err := prepareRemoteSession(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
-		return
-	}
-	defer client.Close()
+func runRemoteInstallNode(ctx context.Context, config *configs.Config) error {
+	return runRemoteInstall(ctx, config, "node")
+}
+func runRemoteInstallWalletNode(ctx context.Context, config *configs.Config) error {
+	return runRemoteInstall(ctx, config, "walletnode")
+}
+func runRemoteInstallSuperNode(ctx context.Context, config *configs.Config) error {
+	return runRemoteInstall(ctx, config, "supernode")
+}
+func runRemoteInstallRQService(ctx context.Context, config *configs.Config) error {
+	return runRemoteInstall(ctx, config, "rq-service")
+}
+func runRemoteInstallDDService(ctx context.Context, config *configs.Config) error {
+	return runRemoteInstall(ctx, config, "dd-service")
+}
+func runRemoteInstallImgServer(ctx context.Context, config *configs.Config) error {
+	return runRemoteInstall(ctx, config, "imgserver")
+}
 
-	// Validate running services
-	checkIfRunningCommand := "ps afx | grep -E 'pasteld|rq-service|dd-service|supernode' | grep -v grep"
-	if out, _ := client.Cmd(checkIfRunningCommand).Output(); len(out) != 0 {
-		log.WithContext(ctx).Info("Supernode is running on remote host")
+func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) (err error) {
+	log.WithContext(ctx).Infof("Installing remote %s", tool)
 
-		if yes, _ := AskUserToContinue(ctx,
-			"Do you want to stop it and continue? Y/N"); !yes {
-			log.WithContext(ctx).Warn("Exiting...")
-			return fmt.Errorf("user terminated installation")
-		}
-
-		log.WithContext(ctx).Info("Stopping supernode services...")
-		stopSuperNodeCmd := fmt.Sprintf("%s stop supernode ", constants.RemotePastelupPath)
-		err = client.ShellCmd(ctx, stopSuperNodeCmd)
-		if err != nil {
-			if config.Force {
-				log.WithContext(ctx).WithError(err).Warnf("failed to stop supernode: %v", err)
-			} else {
-				log.WithContext(ctx).WithError(err).Errorf("failed to stop supernode: %v", err)
-				return err
-			}
-		} else {
-			log.WithContext(ctx).Info("Supernode stopped")
-		}
-	}
-
-	log.WithContext(ctx).Info("Installing Supernode ...")
-
-	remoteOptions := ""
+	remoteOptions := tool
 	if len(config.PastelExecDir) > 0 {
 		remoteOptions = fmt.Sprintf("%s --dir=%s", remoteOptions, config.PastelExecDir)
 	}
@@ -317,14 +302,14 @@ func runRemoteInstallSubCommand(ctx context.Context, config *configs.Config) (er
 		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, config.UserPw)
 	}
 
-	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install supernode%s", constants.RemotePastelupPath, remoteOptions)
-	err = client.ShellCmd(ctx, installSuperNodeCmd)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to Installing Supernode")
+	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install %s", constants.RemotePastelupPath, remoteOptions)
+
+	if err = executeRemoteCommand(ctx, config, installSuperNodeCmd, true); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to install remote %s", tool)
 		return err
 	}
 
-	log.WithContext(ctx).Info("Finished Installing Supernode Successfully")
+	log.WithContext(ctx).Infof("Finished remote installation of %s", tool)
 	return nil
 }
 

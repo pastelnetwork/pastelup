@@ -171,31 +171,29 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 	log.WithContext(ctx).Info("Suppernode stopped successfully")
 }
 
-// special handling for remote command
 func runStopSuperNodeRemoteSubCommand(ctx context.Context, config *configs.Config) {
-	// Connect to remote
-	client, err := prepareRemoteSession(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
-		return
-	}
-	defer client.Close()
-	// Execute stop remote supernode
-	log.WithContext(ctx).Info("Executing stop remote supernode...")
-	stopOptions := ""
+	runRemoteStop(ctx, config, "supernode")
+}
+
+// special handling for remote command
+func runRemoteStop(ctx context.Context, config *configs.Config, tool string) {
+	log.WithContext(ctx).Infof("Stopping remote %s", tool)
+
+	stopOptions := tool
 	if len(config.PastelExecDir) > 0 {
-		stopOptions = fmt.Sprintf("--dir %s", config.PastelExecDir)
+		stopOptions = fmt.Sprintf("%s --dir %s", stopOptions, config.PastelExecDir)
 	}
 	if len(config.WorkingDir) > 0 {
 		stopOptions = fmt.Sprintf("%s --work-dir %s", stopOptions, config.WorkingDir)
 	}
-	stopSuperNodeCmd := fmt.Sprintf("%s stop supernode %s", constants.RemotePastelupPath, stopOptions)
-	if err := client.ShellCmd(ctx, stopSuperNodeCmd); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to execute stop supernode on remote host")
-		return
+
+	stopSuperNodeCmd := fmt.Sprintf("%s stop %s", constants.RemotePastelupPath, stopOptions)
+
+	if err := executeRemoteCommand(ctx, config, stopSuperNodeCmd, false); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to init remote Supernode services")
 	}
 
-	log.WithContext(ctx).Info("Suppernode stopped successfully")
+	log.WithContext(ctx).Infof("Remote %s stopped successfully", tool)
 }
 
 func runStopAllSubCommand(ctx context.Context, config *configs.Config) {

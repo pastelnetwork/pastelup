@@ -51,26 +51,6 @@ var (
 		updateSNService:  "Update Supernode service only",
 		updateRemote:     "Update on Remote host",
 	}
-	updateServicesToStop = map[constants.ToolType][]constants.ToolType{
-		constants.PastelD: {constants.PastelD},
-		constants.WalletNode: {
-			constants.PastelD,
-			constants.WalletNode,
-			constants.RQService,
-		},
-		constants.SuperNode: {
-			constants.PastelD,
-			constants.SuperNode,
-			constants.DDService,
-			constants.DDImgService,
-			constants.RQService,
-		},
-		constants.DDService: {
-			constants.DDService,
-			constants.DDImgService,
-		},
-		constants.RQService: {constants.RQService},
-	}
 )
 
 func setupUpdateSubCommand(config *configs.Config,
@@ -87,9 +67,10 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
-
 		cli.NewFlag("clean", &config.Clean).SetAliases("c").
 			SetUsage(green("Optional, Clean .pastel folder")),
+		cli.NewFlag("user-pw", &config.UserPw).
+			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -112,11 +93,6 @@ func setupUpdateSubCommand(config *configs.Config,
 			cli.NewFlag("archive-dir", &config.ArchiveDir).
 				SetUsage(green("Optional, Location where to store archived backup before update on the remote computer (default: $HOME/.pastel_archive)")),
 		}
-	}
-
-	userFlags := []*cli.Flag{
-		cli.NewFlag("user-pw", &config.UserPw).
-			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	superNodeFlags := []*cli.Flag{
@@ -154,8 +130,6 @@ func setupUpdateSubCommand(config *configs.Config,
 	}
 	if remote {
 		commandFlags = append(commandFlags, remoteFlags[:]...)
-	} else if updateCmd == updateSuperNode {
-		commandFlags = append(commandFlags, userFlags...)
 	}
 
 	subCommand := cli.NewCommand(commandName)
@@ -499,8 +473,7 @@ func archiveDDDir(ctx context.Context, config *configs.Config) error {
 	if err := archiveDir(ctx, config, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
 		return err
-	} else {
-		log.WithContext(ctx).Info(fmt.Sprintf("%v directory archived", dirToArchive))
-		return nil
 	}
+	log.WithContext(ctx).Info(fmt.Sprintf("%v directory archived", dirToArchive))
+	return nil
 }

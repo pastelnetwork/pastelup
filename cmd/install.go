@@ -221,7 +221,7 @@ func runInstallWalletNodeSubCommand(ctx context.Context, config *configs.Config)
 func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	if utils.GetOS() != constants.Linux {
 		log.WithContext(ctx).Error("Supernode can only be installed on Linux")
-		return fmt.Errorf("Supernode can only be installed on Linux. You are on: %s", string(utils.GetOS()))
+		return fmt.Errorf("supernode can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
 	return runServicesInstall(ctx, config, constants.SuperNode, true)
 }
@@ -233,7 +233,7 @@ func runInstallRaptorQSubCommand(ctx context.Context, config *configs.Config) er
 func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Config) error {
 	if utils.GetOS() != constants.Linux {
 		log.WithContext(ctx).Error("Dupe Detection service can only be installed on Linux")
-		return fmt.Errorf("Dupe Detection service can only be installed on Linux. You are on: %s", string(utils.GetOS()))
+		return fmt.Errorf("dupe Detection service can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
 	return runServicesInstall(ctx, config, constants.DDService, false)
 }
@@ -348,6 +348,9 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 			sm.StopService(ctx, constants.PastelD)
 			RunPastelCLI(ctx, config, "stop")
 			time.Sleep(10 * time.Second) // buffer period to stop
+			// ensure the process is killed else will run into a text file busy error
+			// when installing latest executable
+			KillProcess(ctx, constants.PastelD)
 			log.WithContext(ctx).Info("pasteld stopped or was not running")
 		}
 	}
@@ -728,16 +731,17 @@ func checkInstallDir(ctx context.Context, config *configs.Config, installPath st
 		if config.OpMode == "install" {
 			log.WithContext(ctx).Infof("Directory %s already exists...", installPath)
 		}
-
-		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("%s will overwrite content of %s. Do you want continue? Y/N", opMode, installPath)); !yes {
-			log.WithContext(ctx).Info("Operation canceled by user. Exiting...")
-			return fmt.Errorf("user terminated installation...")
+		if !config.Force {
+			if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("%s will overwrite content of %s. Do you want continue? Y/N", opMode, installPath)); !yes {
+				log.WithContext(ctx).Info("operation canceled by user. Exiting...")
+				return fmt.Errorf("user terminated installation")
+			}
 		}
 		config.Force = true
 		return nil
 	} else if config.OpMode == "update" {
 		log.WithContext(ctx).Infof("Previous installation doesn't exist at %s. Noting to update. Exiting...", config.PastelExecDir)
-		return fmt.Errorf("nothing to update. Exiting...")
+		return fmt.Errorf("nothing to update. Exiting")
 	}
 
 	if err := utils.CreateFolder(ctx, installPath, config.Force); err != nil {
@@ -798,10 +802,11 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		len(packagesToUpdate) != 0 {
 
 		pkgsUpdStr := strings.Join(packagesToUpdate, ",")
-
-		if yes, _ := AskUserToContinue(ctx, "Some system packages ["+pkgsUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
-			log.WithContext(ctx).Warn("Exiting...")
-			return fmt.Errorf("user terminated installation")
+		if !config.Force {
+			if yes, _ := AskUserToContinue(ctx, "Some system packages ["+pkgsUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
+				log.WithContext(ctx).Warn("Exiting...")
+				return fmt.Errorf("user terminated installation")
+			}
 		}
 
 		if err := installOrUpgradePackagesLinux(ctx, config, "upgrade", packagesToUpdate); err != nil {
@@ -817,12 +822,12 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	}
 
 	pkgsMissStr := strings.Join(packagesMissing, ",")
-
-	if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+pkgsMissStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
-		log.WithContext(ctx).Warn("Exiting...")
-		return fmt.Errorf("user terminated installation")
+	if !config.Force {
+		if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+pkgsMissStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
+			log.WithContext(ctx).Warn("Exiting...")
+			return fmt.Errorf("user terminated installation")
+		}
 	}
-
 	return installOrUpgradePackagesLinux(ctx, config, "install", packagesMissing)
 }
 
@@ -833,20 +838,12 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
 		Infof("system will now %s packages", what)
 
-	var sudoStr string
-	if len(config.UserPw) > 0 {
-		sudoStr = "echo" + config.UserPw + "| sudo -S"
-	} else {
-		sudoStr = "sudo"
-	}
-
 	// Update repo
-	_, err = RunCMD(sudoStr, "apt", "update")
+	_, err = RunSudoCMD(config, "apt", "update")
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update")
 		return err
 	}
-
 	for _, pkg := range pkgs {
 		log.WithContext(ctx).Infof("%sing package %s", what, pkg)
 
@@ -855,21 +852,19 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 				log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
 				return err
 			}
-			_, err = RunCMD(sudoStr, "apt", "update")
+			_, err = RunSudoCMD(config, "apt", "update")
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed to update")
 				return err
 			}
 		}
-
-		out, err = RunCMD(sudoStr, "apt", "-y", what, pkg) //"install" or "upgrade"
+		out, err = RunSudoCMD(config, "apt", "-y", what, pkg) //"install" or "upgrade"
 		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out, "package": pkg}).
 				WithError(err).Errorf("unable to %s package", what)
 			return err
 		}
 	}
-
 	log.WithContext(ctx).Infof("Packages %sed", what)
 	return nil
 }
@@ -885,14 +880,7 @@ func addGoogleRepo(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	var sudoStr string
-	if len(config.UserPw) > 0 {
-		sudoStr = "echo" + config.UserPw + "| sudo -S"
-	} else {
-		sudoStr = "sudo"
-	}
-
-	_, err = RunCMD(sudoStr, "apt-key", "add", "/tmp/google-key.pub")
+	_, err = RunSudoCMD(config, "apt-key", "add", "/tmp/google-key.pub")
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to add google ssl key")
 		return err
@@ -907,7 +895,7 @@ func addGoogleRepo(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	_, err = RunCMD(sudoStr, "mv", "/tmp/google-chrome.list", constants.UbuntuSourceListPath)
+	_, err = RunSudoCMD(config, "mv", "/tmp/google-chrome.list", constants.UbuntuSourceListPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to move /tmp/google-chrome.list to " + constants.UbuntuSourceListPath)
 		return err

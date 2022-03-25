@@ -7,6 +7,7 @@ export GOSUMDB ?= sum.golang.org
 # Applications name
 CGO    ?= 0
 BINARY ?= pastelup
+TEST_IMG = pastel-test
 
 # Version
 VERSION = $(shell git describe --tag)
@@ -35,14 +36,42 @@ $(PLATFORMS):
 .PHONY: release $(PLATFORMS)
 
 build-test-img:
-	docker build -t pastel-test -f ./test/Dockerfile .
+	docker build -t $(TEST_IMG) -f ./test/Dockerfile .
+
+build-test-img-tmp:
+	docker build -t $(TEST_IMG)-tmp -f ./test/Dockerfile-tmp .
 
 test-walletnode:
-	docker rm pastel-walletnode-test || true
+	$(eval CONTAINER_NAME := "pastel-walletnode-test")
+	$(eval SCRIPT := "test-walletnode.sh")
+	docker rm $(CONTAINER_NAME) || true
 	docker run \
-		--name pastel-walletnode-test \
-		--mount type=bind,source=${PWD}/test/scripts/test-walletnode.sh,target=/home/ubuntu/test-walletnode.sh \
+		--name $(CONTAINER_NAME) \
+		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
 		--entrypoint '/bin/sh' \
-		pastel-test \
-		-c "./test-walletnode.sh"
+		$(TEST_IMG) \
+		-c "./$(SCRIPT)"
 
+test-local-supernode:
+	$(eval CONTAINER_NAME := "pastel-local-supernode-test")
+	$(eval SCRIPT := "test-local-supernode.sh")
+	docker rm $(CONTAINER_NAME) || true
+	docker exec -it \
+		--name $(CONTAINER_NAME) \
+		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
+		--expose=19933 \
+		--entrypoint '/bin/sh' \
+		$(TEST_IMG)-tmp \
+		-c "./$(SCRIPT)"
+
+test-local-supernode-service:
+	$(eval CONTAINER_NAME := "pastel-local-supernode-service-test")
+	$(eval SCRIPT := "test-local-supernode.sh")
+	docker rm $(CONTAINER_NAME) || true
+	docker exec -it \
+		--name $(CONTAINER_NAME) \
+		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
+		--expose=19933 \
+		--entrypoint '/bin/sh' \
+		$(TEST_IMG) \
+		-c "./$(SCRIPT) --enable-service"

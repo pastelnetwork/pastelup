@@ -185,16 +185,26 @@ func runInfoSubCommand( /*ctx*/ _ context.Context, config *configs.Config) error
 		log.Infof("OS: %s", utils.GetOS())
 
 		pastelProcNames := make(map[string]bool)
+		pastelProcNamesShort := make(map[string]bool)
 		for _, tool := range pastelTools {
 			name := constants.ServiceName[tool][utils.GetOS()]
+			pastelProcNames[name] = true
+
 			short := int(math.Min(15, float64(len(name))))
 			shortName := name[:short]
-			pastelProcNames[shortName] = true
+			pastelProcNamesShort[shortName] = true
 		}
+		// for old SN installations
+		pastelProcNames["supernode-ubunt"] = true
+		pastelProcNames["rq-service-ubun"] = true
+
+		//dd and img-server
+		pastelProcNames["python3"] = true //TODO - get command line parameters and check for `dupe_detection_server.py`
+		pastelProcNames["start_dd_img_se"] = true
 
 		memInfo := getMemoryInfo()
 		fsInfo := getFSInfo()
-		procInfo := getPastelProcessesInfo(&pastelProcNames)
+		procInfo := getPastelProcessesInfo(&pastelProcNames, &pastelProcNamesShort)
 
 		if flagOutput == "json" {
 			j := pastelInfo{
@@ -259,7 +269,7 @@ func runRemoteInfoSubCommand(ctx context.Context, config *configs.Config) error 
 	return nil
 }
 
-func getPastelProcessesInfo(procNames *map[string]bool) []processInfo {
+func getPastelProcessesInfo(procNames *map[string]bool, procNamesShort *map[string]bool) []processInfo {
 	pids := sigar.ProcList{}
 	pids.Get()
 
@@ -271,36 +281,44 @@ func getPastelProcessesInfo(procNames *map[string]bool) []processInfo {
 		}
 		found := false
 		if _, found = (*procNames)[state.Name]; !found {
-			continue
+			if _, found = (*procNamesShort)[state.Name]; !found {
+				continue
+			}
 		}
 
+		//fmt.Fprintf(os.Stdout, "%s\n", state.Name)
+
+		var dir, vmem, rmem, stime, rtime, cpup string
+		file := state.Name
 		exe := sigar.ProcExe{}
-		if err := exe.Get(pid); err != nil {
-			continue
+		if err := exe.Get(pid); err == nil {
+			dir, file = filepath.Split(exe.Name)
 		}
+
 		mem := sigar.ProcMem{}
-		if err := mem.Get(pid); err != nil {
-			continue
+		if err := mem.Get(pid); err == nil {
+			vmem = strconv.Itoa(int(mem.Size / 1024))
+			rmem = strconv.Itoa(int(mem.Resident / 1024))
 		}
 		time := sigar.ProcTime{}
-		if err := time.Get(pid); err != nil {
-			continue
+		if err := time.Get(pid); err == nil {
+			stime = time.FormatStartTime()
+			rtime = time.FormatTotal()
 		}
 		cpu := sigar.ProcCpu{}
-		if err := cpu.Get(pid); err != nil {
-			continue
+		if err := cpu.Get(pid); err == nil {
+			cpup = strconv.Itoa(int(cpu.Percent))
 		}
 
-		dir, file := filepath.Split(exe.Name)
 		procInfo = append(procInfo, processInfo{
 			Pid:       strconv.Itoa(pid),
 			Process:   file,
 			Path:      dir,
-			Virtmem:   strconv.Itoa(int(mem.Size / 1024)),
-			Rmem:      strconv.Itoa(int(mem.Resident / 1024)),
-			Starttime: time.FormatStartTime(),
-			Runtime:   time.FormatTotal(),
-			Cpu:       strconv.Itoa(int(cpu.Percent)),
+			Virtmem:   vmem,
+			Rmem:      rmem,
+			Starttime: stime,
+			Runtime:   rtime,
+			Cpu:       cpup,
 		})
 	}
 	return procInfo

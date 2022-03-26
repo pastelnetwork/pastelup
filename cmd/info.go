@@ -22,9 +22,10 @@ import (
 )
 
 var (
-	flagHostInfo   bool
-	flagPastelInfo bool
-	flagOutput     string
+	flagHostInfo      bool
+	flagPastelInfo    bool
+	flagOutput        string
+	flagInventoryFile string
 )
 
 var (
@@ -41,7 +42,7 @@ var (
 type processInfo struct {
 	Process   string
 	Pid       string
-	Cpu       string
+	CPU       string
 	Virtmem   string
 	Rmem      string
 	Starttime string
@@ -105,13 +106,15 @@ func setupInfoSubCommand(config *configs.Config,
 
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
-			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
+			SetUsage(red("Required (if `inventory` is not used), SSH address of the remote host")),
 		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, Username of user at remote host")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
+		cli.NewFlag("inventory", &flagInventoryFile).
+			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
 	}
 
 	var commandName, commandMessage string
@@ -239,7 +242,7 @@ func runInfoSubCommand( /*ctx*/ _ context.Context, config *configs.Config) error
 func runRemoteInfoSubCommand(ctx context.Context, config *configs.Config) error {
 	infoOptions := ""
 	if flagHostInfo {
-		infoOptions = fmt.Sprint(" --host")
+		infoOptions = " --host"
 	}
 	if flagPastelInfo {
 		infoOptions = fmt.Sprintf("%s --pastel", infoOptions)
@@ -250,8 +253,49 @@ func runRemoteInfoSubCommand(ctx context.Context, config *configs.Config) error 
 
 	infoCmd := fmt.Sprintf("%s info %s", constants.RemotePastelupPath, infoOptions)
 
-	if err := executeRemoteCommand(ctx, config, infoCmd, false); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to get info from remote host")
+	if len(flagInventoryFile) > 0 {
+		inv, err := configs.ReadInventory(flagInventoryFile)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to get read inventory file")
+		}
+		for _, sg := range inv.ServerGroups {
+			log.Infof(green("=== Accessing info from %s ==="), sg.Name)
+
+			if len(sg.Common.User) > 0 {
+				config.RemoteUser = sg.Common.User
+			}
+			if sg.Common.Port != 0 {
+				config.RemotePort = sg.Common.Port
+			}
+			if len(sg.Common.IdentityFile) > 0 {
+				config.RemoteSSHKey = sg.Common.IdentityFile
+			}
+			for _, srv := range sg.Servers {
+				log.Infof(green("=== Info from %s ==="), srv.Name)
+				if len(srv.User) > 0 {
+					config.RemoteUser = srv.User
+				}
+				if srv.Port != 0 {
+					config.RemotePort = srv.Port
+				}
+				if len(srv.IdentityFile) > 0 {
+					config.RemoteSSHKey = srv.IdentityFile
+				}
+				config.RemoteIP = srv.Host
+				if config.RemotePort == 0 {
+					config.RemotePort = 22
+				}
+				if err := executeRemoteCommand(ctx, config, infoCmd, false); err != nil {
+					log.WithContext(ctx).WithError(err).Error("Failed to get info from remote host %s"+
+						" [IP:%s; Port:%d; User:%s; KeyFile:%s; ]",
+						srv.Name, config.RemoteIP, config.RemotePort, config.RemoteUser, config.RemoteSSHKey)
+				}
+			}
+		}
+	} else {
+		if err := executeRemoteCommand(ctx, config, infoCmd, false); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to get info from remote host")
+		}
 	}
 
 	//var info []processInfo
@@ -318,7 +362,7 @@ func getPastelProcessesInfo(procNames *map[string]bool, procNamesShort *map[stri
 			Rmem:      rmem,
 			Starttime: stime,
 			Runtime:   rtime,
-			Cpu:       cpup,
+			CPU:       cpup,
 		})
 	}
 	return procInfo
@@ -340,7 +384,7 @@ func printProcessInfo(info []processInfo) {
 		table.Append([]string{
 			process.Process,
 			process.Pid,
-			process.Cpu,
+			process.CPU,
 			process.Virtmem,
 			process.Rmem,
 			process.Starttime,
@@ -411,10 +455,10 @@ func getFSInfo() []filesystemInfo {
 			continue
 		}
 
-		dir_name := fs.DirName
+		dirName := fs.DirName
 
 		usage := sigar.FileSystemUsage{}
-		usage.Get(dir_name)
+		usage.Get(dirName)
 
 		fsInfo = append(fsInfo, filesystemInfo{
 			Filesystem: fs.DevName,
@@ -422,7 +466,7 @@ func getFSInfo() []filesystemInfo {
 			Used:       formatSize(usage.Used),
 			Avail:      formatSize(usage.Avail),
 			Use:        sigar.FormatPercent(usage.UsePercent()),
-			Mounted:    dir_name,
+			Mounted:    dirName,
 		})
 	}
 	return fsInfo

@@ -1,0 +1,22 @@
+---
+  server-groups:
+  -
+    name: testnet
+    common:
+#      identity-file: <PATH to KEY File>
+      user: testnet
+    servers:
+      - name: tmn1
+        host: 18.221.2.126
+      - name: tmn2
+        host: 3.144.158.215
+      - name: tmn3
+        host: 18.118.156.158
+      - name: tmn4
+        host: 18.118.218.104
+      - name: tmn5
+        host: 18.222.224.103
+      - name: tmn6
+        host: 18.191.214.151
+      - name: tmn7
+        host: 52.15.244.16

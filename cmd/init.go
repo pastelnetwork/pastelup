@@ -65,19 +65,19 @@ func setupInitSubCommand(config *configs.Config,
 
 	var dirsFlags []*cli.Flag
 
-	if !remote {
+	if remote && initCommand != coldHotInit {
+		dirsFlags = []*cli.Flag{
+			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
+				SetUsage(green("Optional, Location of pastel node directory on the remote computer")).SetValue("$HOME/pastel"),
+			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+				SetUsage(green("Optional, Location of working directory on the remote computer")).SetValue("$HOME/.pastel"),
+		}
+	} else {
 		dirsFlags = []*cli.Flag{
 			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
 				SetUsage(green("Optional, Location of pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 				SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
-		}
-	} else {
-		dirsFlags = []*cli.Flag{
-			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/pastel)")),
-			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/.pastel)")),
 		}
 	}
 
@@ -135,6 +135,10 @@ func setupInitSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
+		cli.NewFlag("remote-dir", &config.RemoteHotPastelExecDir).
+			SetUsage(green("Optional, Location where of pastel node directory on the remote computer")).SetValue("$HOME/pastel"),
+		cli.NewFlag("remote-work-dir", &config.RemoteHotWorkingDir).
+			SetUsage(green("Optional, Location of working directory on the remote computer")).SetValue("$HOME/.pastel"),
 	}
 
 	var commandName, commandMessage string

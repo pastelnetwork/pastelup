@@ -909,8 +909,8 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 				log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
 				return err
 			}
-		} else {
-			pastelcliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
+		} else { //client is not nil when called from ColdHot Init
+			pastelcliPath := filepath.Join(config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
 			out, err := client.Cmd(fmt.Sprintf("%s %s %s", pastelcliPath, "pastelid newkey",
 				flagMasterNodePassPhrase)).Output()
 			if err != nil {
@@ -943,8 +943,8 @@ func checkMasternodePrivKey(ctx context.Context, config *configs.Config, client 
 				log.WithContext(ctx).WithError(err).Error("Failed to generate new masternode private key")
 				return err
 			}
-		} else {
-			pastelcliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
+		} else { //client is not nil when called from ColdHot Init
+			pastelcliPath := filepath.Join(config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
 			cmd := fmt.Sprintf("%s %s", pastelcliPath, "masternode genkey")
 			out, err := client.Cmd(cmd).Output()
 			if err != nil {

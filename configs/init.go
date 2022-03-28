@@ -20,11 +20,13 @@ type Init struct {
 	Legacy        bool   `json:"legacy,omitempty"`
 
 	// Configs for remote session
-	RemoteIP      string `json:"remote-ip,omitempty"`
-	RemotePort    int    `json:"remote-port,omitempty"`
-	RemoteUser    string `json:"remote-user,omitempty"`
-	RemoteSSHKey  string `json:"remote-ssh-key,omitempty"`
-	InventoryFile string `json:"inventory-file,omitempty"`
+	RemoteHotWorkingDir    string `json:"remoteworkingdir,omitempty"`
+	RemoteHotPastelExecDir string `json:"remotepastelexecdir,omitempty"`
+	RemoteIP               string `json:"remote-ip,omitempty"`
+	RemotePort             int    `json:"remote-port,omitempty"`
+	RemoteUser             string `json:"remote-user,omitempty"`
+	RemoteSSHKey           string `json:"remote-ssh-key,omitempty"`
+	InventoryFile          string `json:"inventory-file,omitempty"`
 }
 
 /*

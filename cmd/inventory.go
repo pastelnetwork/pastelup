@@ -56,7 +56,7 @@ func (i *Inventory) Read(path string) error {
 // ExecuteCommands executes commands on all hosts from inventory
 func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config, commands []string) error {
 	for _, sg := range i.ServerGroups {
-		fmt.Printf(green("\n********** Accessing info from %s **********\n"), sg.Name)
+		fmt.Printf(green("\n********** Accessing host group %s **********\n"), sg.Name)
 
 		if len(sg.Common.User) > 0 {
 			config.RemoteUser = sg.Common.User
@@ -68,7 +68,7 @@ func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config,
 			config.RemoteSSHKey = sg.Common.IdentityFile
 		}
 		for _, srv := range sg.Servers {
-			fmt.Printf(green("\n********** Info from %s **********\n"), srv.Name)
+			fmt.Printf(green("\n********** Executing command on %s **********\n"), srv.Name)
 			if len(srv.User) > 0 {
 				config.RemoteUser = srv.User
 			}

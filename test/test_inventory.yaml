@@ -3,7 +3,7 @@
   -
     name: testnet
     common:
-#      identity-file: <PATH to KEY File>
+      identity-file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-testnet-new
       user: testnet
     servers:
       - name: tmn1
@@ -16,7 +16,7 @@
         host: 18.118.218.104
       - name: tmn5
         host: 18.222.224.103
-      - name: tmn6
-        host: 18.191.214.151
-      - name: tmn7
-        host: 52.15.244.16
+#      - name: tmn6
+#        host: 18.191.214.151
+#      - name: tmn7
+#        host: 52.15.244.16

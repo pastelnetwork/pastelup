@@ -534,7 +534,29 @@ func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.C
 	return client, nil
 }
 
-func executeRemoteCommand(ctx context.Context, config *configs.Config, command string, tryStop bool) error {
+func executeRemoteCommandsWithInventory(ctx context.Context, config *configs.Config, commands []string, tryStop bool) error {
+	if len(config.InventoryFile) > 0 {
+
+		var inv Inventory
+		err := inv.Read(config.InventoryFile)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to load inventory file")
+			return err
+		}
+		if err := inv.ExecuteCommands(ctx, config, commands); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to execute command on remote host from inventory")
+			return err
+		}
+	} else {
+		if err := executeRemoteCommands(ctx, config, commands, tryStop); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to execute command on remote host")
+			return err
+		}
+	}
+	return nil
+}
+
+func executeRemoteCommands(ctx context.Context, config *configs.Config, commands []string, tryStop bool) error {
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
@@ -549,12 +571,13 @@ func executeRemoteCommand(ctx context.Context, config *configs.Config, command s
 		}
 	}
 
-	err = client.ShellCmd(ctx, command)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed while executing remote command")
-		return err
+	for _, command := range commands {
+		err = client.ShellCmd(ctx, command)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed while executing remote command")
+			return err
+		}
 	}
-
 	return nil
 }
 

@@ -304,7 +304,7 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 
 	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install %s", constants.RemotePastelupPath, remoteOptions)
 
-	if err = executeRemoteCommand(ctx, config, installSuperNodeCmd, true); err != nil {
+	if err = executeRemoteCommands(ctx, config, []string{installSuperNodeCmd}, true); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to install remote %s", tool)
 		return err
 	}

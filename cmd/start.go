@@ -132,6 +132,8 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
+		cli.NewFlag("inventory", &config.InventoryFile).
+			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
 	}
 
 	var commandName, commandMessage string
@@ -444,10 +446,8 @@ func runRemoteStart(ctx context.Context, config *configs.Config, tool string) er
 	}
 
 	startSuperNodeCmd := fmt.Sprintf("%s start %s", constants.RemotePastelupPath, startOptions)
-
-	if err := executeRemoteCommand(ctx, config, startSuperNodeCmd, false); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to init remote Supernode services")
-		return err
+	if err := executeRemoteCommandsWithInventory(ctx, config, []string{startSuperNodeCmd}, false); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to start %s on remote host", tool)
 	}
 
 	log.WithContext(ctx).Infof("Remote %s started successfully", tool)

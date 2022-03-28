@@ -22,10 +22,9 @@ import (
 )
 
 var (
-	flagHostInfo      bool
-	flagPastelInfo    bool
-	flagOutput        string
-	flagInventoryFile string
+	flagHostInfo   bool
+	flagPastelInfo bool
+	flagOutput     string
 )
 
 var (
@@ -48,6 +47,7 @@ type processInfo struct {
 	Starttime string
 	Runtime   string
 	Path      string
+	Args      []string
 }
 
 type memoryInfo struct {
@@ -66,7 +66,7 @@ type filesystemInfo struct {
 	Mounted    string
 }
 
-type pastelInfo struct {
+type systemInfo struct {
 	MemInfo  []memoryInfo
 	FsInfo   []filesystemInfo
 	ProcInfo []processInfo
@@ -113,7 +113,7 @@ func setupInfoSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Username of user at remote host")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
-		cli.NewFlag("inventory", &flagInventoryFile).
+		cli.NewFlag("inventory", &config.InventoryFile).
 			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
 	}
 
@@ -134,6 +134,7 @@ func setupInfoSubCommand(config *configs.Config,
 	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))
 	subCommand.AddFlags(commandFlags...)
+	addLogFlags(subCommand, config)
 
 	if f != nil {
 		subCommand.SetActionFunc(func(ctx context.Context, _ []string) error {
@@ -179,13 +180,14 @@ func formatSize(size uint64) string {
 	return sigar.FormatSize(size * 1024)
 }
 
-func runInfoSubCommand( /*ctx*/ _ context.Context, config *configs.Config) error {
-
+func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
+	//var err error
+	var sysInfo systemInfo
 	if flagHostInfo {
-		log.Infof(green("=== System info ==="))
+		fmt.Println(green("\n=== System info ==="))
 		host, _ := os.Hostname()
-		log.Infof("HostName: %s", host)
-		log.Infof("OS: %s", utils.GetOS())
+		fmt.Printf("HostName: %s\n", host)
+		fmt.Printf("OS: %s\n", utils.GetOS())
 
 		pastelProcNames := make(map[string]bool)
 		pastelProcNamesShort := make(map[string]bool)
@@ -205,35 +207,63 @@ func runInfoSubCommand( /*ctx*/ _ context.Context, config *configs.Config) error
 		pastelProcNames["python3"] = true //TODO - get command line parameters and check for `dupe_detection_server.py`
 		pastelProcNames["start_dd_img_se"] = true
 
-		memInfo := getMemoryInfo()
-		fsInfo := getFSInfo()
-		procInfo := getPastelProcessesInfo(&pastelProcNames, &pastelProcNamesShort)
+		sysInfo.MemInfo = getMemoryInfo()
+		sysInfo.FsInfo = getFSInfo()
+		sysInfo.ProcInfo = getPastelProcessesInfo(&pastelProcNames, &pastelProcNamesShort)
 
-		if flagOutput == "json" {
-			j := pastelInfo{
-				MemInfo:  memInfo,
-				FsInfo:   fsInfo,
-				ProcInfo: procInfo,
-			}
-			data, _ := json.Marshal(j)
-			//if err != nil {
-			//	fmt.Fprintf(os.Stdout, "Error %v\n", err)
-			//}
-			fmt.Fprintf(os.Stdout, "%s\n", string(data))
-		} else {
-			printMemoryInfo(memInfo)
-			printFSInfo(fsInfo)
-			printProcessInfo(procInfo)
+		if flagOutput == "console" {
+			printMemoryInfo(sysInfo.MemInfo)
+			printFSInfo(sysInfo.FsInfo)
+			printProcessInfo(sysInfo.ProcInfo)
 		}
 	}
 
 	if flagPastelInfo {
-		log.Infof(blue("=== Pastel info ==="))
-		//for _, tool := range pastelTools {
-		//}
+		fmt.Println(blue("\n=== Pastel info ==="))
+		for _, process := range sysInfo.ProcInfo {
+			if strings.HasPrefix(process.Process, "pasteld") {
+				config.WorkingDir = config.Configurer.DefaultWorkingDir()
+				if len(process.Args) > 0 {
+					fmt.Printf(red("pasteld") + " was started with the following parameters:\n")
+					for _, arg := range process.Args[1:] {
+						fmt.Printf(cyan("\t%s\n"), arg)
+						if strings.Contains(arg, "--datadir") {
+							datadir := strings.Split(arg, "=")
+							if len(datadir) == 1 {
+								datadir = strings.Split(arg, " ")
+							}
+							if len(datadir) == 2 {
+								config.WorkingDir = datadir[1]
+							}
+						}
+					}
+				} else {
+					fmt.Print(blue("pasteld was started without parameters\n"))
+				}
 
-		log.Infof("Working Directory: %s", config.WorkingDir)
+				config.PastelExecDir = process.Path
+
+				fmt.Printf("Blockchain info on the host:\n")
+				_, _ = RunPastelCLI(ctx, config, "getinfo")
+
+				fmt.Printf("Masternode status of the host:\n")
+				_, _ = RunPastelCLI(ctx, config, "masternode", "status")
+			}
+			//if strings.HasPrefix(process.Process, "") {
+			//
+			//}
+		}
+
+		fmt.Printf("Working Directory: %s\n", config.WorkingDir)
 		//log.Infof("Pastel Exec Directory: %s", pastelProcNames[string(constants.PastelD)].Path)
+	}
+
+	if flagOutput == "json" {
+		data, _ := json.Marshal(sysInfo)
+		//if err != nil {
+		//	fmt.Printf("Error %v\n", err)
+		//}
+		fmt.Printf("%s\n", string(data))
 	}
 
 	return nil
@@ -250,52 +280,16 @@ func runRemoteInfoSubCommand(ctx context.Context, config *configs.Config) error 
 	if len(flagOutput) > 0 {
 		infoOptions = fmt.Sprintf("%s --output %s", infoOptions, flagOutput)
 	}
+	if config.Quiet {
+		infoOptions = fmt.Sprintf("%s -q", infoOptions)
+	}
+	if len(config.LogLevel) > 0 {
+		infoOptions = fmt.Sprintf("%s --log-level %s", infoOptions, config.LogLevel)
+	}
 
 	infoCmd := fmt.Sprintf("%s info %s", constants.RemotePastelupPath, infoOptions)
-
-	if len(flagInventoryFile) > 0 {
-		inv, err := configs.ReadInventory(flagInventoryFile)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to get read inventory file")
-		}
-		for _, sg := range inv.ServerGroups {
-			log.Infof(green("=== Accessing info from %s ==="), sg.Name)
-
-			if len(sg.Common.User) > 0 {
-				config.RemoteUser = sg.Common.User
-			}
-			if sg.Common.Port != 0 {
-				config.RemotePort = sg.Common.Port
-			}
-			if len(sg.Common.IdentityFile) > 0 {
-				config.RemoteSSHKey = sg.Common.IdentityFile
-			}
-			for _, srv := range sg.Servers {
-				log.Infof(green("=== Info from %s ==="), srv.Name)
-				if len(srv.User) > 0 {
-					config.RemoteUser = srv.User
-				}
-				if srv.Port != 0 {
-					config.RemotePort = srv.Port
-				}
-				if len(srv.IdentityFile) > 0 {
-					config.RemoteSSHKey = srv.IdentityFile
-				}
-				config.RemoteIP = srv.Host
-				if config.RemotePort == 0 {
-					config.RemotePort = 22
-				}
-				if err := executeRemoteCommand(ctx, config, infoCmd, false); err != nil {
-					log.WithContext(ctx).WithError(err).Error("Failed to get info from remote host %s"+
-						" [IP:%s; Port:%d; User:%s; KeyFile:%s; ]",
-						srv.Name, config.RemoteIP, config.RemotePort, config.RemoteUser, config.RemoteSSHKey)
-				}
-			}
-		}
-	} else {
-		if err := executeRemoteCommand(ctx, config, infoCmd, false); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to get info from remote host")
-		}
+	if err := executeRemoteCommandsWithInventory(ctx, config, []string{infoCmd}, false); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to get info from remote hosts")
 	}
 
 	//var info []processInfo
@@ -318,6 +312,7 @@ func getPastelProcessesInfo(procNames *map[string]bool, procNamesShort *map[stri
 	pids.Get()
 
 	var procInfo []processInfo
+
 	for _, pid := range pids.List {
 		state := sigar.ProcState{}
 		if err := state.Get(pid); err != nil {
@@ -330,13 +325,37 @@ func getPastelProcessesInfo(procNames *map[string]bool, procNamesShort *map[stri
 			}
 		}
 
-		//fmt.Fprintf(os.Stdout, "%s\n", state.Name)
+		//fmt.Printf("%s\n", state.Name)
 
-		var dir, vmem, rmem, stime, rtime, cpup string
-		file := state.Name
-		exe := sigar.ProcExe{}
-		if err := exe.Get(pid); err == nil {
-			dir, file = filepath.Split(exe.Name)
+		var dir, file, vmem, rmem, stime, rtime, cpup string
+		var pasteldArgs []string
+
+		if strings.HasPrefix(state.Name, "python") ||
+			strings.HasPrefix(state.Name, "start_dd_img_se") ||
+			strings.HasPrefix(state.Name, "pasteld") {
+			args := sigar.ProcArgs{}
+			args.Get(pid)
+			if strings.HasPrefix(state.Name, "pasteld") {
+				pasteldArgs = args.List
+				goto foundDDorISorPD
+			}
+			for _, arg := range args.List {
+				if strings.Contains(arg, "dupe_detection_server.py") ||
+					strings.Contains(arg, "start_dd_img_server.sh") {
+					dir, file = filepath.Split(arg)
+					goto foundDDorISorPD
+				}
+			}
+			continue
+		}
+
+	foundDDorISorPD:
+		if len(dir) == 0 && len(file) == 0 {
+			file = state.Name
+			exe := sigar.ProcExe{}
+			if err := exe.Get(pid); err == nil {
+				dir, file = filepath.Split(exe.Name)
+			}
 		}
 
 		mem := sigar.ProcMem{}
@@ -363,6 +382,7 @@ func getPastelProcessesInfo(procNames *map[string]bool, procNamesShort *map[stri
 			Starttime: stime,
 			Runtime:   rtime,
 			CPU:       cpup,
+			Args:      pasteldArgs,
 		})
 	}
 	return procInfo

@@ -80,6 +80,8 @@ func setupStopSubCommand(config *configs.Config,
 				SetUsage(yellow("Optional, Username of user at remote host")),
 			cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 				SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
+			cli.NewFlag("inventory", &config.InventoryFile).
+				SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
 		}
 
 		commonFlags = append(commonFlags, remoteFlags...)
@@ -121,15 +123,15 @@ func setupStopCommand() *cli.Command {
 
 	stopNodeSubCommand := setupStopSubCommand(config, nodeStop, runStopNodeSubCommand)
 	stopWalletSubCommand := setupStopSubCommand(config, walletStop, runStopWalletSubCommand)
-	stopSuperNodeRemoteSubCommand := setupStopSubCommand(config, superNodeRemoteStop, runStopSuperNodeRemoteSubCommand)
 	stopSuperNodeSubCommand := setupStopSubCommand(config, superNodeStop, runStopSuperNodeSubCommand)
-	stopSuperNodeSubCommand.AddSubcommands(stopSuperNodeRemoteSubCommand)
 	stopallSubCommand := setupStopSubCommand(config, allStop, runStopAllSubCommand)
 
 	stopRQSubCommand := setupStopSubCommand(config, rqServiceStop, stopRQServiceSubCommand)
 	stopDDSubCommand := setupStopSubCommand(config, ddServiceStop, stopDDServiceSubCommand)
 	stopWNSubCommand := setupStopSubCommand(config, wnServiceStop, stopWNServiceSubCommand)
 	stopSNSubCommand := setupStopSubCommand(config, snServiceStop, stopSNServiceSubCommand)
+
+	stopSuperNodeSubCommand.AddSubcommands(setupStopSubCommand(config, superNodeRemoteStop, runStopSuperNodeRemoteSubCommand))
 
 	stopCommand := cli.NewCommand("stop")
 	stopCommand.SetUsage(blue("Performs stop of the system for both WalletNode and SuperNodes"))
@@ -188,9 +190,8 @@ func runRemoteStop(ctx context.Context, config *configs.Config, tool string) {
 	}
 
 	stopSuperNodeCmd := fmt.Sprintf("%s stop %s", constants.RemotePastelupPath, stopOptions)
-
-	if err := executeRemoteCommand(ctx, config, stopSuperNodeCmd, false); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to init remote Supernode services")
+	if err := executeRemoteCommandsWithInventory(ctx, config, []string{stopSuperNodeCmd}, false); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to stop %s on remote host", tool)
 	}
 
 	log.WithContext(ctx).Infof("Remote %s stopped successfully", tool)

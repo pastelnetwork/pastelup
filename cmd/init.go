@@ -327,7 +327,7 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 	}
 
 	initSuperNodeCmd := fmt.Sprintf("%s init supernode %s", constants.RemotePastelupPath, startOptions)
-	if err := executeRemoteCommand(ctx, config, initSuperNodeCmd, false); err != nil {
+	if err := executeRemoteCommands(ctx, config, []string{initSuperNodeCmd}, false); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to init remote Supernode services")
 		return err
 	}

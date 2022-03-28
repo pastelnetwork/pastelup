@@ -235,7 +235,7 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 
 	updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update %s", constants.RemotePastelupPath, updateOptions)
 
-	if err := executeRemoteCommand(ctx, config, updateSuperNodeCmd, false); err != nil {
+	if err := executeRemoteCommands(ctx, config, []string{updateSuperNodeCmd}, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update remote %s", tool)
 	}
 	log.WithContext(ctx).Infof("Remote %s updated", tool)

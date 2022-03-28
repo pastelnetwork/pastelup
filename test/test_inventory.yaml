@@ -8,6 +8,8 @@
     servers:
       - name: tmn1
         host: 18.221.2.126
+        user: "user can be specified on the each host level and it will override the one from `common` section"
+        identity-file: "same for identity file path"
       - name: tmn2
         host: 3.144.158.215
       - name: tmn3

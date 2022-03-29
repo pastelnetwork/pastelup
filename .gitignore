@@ -6,3 +6,4 @@ pasteld
 pastel
 dist/
 .vscode/
+test/env.json

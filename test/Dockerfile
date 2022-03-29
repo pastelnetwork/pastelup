@@ -25,3 +25,4 @@ WORKDIR /home/ubuntu
 
 # copy the executable into the bin folder so we can execute from anywhere
 COPY  --from=builder ${GOLANG_WORK_DIR}pastelup /bin
+COPY test/env.json .

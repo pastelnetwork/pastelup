@@ -35,11 +35,15 @@ $(PLATFORMS):
 
 .PHONY: release $(PLATFORMS)
 
+lint:
+	revive -config ./.circleci/revive.toml ./...
+	staticcheck ./...
+
+# to run simple container after:
+# 		-> docker run -it $(TEST_IMG) /bin/bash
+# 		-> docker run -it pastel-with-node /bin/bash
 build-test-img:
 	docker build -t $(TEST_IMG) -f ./test/Dockerfile .
-
-build-test-img-tmp:
-	docker build -t $(TEST_IMG)-tmp -f ./test/Dockerfile-tmp .
 
 test-walletnode:
 	$(eval CONTAINER_NAME := "pastel-walletnode-test")
@@ -48,7 +52,7 @@ test-walletnode:
 	docker run \
 		--name $(CONTAINER_NAME) \
 		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
-		--entrypoint '/bin/sh' \
+		--entrypoint '/bin/bash' \
 		$(TEST_IMG) \
 		-c "./$(SCRIPT)"
 
@@ -56,22 +60,24 @@ test-local-supernode:
 	$(eval CONTAINER_NAME := "pastel-local-supernode-test")
 	$(eval SCRIPT := "test-local-supernode.sh")
 	docker rm $(CONTAINER_NAME) || true
-	docker exec -it \
+	docker run \
 		--name $(CONTAINER_NAME) \
+		--interactive \
 		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
 		--expose=19933 \
-		--entrypoint '/bin/sh' \
-		$(TEST_IMG)-tmp \
+		--entrypoint '/bin/bash' \
+		$(TEST_IMG) \
 		-c "./$(SCRIPT)"
 
 test-local-supernode-service:
 	$(eval CONTAINER_NAME := "pastel-local-supernode-service-test")
 	$(eval SCRIPT := "test-local-supernode.sh")
 	docker rm $(CONTAINER_NAME) || true
-	docker exec -it \
+	docker run \
 		--name $(CONTAINER_NAME) \
+		--interactive \
 		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
 		--expose=19933 \
-		--entrypoint '/bin/sh' \
+		--entrypoint '/bin/bash' \
 		$(TEST_IMG) \
 		-c "./$(SCRIPT) --enable-service"

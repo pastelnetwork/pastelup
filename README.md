@@ -331,3 +331,12 @@ The path depends on the OS:
 * MacOS `$HOME/Applications/PastelWallet`
 * Linux `$HOME/pastel-node`
 * Windows (>= Vista) `%userprofile%\AppData\Roaming\PastelWallet`
+
+
+### Testing 
+All tests are contained in the `test/` directory. You can invoke the tests by running
+```
+make build-test-img
+make <test-walletnode|test-local-supernode|test-local-supernode-service>
+```
+This will run the associated script found in `test/scripts/` inside a docker container to validate specific functionality of `pastelup`.

@@ -305,12 +305,11 @@ func FindRunningProcess(searchTerm string) (string, error) {
 
 // GetSNPortList returns array of SuperNode ports for network
 func GetSNPortList(config *configs.Config) []int {
-	if config.Network == constants.NetworkRegTest {
+	if config.Network == constants.NetworkTestnet {
 		return constants.TestnetPortList
-	} else if config.Network == constants.NetworkTestnet {
+	} else if config.Network == constants.NetworkRegTest {
 		return constants.RegTestPortList
 	}
-
 	return constants.MainnetPortList
 }
 
@@ -608,4 +607,16 @@ func checkAndStopRemoteServices(ctx context.Context, config *configs.Config, cli
 		}
 	}
 	return nil
+}
+
+func getMasternodeConfPath(config *configs.Config, workDirPath string, fileName string) string {
+	var masternodeConfPath string
+	if config.Network == constants.NetworkTestnet {
+		masternodeConfPath = filepath.Join(workDirPath, "testnet3", fileName)
+	} else if config.Network == constants.NetworkRegTest {
+		masternodeConfPath = filepath.Join(workDirPath, "regtest", fileName)
+	} else {
+		masternodeConfPath = filepath.Join(workDirPath, fileName)
+	}
+	return masternodeConfPath
 }

@@ -31,7 +31,6 @@ import (
 var (
 	// node flags
 	flagNodeExtIP string
-	flagReIndex   bool
 
 	// walletnode flag
 	flagDevMode bool
@@ -83,7 +82,7 @@ func setupStartSubCommand(config *configs.Config,
 	commonFlags := []*cli.Flag{
 		cli.NewFlag("ip", &flagNodeExtIP).
 			SetUsage(green("Optional, WAN address of the host")),
-		cli.NewFlag("reindex", &flagReIndex).SetAliases("r").
+		cli.NewFlag("reindex", &config.ReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
 		cli.NewFlag("legacy", &config.Legacy).
 			SetUsage(green("Optional, pasteld version is < 1.1")).SetValue(false),
@@ -257,7 +256,7 @@ func setupStartCommand() *cli.Command {
 
 // Sub Command
 func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
-	if err := runPastelNode(ctx, config, flagReIndex, flagNodeExtIP, ""); err != nil {
+	if err := runPastelNode(ctx, config, false, config.ReIndex, flagNodeExtIP, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 		return err
 	}
@@ -267,7 +266,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runStartWalletNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	// *************  1. Start pastel node  *************
-	if err := runPastelNode(ctx, config, flagReIndex, flagNodeExtIP, ""); err != nil {
+	if err := runPastelNode(ctx, config, false, config.ReIndex, flagNodeExtIP, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 		return err
 	}
@@ -326,7 +325,7 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 		pastelDIsRunning = true
 	}
 
-	if flagMasterNodeIsCreate || flagMasterNodeIsUpdate {
+	if flagMasterNodeIsCreate || flagMasterNodeIsAdd {
 		log.WithContext(ctx).Info("Prepare masternode parameters")
 		if err := prepareMasterNodeParameters(ctx, config, !pastelDIsRunning); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
@@ -429,7 +428,7 @@ func runRemoteStart(ctx context.Context, config *configs.Config, tool string) er
 	if len(flagNodeExtIP) > 0 {
 		startOptions = fmt.Sprintf("%s --ip=%s", startOptions, flagNodeExtIP)
 	}
-	if flagReIndex {
+	if config.ReIndex {
 		startOptions = fmt.Sprintf("%s --reindex", startOptions)
 	}
 	if config.Legacy {
@@ -488,7 +487,7 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 
 	// *************  Start Node as Masternode  *************
 	log.WithContext(ctx).Infof("Starting pasteld as masternode: nodeName: %s; mnPrivKey: %s", flagMasterNodeName, privKey)
-	if err := runPastelNode(ctx, config, true, flagNodeExtIP, privKey); err != nil { //in masternode mode pasteld MUST be started with reindex flag
+	if err := runPastelNode(ctx, config, true, config.ReIndex, flagNodeExtIP, privKey); err != nil { //in masternode mode pasteld MUST be started with reindex flag
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start as masternode")
 		return err
 	}
@@ -650,7 +649,7 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 }
 
 ///// Run helpers
-func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, extIP string, mnPrivKey string) (err error) {
+func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool, reindex bool, extIP string, mnPrivKey string) (err error) {
 	serviceEnabled := false
 	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
@@ -697,8 +696,12 @@ func runPastelNode(ctx context.Context, config *configs.Config, reindex bool, ex
 		fmt.Sprintf("--datadir=%s", config.WorkingDir),
 		fmt.Sprintf("--externalip=%s", extIP))
 
+	if txIndexOne {
+		pasteldArgs = append(pasteldArgs, "--txindex=1")
+	}
+
 	if reindex {
-		pasteldArgs = append(pasteldArgs, "--reindex", "--txindex=1")
+		pasteldArgs = append(pasteldArgs, "--reindex")
 	}
 
 	if len(mnPrivKey) != 0 {
@@ -771,15 +774,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 	}
 
 	if !flagMasterNodeIsCreate { // if we don't create new masternode.conf - it must exist!
-		var masternodeConfPath string
-		if config.Network == constants.NetworkTestnet {
-			masternodeConfPath = filepath.Join("testnet3", "masternode.conf")
-		} else if config.Network == constants.NetworkRegTest {
-			masternodeConfPath = filepath.Join("regtest", "masternode.conf")
-		} else {
-			masternodeConfPath = "masternode.conf"
-		}
-
+		masternodeConfPath := getMasternodeConfPath(config, "", "masternode.conf")
 		if _, err := checkPastelFilePath(ctx, config.WorkingDir, masternodeConfPath); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Could not find masternode.conf - use --create flag")
 			return err
@@ -835,22 +830,21 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, startPasteld bool) (err error) {
 
 	// this function must only be called when --create or --update
-	if !flagMasterNodeIsCreate && !flagMasterNodeIsUpdate {
+	if !flagMasterNodeIsCreate && !flagMasterNodeIsAdd {
 		return nil
 	}
 
-	bReIndex := true // if masternode.conf exist pasteld MUST be start with reindex flag
 	if flagMasterNodeIsCreate {
 		if _, err = backupConfFile(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to backup masternode.conf")
 			return err
 		}
-		bReIndex = flagReIndex
 	}
 
 	if startPasteld {
 		log.WithContext(ctx).Infof("Starting pasteld")
-		if err = runPastelNode(ctx, config, bReIndex, flagNodeExtIP, ""); err != nil {
+		// in masternode mode pasteld MUST be start with txIndex=1 flag
+		if err = runPastelNode(ctx, config, true, config.ReIndex, flagNodeExtIP, ""); err != nil {
 			log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 			return err
 		}
@@ -1116,7 +1110,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) error {
 
 	// this function must only be called when --create or --update
-	if !flagMasterNodeIsCreate && !flagMasterNodeIsUpdate {
+	if !flagMasterNodeIsCreate && !flagMasterNodeIsAdd {
 		return nil
 	}
 
@@ -1144,8 +1138,8 @@ func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) e
 			log.WithContext(ctx).WithError(err).Error("Failed to create new masternode.conf file")
 			return err
 		}
-	} else if flagMasterNodeIsUpdate {
-		// Create masternode.conf file
+	} else if flagMasterNodeIsAdd {
+		// update masternode.conf file
 		if err := updateMasternodeConfFile(ctx, confData, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to update existing masternode.conf file")
 			return err
@@ -1178,17 +1172,8 @@ func createConfFile(ctx context.Context, config *configs.Config, confData []byte
 func backupConfFile(ctx context.Context, config *configs.Config) (masternodeConfPath string, err error) {
 	workDirPath := config.WorkingDir
 
-	var masternodeConfPathBackup string
-	if config.Network == constants.NetworkTestnet {
-		masternodeConfPath = filepath.Join(workDirPath, "testnet3", "masternode.conf")
-		masternodeConfPathBackup = filepath.Join(workDirPath, "testnet3", "masternode_%s.conf")
-	} else if config.Network == constants.NetworkRegTest {
-		masternodeConfPath = filepath.Join(workDirPath, "regtest", "masternode.conf")
-		masternodeConfPathBackup = filepath.Join(workDirPath, "regtest", "masternode_%s.conf")
-	} else {
-		masternodeConfPath = filepath.Join(workDirPath, "masternode.conf")
-		masternodeConfPathBackup = filepath.Join(workDirPath, "masternode_%s.conf")
-	}
+	masternodeConfPath = getMasternodeConfPath(config, workDirPath, "masternode.conf")
+	masternodeConfPathBackup := getMasternodeConfPath(config, workDirPath, "masternode_%s.conf")
 	if _, err := os.Stat(masternodeConfPath); err == nil { // if masternode.conf File exists , backup
 
 		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Previous masternode.conf found at - %s. "+
@@ -1218,15 +1203,8 @@ func backupConfFile(ctx context.Context, config *configs.Config) (masternodeConf
 
 func updateMasternodeConfFile(ctx context.Context, confData map[string]interface{}, config *configs.Config) error {
 	workDirPath := config.WorkingDir
-	var masternodeConfPath string
 
-	if config.Network == constants.NetworkTestnet {
-		masternodeConfPath = filepath.Join(workDirPath, "testnet3", "masternode.conf")
-	} else if config.Network == constants.NetworkRegTest {
-		masternodeConfPath = filepath.Join(workDirPath, "regtest", "masternode.conf")
-	} else {
-		masternodeConfPath = filepath.Join(workDirPath, "masternode.conf")
-	}
+	masternodeConfPath := getMasternodeConfPath(config, workDirPath, "masternode.conf")
 
 	// Read ConfData from masternode.conf
 	confFile, err := ioutil.ReadFile(masternodeConfPath)
@@ -1272,15 +1250,7 @@ func updateMasternodeConfFile(ctx context.Context, confData map[string]interface
 func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string) (privKey string,
 	extAddr string, extPort string, err error) {
 
-	var masternodeConfPath string
-
-	if config.Network == constants.NetworkTestnet {
-		masternodeConfPath = filepath.Join(config.WorkingDir, "testnet3", "masternode.conf")
-	} else if config.Network == constants.NetworkRegTest {
-		masternodeConfPath = filepath.Join(config.WorkingDir, "regtest", "masternode.conf")
-	} else {
-		masternodeConfPath = filepath.Join(config.WorkingDir, "masternode.conf")
-	}
+	masternodeConfPath := getMasternodeConfPath(config, config.WorkingDir, "masternode.conf")
 
 	// Read ConfData from masternode.conf
 	confFile, err := ioutil.ReadFile(masternodeConfPath)

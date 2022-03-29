@@ -17,7 +17,7 @@ var (
 	flagMasterNodeIsActivate bool
 	flagMasterNodeName       string
 	flagMasterNodeIsCreate   bool
-	flagMasterNodeIsUpdate   bool
+	flagMasterNodeIsAdd      bool
 	flagMasterNodeTxID       string
 	flagMasterNodeInd        string
 	flagMasterNodePort       int
@@ -59,7 +59,7 @@ func setupInitSubCommand(config *configs.Config,
 	commonFlags := []*cli.Flag{
 		cli.NewFlag("ip", &flagNodeExtIP).
 			SetUsage(green("Optional, WAN address of the host")),
-		cli.NewFlag("reindex", &flagReIndex).SetAliases("r").
+		cli.NewFlag("reindex", &config.ReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
 	}
 
@@ -86,9 +86,9 @@ func setupInitSubCommand(config *configs.Config,
 			SetUsage(red("Required, name of the Masternode to create or update in the masternode.conf")).SetRequired(),
 
 		cli.NewFlag("new", &flagMasterNodeIsCreate).
-			SetUsage(red("Required (if --update is not used), if specified, will add new Masternode record in the masternode.conf.")),
-		cli.NewFlag("update", &flagMasterNodeIsUpdate).
-			SetUsage(red("Required (if --new is not used), if specified, will update Masternode record in the masternode.conf.")),
+			SetUsage(red("Required (if --add is not used), if specified, will create new masternode.conf with new Masternode record in it.")),
+		cli.NewFlag("add", &flagMasterNodeIsAdd).
+			SetUsage(red("Required (if --new is not used), if specified, will add new Masternode record to the existing masternode.conf.")),
 
 		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
 			SetUsage(green("Optional, Masternode private key, if omitted, new masternode private key will be created")),
@@ -225,6 +225,7 @@ func setupInitCommand() *cli.Command {
 // Sub Command
 func runInitSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Initialising local supernode")
+	config.ReIndex = true // init means first start, reindex is required
 	if err := runStartSuperNode(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to initialize local supernode")
 		return err
@@ -274,8 +275,8 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 
 	if flagMasterNodeIsCreate {
 		startOptions = fmt.Sprintf("%s --new", startOptions)
-	} else if flagMasterNodeIsUpdate {
-		startOptions = fmt.Sprintf("%s --update", startOptions)
+	} else if flagMasterNodeIsAdd {
+		startOptions = fmt.Sprintf("%s --add", startOptions)
 	}
 
 	if len(flagMasterNodeTxID) > 0 {
@@ -318,7 +319,7 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 		startOptions = fmt.Sprintf("%s --ip=%s", startOptions, flagNodeExtIP)
 	}
 
-	if flagReIndex {
+	if config.ReIndex {
 		startOptions = fmt.Sprintf("%s --reindex", startOptions)
 	}
 

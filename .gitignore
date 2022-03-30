@@ -6,4 +6,5 @@ pasteld
 pastel
 dist/
 .vscode/
-test/env.json
+test/state/env.json
+test/Dockerfile-withSuperNode

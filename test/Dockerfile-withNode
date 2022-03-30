@@ -1,5 +1,13 @@
-# we only need golang image to build the exectuable, then we create a slimmed ubuntu image and
-# copy the pastelup exectuable into it
+#
+# image used for testing from an intermediate stage that has walletnode installed
+#
+
+#####
+#
+# docker build -t pastel-with-node -f test/Dockerfile-withNode .
+# docker run -it pastel-with-node /bin/bash
+#
+#####
 
 ### BUILDER IMAGE ###
 FROM golang:1.18 as builder
@@ -14,7 +22,7 @@ RUN go build .
 FROM ubuntu:20.04
 ARG GOLANG_WORK_DIR=/go/src/github.com/pasetlnetwork/pastelup/
 
-RUN apt-get update && apt-get install -y git wget curl sudo gnupg2 libgomp1 jq
+RUN apt-get update && apt-get install -y git wget curl sudo gnupg2 libgomp1 jq vim
 RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata
 
 ENV USR_PW="ubuntu"
@@ -26,3 +34,4 @@ WORKDIR /home/ubuntu
 # copy the executable into the bin folder so we can execute from anywhere
 COPY  --from=builder ${GOLANG_WORK_DIR}pastelup /bin
 COPY test/state/* .
+RUN pastelup install walletnode -n=testnet --peers=18.191.71.196

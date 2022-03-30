@@ -39,9 +39,6 @@ lint:
 	revive -config ./.circleci/revive.toml ./...
 	staticcheck ./...
 
-# to run simple container after:
-# 		-> docker run -it $(TEST_IMG) /bin/bash
-# 		-> docker run -it pastel-with-node /bin/bash
 build-test-img:
 	docker build -t $(TEST_IMG) -f ./test/Dockerfile .
 

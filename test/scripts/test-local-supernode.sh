@@ -158,8 +158,7 @@ ensureDirNotEmpty $dupeDetectionFolder
 #
 
 echo "restoring wallet with 1M LSP"
-privKey=$(cat env.json | jq '.privKey')
-$pastelCLIExec importprivkey $privKey
+$pastelCLIExec importprivkey $(jq -r '.privKey' env.json)
 
 trxId=$(cat env.json | jq '.trxId')
 trxIndex=$(cat env.json | jq '.trxIndex')

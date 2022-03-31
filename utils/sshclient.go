@@ -143,7 +143,7 @@ func (c *Client) Script(script string) *RemoteScript {
 }
 
 // Scp implements scp command to copy local file to remote host
-func (c *Client) Scp(srcFile string, destFile string) error {
+func (c *Client) Scp(srcFile string, destFile string, perm string) error {
 	// Connect to the remote server
 	scpClient, err := scp.NewClientBySSH(c.client)
 	if err != nil {
@@ -169,7 +169,7 @@ func (c *Client) Scp(srcFile string, destFile string) error {
 
 	// Finaly, copy the file over
 	// Usage: CopyFile(fileReader, remotePath, permission)
-	err = scpClient.CopyFile(f, destFile, "0777")
+	err = scpClient.CopyFile(f, destFile, perm)
 
 	if err != nil {
 		return errors.Errorf("failed to transfer file: %v", err)

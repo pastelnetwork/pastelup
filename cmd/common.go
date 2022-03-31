@@ -411,7 +411,7 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 			time.Sleep(10 * time.Second)
 		}
 		if mnstatus.IsSynced {
-			log.WithContext(ctx).Info("master node was synced!")
+			log.WithContext(ctx).Info("masternodes lists are synced!")
 			break
 		}
 
@@ -467,7 +467,7 @@ func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePaste
 		}
 
 		// Copy pastelup to remote
-		if err := client.Scp(localPastelupPath, remotePastelUp); err != nil {
+		if err := client.Scp(localPastelupPath, remotePastelUp, "0777"); err != nil {
 			return fmt.Errorf("failed to copy pastelup to remote %s", err)
 		}
 

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/pastelnetwork/gonode/common/cli"
@@ -21,7 +22,6 @@ import (
 	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/structure"
 	"github.com/pastelnetwork/pastelup/utils"
-	"github.com/pkg/errors"
 )
 
 /*var (
@@ -325,7 +325,7 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 		pastelDIsRunning = true
 	}
 
-	if flagMasterNodeIsCreate || flagMasterNodeIsAdd {
+	if flagMasterNodeConfNew || flagMasterNodeConfAdd {
 		log.WithContext(ctx).Info("Prepare masternode parameters")
 		if err := prepareMasterNodeParameters(ctx, config, !pastelDIsRunning); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
@@ -773,7 +773,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 		log.WithContext(ctx).Infof("WAN IP address - %s", flagNodeExtIP)
 	}
 
-	if !flagMasterNodeIsCreate { // if we don't create new masternode.conf - it must exist!
+	if !flagMasterNodeConfNew { // if we don't create new masternode.conf - it must exist!
 		masternodeConfPath := getMasternodeConfPath(config, "", "masternode.conf")
 		if _, err := checkPastelFilePath(ctx, config.WorkingDir, masternodeConfPath); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Could not find masternode.conf - use --create flag")
@@ -830,15 +830,8 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, startPasteld bool) (err error) {
 
 	// this function must only be called when --create or --update
-	if !flagMasterNodeIsCreate && !flagMasterNodeIsAdd {
+	if !flagMasterNodeConfNew && !flagMasterNodeConfAdd {
 		return nil
-	}
-
-	if flagMasterNodeIsCreate {
-		if _, err = backupConfFile(ctx, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to backup masternode.conf")
-			return err
-		}
 	}
 
 	if startPasteld {
@@ -1104,181 +1097,6 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 	// if receives PSL go to next step
 	log.WithContext(ctx).Infof(red(fmt.Sprintf("masternode outputs = %s, %s", flagMasterNodeTxID, flagMasterNodeInd)))
 	return nil
-}
-
-///// masternode.conf helpers
-func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) error {
-
-	// this function must only be called when --create or --update
-	if !flagMasterNodeIsCreate && !flagMasterNodeIsAdd {
-		return nil
-	}
-
-	confData := map[string]interface{}{
-		flagMasterNodeName: map[string]string{
-			"mnAddress":  flagNodeExtIP + ":" + fmt.Sprintf("%d", flagMasterNodePort),
-			"mnPrivKey":  flagMasterNodePrivateKey,
-			"txid":       flagMasterNodeTxID,
-			"outIndex":   flagMasterNodeInd,
-			"extAddress": flagNodeExtIP + ":" + fmt.Sprintf("%d", flagMasterNodeRPCPort),
-			"extP2P":     flagMasterNodeP2PIP + ":" + fmt.Sprintf("%d", flagMasterNodeP2PPort),
-			"extCfg":     "",
-			"extKey":     flagMasterNodePastelID,
-		},
-	}
-	data, err := json.Marshal(confData)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Invalid new masternode.conf data")
-		return err
-	}
-
-	if flagMasterNodeIsCreate {
-		// Create masternode.conf file
-		if err := createConfFile(ctx, config, data); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to create new masternode.conf file")
-			return err
-		}
-	} else if flagMasterNodeIsAdd {
-		// update masternode.conf file
-		if err := updateMasternodeConfFile(ctx, confData, config); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to update existing masternode.conf file")
-			return err
-		}
-	}
-
-	log.WithContext(ctx).Infof("masternode.conf = %s", string(data))
-
-	return nil
-}
-
-func createConfFile(ctx context.Context, config *configs.Config, confData []byte) error {
-
-	masternodeConfPath, err := backupConfFile(ctx, config)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to backup previous masternode.conf file")
-		return err
-	}
-
-	err = ioutil.WriteFile(masternodeConfPath, confData, 0644)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to create and write new masternode.conf file")
-		return err
-	}
-	log.WithContext(ctx).Info("Created masternode config file at path:", masternodeConfPath)
-
-	return nil
-}
-
-func backupConfFile(ctx context.Context, config *configs.Config) (masternodeConfPath string, err error) {
-	workDirPath := config.WorkingDir
-
-	masternodeConfPath = getMasternodeConfPath(config, workDirPath, "masternode.conf")
-	masternodeConfPathBackup := getMasternodeConfPath(config, workDirPath, "masternode_%s.conf")
-	if _, err := os.Stat(masternodeConfPath); err == nil { // if masternode.conf File exists , backup
-
-		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Previous masternode.conf found at - %s. "+
-			"Do you want to back it up and continue? Y/N", masternodeConfPath)); !yes {
-
-			log.WithContext(ctx).WithError(err).Error("masternode.conf already exists - exiting")
-			return "", fmt.Errorf("masternode.conf already exists - %s", masternodeConfPath)
-		}
-
-		oldFileName := masternodeConfPath
-		currentTime := time.Now()
-		backupFileName := fmt.Sprintf(masternodeConfPathBackup, currentTime.Format("2021-01-01-23-59-59"))
-		if err := os.Rename(oldFileName, backupFileName); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to rename %s to %s", oldFileName, backupFileName)
-			return "", err
-		}
-		if _, err := os.Stat(oldFileName); err == nil { // delete after back up if still exist
-			if err = os.Remove(oldFileName); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to remove %s", oldFileName)
-				return "", err
-			}
-		}
-	}
-
-	return masternodeConfPath, nil
-}
-
-func updateMasternodeConfFile(ctx context.Context, confData map[string]interface{}, config *configs.Config) error {
-	workDirPath := config.WorkingDir
-
-	masternodeConfPath := getMasternodeConfPath(config, workDirPath, "masternode.conf")
-
-	// Read ConfData from masternode.conf
-	confFile, err := ioutil.ReadFile(masternodeConfPath)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to read existing masternode.conf file - %s", masternodeConfPath)
-		return err
-	}
-
-	var conf map[string]interface{}
-
-	err = json.Unmarshal(confFile, &conf)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Invalid updated masternode.conf file - %s", masternodeConfPath)
-		return err
-	}
-
-	for k := range confData {
-		if conf[k] != nil {
-			confDataValue := confData[k].(map[string]string)
-			confValue := conf[k].(map[string]interface{})
-			for itemKey := range confDataValue {
-				if len(confDataValue[itemKey]) != 0 {
-					confValue[itemKey] = confDataValue[itemKey]
-				}
-			}
-		}
-	}
-
-	var updatedConf []byte
-	if updatedConf, err = json.Marshal(conf); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Invalid masternode.conf data")
-		return err
-	}
-
-	if ioutil.WriteFile(masternodeConfPath, updatedConf, 0644) != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to write masternode.conf")
-		return err
-	}
-
-	return nil
-}
-
-func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string) (privKey string,
-	extAddr string, extPort string, err error) {
-
-	masternodeConfPath := getMasternodeConfPath(config, config.WorkingDir, "masternode.conf")
-
-	// Read ConfData from masternode.conf
-	confFile, err := ioutil.ReadFile(masternodeConfPath)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to read masternode.conf at %s", masternodeConfPath)
-		return "", "", "", err
-	}
-
-	var conf map[string]interface{}
-	if err := json.Unmarshal([]byte(confFile), &conf); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to parse masternode.conf json %s", confFile)
-		return "", "", "", err
-	}
-
-	mnNode, ok := conf[mnName]
-	if !ok {
-		err := errors.Errorf("masternode.conf doesn't have node with name - %s", mnName)
-		log.WithContext(ctx).WithError(err).Errorf("Failed to parse masternode.conf json %s", confFile)
-		return "", "", "", err
-	}
-
-	confData := mnNode.(map[string]interface{})
-	privKey = confData["mnPrivKey"].(string)
-	extAddrPort := strings.Split(confData["mnAddress"].(string), ":")
-	extAddr = extAddrPort[0] // get Ext IP and Port
-	extPort = extAddrPort[1] // get Ext IP and Port
-
-	return privKey, extAddr, extPort, nil
 }
 
 ///// Masternode specific

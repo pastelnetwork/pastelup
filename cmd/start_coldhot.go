@@ -85,15 +85,17 @@ func (r *ColdHotRunner) handleArgs(ctx context.Context) (err error) {
 			log.WithContext(ctx).Error("Cannot identify remote HOME directory. Please use '--remote-home-dir'")
 			return fmt.Errorf("cannot identify remote HOME directory")
 		}
-		r.config.RemoteHotHomeDir = string(out)
+		r.config.RemoteHotHomeDir = strings.TrimSuffix(string(out), "\n")
 	}
-	log.WithContext(ctx).Infof("Remote (HOT) HOME directory - %s", r.config.RemoteHotHomeDir)
 	if len(r.config.RemoteHotPastelExecDir) == 0 {
 		r.config.RemoteHotPastelExecDir = filepath.Join(r.config.RemoteHotHomeDir, "pastel")
 	}
 	if len(r.config.RemoteHotWorkingDir) == 0 {
 		r.config.RemoteHotWorkingDir = filepath.Join(r.config.RemoteHotHomeDir, ".pastel")
 	}
+	log.WithContext(ctx).Infof("Remote (HOT) HOME directory - %s", r.config.RemoteHotHomeDir)
+	log.WithContext(ctx).Infof("Remote (HOT) Installation directory - %s", r.config.RemoteHotPastelExecDir)
+	log.WithContext(ctx).Infof("Remote (HOT) Working directory - %s", r.config.RemoteHotWorkingDir)
 
 	r.opts.remotePastelCli = filepath.Join(r.config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
 	r.opts.remotePastelCli = strings.ReplaceAll(r.opts.remotePastelCli, "\\", "/")

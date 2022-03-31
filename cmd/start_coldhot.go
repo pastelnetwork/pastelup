@@ -42,14 +42,6 @@ type ColdHotRunner struct {
 
 // Init initiates coldhot runner
 func (r *ColdHotRunner) Init(ctx context.Context) error {
-	if err := r.handleArgs(); err != nil {
-		return fmt.Errorf("parse args: %s", err)
-	}
-
-	if err := r.handleConfigs(ctx); err != nil {
-		return fmt.Errorf("parse args: %s", err)
-	}
-
 	client, err := prepareRemoteSession(ctx, r.config)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
@@ -57,6 +49,14 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 	}
 
 	r.sshClient = client
+
+	if err := r.handleArgs(ctx); err != nil {
+		return fmt.Errorf("parse args: %s", err)
+	}
+
+	if err := r.handleConfigs(ctx); err != nil {
+		return fmt.Errorf("parse args: %s", err)
+	}
 
 	//get remote pastel.conf
 	//remotePastelConfPath := filepath.Join(r.config.RemoteHotWorkingDir, constants.PastelConfName)
@@ -77,9 +77,21 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 	return nil
 }
 
-func (r *ColdHotRunner) handleArgs() (err error) {
+func (r *ColdHotRunner) handleArgs(ctx context.Context) (err error) {
+
+	if len(r.config.RemoteHotHomeDir) == 0 {
+		var out []byte
+		if out, err := r.sshClient.Cmd("pwd").Output(); err != nil || len(out) == 0 {
+			log.WithContext(ctx).Info("Cannot identify remote HOME directory. Please use '--remote-home-dir'")
+			return fmt.Errorf("cannot identify remote HOME directory")
+		}
+		r.config.RemoteHotHomeDir = string(out)
+	}
 	if len(r.config.RemoteHotPastelExecDir) == 0 {
-		r.config.RemoteHotPastelExecDir = r.config.Configurer.DefaultPastelExecutableDir()
+		r.config.RemoteHotPastelExecDir = filepath.Join(r.config.RemoteHotHomeDir, "pastel")
+	}
+	if len(r.config.RemoteHotWorkingDir) == 0 {
+		r.config.RemoteHotWorkingDir = filepath.Join(r.config.RemoteHotHomeDir, ".pastel")
 	}
 
 	r.opts.remotePastelCli = filepath.Join(r.config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
@@ -127,6 +139,12 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	var numOfSyncedBlocks int
 
 	defer r.sshClient.Close()
+
+	//r.config.
+	flagMasterNodeTxID = "12345abcd"
+	flagMasterNodeInd = "1"
+	flagMasterNodePort = 0
+	createOrUpdateMasternodeConf(ctx, r.config)
 
 	// ***************  1. Start the local Pastel Node (if it is not already running) and ensure it is fully synced ***************
 	// 1.A Try to start pasteld (it will not start again if it is already running)
@@ -433,8 +451,7 @@ func CheckPastelDRunningRemote(ctx context.Context, client *utils.Client, cliPat
 func stopRemoteNode(ctx context.Context, client *utils.Client, cliPath string) error {
 	log.WithContext(ctx).Info("remote stopping pasteld if it is running ...")
 
-	out, _ := client.Cmd(fmt.Sprintf("%s %s", cliPath, "stop")).Output()
-	fmt.Printf("'pastel-cli stop' output: %s", string(out))
+	client.Cmd(fmt.Sprintf("%s %s", cliPath, "stop")).Output()
 
 	time.Sleep(10 * time.Second)
 	if _, err := client.Cmd(fmt.Sprintf("%s %s", cliPath, "getinfo")).Output(); err == nil {
@@ -470,8 +487,9 @@ func (r *ColdHotRunner) startAndSyncRemoteNode(ctx context.Context, numOfSyncedB
 			if !CheckPastelDRunningRemote(ctx, r.sshClient, r.opts.remotePastelCli, true) {
 				return fmt.Errorf("unable to start pasteld on remote")
 			}
+		} else {
+			return fmt.Errorf("unable to start pasteld on remote")
 		}
-		return fmt.Errorf("unable to start pasteld on remote")
 	}
 
 	if err := r.checkMasterNodeSyncRemote(ctx, numOfSyncedBlocks, 0); err != nil {
@@ -569,6 +587,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context) 
 		rqWorkDirPath := filepath.Join(r.config.RemoteHotWorkingDir, constants.RQServiceDir)
 		p2pDataPath := filepath.Join(r.config.RemoteHotWorkingDir, constants.P2PDataDir)
 		mdlDataPath := filepath.Join(r.config.RemoteHotWorkingDir, constants.MDLDataDir)
+		ddDirPath := filepath.Join(r.config.RemoteHotHomeDir, constants.DupeDetectionServiceDir)
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
 			LogFilePath:                     r.config.Configurer.GetSuperNodeLogFile(r.config.RemoteHotWorkingDir),
@@ -583,7 +602,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context) 
 			SNTempDir:                       snTempDirPath,
 			SNWorkDir:                       r.config.RemoteHotWorkingDir,
 			RQDir:                           rqWorkDirPath,
-			DDDir:                           filepath.Join(r.config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
+			DDDir:                           ddDirPath,
 			SuperNodePort:                   portList[constants.SNPort],
 			P2PPort:                         portList[constants.P2PPort],
 			P2PDataDir:                      p2pDataPath,

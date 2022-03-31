@@ -31,7 +31,7 @@ type configurer struct {
 	osType              constants.OSType
 }
 
-// GetHomeDir returns the home path.
+// DefaultHomeDir returns the home path.
 func (c *configurer) DefaultHomeDir() string {
 	return c.homeDir
 }
@@ -46,22 +46,22 @@ func (c *configurer) DefaultWorkingDir() string {
 	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDataDir()), c.workingDir)
 }
 
-// DefaultSuperNodeLogFile returns the default supernode log file
+// GetSuperNodeLogFile returns the default supernode log file
 func (c *configurer) GetSuperNodeLogFile(workingDir string) string {
 	return filepath.Join(workingDir, c.superNodeLogFile)
 }
 
-// DefaultWalletNodeLogFile returns the default supernode log file
+// GetWalletNodeLogFile returns the default supernode log file
 func (c *configurer) GetWalletNodeLogFile(workingDir string) string {
 	return filepath.Join(workingDir, c.walletNodeLogFile)
 }
 
-// DefaultSuperNodeConfFile returns the default supernode log file
+// GetSuperNodeConfFile returns the default supernode log file
 func (c *configurer) GetSuperNodeConfFile(workingDir string) string {
 	return filepath.Join(workingDir, c.superNodeConfFile)
 }
 
-// DefaultWalletNodeConfFile returns the default supernode log file
+// GetWalletNodeConfFile returns the default supernode log file
 func (c *configurer) GetWalletNodeConfFile(workingDir string) string {
 	return filepath.Join(workingDir, c.walletNodeConfFile)
 }

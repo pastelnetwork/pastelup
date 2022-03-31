@@ -21,6 +21,7 @@ type Init struct {
 	ReIndex       bool   `json:"reindex,omitempty"`
 
 	// Configs for remote session
+	RemoteHotHomeDir       string `json:"remotehomedir,omitempty"`
 	RemoteHotWorkingDir    string `json:"remoteworkingdir,omitempty"`
 	RemoteHotPastelExecDir string `json:"remotepastelexecdir,omitempty"`
 	RemoteIP               string `json:"remote-ip,omitempty"`

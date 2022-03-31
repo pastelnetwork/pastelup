@@ -1140,6 +1140,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 		rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
 		p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
 		mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
+		ddDirPath := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 
 		toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
 			LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
@@ -1154,7 +1155,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 			SNTempDir:                       snTempDirPath,
 			SNWorkDir:                       config.WorkingDir,
 			RQDir:                           rqWorkDirPath,
-			DDDir:                           filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
+			DDDir:                           ddDirPath,
 			SuperNodePort:                   portList[constants.SNPort],
 			P2PPort:                         portList[constants.P2PPort],
 			P2PDataDir:                      p2pDataPath,

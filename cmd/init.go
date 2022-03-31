@@ -58,14 +58,14 @@ var (
 )
 
 type masterNodeConf struct {
-	MnAddress  string `json:"mnAddress,omitempty"`
-	MnPrivKey  string `json:"mnPrivKey,omitempty"`
-	Txid       string `json:"txid,omitempty,string"`
-	OutIndex   string `json:"outIndex,omitempty"`
-	ExtAddress string `json:"extAddress,omitempty"`
-	ExtP2P     string `json:"extP2P,omitempty"`
-	ExtCfg     string `json:"extCfg,omitempty"`
-	ExtKey     string `json:"extKey,omitempty"`
+	MnAddress  string `json:"mnAddress"`
+	MnPrivKey  string `json:"mnPrivKey"`
+	Txid       string `json:"txid"`
+	OutIndex   string `json:"outIndex"`
+	ExtAddress string `json:"extAddress"`
+	ExtP2P     string `json:"extP2P"`
+	ExtCfg     string `json:"extCfg"`
+	ExtKey     string `json:"extKey"`
 }
 
 func setupInitSubCommand(config *configs.Config,
@@ -85,9 +85,9 @@ func setupInitSubCommand(config *configs.Config,
 	if remote && initCommand != coldHotInit {
 		dirsFlags = []*cli.Flag{
 			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-				SetUsage(green("Optional, Location of pastel node directory on the remote computer")).SetValue("$HOME/pastel"),
+				SetUsage(green("Optional, Location of pastel node directory on the remote computer (default: $HOME/pastel)")),
 			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-				SetUsage(green("Optional, Location of working directory on the remote computer")).SetValue("$HOME/.pastel"),
+				SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel)")),
 		}
 	} else {
 		dirsFlags = []*cli.Flag{
@@ -153,9 +153,11 @@ func setupInitSubCommand(config *configs.Config,
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("remote-dir", &config.RemoteHotPastelExecDir).
-			SetUsage(green("Optional, Location where of pastel node directory on the remote computer")).SetValue("$HOME/pastel"),
+			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel)")),
 		cli.NewFlag("remote-work-dir", &config.RemoteHotWorkingDir).
-			SetUsage(green("Optional, Location of working directory on the remote computer")).SetValue("$HOME/.pastel"),
+			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel)")),
+		cli.NewFlag("remote-home-dir", &config.RemoteHotHomeDir).
+			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME)")),
 	}
 
 	var commandName, commandMessage string

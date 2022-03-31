@@ -180,6 +180,8 @@ ensureServiceRunning "rq-service"
 ensureServiceRunning "dd-service"
 ensureServiceRunning "dd-img-server"
 
+pastelup start node
+
 $pastelCLIExec masternode status
 
 # verify node updated

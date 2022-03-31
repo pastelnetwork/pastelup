@@ -1,6 +1,7 @@
 #!/bin/bash
 
 echo "---- Starting Walletnode Recovery Process -------"
+echo "this may take ~40 mintues..."
 pastelup start walletnode
 
 echo "--- reimporting private key from provided state -----"
@@ -21,7 +22,7 @@ while [ $balance -le 0 ]; do
    printf "\rbalance is now $balance - attempts:$attempts, secsElapsed:$elapsed"
    sleep 5s 
 done
-
+echo ""
 elapsed=$(( SECONDS - start_time ))
 echo "wallet restoration completed in $elapsed seconds"
 exit 0

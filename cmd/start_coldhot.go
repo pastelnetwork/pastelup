@@ -81,12 +81,13 @@ func (r *ColdHotRunner) handleArgs(ctx context.Context) (err error) {
 
 	if len(r.config.RemoteHotHomeDir) == 0 {
 		var out []byte
-		if out, err := r.sshClient.Cmd("pwd").Output(); err != nil || len(out) == 0 {
-			log.WithContext(ctx).Info("Cannot identify remote HOME directory. Please use '--remote-home-dir'")
+		if out, err = r.sshClient.Cmd("eval echo ~$USER").Output(); err != nil || len(out) == 0 {
+			log.WithContext(ctx).Error("Cannot identify remote HOME directory. Please use '--remote-home-dir'")
 			return fmt.Errorf("cannot identify remote HOME directory")
 		}
 		r.config.RemoteHotHomeDir = string(out)
 	}
+	log.WithContext(ctx).Infof("Remote (HOT) HOME directory - %s", r.config.RemoteHotHomeDir)
 	if len(r.config.RemoteHotPastelExecDir) == 0 {
 		r.config.RemoteHotPastelExecDir = filepath.Join(r.config.RemoteHotHomeDir, "pastel")
 	}
@@ -140,12 +141,6 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 
 	defer r.sshClient.Close()
 
-	//r.config.
-	flagMasterNodeTxID = "12345abcd"
-	flagMasterNodeInd = "1"
-	flagMasterNodePort = 0
-	createOrUpdateMasternodeConf(ctx, r.config)
-
 	// ***************  1. Start the local Pastel Node (if it is not already running) and ensure it is fully synced ***************
 	// 1.A Try to start pasteld (it will not start again if it is already running)
 	if _, err = RunPastelCLI(ctx, r.config, "getinfo"); err == nil {
@@ -153,7 +148,11 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		isPasteldAlreadyRunning = true
 	} else {
 		log.WithContext(ctx).Infof("Starting pasteld")
-		if err = runPastelNode(ctx, r.config, false, false, "", ""); err != nil {
+
+		mmnConfFile := getMasternodeConfPath(r.config, r.config.WorkingDir, "masternode.conf")
+		txIndexOne := utils.CheckFileExist(mmnConfFile)
+
+		if err = runPastelNode(ctx, r.config, txIndexOne, r.config.ReIndex, "", ""); err != nil {
 			log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 			return err
 		}

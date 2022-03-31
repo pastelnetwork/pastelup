@@ -60,7 +60,7 @@ var (
 type masterNodeConf struct {
 	MnAddress  string `json:"mnAddress,omitempty"`
 	MnPrivKey  string `json:"mnPrivKey,omitempty"`
-	Txid       string `json:"txid,omitempty"`
+	Txid       string `json:"txid,omitempty,string"`
 	OutIndex   string `json:"outIndex,omitempty"`
 	ExtAddress string `json:"extAddress,omitempty"`
 	ExtP2P     string `json:"extP2P,omitempty"`

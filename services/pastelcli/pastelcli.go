@@ -1,7 +1,6 @@
-package pastelclient
+package pastelcli
 
 import (
-	"io"
 	"net/rpc"
 	"strconv"
 )
@@ -39,35 +38,36 @@ const (
 	GetNewAddress  Command = "getnewaddress"
 )
 
-type Communicator interface {
+type CLICommunicator interface {
 	RunCommand(Command) (interface{}, error)
 	RunCommandWithArgs(Command, interface{}) (interface{}, error)
-	CloseConnection() error
 }
 
-type Client struct {
-	rpcClient *rpc.Client
-}
+type Client struct{}
 
-func New(conn io.ReadWriteCloser) (*Client, error) {
-	client, err := rpc.Dial(network, addr)
-	return &Client{
-		rpcClient: client,
-	}, err
-}
+func NewClient() *Client { return &Client{} }
 
 func (client *Client) RunCommand(cmd Command) (interface{}, error) {
-	var response interface{}
-	err := client.rpcClient.Call(string(cmd), nil, &response)
-	return response, err
+	return client.do(string(cmd), nil)
 }
 
 func (client *Client) RunCommandWithArgs(cmd Command, args interface{}) (interface{}, error) {
-	var response interface{}
-	err := client.rpcClient.Call(string(cmd), args, &response)
-	return response, err
+	return client.do(string(cmd), args)
 }
 
-func (client *Client) CloseConnection() error {
-	return client.rpcClient.Close()
+/*
+ * TODO: figure out when the server is available versus when it isnt and create
+ * 		 a persistent client instead of initalizing one per call and closing it each time.
+ */
+func (client *Client) do(cmd string, args interface{}) (interface{}, error) {
+	var response interface{}
+	rpcClient, err := rpc.Dial(network, addr) // we cant keep an open connection because server starts and stops often
+	if err != nil {
+		return response, err
+	}
+	err = rpcClient.Call(cmd, args, &response)
+	if err != nil {
+		return response, err
+	}
+	return response, rpcClient.Close()
 }

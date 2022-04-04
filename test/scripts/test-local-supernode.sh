@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -160,18 +160,41 @@ ensureDirNotEmpty $dupeDetectionFolder
 echo "restoring wallet with 1M LSP"
 $pastelCLIExec importprivkey $(jq -r '.privKey' env.json)
 
+##### - logic to poll until wallet has been restored
+# TODO: add a timeout to avoid infite polling
+echo "polling balance - usually takes around 40 mins"
+balance=$($pastelCLIExec getwalletinfo | jq -r '.balance')
+connections=$($pastelCLIExec getinfo | jq -r '.connections')
+echo "balance is $balance and we have $connections connections"
+attempts=0
+start_time=$SECONDS
+elapsed=$(( (SECONDS - start_time) / 60 ))
+printf "balance is now $balance - attempts: $attempts, elapsed: $elapsed mins, connections: $connections"
+while [ $balance -le 0 ]; do
+   balance=$($pastelCLIExec getwalletinfo | jq -r '.balance')
+   connections=$($pastelCLIExec getinfo | jq -r '.connections')
+   attempts=$(( attempts + 1 ))
+   elapsed=$(( (SECONDS - start_time) / 60 ))
+   printf "\rbalance is now $balance - attempts: $attempts, elapsed: $elapsed mins, connections: $connections"
+   sleep 5s 
+done
+echo ""
+elapsed=$(( (SECONDS - start_time) / 60  ))
+echo "wallet restoration completed in $elapsed mins"
+#######
+
 trxId=$(cat env.json | jq '.trxId')
-trxIndex=$(cat env.json | jq '.trxIndex')
+blockIndex=$(cat env.json | jq '.blockIndex')
 
 # 
 # INIT SUPERNODE
 #   -> takes 1+ hrs (needs to reindex all data to build state)
 # 
 
-echo "initing supernode"
 randName=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13 ; echo '')
+echo "initing supernode with name set to $randName"
 
-pastelup init supernode --name=$randName --new --activate  --txid=$trxId --ind=$trxIndex
+pastelup init supernode --name=$randName --new --activate  --txid=$trxId --ind=$blockIndex
 
 # <verify 5 processes are running: pasteld, supernode, rq-service, dd-service, dd-img-server>
 ensureServiceRunning "pasteld"
@@ -179,8 +202,6 @@ ensureServiceRunning "supernode"
 ensureServiceRunning "rq-service"
 ensureServiceRunning "dd-service"
 ensureServiceRunning "dd-img-server"
-
-pastelup start node
 
 $pastelCLIExec masternode status
 
@@ -249,11 +270,5 @@ ensureServiceRunning "dd-img-server"
 # @ TODO
 #   if EXRTA_INSTALL_FLAGS == --enable-service
 #       ->  <REBOOT system and verify all 5 processes are running: pasteld, supernode, rq-service, dd-service, dd-img-server>
-
-
-echo "sleeping for 1h to allow for debugging"
-sleep 1h
-
-
 echo "successsfully completed local supernode testing suite"
 exit 0

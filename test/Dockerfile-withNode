@@ -6,7 +6,7 @@
 #
 # docker build -t pastel-with-node -f test/Dockerfile-withNode .
 # docker run -it pastel-with-node /bin/bash
-#
+# echo $USR_PW | sudo -S cp ./pastel/pastel-cli /bin/
 #####
 
 ### BUILDER IMAGE ###
@@ -35,4 +35,3 @@ WORKDIR /home/ubuntu
 COPY  --from=builder ${GOLANG_WORK_DIR}pastelup /bin
 COPY test/state/* .
 RUN pastelup install walletnode -n=testnet --peers=18.191.71.196
-RUN pastelup install supernode -n=testnet --force --user-pw="$USR_PW"

@@ -305,12 +305,11 @@ func FindRunningProcess(searchTerm string) (string, error) {
 
 // GetSNPortList returns array of SuperNode ports for network
 func GetSNPortList(config *configs.Config) []int {
-	if config.Network == constants.NetworkRegTest {
+	if config.Network == constants.NetworkTestnet {
 		return constants.TestnetPortList
-	} else if config.Network == constants.NetworkTestnet {
+	} else if config.Network == constants.NetworkRegTest {
 		return constants.RegTestPortList
 	}
-
 	return constants.MainnetPortList
 }
 
@@ -412,7 +411,7 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 			time.Sleep(10 * time.Second)
 		}
 		if mnstatus.IsSynced {
-			log.WithContext(ctx).Info("master node was synced!")
+			log.WithContext(ctx).Info("masternodes lists are synced!")
 			break
 		}
 
@@ -468,7 +467,7 @@ func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePaste
 		}
 
 		// Copy pastelup to remote
-		if err := client.Scp(localPastelupPath, remotePastelUp); err != nil {
+		if err := client.Scp(localPastelupPath, remotePastelUp, "0777"); err != nil {
 			return fmt.Errorf("failed to copy pastelup to remote %s", err)
 		}
 
@@ -534,7 +533,29 @@ func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.C
 	return client, nil
 }
 
-func executeRemoteCommand(ctx context.Context, config *configs.Config, command string, tryStop bool) error {
+func executeRemoteCommandsWithInventory(ctx context.Context, config *configs.Config, commands []string, tryStop bool) error {
+	if len(config.InventoryFile) > 0 {
+
+		var inv Inventory
+		err := inv.Read(config.InventoryFile)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to load inventory file")
+			return err
+		}
+		if err := inv.ExecuteCommands(ctx, config, commands); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to execute command on remote host from inventory")
+			return err
+		}
+	} else {
+		if err := executeRemoteCommands(ctx, config, commands, tryStop); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to execute command on remote host")
+			return err
+		}
+	}
+	return nil
+}
+
+func executeRemoteCommands(ctx context.Context, config *configs.Config, commands []string, tryStop bool) error {
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
@@ -549,12 +570,13 @@ func executeRemoteCommand(ctx context.Context, config *configs.Config, command s
 		}
 	}
 
-	err = client.ShellCmd(ctx, command)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed while executing remote command")
-		return err
+	for _, command := range commands {
+		err = client.ShellCmd(ctx, command)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed while executing remote command")
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -585,4 +607,16 @@ func checkAndStopRemoteServices(ctx context.Context, config *configs.Config, cli
 		}
 	}
 	return nil
+}
+
+func getMasternodeConfPath(config *configs.Config, workDirPath string, fileName string) string {
+	var masternodeConfPath string
+	if config.Network == constants.NetworkTestnet {
+		masternodeConfPath = filepath.Join(workDirPath, "testnet3", fileName)
+	} else if config.Network == constants.NetworkRegTest {
+		masternodeConfPath = filepath.Join(workDirPath, "regtest", fileName)
+	} else {
+		masternodeConfPath = filepath.Join(workDirPath, fileName)
+	}
+	return masternodeConfPath
 }

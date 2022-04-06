@@ -2,9 +2,13 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/cloudfoundry/gosigar"
 	"github.com/olekukonko/tablewriter"
@@ -20,6 +24,7 @@ import (
 var (
 	flagHostInfo   bool
 	flagPastelInfo bool
+	flagOutput     string
 )
 
 var (
@@ -32,6 +37,40 @@ var (
 		constants.DDImgService,
 	}
 )
+
+type processInfo struct {
+	Process   string
+	Pid       string
+	CPU       string
+	Virtmem   string
+	Rmem      string
+	Starttime string
+	Runtime   string
+	Path      string
+	Args      []string
+}
+
+type memoryInfo struct {
+	Memory string
+	Total  string
+	Used   string
+	Free   string
+}
+
+type filesystemInfo struct {
+	Filesystem string
+	Size       string
+	Used       string
+	Avail      string
+	Use        string
+	Mounted    string
+}
+
+type systemInfo struct {
+	MemInfo  []memoryInfo
+	FsInfo   []filesystemInfo
+	ProcInfo []processInfo
+}
 
 type infoCommand uint8
 
@@ -51,10 +90,6 @@ var (
 	}
 )
 
-type processInfo struct {
-	Path string
-}
-
 func setupInfoSubCommand(config *configs.Config,
 	infoCmd infoCommand, remote bool,
 	f func(context.Context, *configs.Config) error,
@@ -65,17 +100,21 @@ func setupInfoSubCommand(config *configs.Config,
 			SetUsage(green("Get Host info (Host name, OS version, ")).SetValue(true),
 		cli.NewFlag("pastel", &flagPastelInfo).
 			SetUsage(green("Get Pastel info (Working Directory, Executables Directory")).SetValue(true),
+		cli.NewFlag("output", &flagOutput).
+			SetUsage(green("How to present information. Available choices are: 'console' and 'json'")).SetValue("console"),
 	}
 
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
-			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
+			SetUsage(red("Required (if `inventory` is not used), SSH address of the remote host")),
 		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, Username of user at remote host")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
+		cli.NewFlag("inventory", &config.InventoryFile).
+			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
 	}
 
 	var commandName, commandMessage string
@@ -95,6 +134,7 @@ func setupInfoSubCommand(config *configs.Config,
 	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))
 	subCommand.AddFlags(commandFlags...)
+	addLogFlags(subCommand, config)
 
 	if f != nil {
 		subCommand.SetActionFunc(func(ctx context.Context, _ []string) error {
@@ -133,49 +173,223 @@ func setupInfoCommand() *cli.Command {
 	return infoCommand
 }
 
-func runInfoSubCommand( /*ctx*/ _ context.Context, config *configs.Config) error {
+func formatMemory(val uint64) string {
+	return strconv.Itoa(int(val / 1024))
+}
+func formatSize(size uint64) string {
+	return sigar.FormatSize(size * 1024)
+}
 
-	pastelProcNames := make(map[string]processInfo)
+func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
+	//var err error
+	var sysInfo systemInfo
 	if flagHostInfo {
-		log.Infof(green("=== System info ==="))
+		fmt.Println(green("\n=== System info ==="))
 		host, _ := os.Hostname()
-		log.Infof("HostName: %s", host)
-		log.Infof("OS: %s", utils.GetOS())
+		fmt.Printf("HostName: %s\n", host)
+		fmt.Printf("OS: %s\n", utils.GetOS())
 
+		pastelProcNames := make(map[string]bool)
+		pastelProcNamesShort := make(map[string]bool)
 		for _, tool := range pastelTools {
-			pastelProcNames[constants.ServiceName[tool][utils.GetOS()]] = processInfo{}
-		}
+			name := constants.ServiceName[tool][utils.GetOS()]
+			pastelProcNames[name] = true
 
-		getMemoryInfo()
-		getPastelProcessesInfo(&pastelProcNames)
+			short := int(math.Min(15, float64(len(name))))
+			shortName := name[:short]
+			pastelProcNamesShort[shortName] = true
+		}
+		// for old SN installations
+		pastelProcNames["supernode-ubunt"] = true
+		pastelProcNames["rq-service-ubun"] = true
+
+		//dd and img-server
+		pastelProcNames["python3"] = true //TODO - get command line parameters and check for `dupe_detection_server.py`
+		pastelProcNames["start_dd_img_se"] = true
+
+		sysInfo.MemInfo = getMemoryInfo()
+		sysInfo.FsInfo = getFSInfo()
+		sysInfo.ProcInfo = getPastelProcessesInfo(&pastelProcNames, &pastelProcNamesShort)
+
+		if flagOutput == "console" {
+			printMemoryInfo(sysInfo.MemInfo)
+			printFSInfo(sysInfo.FsInfo)
+			printProcessInfo(sysInfo.ProcInfo)
+		}
 	}
 
 	if flagPastelInfo {
-		log.Infof(blue("=== Pastel info ==="))
-		//for _, tool := range pastelTools {
-		//}
+		fmt.Println(blue("\n=== Pastel info ==="))
+		for _, process := range sysInfo.ProcInfo {
+			if strings.HasPrefix(process.Process, "pasteld") {
+				config.WorkingDir = config.Configurer.DefaultWorkingDir()
+				if len(process.Args) > 0 {
+					fmt.Printf(red("pasteld") + " was started with the following parameters:\n")
+					for _, arg := range process.Args[1:] {
+						fmt.Printf(cyan("\t%s\n"), arg)
+						if strings.Contains(arg, "--datadir") {
+							datadir := strings.Split(arg, "=")
+							if len(datadir) == 1 {
+								datadir = strings.Split(arg, " ")
+							}
+							if len(datadir) == 2 {
+								config.WorkingDir = datadir[1]
+							}
+						}
+					}
+				} else {
+					fmt.Print(blue("pasteld was started without parameters\n"))
+				}
 
-		log.Infof("Working Directory: %s", config.WorkingDir)
-		log.Infof("Pastel Exec Directory: %s", pastelProcNames[string(constants.PastelD)].Path)
+				config.PastelExecDir = process.Path
+
+				fmt.Printf("Blockchain info on the host:\n")
+				_, _ = RunPastelCLI(ctx, config, "getinfo")
+
+				fmt.Printf("Masternode status of the host:\n")
+				_, _ = RunPastelCLI(ctx, config, "masternode", "status")
+			}
+			//if strings.HasPrefix(process.Process, "") {
+			//
+			//}
+		}
+
+		fmt.Printf("Working Directory: %s\n", config.WorkingDir)
+		//log.Infof("Pastel Exec Directory: %s", pastelProcNames[string(constants.PastelD)].Path)
+	}
+
+	if flagOutput == "json" {
+		data, _ := json.Marshal(sysInfo)
+		//if err != nil {
+		//	fmt.Printf("Error %v\n", err)
+		//}
+		fmt.Printf("%s\n", string(data))
 	}
 
 	return nil
 }
 
-func runRemoteInfoSubCommand( /*ctx*/ _ context.Context /*config*/, _ *configs.Config) error {
+func runRemoteInfoSubCommand(ctx context.Context, config *configs.Config) error {
+	infoOptions := ""
+	if flagHostInfo {
+		infoOptions = " --host"
+	}
+	if flagPastelInfo {
+		infoOptions = fmt.Sprintf("%s --pastel", infoOptions)
+	}
+	if len(flagOutput) > 0 {
+		infoOptions = fmt.Sprintf("%s --output %s", infoOptions, flagOutput)
+	}
+	if config.Quiet {
+		infoOptions = fmt.Sprintf("%s -q", infoOptions)
+	}
+	if len(config.LogLevel) > 0 {
+		infoOptions = fmt.Sprintf("%s --log-level %s", infoOptions, config.LogLevel)
+	}
+
+	infoCmd := fmt.Sprintf("%s info %s", constants.RemotePastelupPath, infoOptions)
+	if err := executeRemoteCommandsWithInventory(ctx, config, []string{infoCmd}, false); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to get info from remote hosts")
+	}
+
+	//var info []processInfo
+	//err := json.Unmarshal(data, &info)
+	//if err != nil {
+	//	return
+	//}
+
+	//var info []memInfo
+	//err := json.Unmarshal(data, &info)
+	//if err != nil {
+	//	return
+	//}
+
 	return nil
 }
 
-func format(val uint64) uint64 {
-	return val / 1024
-}
-
-func getPastelProcessesInfo(pastelProcNames *map[string]processInfo) {
+func getPastelProcessesInfo(procNames *map[string]bool, procNamesShort *map[string]bool) []processInfo {
 	pids := sigar.ProcList{}
 	pids.Get()
 
+	var procInfo []processInfo
+
+	for _, pid := range pids.List {
+		state := sigar.ProcState{}
+		if err := state.Get(pid); err != nil {
+			continue
+		}
+		found := false
+		if _, found = (*procNames)[state.Name]; !found {
+			if _, found = (*procNamesShort)[state.Name]; !found {
+				continue
+			}
+		}
+
+		//fmt.Printf("%s\n", state.Name)
+
+		var dir, file, vmem, rmem, stime, rtime, cpup string
+		var pasteldArgs []string
+
+		if strings.HasPrefix(state.Name, "python") ||
+			strings.HasPrefix(state.Name, "start_dd_img_se") ||
+			strings.HasPrefix(state.Name, "pasteld") {
+			args := sigar.ProcArgs{}
+			args.Get(pid)
+			if strings.HasPrefix(state.Name, "pasteld") {
+				pasteldArgs = args.List
+				goto foundDDorISorPD
+			}
+			for _, arg := range args.List {
+				if strings.Contains(arg, "dupe_detection_server.py") ||
+					strings.Contains(arg, "start_dd_img_server.sh") {
+					dir, file = filepath.Split(arg)
+					goto foundDDorISorPD
+				}
+			}
+			continue
+		}
+
+	foundDDorISorPD:
+		if len(dir) == 0 && len(file) == 0 {
+			file = state.Name
+			exe := sigar.ProcExe{}
+			if err := exe.Get(pid); err == nil {
+				dir, file = filepath.Split(exe.Name)
+			}
+		}
+
+		mem := sigar.ProcMem{}
+		if err := mem.Get(pid); err == nil {
+			vmem = strconv.Itoa(int(mem.Size / 1024))
+			rmem = strconv.Itoa(int(mem.Resident / 1024))
+		}
+		time := sigar.ProcTime{}
+		if err := time.Get(pid); err == nil {
+			stime = time.FormatStartTime()
+			rtime = time.FormatTotal()
+		}
+		cpu := sigar.ProcCpu{}
+		if err := cpu.Get(pid); err == nil {
+			cpup = strconv.Itoa(int(cpu.Percent))
+		}
+
+		procInfo = append(procInfo, processInfo{
+			Pid:       strconv.Itoa(pid),
+			Process:   file,
+			Path:      dir,
+			Virtmem:   vmem,
+			Rmem:      rmem,
+			Starttime: stime,
+			Runtime:   rtime,
+			CPU:       cpup,
+			Args:      pasteldArgs,
+		})
+	}
+	return procInfo
+}
+func printProcessInfo(info []processInfo) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Service name", "Process ID", "CPU %", "Virtual Memory", "Resident Memory", "Starting Time", "Running Time", "Path"})
+	table.SetHeader([]string{"Process", "Pid", "CPU%", "VirtMem", "RMem", "StartTime", "RunTime", "Path"})
 	table.SetColumnColor(
 		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiRedColor},
 		tablewriter.Colors{tablewriter.Bold, tablewriter.FgBlackColor},
@@ -186,72 +400,117 @@ func getPastelProcessesInfo(pastelProcNames *map[string]processInfo) {
 		tablewriter.Colors{tablewriter.Bold, tablewriter.FgBlackColor},
 		tablewriter.Colors{tablewriter.Bold, tablewriter.FgBlackColor},
 	)
-
-	for _, pid := range pids.List {
-
-		state := sigar.ProcState{}
-		if err := state.Get(pid); err != nil {
-			continue
-		}
-
-		var pinfo processInfo
-		found := false
-		if pinfo, found = (*pastelProcNames)[state.Name]; !found {
-			continue
-		}
-
-		exe := sigar.ProcExe{}
-		if err := exe.Get(pid); err != nil {
-			continue
-		}
-		pinfo.Path = exe.Cwd
-		(*pastelProcNames)[state.Name] = pinfo
-
-		mem := sigar.ProcMem{}
-		if err := mem.Get(pid); err != nil {
-			continue
-		}
-
-		time := sigar.ProcTime{}
-		if err := time.Get(pid); err != nil {
-			continue
-		}
-
-		cpu := sigar.ProcCpu{}
-		if err := cpu.Get(pid); err != nil {
-			continue
-		}
-
+	for _, process := range info {
 		table.Append([]string{
-			state.Name,
-			strconv.Itoa(pid),
-			strconv.Itoa(int(cpu.Percent)),
-			strconv.Itoa(int(mem.Size / 1024)),
-			strconv.Itoa(int(mem.Resident / 1024)),
-			time.FormatStartTime(),
-			time.FormatTotal(),
-			exe.Cwd,
+			process.Process,
+			process.Pid,
+			process.CPU,
+			process.Virtmem,
+			process.Rmem,
+			process.Starttime,
+			process.Runtime,
+			process.Path,
 		})
 	}
 	table.Render()
 }
 
-func getMemoryInfo() {
+func getMemoryInfo() []memoryInfo {
 	mem := sigar.Mem{}
-	swap := sigar.Swap{}
-
 	mem.Get()
+
+	swap := sigar.Swap{}
 	swap.Get()
 
-	fmt.Fprintf(os.Stdout, "%18s %10s %10s\n",
-		"total", "used", "free")
+	return []memoryInfo{
+		{
+			Memory: "RAM",
+			Total:  formatMemory(mem.Total),
+			Used:   formatMemory(mem.Used),
+			Free:   formatMemory(mem.Free),
+		},
+		{
+			Memory: "-/+ buffers/cache",
+			Total:  "",
+			Used:   formatMemory(mem.ActualUsed),
+			Free:   formatMemory(mem.ActualFree),
+		},
+		{
+			Memory: "Swap",
+			Total:  formatMemory(swap.Total),
+			Used:   formatMemory(swap.Used),
+			Free:   formatMemory(swap.Free),
+		},
+	}
+}
+func printMemoryInfo(info []memoryInfo) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Memory", "Total", "Used", "Free"})
+	table.SetColumnColor(
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiGreenColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgWhiteColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgWhiteColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgWhiteColor},
+	)
+	for _, memInfo := range info {
+		table.Append([]string{
+			memInfo.Memory,
+			memInfo.Total,
+			memInfo.Used,
+			memInfo.Free,
+		})
+	}
+	table.Render()
+}
 
-	fmt.Fprintf(os.Stdout, "Mem:    %10d %10d %10d\n",
-		format(mem.Total), format(mem.Used), format(mem.Free))
+func getFSInfo() []filesystemInfo {
+	fsList := sigar.FileSystemList{}
+	fsList.Get()
 
-	fmt.Fprintf(os.Stdout, "-/+ buffers/cache: %10d %10d\n",
-		format(mem.ActualUsed), format(mem.ActualFree))
+	var fsInfo []filesystemInfo
+	for _, fs := range fsList.List {
 
-	fmt.Fprintf(os.Stdout, "Swap:   %10d %10d %10d\n",
-		format(swap.Total), format(swap.Used), format(swap.Free))
+		if strings.HasPrefix(fs.DevName, "/dev/loop") ||
+			!strings.HasPrefix(fs.DevName, "/dev/") {
+			continue
+		}
+
+		dirName := fs.DirName
+
+		usage := sigar.FileSystemUsage{}
+		usage.Get(dirName)
+
+		fsInfo = append(fsInfo, filesystemInfo{
+			Filesystem: fs.DevName,
+			Size:       formatSize(usage.Total),
+			Used:       formatSize(usage.Used),
+			Avail:      formatSize(usage.Avail),
+			Use:        sigar.FormatPercent(usage.UsePercent()),
+			Mounted:    dirName,
+		})
+	}
+	return fsInfo
+}
+func printFSInfo(info []filesystemInfo) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Filesystem", "Size", "Used", "Avail", "Use%", "Mounted on"})
+	table.SetColumnColor(
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiGreenColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgWhiteColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgWhiteColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgWhiteColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgWhiteColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgWhiteColor},
+	)
+	for _, fs := range info {
+		table.Append([]string{
+			fs.Filesystem,
+			fs.Size,
+			fs.Used,
+			fs.Avail,
+			fs.Use,
+			fs.Mounted,
+		})
+	}
+	table.Render()
 }

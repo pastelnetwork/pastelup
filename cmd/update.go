@@ -105,6 +105,8 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(red("Required, password of remote user - so no sudo password request is prompted")).SetRequired(),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
+		cli.NewFlag("inventory", &config.InventoryFile).
+			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
 	}
 
 	var commandName, commandMessage string
@@ -234,9 +236,8 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 	}
 
 	updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update %s", constants.RemotePastelupPath, updateOptions)
-
-	if err := executeRemoteCommand(ctx, config, updateSuperNodeCmd, false); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to update remote %s", tool)
+	if err := executeRemoteCommandsWithInventory(ctx, config, []string{updateSuperNodeCmd}, false); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s on remote host", tool)
 	}
 	log.WithContext(ctx).Infof("Remote %s updated", tool)
 

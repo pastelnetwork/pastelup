@@ -304,7 +304,7 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 
 	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install %s", constants.RemotePastelupPath, remoteOptions)
 
-	if err = executeRemoteCommand(ctx, config, installSuperNodeCmd, true); err != nil {
+	if err = executeRemoteCommands(ctx, config, []string{installSuperNodeCmd}, true); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to install remote %s", tool)
 		return err
 	}
@@ -635,6 +635,7 @@ func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts 
 	rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
 	p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
 	mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
+	ddDirPath := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 
 	toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
 		LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
@@ -649,7 +650,7 @@ func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts 
 		SNTempDir:                       snTempDirPath,
 		SNWorkDir:                       config.WorkingDir,
 		RQDir:                           rqWorkDirPath,
-		DDDir:                           filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir),
+		DDDir:                           ddDirPath,
 		SuperNodePort:                   portList[constants.SNPort],
 		P2PPort:                         portList[constants.P2PPort],
 		P2PDataDir:                      p2pDataPath,

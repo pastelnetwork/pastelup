@@ -2,22 +2,28 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/pastelnetwork/pastelup/constants"
+	"io/ioutil"
 	"os"
 	"os/signal"
+	"strings"
+	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
+	"github.com/pastelnetwork/pastelup/constants"
 )
 
 var (
 	// masternode flags
 	flagMasterNodeIsActivate bool
 	flagMasterNodeName       string
-	flagMasterNodeIsCreate   bool
-	flagMasterNodeIsUpdate   bool
+	flagMasterNodeConfNew    bool
+	flagMasterNodeConfAdd    bool
 	flagMasterNodeTxID       string
 	flagMasterNodeInd        string
 	flagMasterNodePort       int
@@ -51,6 +57,17 @@ var (
 	}
 )
 
+type masterNodeConf struct {
+	MnAddress  string `json:"mnAddress"`
+	MnPrivKey  string `json:"mnPrivKey"`
+	Txid       string `json:"txid"`
+	OutIndex   string `json:"outIndex"`
+	ExtAddress string `json:"extAddress"`
+	ExtP2P     string `json:"extP2P"`
+	ExtCfg     string `json:"extCfg"`
+	ExtKey     string `json:"extKey"`
+}
+
 func setupInitSubCommand(config *configs.Config,
 	initCommand initCommand, remote bool,
 	f func(context.Context, *configs.Config) error,
@@ -59,25 +76,25 @@ func setupInitSubCommand(config *configs.Config,
 	commonFlags := []*cli.Flag{
 		cli.NewFlag("ip", &flagNodeExtIP).
 			SetUsage(green("Optional, WAN address of the host")),
-		cli.NewFlag("reindex", &flagReIndex).SetAliases("r").
+		cli.NewFlag("reindex", &config.ReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
 	}
 
 	var dirsFlags []*cli.Flag
 
-	if !remote {
+	if remote && initCommand != coldHotInit {
+		dirsFlags = []*cli.Flag{
+			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
+				SetUsage(green("Optional, Location of pastel node directory on the remote computer (default: $HOME/pastel)")),
+			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+				SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel)")),
+		}
+	} else {
 		dirsFlags = []*cli.Flag{
 			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
 				SetUsage(green("Optional, Location of pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 				SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
-		}
-	} else {
-		dirsFlags = []*cli.Flag{
-			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/pastel)")),
-			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/.pastel)")),
 		}
 	}
 
@@ -85,10 +102,10 @@ func setupInitSubCommand(config *configs.Config,
 		cli.NewFlag("name", &flagMasterNodeName).
 			SetUsage(red("Required, name of the Masternode to create or update in the masternode.conf")).SetRequired(),
 
-		cli.NewFlag("new", &flagMasterNodeIsCreate).
-			SetUsage(red("Required (if --update is not used), if specified, will add new Masternode record in the masternode.conf.")),
-		cli.NewFlag("update", &flagMasterNodeIsUpdate).
-			SetUsage(red("Required (if --new is not used), if specified, will update Masternode record in the masternode.conf.")),
+		cli.NewFlag("new", &flagMasterNodeConfNew).
+			SetUsage(red("Required (if --add is not used), if specified, will create new masternode.conf with new Masternode record in it.")),
+		cli.NewFlag("add", &flagMasterNodeConfAdd).
+			SetUsage(red("Required (if --new is not used), if specified, will add new Masternode record to the existing masternode.conf.")),
 
 		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
 			SetUsage(green("Optional, Masternode private key, if omitted, new masternode private key will be created")),
@@ -135,6 +152,12 @@ func setupInitSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
+		cli.NewFlag("remote-dir", &config.RemoteHotPastelExecDir).
+			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel)")),
+		cli.NewFlag("remote-work-dir", &config.RemoteHotWorkingDir).
+			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel)")),
+		cli.NewFlag("remote-home-dir", &config.RemoteHotHomeDir).
+			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME)")),
 	}
 
 	var commandName, commandMessage string
@@ -221,6 +244,7 @@ func setupInitCommand() *cli.Command {
 // Sub Command
 func runInitSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Initialising local supernode")
+	config.ReIndex = true // init means first start, reindex is required
 	if err := runStartSuperNode(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to initialize local supernode")
 		return err
@@ -268,10 +292,10 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 		startOptions = fmt.Sprintf("%s --pkey=%s", startOptions, flagMasterNodePrivateKey)
 	}
 
-	if flagMasterNodeIsCreate {
+	if flagMasterNodeConfNew {
 		startOptions = fmt.Sprintf("%s --new", startOptions)
-	} else if flagMasterNodeIsUpdate {
-		startOptions = fmt.Sprintf("%s --update", startOptions)
+	} else if flagMasterNodeConfAdd {
+		startOptions = fmt.Sprintf("%s --add", startOptions)
 	}
 
 	if len(flagMasterNodeTxID) > 0 {
@@ -314,7 +338,7 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 		startOptions = fmt.Sprintf("%s --ip=%s", startOptions, flagNodeExtIP)
 	}
 
-	if flagReIndex {
+	if config.ReIndex {
 		startOptions = fmt.Sprintf("%s --reindex", startOptions)
 	}
 
@@ -327,11 +351,150 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 	}
 
 	initSuperNodeCmd := fmt.Sprintf("%s init supernode %s", constants.RemotePastelupPath, startOptions)
-	if err := executeRemoteCommand(ctx, config, initSuperNodeCmd, false); err != nil {
+	if err := executeRemoteCommands(ctx, config, []string{initSuperNodeCmd}, false); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to init remote Supernode services")
 		return err
 	}
 	log.WithContext(ctx).Infof("Remote supernode initialized")
 
 	return nil
+}
+
+///// masternode.conf helpers
+func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) error {
+
+	// this function must only be called when --create or --update
+	if !flagMasterNodeConfNew && !flagMasterNodeConfAdd {
+		return nil
+	}
+
+	var err error
+	var conf map[string]masterNodeConf
+
+	if flagMasterNodeConfAdd {
+		conf, err = loadMasternodeConfFile(ctx, config)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to load existing masternode.conf file")
+			return err
+		}
+	} else {
+		conf = make(map[string]masterNodeConf)
+	}
+
+	conf[flagMasterNodeName] = masterNodeConf{
+		MnAddress:  flagNodeExtIP + ":" + fmt.Sprintf("%d", flagMasterNodePort),
+		MnPrivKey:  flagMasterNodePrivateKey,
+		Txid:       flagMasterNodeTxID,
+		OutIndex:   flagMasterNodeInd,
+		ExtAddress: flagNodeExtIP + ":" + fmt.Sprintf("%d", flagMasterNodeRPCPort),
+		ExtP2P:     flagMasterNodeP2PIP + ":" + fmt.Sprintf("%d", flagMasterNodeP2PPort),
+		ExtCfg:     "",
+		ExtKey:     flagMasterNodePastelID,
+	}
+
+	// Create masternode.conf file
+	if err := writeMasterNodeConfFile(ctx, config, conf); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to create new masternode.conf file")
+		return err
+	}
+	log.WithContext(ctx).Info("masternode.conf updated")
+
+	return nil
+}
+
+func writeMasterNodeConfFile(ctx context.Context, config *configs.Config, conf map[string]masterNodeConf) error {
+
+	masternodeConfPath := getMasternodeConfPath(config, config.WorkingDir, "masternode.conf")
+
+	confData, err := json.Marshal(conf)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Invalid new masternode conf data")
+		return err
+	}
+
+	if err := backupMasterNodeConfFile(ctx, config, masternodeConfPath); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to backup previous masternode.conf file")
+		return err
+	}
+
+	if err := ioutil.WriteFile(masternodeConfPath, confData, 0644); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to create and write new masternode.conf file")
+		return err
+	}
+	log.WithContext(ctx).Info("Created masternode config file at path:", masternodeConfPath)
+	log.WithContext(ctx).Infof("masternode.conf = %s", string(confData))
+
+	return nil
+}
+
+func backupMasterNodeConfFile(ctx context.Context, config *configs.Config, masternodeConfPath string) error {
+
+	masternodeConfPathBackup := getMasternodeConfPath(config, config.WorkingDir, "masternode_%s.conf")
+	if _, err := os.Stat(masternodeConfPath); err == nil { // if masternode.conf File exists , backup
+
+		if yes, _ := AskUserToContinue(ctx, fmt.Sprintf("Previous masternode.conf found at - %s. "+
+			"Do you want to back it up and continue? Y/N", masternodeConfPath)); !yes {
+
+			log.WithContext(ctx).WithError(err).Error("masternode.conf already exists - exiting")
+			return fmt.Errorf("masternode.conf already exists - %s", masternodeConfPath)
+		}
+
+		currentTime := time.Now()
+		backupFileName := fmt.Sprintf(masternodeConfPathBackup, currentTime.Format("2021-01-01-23-59-59"))
+		if err := os.Rename(masternodeConfPath, backupFileName); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to rename %s to %s", masternodeConfPath, backupFileName)
+			return err
+		}
+		if _, err := os.Stat(masternodeConfPath); err == nil { // delete after back up if still exist
+			if err = os.Remove(masternodeConfPath); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to remove %s", masternodeConfPath)
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func loadMasternodeConfFile(ctx context.Context, config *configs.Config) (map[string]masterNodeConf, error) {
+
+	masternodeConfPath := getMasternodeConfPath(config, config.WorkingDir, "masternode.conf")
+
+	// Read ConfData from masternode.conf
+	confFile, err := ioutil.ReadFile(masternodeConfPath)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to read existing masternode.conf file - %s", masternodeConfPath)
+		return nil, err
+	}
+
+	var conf map[string]masterNodeConf
+	err = json.Unmarshal(confFile, &conf)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Invalid existing masternode.conf file - %s", masternodeConfPath)
+		return nil, err
+	}
+	return conf, nil
+}
+
+func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string) (privKey string, extAddr string, extPort string, err error) {
+
+	conf, err := loadMasternodeConfFile(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to load existing masternode.conf file")
+		return "", "", "", err
+	}
+
+	mnNode, ok := conf[mnName]
+	if !ok {
+		err := errors.Errorf("masternode.conf doesn't have node with name - %s", mnName)
+		log.WithContext(ctx).WithError(err).Errorf("Invalid masternode.conf json: %v", conf)
+		return "", "", "", err
+	}
+
+	privKey = mnNode.MnPrivKey
+	extAddrPort := strings.Split(mnNode.MnAddress, ":")
+	extAddr = extAddrPort[0] // get Ext IP and Port
+	extPort = extAddrPort[1] // get Ext IP and Port
+
+	return privKey, extAddr, extPort, nil
 }

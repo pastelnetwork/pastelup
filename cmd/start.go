@@ -561,7 +561,8 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	if utils.GetOS() == constants.Windows {
 		python = "python"
 	}
-	go RunCMD(python, execPath, ddConfigFilePath)
+	cmd := fmt.Sprintf("source venv/bin/activate && %v %v %v", python, execPath, ddConfigFilePath)
+	go RunCMD("bash", "-c", cmd)
 
 	time.Sleep(10 * time.Second)
 

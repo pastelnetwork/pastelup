@@ -48,6 +48,13 @@ run-dev-container:
 		--memory-swap="2g" \
 		pastel-dev
 
+clean-dev:
+	rm -rf .bash_history
+	rm -rf .cache/
+	rm -rf .keras/
+	rm -rf pastel_dupe_detection_service/
+	rm -rf venv/
+
 build-test-img:
 	docker build -t pastel-test -f ./test/Dockerfile .
 
@@ -59,4 +66,13 @@ test-walletnode:
 		--entrypoint '/bin/sh' \
 		pastel-test \
 		-c "./test-walletnode.sh"
+
+test-ddservice:
+	docker rm pastel-ddservice-test || true
+	docker run \
+		--name pastel-ddservice-test \
+		--mount type=bind,source=${PWD}/test/scripts/test-ddservice.sh,target=/home/ubuntu/test-ddservice.sh \
+		--entrypoint '/bin/bash' \
+		pastel-test \
+		-c "./test-ddservice.sh"
 

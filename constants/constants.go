@@ -28,7 +28,7 @@ const (
 	PastelUtilityLogFilePath string = "./pastelup-remote-log.txt"
 
 	// PipRequirmentsFileName - pip install requirements file name
-	PipRequirmentsFileName string = "requirements.in"
+	PipRequirmentsFileName string = "requirements.txt"
 
 	// DupeDetectionImageFingerPrintDataBase - dupe_detection_image_fingerprint_database file
 	DupeDetectionImageFingerPrintDataBase string = "dupe_detection_image_fingerprint_database.sqlite"
@@ -265,32 +265,18 @@ var DupeDetectionConfigs = []string{
 
 // DupeDetectionSupportDownloadURL - The URL of dupe detection support files
 var DupeDetectionSupportDownloadURL = []string{
-	"https://download.pastel.network/machine-learning/dupe_detection_image_fingerprint_database.zip",
-	"https://download.pastel.network/machine-learning/keras_dupe_classifier.model.zip",
-	"https://download.pastel.network/machine-learning/xgboost_dupe_classifier.zip",
-	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
-	"https://download.pastel.network/machine-learning/neuralhash_128x96_seed1.dat",
-	"https://download.pastel.network/machine-learning/neuralhash_model.onnx",
-}
-
-// DupeDetectionSupportContents - The contents of dupe detection support files (can be file or folder)
-var DupeDetectionSupportContents = map[string]string{
-	"dupe_detection_image_fingerprint_database.zip": "dupe_detection_image_fingerprint_database.sqlite",
-	"keras_dupe_classifier.model.zip":               "keras_dupe_classifier.model",
-	"xgboost_dupe_classifier.zip":                   "xgboost_dupe_classifier.model",
-	"nsfw_mobilenet_v2_140_224.zip":                 "mobilenet_v2_140_224",
-	"neuralhash_128x96_seed1.dat":                   "neuralhash_128x96_seed1.dat",
-	"neuralhash_model.onnx":                         "neuralhash_model.onnx",
+	"https://download.pastel.network/machine-learning/DupeDetector_gray.pth.tar",
+	"https://download.pastel.network/machine-learning/pca_bw.vt",
+	"https://download.pastel.network/machine-learning/registered_image_fingerprints_db.sqlite",
+	"https://download.pastel.network/machine-learning/train_0_bw.hdf5",
 }
 
 // DupeDetectionSupportChecksum - The checksum of dupe detection support files
 var DupeDetectionSupportChecksum = map[string]string{
-	"dupe_detection_image_fingerprint_database.sqlite": "4534842ef9839ce23426dc985eac28710795bceade19da7f53c1abb37d94ea81",
-	"keras_dupe_classifier.model":                      "084461c90431e88f75e3b83a6aafa2e0f0e7045057cc78ec50af68e6e4f366c7",
-	"xgboost_dupe_classifier.model":                    "1bf324ef064cec16d2d0a3324118438714fed41f64bbc92f21292c4c841900a3",
-	"mobilenet_v2_140_224":                             "825a4298a25334201ad5fb29e089fce0258c9a13793cc0d0b6a7dbe9c96ad9f3",
-	"neuralhash_128x96_seed1.dat":                      "312344458ca5468eced6f50163c09d88dbc9f3470891f1b078852b01c9a0fce9",
-	"neuralhash_model.onnx":                            "77bcb037a64d2246624fbdbf3a2a8e82bb085760f5b690f13f0b91f3312a92f9",
+	"DupeDetector_gray.pth.tar":               "9eb31f27c5ce362dc558b4b77abedcbe327909f093d97f24acce20fcfb872c36",
+	"pca_bw.vt":                               "d1bd688fcfa09f650d42a0160479c2bebf1cf87596645a55220e56696f386c73",
+	"train_0_bw.hdf5":                         "659a2d480783709130c56e862a3a6e16d659c6dd063e80271fe51542b8b92590",
+	"registered_image_fingerprints_db.sqlite": "5d01d8c944022d8346c25d7f70bc4ff985de1ec40d2465b70c18e7f370ce44f6",
 }
 
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files
@@ -343,7 +329,7 @@ var DependenciesPackagesSuperNode = map[OSType][]string{
 
 // DependenciesPackagesDDService defines some dependencies for walletnode
 var DependenciesPackagesDDService = map[OSType][]string{
-	Linux:   {"python3-pip", "google-chrome-stable"},
+	Linux:   {"python3-pip", "google-chrome-stable", "libwebp-dev", "python3-venv"},
 	Mac:     {},
 	Windows: {},
 	Unknown: {},

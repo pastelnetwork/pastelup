@@ -404,6 +404,16 @@ func Contains(s []string, e string) bool {
 	return false
 }
 
+// ContainsToolType check the slice contains the tool type
+func ContainsToolType(ttList []constants.ToolType, tt constants.ToolType) bool {
+	for _, t := range ttList {
+		if t == tt {
+			return true
+		}
+	}
+	return false
+}
+
 // GetChecksum gets the checksum of file
 func GetChecksum(_ context.Context, fileName string) (checksum string, err error) {
 	if _, err := os.Stat(fileName); err != nil {

@@ -35,6 +35,8 @@ const (
 	wnServiceInstall
 )
 
+const nonNetworkDepedentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
+
 var (
 	installCmdName = map[installCommand]string{
 		nodeInstall:               "node",
@@ -323,7 +325,7 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 }
 
 func runServicesInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType, withDependencies bool) error {
-	if config.OpMode == "install" && !utils.ContainsToolType([]constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}, installCommand) {
+	if config.OpMode == "install" && !utils.ContainsToolType(nonNetworkDepedentServices, installCommand) {
 		if !utils.IsValidNetworkOpt(config.Network) {
 			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
 		}

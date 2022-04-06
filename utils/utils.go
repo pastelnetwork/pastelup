@@ -404,7 +404,7 @@ func Contains(s []string, e string) bool {
 	return false
 }
 
-// Contains check the slice contains the special string
+// ContainsToolType check the slice contains the tool type
 func ContainsToolType(ttList []constants.ToolType, tt constants.ToolType) bool {
 	for _, t := range ttList {
 		if t == tt {

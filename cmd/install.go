@@ -35,7 +35,7 @@ const (
 	wnServiceInstall
 )
 
-const nonNetworkDepedentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
+var nonNetworkDepedentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
 
 var (
 	installCmdName = map[installCommand]string{

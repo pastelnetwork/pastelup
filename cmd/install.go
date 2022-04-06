@@ -498,9 +498,13 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	if err := RunCMDWithInteractive(pythonCmd, "-m", "venv", "venv"); err != nil {
 		return err
 	}
+	cmd := fmt.Sprintf("source venv/bin/activate && %v -m pip install --upgrade pip", pythonCmd)
+	if err := RunCMDWithInteractive("bash", "-c", cmd); err != nil {
+		return err
+	}
 	requirementsFile := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName)
 	// b/c the commands get run as forked sub processes, we need to run the venv and install in one command
-	cmd := "source venv/bin/activate && pip install -r " + requirementsFile
+	cmd = "source venv/bin/activate && pip install -r " + requirementsFile
 	if config.NoCache {
 		cmd += " --no-cache-dir"
 	}

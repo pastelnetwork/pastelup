@@ -1,4 +1,4 @@
-package pastelcli
+package pastelcore
 
 import (
 	"net/rpc"
@@ -25,32 +25,46 @@ var (
 	addr    = "127.0.0.1:" + strconv.Itoa(port)
 )
 
+// Command represents a pastel-cli command to run
 type Command string
 
 const (
-	GetInfo        Command = "getInfo"
-	GetBalance     Command = "getbalance"
-	SendToAdress   Command = "sendtoaddress"
+	// GetInfo is an RPC command
+	GetInfo Command = "getInfo"
+	// GetBalance is an RPC command
+	GetBalance Command = "getbalance"
+	// SendToAdress is an RPC command
+	SendToAdress Command = "sendtoaddress"
+	// MasterNodeSync is an RPC command
 	MasterNodeSync Command = "mnsync"
-	Stop           Command = "stop"
+	// Stop is an RPC command
+	Stop Command = "stop"
+	// PastelIDNewKey is an RPC command
 	PastelIDNewKey Command = "pastelid"
-	MasterNode     Command = "masternode"
-	GetNewAddress  Command = "getnewaddress"
+	// MasterNode is an RPC command
+	MasterNode Command = "masternode"
+	// GetNewAddress is an RPC command
+	GetNewAddress Command = "getnewaddress"
 )
 
-type CLICommunicator interface {
+// RPCCommunicator represents a struct that can interact with pastelcore RPC server
+type RPCCommunicator interface {
 	RunCommand(Command) (interface{}, error)
 	RunCommandWithArgs(Command, interface{}) (interface{}, error)
 }
 
+// Client represents an rpc client that satisifies the RPCCommunicator interface
 type Client struct{}
 
+// NewClient returns a new client
 func NewClient() *Client { return &Client{} }
 
+// RunCommand runs an RPC command with no args against pastelcore
 func (client *Client) RunCommand(cmd Command) (interface{}, error) {
 	return client.do(string(cmd), nil)
 }
 
+// RunCommandWithArgs runs an RPC command with args against pastelcore
 func (client *Client) RunCommandWithArgs(cmd Command, args interface{}) (interface{}, error) {
 	return client.do(string(cmd), args)
 }

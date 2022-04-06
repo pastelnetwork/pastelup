@@ -69,7 +69,7 @@ test-walletnode:
 
 test-ddservice:
 	docker rm pastel-ddservice-test || true
-	docker run \
+	docker run -it \
 		--name pastel-ddservice-test \
 		--mount type=bind,source=${PWD}/test/scripts/test-ddservice.sh,target=/home/ubuntu/test-ddservice.sh \
 		--entrypoint '/bin/bash' \

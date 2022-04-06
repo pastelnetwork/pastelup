@@ -12,27 +12,46 @@ BINARY ?= pastelup
 VERSION = $(shell git describe --tag)
 
 # Target build and specific extention name
-PLATFORMS ?= darwin/amd64 windows/amd64/.exe linux/amd64
+#PLATFORMS ?= darwin/amd64 windows/amd64/.exe linux/amd64
 
 # Macros to sub info from platforms
-temp = $(subst /, ,$@)
-os = $(word 1, $(temp))
-arch = $(word 2, $(temp))
-ext = $(word 3, $(temp))
+#temp = $(subst /, ,$@)
+#os = $(word 1, $(temp))
+#arch = $(word 2, $(temp))
+#ext = $(word 3, $(temp))
+
+arch = "amd64"
+ifeq ($(OS),Windows_NT)
+	os = "windows"
+	ext = ".exe"
+else
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Linux)
+		os = "linux"
+		ext = ""
+	endif
+	ifeq ($(UNAME_S),Darwin)
+		os = "darwin"
+		ext = ""
+	endif
+endif
 
 # GO build flags
 LDFLAGS="-s -w -X github.com/pastelnetwork/gonode/common/version.version=$(VERSION)"
 #
 # Target build
 #
-release: $(PLATFORMS)
+#release: $(PLATFORMS)
 
-# upx dist/$(BINARY)-$(os)-$(arch)$(ext
-$(PLATFORMS):
-	CGO_ENABLED=$(CGO) GOOS=$(os) GOARCH=$(arch) go build  $(GCFLAGS) -ldflags=$(LDFLAGS) -o dist/$(BINARY)-$(os)-$(arch)$(ext) main.go
-	#upx dist/$(BINARY)-$(os)-$(arch)$(ext)
+release:
+	go build $(GCFLAGS) -ldflags=$(LDFLAGS) -o $(BINARY) main.go
+	strip -v $(BINARY) -o dist/$(BINARY)-$(os)-$(arch)$(ext)
 
-.PHONY: release $(PLATFORMS)
+#$(PLATFORMS):
+#	CGO_ENABLED=$(CGO) GOOS=$(os) GOARCH=$(arch) go build  $(GCFLAGS) -ldflags=$(LDFLAGS) -o dist/$(BINARY)-$(os)-$(arch)$(ext) main.go
+# #	upx dist/$(BINARY)-$(os)-$(arch)$(ext)
+
+#.PHONY: release $(PLATFORMS)
 
 build-dev-container:
 	docker build -t pastel-dev -f ./test/Dockerfile-dev .

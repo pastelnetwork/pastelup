@@ -34,6 +34,20 @@ $(PLATFORMS):
 
 .PHONY: release $(PLATFORMS)
 
+build-dev-container:
+	docker build -t pastel-dev -f ./test/Dockerfile-dev .
+
+# useful if developing on a non-linux OS like a mac
+run-dev-container:
+	docker rm pastel-dev || true
+	docker run -it \
+		--name pastel-dev \
+		--mount type=bind,source=${PWD},target=/home/ubuntu \
+		--entrypoint '/bin/bash' \
+		--memory="1g" \
+		--memory-swap="2g" \
+		pastel-dev
+
 build-test-img:
 	docker build -t pastel-test -f ./test/Dockerfile .
 

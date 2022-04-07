@@ -150,9 +150,7 @@ ensureExecutableUpdated $pasteldExec $pasteldLastModified "pasetld"
 ensureExectutableExists $supernodeExec
 ensureExectutableExists $rqServiceExec
 ensureDirNotEmpty $ddServiceFolder
-# ensureDirNotEmpty $dupeDetectionFolder # @TODO this because we need to wait for dd changes?
-
-# sleep 1h
+ensureDirNotEmpty $dupeDetectionFolder 
 
 # 
 # RESTORE WALLET WITH 1M LSP

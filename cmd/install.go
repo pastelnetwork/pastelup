@@ -35,6 +35,8 @@ const (
 	wnServiceInstall
 )
 
+var nonNetworkDepedentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
+
 var (
 	installCmdName = map[installCommand]string{
 		nodeInstall:               "node",
@@ -130,6 +132,11 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 	}
 
+	ddServiceFlags := []*cli.Flag{
+		cli.NewFlag("no-cache", &config.NoCache).
+			SetUsage(yellow("Optional, runs the installation of python dependencies with caching turned off")),
+	}
+
 	var commandName, commandMessage string
 	if !remote {
 		commandName = installCmdName[installCommand]
@@ -149,6 +156,10 @@ func setupSubCommand(config *configs.Config,
 		commandFlags = append(commandFlags, remoteFlags[:]...)
 	} else if installCommand == superNodeInstall {
 		commandFlags = append(commandFlags, userFlags...)
+	}
+
+	if installCommand == ddServiceInstall {
+		commandFlags = append(commandFlags, ddServiceFlags...)
 	}
 
 	subCommand := cli.NewCommand(commandName)
@@ -314,7 +325,7 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 }
 
 func runServicesInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType, withDependencies bool) error {
-	if config.OpMode == "install" {
+	if config.OpMode == "install" && !utils.ContainsToolType(nonNetworkDepedentServices, installCommand) {
 		if !utils.IsValidNetworkOpt(config.Network) {
 			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
 		}
@@ -475,30 +486,32 @@ func installRQService(ctx context.Context, config *configs.Config) error {
 
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Installing dd-service...")
-
 	// Download dd-service
 	if err = downloadComponents(ctx, config, constants.DDService, config.Version, constants.DupeDetectionSubFolder); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
 		return err
 	}
-
-	// Install pip pkg from requirements.in
-	subCmd := []string{"-m", "pip", "install", "-r"}
-	subCmd = append(subCmd, filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName))
-
-	log.WithContext(ctx).Info("Installing Pip: ", subCmd)
+	pythonCmd := "python3"
 	if utils.GetOS() == constants.Windows {
-		if err := RunCMDWithInteractive("python", subCmd...); err != nil {
-			return err
-		}
-	} else {
-		if err := RunCMDWithInteractive("python3", subCmd...); err != nil {
-			return err
-		}
+		pythonCmd = "python"
 	}
-
+	if err := RunCMDWithInteractive(pythonCmd, "-m", "venv", "venv"); err != nil {
+		return err
+	}
+	cmd := fmt.Sprintf("source venv/bin/activate && %v -m pip install --upgrade pip", pythonCmd)
+	if err := RunCMDWithInteractive("bash", "-c", cmd); err != nil {
+		return err
+	}
+	requirementsFile := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName)
+	// b/c the commands get run as forked sub processes, we need to run the venv and install in one command
+	cmd = "source venv/bin/activate && pip install -r " + requirementsFile
+	if config.NoCache {
+		cmd += " --no-cache-dir"
+	}
+	if err := RunCMDWithInteractive("bash", "-c", cmd); err != nil {
+		return err
+	}
 	log.WithContext(ctx).Info("Pip install finished")
-
 	appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 	var pathList []interface{}
 	for _, configItem := range constants.DupeDetectionConfigs {
@@ -514,35 +527,23 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	tmpDir := filepath.Join(targetDir, "temp.zip")
 	for _, url := range constants.DupeDetectionSupportDownloadURL {
 		// Get ddSupportContent and cal checksum
-		ddSupportContent := constants.DupeDetectionSupportContents[path.Base(url)]
-		if len(ddSupportContent) > 0 {
-			ddSupportPath := filepath.Join(targetDir, ddSupportContent)
-			fileInfo, err := os.Stat(ddSupportPath)
-			if err == nil {
-				var checksum string
-				log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support: %s", ddSupportContent)
-
-				if fileInfo.IsDir() {
-					checksum, err = utils.CalChecksumOfFolder(ctx, ddSupportPath)
-				} else {
-					checksum, err = utils.GetChecksum(ctx, ddSupportPath)
-				}
-
-				if err != nil {
-					log.WithContext(ctx).WithError(err).Errorf("Failed to get checksum: %s", ddSupportPath)
-					return err
-				}
-
-				log.WithContext(ctx).Infof("Checksum of DupeDetection Support: %s is %s", ddSupportContent, checksum)
-
-				// Compare checksum
-				if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
-					log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checkum matched, so skipping download.", ddSupportPath)
-					continue
-				}
+		ddSupportContent := path.Base(url)
+		ddSupportPath := filepath.Join(targetDir, ddSupportContent)
+		_, err := os.Stat(ddSupportPath)
+		// if err is nil, the file exists and we
+		if err == nil {
+			log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support: %s", ddSupportContent)
+			checksum, err := utils.GetChecksum(ctx, ddSupportPath)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to get checksum: %s", ddSupportPath)
+				return err
+			}
+			log.WithContext(ctx).Infof("Checksum of DupeDetection Support: %s is %s", ddSupportContent, checksum)
+			if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
+				log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checkum matched, so skipping download.", ddSupportPath)
+				continue
 			}
 		}
-
 		if !strings.Contains(url, ".zip") {
 			if err = utils.DownloadFile(ctx, filepath.Join(targetDir, path.Base(url)), url); err != nil {
 				log.WithContext(ctx).WithError(err).Errorf("Failed to download file: %s", url)
@@ -550,7 +551,6 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 			}
 			continue
 		}
-
 		if err = utils.DownloadFile(ctx, tmpDir, url); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file: %s", url)
 			return err
@@ -562,7 +562,6 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 			return err
 		}
 	}
-
 	if config.OpMode == "install" {
 		ddConfigPath := filepath.Join(targetDir, constants.DupeDetectionConfigFilename)
 		err = utils.CreateFile(ctx, ddConfigPath, config.Force)

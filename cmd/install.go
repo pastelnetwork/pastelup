@@ -495,16 +495,17 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	if utils.GetOS() == constants.Windows {
 		pythonCmd = "python"
 	}
-	if err := RunCMDWithInteractive(pythonCmd, "-m", "venv", "venv"); err != nil {
+	venv := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, "venv")
+	if err := RunCMDWithInteractive(pythonCmd, "-m", "venv", venv); err != nil {
 		return err
 	}
-	cmd := fmt.Sprintf("source venv/bin/activate && %v -m pip install --upgrade pip", pythonCmd)
+	cmd := fmt.Sprintf("source %v/bin/activate && %v -m pip install --upgrade pip", venv, pythonCmd)
 	if err := RunCMDWithInteractive("bash", "-c", cmd); err != nil {
 		return err
 	}
 	requirementsFile := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName)
 	// b/c the commands get run as forked sub processes, we need to run the venv and install in one command
-	cmd = "source venv/bin/activate && pip install -r " + requirementsFile
+	cmd = fmt.Sprintf("source %v/bin/activate && pip install -r %v", venv, requirementsFile)
 	if config.NoCache {
 		cmd += " --no-cache-dir"
 	}
@@ -529,11 +530,15 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		// Get ddSupportContent and cal checksum
 		ddSupportContent := path.Base(url)
 		ddSupportPath := filepath.Join(targetDir, ddSupportContent)
-		_, err := os.Stat(ddSupportPath)
-		// if err is nil, the file exists and we
+		fileInfo, err := os.Stat(ddSupportPath)
 		if err == nil {
 			log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support: %s", ddSupportContent)
-			checksum, err := utils.GetChecksum(ctx, ddSupportPath)
+			var checksum string
+			if fileInfo.IsDir() {
+				checksum, err = utils.CalChecksumOfFolder(ctx, ddSupportPath)
+			} else {
+				checksum, err = utils.GetChecksum(ctx, ddSupportPath)
+			}
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Errorf("Failed to get checksum: %s", ddSupportPath)
 				return err

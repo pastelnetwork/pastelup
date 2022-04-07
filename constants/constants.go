@@ -269,6 +269,7 @@ var DupeDetectionSupportDownloadURL = []string{
 	"https://download.pastel.network/machine-learning/pca_bw.vt",
 	"https://download.pastel.network/machine-learning/registered_image_fingerprints_db.sqlite",
 	"https://download.pastel.network/machine-learning/train_0_bw.hdf5",
+	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
 }
 
 // DupeDetectionSupportChecksum - The checksum of dupe detection support files
@@ -277,6 +278,7 @@ var DupeDetectionSupportChecksum = map[string]string{
 	"pca_bw.vt":                               "d1bd688fcfa09f650d42a0160479c2bebf1cf87596645a55220e56696f386c73",
 	"train_0_bw.hdf5":                         "659a2d480783709130c56e862a3a6e16d659c6dd063e80271fe51542b8b92590",
 	"registered_image_fingerprints_db.sqlite": "5d01d8c944022d8346c25d7f70bc4ff985de1ec40d2465b70c18e7f370ce44f6",
+	"mobilenet_v2_140_224":                    "825a4298a25334201ad5fb29e089fce0258c9a13793cc0d0b6a7dbe9c96ad9f3",
 }
 
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files

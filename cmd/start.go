@@ -561,7 +561,8 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	if utils.GetOS() == constants.Windows {
 		python = "python"
 	}
-	cmd := fmt.Sprintf("source venv/bin/activate && %v %v %v", python, execPath, ddConfigFilePath)
+	venv := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, "venv")
+	cmd := fmt.Sprintf("source %v/bin/activate && %v %v %v", venv, python, execPath, ddConfigFilePath)
 	go RunCMD("bash", "-c", cmd)
 
 	time.Sleep(10 * time.Second)

@@ -1121,12 +1121,7 @@ func openPorts(ctx context.Context, config *configs.Config, portList []int) (err
 		portStr := fmt.Sprintf("%d", portList[k])
 		switch utils.GetOS() {
 		case constants.Linux:
-			if len(config.UserPw) > 0 {
-				out, err = RunCMD("bash", "-c", "echo "+config.UserPw+" | sudo -S ufw allow "+portStr)
-			} else {
-				out, err = RunCMD("sudo", "ufw", "allow", portStr)
-			}
-
+			out, err = RunSudoCMD(config, "ufw", "allow", portStr)
 			/*		case constants.Windows:
 						out, err = RunCMD("netsh", "advfirewall", "firewall", "add", "rule", "name=TCP Port "+portStr, "dir=in", "action=allow", "protocol=TCP", "localport="+portStr)
 					case constants.Mac:

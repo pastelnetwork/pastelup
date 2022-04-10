@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-errors/errors"
 	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/services/pastelcore"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -29,6 +30,7 @@ type configurer struct {
 	archiveDir          string
 	architecture        constants.ArchitectureType
 	osType              constants.OSType
+	cliClient           *pastelcore.Client
 }
 
 // DefaultHomeDir returns the home path.
@@ -86,6 +88,11 @@ func (c *configurer) DefaultArchiveDir() string {
 	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDataDir()), c.archiveDir)
 }
 
+// PastelCLIClient returns an RPC client to talk to pastel-cli directly instead of interacting with executable
+func (c *configurer) PastelCLIClient() *pastelcore.Client {
+	return c.cliClient
+}
+
 // GetDownloadURL returns download url of the pastel executables.
 func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error) {
 	var name string
@@ -136,6 +143,7 @@ func newLinuxConfigurer(homeDir string) IConfigurer {
 		archiveDir:          ".pastel_archives",
 		architecture:        constants.AMD64,
 		osType:              constants.Linux,
+		cliClient:           pastelcore.NewClient(),
 	}
 }
 
@@ -153,6 +161,7 @@ func newDarwinConfigurer(homeDir string) IConfigurer {
 		archiveDir:          "PastelArchives",
 		architecture:        constants.AMD64,
 		osType:              constants.Mac,
+		cliClient:           pastelcore.NewClient(),
 	}
 }
 
@@ -170,6 +179,7 @@ func newWindowsConfigurer(homeDir string) IConfigurer {
 		archiveDir:          "PastelArchives",
 		architecture:        constants.AMD64,
 		osType:              constants.Windows,
+		cliClient:           pastelcore.NewClient(),
 	}
 }
 
@@ -182,7 +192,6 @@ func NewConfigurer() (IConfigurer, error) {
 	if err != nil {
 		return nil, errors.Errorf("failed to get user home dir: %v", err)
 	}
-
 	osType := utils.GetOS()
 	switch osType {
 	case constants.Linux:

@@ -231,7 +231,6 @@ func New() *Config {
 // InitConfig : Get the config from config file. If there is no config file then create a new config.
 func InitConfig() *Config {
 	var config = New()
-
 	c, err := configurer.NewConfigurer()
 	if err != nil {
 		log.WithError(err).Error("failed to initialize configurer")

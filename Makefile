@@ -7,6 +7,7 @@ export GOSUMDB ?= sum.golang.org
 # Applications name
 CGO    ?= 0
 BINARY ?= pastelup
+TEST_IMG = pastel-test
 
 # Version
 VERSION = $(shell git describe --tag)
@@ -67,6 +68,7 @@ run-dev-container:
 		--memory-swap="2g" \
 		pastel-dev
 
+# clear files generated from using run-dev-container with mounted workdir
 clean-dev:
 	rm -rf .bash_history
 	rm -rf .cache/
@@ -74,24 +76,59 @@ clean-dev:
 	rm -rf pastel_dupe_detection_service/
 	rm -rf venv/
 
+lint:
+	revive -config ./.circleci/revive.toml ./...
+	staticcheck ./...
+
 build-test-img:
-	docker build -t pastel-test -f ./test/Dockerfile .
+	docker build -t $(TEST_IMG) -f ./test/Dockerfile .
 
 test-walletnode:
-	docker rm pastel-walletnode-test || true
+	$(eval CONTAINER_NAME := "pastel-walletnode-test")
+	$(eval SCRIPT := "test-walletnode.sh")
+	docker rm $(CONTAINER_NAME) || true
 	docker run \
-		--name pastel-walletnode-test \
-		--mount type=bind,source=${PWD}/test/scripts/test-walletnode.sh,target=/home/ubuntu/test-walletnode.sh \
-		--entrypoint '/bin/sh' \
-		pastel-test \
-		-c "./test-walletnode.sh"
+		--name $(CONTAINER_NAME) \
+		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
+		--entrypoint '/bin/bash' \
+		$(TEST_IMG) \
+		-c "./$(SCRIPT)"
+
+test-local-supernode:
+	$(eval CONTAINER_NAME := "pastel-local-supernode-test")
+	$(eval SCRIPT := "test-local-supernode.sh")
+	docker rm $(CONTAINER_NAME) || true
+	docker run \
+		--name $(CONTAINER_NAME) \
+		--interactive \
+		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
+		--expose=19933 \
+		--entrypoint '/bin/bash' \
+		$(TEST_IMG) \
+		-c "./$(SCRIPT)"
+
+test-local-supernode-service:
+	$(eval CONTAINER_NAME := "pastel-local-supernode-service-test")
+	$(eval SCRIPT := "test-local-supernode.sh")
+	docker rm $(CONTAINER_NAME) || true
+	docker run \
+		--name $(CONTAINER_NAME) \
+		--interactive \
+		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
+		--expose=19933 \
+		--entrypoint '/bin/bash' \
+		$(TEST_IMG) \
+		-c "./$(SCRIPT) --enable-service"
+	
 
 test-ddservice:
-	docker rm pastel-ddservice-test || true
+	$(eval CONTAINER_NAME := "pastel-ddservice-test")
+	$(eval SCRIPT := "test-ddservice.sh")
+	docker rm $(CONTAINER_NAME) || true
 	docker run -it \
-		--name pastel-ddservice-test \
-		--mount type=bind,source=${PWD}/test/scripts/test-ddservice.sh,target=/home/ubuntu/test-ddservice.sh \
+		--name $(CONTAINER_NAME) \
+		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
 		--entrypoint '/bin/bash' \
-		pastel-test \
-		-c "./test-ddservice.sh"
+		$(TEST_IMG) \
+		-c "./$(SCRIPT)"
 

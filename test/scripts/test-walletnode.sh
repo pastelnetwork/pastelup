@@ -4,6 +4,33 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+criteria="""
+pastelup install walletnode -n=testnet --peers=18.191.71.196
+
+pastelup start walletnode
+<verify 3 processes are running: pasteld, walletnode, rq-service>
+<waiting for some blocks to sync>
+
+pastelup update node
+<verify pasteld was updated>
+pastelup update rq-service
+<verify rq-service was updated>
+pastelup update walletnode-service
+<verify walletnode-service was updated>
+
+pastelup start node
+pastelup start rq-service
+pastelup start walletnode-service
+<verify 3 processes are running: pasteld, walletnode, rq-service>
+
+pastelup update walletnode
+<verify pasteld, rq-service, walletnode-service was updated>
+<verify archive in ~/.paste_archive>
+
+pastelup start walletnode
+<verify 3 processes are running: pasteld, walletnode, rq-service>
+"""
+
 pasteldExecPath=~/pastel/pasteld
 rqServiceExecPath=~/pastel/rq-service-linux-amd64
 walletNodeServiceExecPath=~/pastel/walletnode-linux-amd64

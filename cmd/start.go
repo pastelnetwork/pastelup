@@ -603,7 +603,9 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("Starting walletnode service - %s", walletnodeExecName)
 	var wnServiceArgs []string
 	wnServiceArgs = append(wnServiceArgs,
-		fmt.Sprintf("--config-file=%s --pastel-config-file=%s/pastel.conf", config.Configurer.GetWalletNodeConfFile(config.WorkingDir), config.WorkingDir))
+		fmt.Sprintf("--config-file=%s", config.Configurer.GetWalletNodeConfFile(config.WorkingDir)))
+	wnServiceArgs = append(wnServiceArgs,
+		fmt.Sprintf("--pastel-config-file=%s/pastel.conf", config.WorkingDir))
 	if flagDevMode {
 		wnServiceArgs = append(wnServiceArgs, "--swagger")
 	}

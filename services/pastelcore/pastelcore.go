@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/pastelnetwork/pastelup/configs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -24,37 +25,33 @@ All instances to test:
 */
 
 var (
-	network = "tcp" // "http" or "tcp"
-	port    = 9932
-	addr    = ":" + strconv.Itoa(port)
+	port = 9932
+	addr = ":" + strconv.Itoa(port)
 )
 
-// Command represents a pastel-cli command to run
-type Command string
-
 const (
-	// GetInfo is an RPC command
-	GetInfo Command = "getInfo"
-	// GetBalance is an RPC command
-	GetBalance Command = "getbalance"
-	// SendToAddress is an RPC command
-	SendToAddress Command = "sendtoaddress"
-	// MasterNodeSync is an RPC command
-	MasterNodeSync Command = "mnsync"
-	// Stop is an RPC command
-	Stop Command = "stop"
-	// PastelIDNewKey is an RPC command
-	PastelIDNewKey Command = "pastelid"
-	// MasterNode is an RPC command
-	MasterNode Command = "masternode"
-	// GetNewAddress is an RPC command
-	GetNewAddress Command = "getnewaddress"
+	// GetInfoCmd is an RPC command
+	GetInfoCmd = "getInfo"
+	// GetBalanceCmd is an RPC command
+	GetBalanceCmd = "getbalance"
+	// SendToAddressCmd is an RPC command
+	SendToAddressCmd = "sendtoaddress"
+	// MasterNodeSyncCmd is an RPC command
+	MasterNodeSyncCmd = "mnsync"
+	// StopCmd is an RPC command
+	StopCmd = "stop"
+	// PastelIDNewKeyCmd is an RPC command
+	PastelIDNewKeyCmd = "pastelid"
+	// MasterNodeCmd is an RPC command
+	MasterNodeCmd = "masternode"
+	// GetNewAddressCmd is an RPC command
+	GetNewAddressCmd = "getnewaddress"
 )
 
 // RPCCommunicator represents a struct that can interact with pastelcore RPC server
 type RPCCommunicator interface {
-	RunCommand(Command) (interface{}, error)
-	RunCommandWithArgs(Command, interface{}) (interface{}, error)
+	RunCommand(string) (interface{}, error)
+	RunCommandWithArgs(string, interface{}) (interface{}, error)
 }
 
 // Client represents an rpc client that satisifies the RPCCommunicator interface
@@ -63,25 +60,25 @@ type Client struct {
 }
 
 // NewClient returns a new client
-func NewClient(username, password string) *Client {
+func NewClient(config *configs.Config) *Client {
 	return &Client{
-		username: username,
-		password: password,
+		username: config.RPCUser,
+		password: config.RPCPwd,
 	}
 }
 
 // RunCommand runs an RPC command with no args against pastelcore
-func (client *Client) RunCommand(cmd Command) (interface{}, error) {
+func (client *Client) RunCommand(cmd string) (interface{}, error) {
 	var empty interface{}
 	var resp interface{}
-	err := client.do(string(cmd), &empty, resp)
+	err := client.do(cmd, &empty, resp)
 	return resp, err
 }
 
 // RunCommandWithArgs runs an RPC command with args against pastelcore
-func (client *Client) RunCommandWithArgs(cmd Command, args interface{}) (interface{}, error) {
+func (client *Client) RunCommandWithArgs(cmd string, args interface{}) (interface{}, error) {
 	var resp interface{}
-	err := client.do(string(cmd), &args, resp)
+	err := client.do(cmd, &args, resp)
 	return resp, err
 }
 

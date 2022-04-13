@@ -245,7 +245,7 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 				fmt.Printf("Blockchain info on the host:\n")
 
 				// res, err := config.Configurer.PastelCoreClient().RunCommand(pastelcore.GetInfo)
-				res, err := pastelcore.NewClient(config.RPCUser, config.RPCPwd).RunCommand(pastelcore.Command("pastelapi/getinfo"))
+				res, err := pastelcore.NewClient(config).RunCommand("pastelapi/getinfo")
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to get pastel info: %v", err)
 				}

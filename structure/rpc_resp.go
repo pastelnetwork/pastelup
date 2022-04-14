@@ -1,5 +1,10 @@
 package structure
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // RPCPastelID RPC result structure from pastelid newkey
 type RPCPastelID struct {
 	Pastelid string
@@ -16,6 +21,10 @@ type RPCPastelMSStatus struct {
 	IsWinnersListSynced    bool
 	IsSynced               bool
 	IsFailed               bool
+	Error                  struct {
+		Code    int    `json:"code,omitempty"`
+		Message string `json:"message,omitempty"`
+	} `json:"error,omitempty"`
 }
 
 // RPCGetInfo RPC result structure from getinfo
@@ -55,4 +64,12 @@ type TxInfo struct {
 	TimeReceived    uint64
 	Vjoinsplit      []string
 	Size            uint64
+}
+
+func ToString(s interface{}) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return fmt.Sprintf("%+v", s)
+	}
+	return string(b)
 }

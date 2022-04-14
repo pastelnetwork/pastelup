@@ -134,8 +134,7 @@ func setupStopSubCommand(config *configs.Config,
 	return subCommand
 }
 
-func setupStopCommand() *cli.Command {
-	config := configs.InitConfig()
+func setupStopCommand(config *configs.Config) *cli.Command {
 
 	stopNodeSubCommand := setupStopSubCommand(config, nodeStop, false, runStopNodeSubCommand)
 	stopWalletSubCommand := setupStopSubCommand(config, walletStop, false, runStopWalletSubCommand)

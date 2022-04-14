@@ -199,8 +199,7 @@ func setupStartSubCommand(config *configs.Config,
 	return subCommand
 }
 
-func setupStartCommand() *cli.Command {
-	config := configs.InitConfig()
+func setupStartCommand(config *configs.Config) *cli.Command {
 
 	startNodeSubCommand := setupStartSubCommand(config, nodeStart, false, runStartNodeSubCommand)
 	startWalletNodeSubCommand := setupStartSubCommand(config, walletStart, false, runStartWalletNodeSubCommand)

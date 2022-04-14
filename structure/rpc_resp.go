@@ -26,7 +26,6 @@ type RPCPastelMSStatus struct {
 		Message string `json:"message,omitempty"`
 	} `json:"error,omitempty"`
 }
-
 // RPCGetInfo RPC result structure from getinfo
 type RPCGetInfo struct {
 	Version         int     `json:"version"`
@@ -67,7 +66,7 @@ type TxInfo struct {
 }
 
 func ToString(s interface{}) string {
-	b, err := json.Marshal(s)
+	b, err := json.MarshalIndent(s, "", "\t")
 	if err != nil {
 		return fmt.Sprintf("%+v", s)
 	}

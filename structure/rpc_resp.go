@@ -26,6 +26,7 @@ type RPCPastelMSStatus struct {
 		Message string `json:"message,omitempty"`
 	} `json:"error,omitempty"`
 }
+
 // RPCGetInfo RPC result structure from getinfo
 type RPCGetInfo struct {
 	Version         int     `json:"version"`

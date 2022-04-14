@@ -3,7 +3,6 @@ package configs
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -256,14 +255,11 @@ func hydrateConfig(config *Config) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		fmt.Println(line)
 		if strings.HasPrefix(line, "rpcuser=") {
 			config.RPCUser = strings.TrimPrefix(line, "rpcuser=")
-			fmt.Printf("set user to: %v\n", config.RPCUser)
 		}
 		if strings.HasPrefix(line, "rpcpassword=") {
 			config.RPCPwd = strings.TrimPrefix(line, "rpcpassword=")
-			fmt.Printf("set password to: %v\n", config.RPCPwd)
 		}
 	}
 }

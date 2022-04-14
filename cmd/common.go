@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,6 +22,7 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/services/pastelcore"
 	"github.com/pastelnetwork/pastelup/structure"
 	"github.com/pastelnetwork/pastelup/utils"
 )
@@ -316,13 +316,13 @@ func GetSNPortList(config *configs.Config) []int {
 // GetMNSyncInfo gets result of "mnsync status"
 func GetMNSyncInfo(ctx context.Context, config *configs.Config) (structure.RPCPastelMSStatus, error) {
 	var mnstatus structure.RPCPastelMSStatus
-
-	output, err := RunPastelCLI(ctx, config, "mnsync", "status")
+	err := pastelcore.NewClient(config).RunCommandWithArgs(
+		pastelcore.MasterNodeSyncCmd,
+		[]string{"status"},
+		&mnstatus,
+	)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get mnsync status from pasteld")
-		return mnstatus, err
-	}
-	if err := json.Unmarshal([]byte(output), &mnstatus); err != nil {
 		return mnstatus, err
 	}
 	return mnstatus, nil
@@ -330,51 +330,40 @@ func GetMNSyncInfo(ctx context.Context, config *configs.Config) (structure.RPCPa
 
 // GetPastelInfo gets result of "getinfo"
 func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGetInfo, error) {
-	var getifno structure.RPCGetInfo
-
-	output, err := RunPastelCLI(ctx, config, "getinfo")
+	var info structure.RPCGetInfo
+	err := pastelcore.NewClient(config).RunCommand(pastelcore.GetInfoCmd, &info)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to getinfo from pasteld")
-		return getifno, err
+		log.WithContext(ctx).Errorf("unable to get pastel info: %v", err)
+		return info, err
 	}
-
-	// Master Node Output
-	if err = json.Unmarshal([]byte(output), &getifno); err != nil {
-		return getifno, err
-	}
-	return getifno, nil
+	return info, nil
 }
 
 // WaitingForPastelDToStart whether pasteld is running
 func WaitingForPastelDToStart(ctx context.Context, config *configs.Config) bool {
-	var failCnt = 0
-	var err error
-
 	log.WithContext(ctx).Info("Waiting the pasteld to be started...")
-
-	for {
-		if _, err = RunPastelCLI(ctx, config, "getinfo"); err != nil {
-			time.Sleep(10 * time.Second)
-			failCnt++
-			if failCnt == 10 {
-				return false
-			}
-		} else {
-			break
+	var attempts = 0
+	for attempts < 10 {
+		_, err := GetPastelInfo(ctx, config)
+		if err == nil {
+			log.WithContext(ctx).Info("pasteld was started successfully")
+			return true
 		}
+		time.Sleep(10 * time.Second)
+		attempts++
 	}
-
-	log.WithContext(ctx).Info("pasteld was started successfully")
-	return true
+	return false
 }
 
 // StopPastelDAndWait sends stop command to pasteld and waits 10 seconds
-func StopPastelDAndWait(ctx context.Context, config *configs.Config) (err error) {
+func StopPastelDAndWait(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Stopping local pasteld...")
-	if _, err = RunPastelCLI(ctx, config, "stop"); err != nil {
+	var resp string
+	err := pastelcore.NewClient(config).RunCommand(pastelcore.StopCmd, &resp)
+	if err != nil {
+		log.WithContext(ctx).Errorf("unable to stop pastel: %v", err)
 		return err
 	}
-
 	time.Sleep(10 * time.Second)
 	log.WithContext(ctx).Info("Stopped local pasteld")
 	return nil
@@ -388,7 +377,6 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 	for {
 		// Checking getinfo
 		log.WithContext(ctx).Info("Waiting for sync...")
-
 		getinfo, err = GetPastelInfo(ctx, config)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("master node getinfo call has failed")
@@ -404,7 +392,9 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 		}
 
 		if mnstatus.AssetName == "Initial" {
-			if _, err = RunPastelCLI(ctx, config, "mnsync", "reset"); err != nil {
+			var output interface{}
+			err := pastelcore.NewClient(config).RunCommandWithArgs(pastelcore.MasterNodeSyncCmd, []string{"reset"}, &output)
+			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("master node reset has failed")
 				return 0, err
 			}
@@ -414,27 +404,21 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 			log.WithContext(ctx).Info("masternodes lists are synced!")
 			break
 		}
-
 		time.Sleep(10 * time.Second)
 	}
-
 	return getinfo.Blocks, nil
 }
 
 // CheckZksnarkParams validates Zksnark files
 func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Checking pastel param files...")
-
 	zksnarkPath := config.Configurer.DefaultZksnarkDir()
-
 	zkParams := configs.ZksnarkParamsNamesV2
 	if config.Legacy {
 		zkParams = append(zkParams, configs.ZksnarkParamsNamesV1...)
 	}
-
 	for _, zksnarkParamsName := range zkParams {
 		zksnarkParamsPath := filepath.Join(zksnarkPath, zksnarkParamsName)
-
 		log.WithContext(ctx).Infof("Checking pastel param file : %s", zksnarkParamsPath)
 		checkSum, err := utils.GetChecksum(ctx, zksnarkParamsPath)
 		if err != nil {
@@ -445,7 +429,6 @@ func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
 			return errors2.Errorf("Wrong checksum of the pastel param file: %s", zksnarkParamsPath)
 		}
 	}
-
 	return nil
 }
 

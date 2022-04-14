@@ -341,8 +341,10 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 			log.WithContext(ctx).Info("Trying to stop pasteld...")
 			sm, _ := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
 			sm.StopService(ctx, constants.PastelD)
-			RunPastelCLI(ctx, config, "stop")
-			time.Sleep(10 * time.Second) // buffer period to stop
+			err := StopPastelDAndWait(ctx, config)
+			if err != nil {
+				log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v", err)
+			}
 			// ensure the process is killed else will run into a text file busy error
 			// when installing latest executable
 			KillProcess(ctx, constants.PastelD)

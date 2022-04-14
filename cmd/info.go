@@ -239,22 +239,22 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 					fmt.Print(blue("pasteld was started without parameters\n"))
 				}
 				config.PastelExecDir = process.Path
+
 				fmt.Printf("Blockchain info on the host:\n")
 				var info structure.RPCGetInfo
-				err := pastelcore.NewClient(config).RunCommand("pastelapi.getinfo", &info)
+				err := pastelcore.NewClient(config).RunCommand(pastelcore.GetInfoCmd, &info)
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to get pastel info: %v", err)
 				}
-				fmt.Println(structure.ToString(info))
+				fmt.Println(structure.ToString(info) + "\n")
 
 				fmt.Printf("Masternode status of the host:\n")
-				_, _ = RunPastelCLI(ctx, config, "masternode", "status")
 				var mnStatus structure.RPCPastelMSStatus
-				err = pastelcore.NewClient(config).RunCommandWithArgs("pastelapi.getinfo", []string{"status"}, &mnStatus)
+				err = pastelcore.NewClient(config).RunCommandWithArgs(pastelcore.MasterNodeCmd, []string{"status"}, &mnStatus)
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to get masternode status: %v", err)
 				}
-				fmt.Println(structure.ToString(mnStatus))
+				fmt.Println(structure.ToString(mnStatus) + "\n")
 			}
 		}
 		fmt.Printf("Working Directory: %s\n", config.WorkingDir)

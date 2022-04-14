@@ -12,21 +12,20 @@ type RPCPastelID struct {
 
 // RPCPastelMSStatus RPC result structure from masternode status
 type RPCPastelMSStatus struct {
-	AssetID                int
-	AssetName              string
-	AssetStartTime         uint64
-	Attempt                int
-	IsBlockchainSynced     bool
-	IsMasternodeListSynced bool
-	IsWinnersListSynced    bool
-	IsSynced               bool
-	IsFailed               bool
+	AssetID                int    `json:"AssetID,omitempty"`
+	AssetName              string `json:"AssetName,omitempty"`
+	AssetStartTime         uint64 `json:"AssetStartTime,omitempty"`
+	Attempt                int    `json:"Attempt,omitempty"`
+	IsBlockchainSynced     bool   `json:"IsBlockchainSynced,omitempty"`
+	IsMasternodeListSynced bool   `json:"IsMasternodeListSynced,omitempty"`
+	IsWinnersListSynced    bool   `json:"IsWinnersListSynced,omitempty"`
+	IsSynced               bool   `json:"IsSynced,omitempty"`
+	IsFailed               bool   `json:"IsFailed,omitempty"`
 	Error                  struct {
 		Code    int    `json:"code,omitempty"`
 		Message string `json:"message,omitempty"`
 	} `json:"error,omitempty"`
 }
-
 // RPCGetInfo RPC result structure from getinfo
 type RPCGetInfo struct {
 	Version         int     `json:"version"`
@@ -67,7 +66,7 @@ type TxInfo struct {
 }
 
 func ToString(s interface{}) string {
-	b, err := json.Marshal(s)
+	b, err := json.MarshalIndent(s, "", "\t")
 	if err != nil {
 		return fmt.Sprintf("%+v", s)
 	}

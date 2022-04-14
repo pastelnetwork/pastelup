@@ -373,17 +373,16 @@ func StopPastelDAndWait(ctx context.Context, config *configs.Config) error {
 func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, error) {
 	var getinfo structure.RPCGetInfo
 	var err error
-
+	t := time.Now()
+	fmt.Println() // add some space for loading line
 	for {
-		// Checking getinfo
-		log.WithContext(ctx).Info("Waiting for sync...")
 		getinfo, err = GetPastelInfo(ctx, config)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("master node getinfo call has failed")
 			return 0, err
 		}
-		log.WithContext(ctx).Infof("Loading blocks - block #%d; Node has %d connection", getinfo.Blocks, getinfo.Connections)
-
+		// line overwrites itself to avoid abundant loggin
+		fmt.Printf("Waiting for sync... Loading blocks - block #%d; Node has %d connection (elapsed: %v)\r", getinfo.Blocks, getinfo.Connections, time.Since(t))
 		// Checking mnsync status
 		mnstatus, err := GetMNSyncInfo(ctx, config)
 		if err != nil {

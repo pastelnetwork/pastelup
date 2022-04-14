@@ -246,7 +246,7 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to get pastel info: %v", err)
 				}
-				fmt.Println(structure.ToString(info) + "\n")
+				fmt.Println(info.String() + "\n")
 
 				fmt.Printf("Masternode status of the host:\n")
 				var mnStatus structure.RPCPastelMSStatus
@@ -254,7 +254,7 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to get masternode status: %v", err)
 				}
-				fmt.Println(structure.ToString(mnStatus) + "\n")
+				fmt.Println(mnStatus.String() + "\n")
 			}
 		}
 		fmt.Printf("Working Directory: %s\n", config.WorkingDir)

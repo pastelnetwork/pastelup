@@ -31,19 +31,22 @@ func NewApp() *cli.App {
 	app.SetUsage(appUsage)
 	app.SetVersion(version.Version())
 
-	config := configs.InitConfig()
-
 	app.HideHelp = false
 	app.HideHelpCommand = false
+	/*
+	 * @todo we need to use different configs just b/c we set the Operation.
+	 * we should persist the cmd line input into the config so we can determine operation by args[1]
+	 * and remove the need to re-instatiate a new conffig for each operation.
+	 */
 	app.AddCommands(
-		setupInstallCommand(config),
-		setupUpdateCommand(config),
-		setupStartCommand(config),
-		setupInitCommand(config),
-		setupStopCommand(config),
-		setupShowCommand(config),
-		setupInfoCommand(config),
-		setupPingCommand(config),
+		setupInstallCommand(configs.InitConfig()),
+		setupUpdateCommand(configs.InitConfig()),
+		setupStartCommand(configs.InitConfig()),
+		setupInitCommand(configs.InitConfig()),
+		setupStopCommand(configs.InitConfig()),
+		setupShowCommand(configs.InitConfig()),
+		setupInfoCommand(configs.InitConfig()),
+		setupPingCommand(configs.InitConfig()),
 	)
 	return app
 }

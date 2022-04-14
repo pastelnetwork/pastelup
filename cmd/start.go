@@ -713,16 +713,13 @@ func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool,
 	}
 
 	log.WithContext(ctx).Infof("Starting -> %s %s", pastelDPath, strings.Join(pasteldArgs, " "))
-
 	pasteldArgs = append(pasteldArgs, "--daemon")
 	go RunCMD(pastelDPath, pasteldArgs...)
-
 	if !WaitingForPastelDToStart(ctx, config) {
 		err = fmt.Errorf("pasteld was not started")
 		log.WithContext(ctx).WithError(err).Error("pasteld didn't start")
 		return err
 	}
-
 	return nil
 }
 

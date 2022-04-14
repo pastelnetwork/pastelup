@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/pastelnetwork/gonode/common/log"
@@ -260,6 +261,9 @@ func hydrateConfig(config *Config) {
 		}
 		if strings.HasPrefix(line, "rpcpassword=") {
 			config.RPCPwd = strings.TrimPrefix(line, "rpcpassword=")
+		}
+		if strings.HasPrefix(line, "rpcport=") {
+			config.RPCPort, _ = strconv.Atoi(strings.TrimPrefix(line, "rpcport="))
 		}
 	}
 }

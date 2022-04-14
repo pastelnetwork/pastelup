@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -996,11 +997,16 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 		return err
 	}
 
-	portList := GetSNPortList(config)
-	config.RPCPort = portList[constants.NodePort]
-
-	config.RPCUser = utils.GenerateRandomString(8)
-	config.RPCPwd = utils.GenerateRandomString(15)
+	if config.RPCPort == 0 {
+		portList := GetSNPortList(config)
+		config.RPCPort = portList[constants.NodePort]
+	}
+	if config.RPCUser == "" {
+		config.RPCUser = utils.GenerateRandomString(8)
+	}
+	if config.RPCPwd == "" {
+		config.RPCPwd = utils.GenerateRandomString(15)
+	}
 
 	// create pastel.conf file
 	pastelConfigPath := filepath.Join(config.WorkingDir, constants.PastelConfName)
@@ -1009,7 +1015,6 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 		log.WithContext(ctx).WithError(err).Errorf("Failed to create %s", pastelConfigPath)
 		return fmt.Errorf("failed to create %s - %v", pastelConfigPath, err)
 	}
-
 	// write to file
 	if err = updatePastelConfigFile(ctx, pastelConfigPath, config); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s", pastelConfigPath)
@@ -1036,10 +1041,11 @@ func updatePastelConfigFile(ctx context.Context, filePath string, config *config
 	cfgBuffer := bytes.Buffer{}
 
 	// Populate pastel.conf line-by-line to file.
-	cfgBuffer.WriteString("server=1\n")                          // creates server line
-	cfgBuffer.WriteString("listen=1\n\n")                        // creates server line
-	cfgBuffer.WriteString("rpcuser=" + config.RPCUser + "\n")    // creates  rpcuser line
-	cfgBuffer.WriteString("rpcpassword=" + config.RPCPwd + "\n") // creates rpcpassword line
+	cfgBuffer.WriteString("server=1\n")                                     // creates server line
+	cfgBuffer.WriteString("listen=1\n\n")                                   // creates server line
+	cfgBuffer.WriteString("rpcuser=" + config.RPCUser + "\n")               // creates  rpcuser line
+	cfgBuffer.WriteString("rpcpassword=" + config.RPCPwd + "\n")            // creates rpcpassword line
+	cfgBuffer.WriteString("rpcport=" + strconv.Itoa(config.RPCPort) + "\n") // creates rpcport line
 
 	if config.Network == constants.NetworkTestnet {
 		cfgBuffer.WriteString("testnet=1\n") // creates testnet line

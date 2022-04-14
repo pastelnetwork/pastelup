@@ -1,13 +1,13 @@
 package pastelcore
 
 import (
-	"context"
-	"fmt"
+	"bytes"
+	"encoding/json"
+	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/pastelnetwork/pastelup/configs"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 /*
@@ -25,8 +25,9 @@ All instances to test:
 */
 
 var (
-	port = 9932
-	addr = ":" + strconv.Itoa(port)
+	port          = 9932
+	addr          = "http://127.0.0.1:" + strconv.Itoa(port)
+	DefaultClient = http.Client{Timeout: 30 * time.Second}
 )
 
 const (
@@ -48,10 +49,20 @@ const (
 	GetNewAddressCmd = "getnewaddress"
 )
 
+// RPCRequest represents a jsonrpc request object.
+//
+// See: http://www.jsonrpc.org/specification#request_object
+type RPCRequest struct {
+	JSONRPC string      `json:"jsonrpc"`
+	Method  string      `json:"method"`
+	Params  interface{} `json:"params,omitempty"`
+	ID      string      `json:"id"`
+}
+
 // RPCCommunicator represents a struct that can interact with pastelcore RPC server
 type RPCCommunicator interface {
-	RunCommand(string) (interface{}, error)
-	RunCommandWithArgs(string, interface{}) (interface{}, error)
+	RunCommand(string, interface{}) error
+	RunCommandWithArgs(string, interface{}, interface{}) error
 }
 
 // Client represents an rpc client that satisifies the RPCCommunicator interface
@@ -68,60 +79,40 @@ func NewClient(config *configs.Config) *Client {
 }
 
 // RunCommand runs an RPC command with no args against pastelcore
-func (client *Client) RunCommand(cmd string) (interface{}, error) {
+func (client *Client) RunCommand(cmd string, response interface{}) error {
 	var empty interface{}
-	var resp interface{}
-	err := client.do(cmd, &empty, resp)
-	return resp, err
+	return client.do(cmd, &empty, response)
 }
 
 // RunCommandWithArgs runs an RPC command with args against pastelcore
-func (client *Client) RunCommandWithArgs(cmd string, args interface{}) (interface{}, error) {
-	var resp interface{}
-	err := client.do(cmd, &args, resp)
-	return resp, err
+func (client *Client) RunCommandWithArgs(cmd string, args, response interface{}) error {
+	return client.do(cmd, &args, response)
 }
 
-/*
- * TODO: figure out when the server is available versus when it isnt and create
- * 		 a persistent client instead of initalizing one per call and closing it each time.
- */
 func (client *Client) do(cmd string, args, response interface{}) error {
-	// we cant keep an open connection because server starts and stops often
-	grpclient, err := grpc.Dial(addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithPerRPCCredentials(credential{
-			username: client.username,
-			password: client.password,
-		}))
+	body, err := json.Marshal(RPCRequest{
+		JSONRPC: "1.0",
+		ID:      "pastelapi",
+		Method:  cmd,
+		Params:  args,
+	})
 	if err != nil {
 		return err
 	}
-	fmt.Printf("making RPC call!\n")
-	err = grpclient.Invoke(context.Background(), cmd, args, &response)
+	request, err := http.NewRequest("POST", addr, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	err = grpclient.Close()
+	request.SetBasicAuth(client.username, client.password)
+	request.Header.Set("Content-Type", "text/plain;")
+	result, err := DefaultClient.Do(request)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("successfully closed client!\n")
+	decoder := json.NewDecoder(result.Body)
+	err = decoder.Decode(&response)
+	if err != nil {
+		return err
+	}
 	return nil
-}
-
-type credential struct {
-	username string
-	password string
-}
-
-func (cred credential) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"username": cred.username,
-		"password": cred.password,
-	}, nil
-}
-
-func (cred credential) RequireTransportSecurity() bool {
-	return false
 }

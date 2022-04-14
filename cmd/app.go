@@ -31,19 +31,20 @@ func NewApp() *cli.App {
 	app.SetUsage(appUsage)
 	app.SetVersion(version.Version())
 
+	config := configs.InitConfig()
+
 	app.HideHelp = false
 	app.HideHelpCommand = false
 	app.AddCommands(
-		setupInstallCommand(),
-		setupUpdateCommand(),
-		setupStartCommand(),
-		setupInitCommand(),
-		setupStopCommand(),
-		setupShowCommand(),
-		setupInfoCommand(),
-		setupPingCommand(),
+		setupInstallCommand(config),
+		setupUpdateCommand(config),
+		setupStartCommand(config),
+		setupInitCommand(config),
+		setupStopCommand(config),
+		setupShowCommand(config),
+		setupInfoCommand(config),
+		setupPingCommand(config),
 	)
-
 	return app
 }
 

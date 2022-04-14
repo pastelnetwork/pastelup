@@ -19,6 +19,7 @@ import (
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pastelnetwork/pastelup/services/pastelcore"
+	"github.com/pastelnetwork/pastelup/structure"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -164,13 +165,9 @@ func setupInfoSubCommand(config *configs.Config,
 	return subCommand
 }
 
-func setupInfoCommand() *cli.Command {
-	config := configs.InitConfig()
-
-	// Add info command
+func setupInfoCommand(config *configs.Config) *cli.Command {
 	infoCommand := setupInfoSubCommand(config, infoLocal, false, runInfoSubCommand)
 	infoCommand.AddSubcommands(setupInfoSubCommand(config, infoLocal, true, runRemoteInfoSubCommand))
-
 	return infoCommand
 }
 
@@ -243,17 +240,21 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 				}
 				config.PastelExecDir = process.Path
 				fmt.Printf("Blockchain info on the host:\n")
-
-				// res, err := config.Configurer.PastelCoreClient().RunCommand(pastelcore.GetInfo)
-				res, err := pastelcore.NewClient(config).RunCommand("pastelapi/getinfo")
+				var info structure.RPCGetInfo
+				err := pastelcore.NewClient(config).RunCommand("pastelapi.getinfo", &info)
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to get pastel info: %v", err)
 				}
-				fmt.Printf("%v\n", res)
-				// _, _ = RunPastelCLI(ctx, config, "getinfo")
+				fmt.Println(structure.ToString(info))
 
 				fmt.Printf("Masternode status of the host:\n")
 				_, _ = RunPastelCLI(ctx, config, "masternode", "status")
+				var mnStatus structure.RPCPastelMSStatus
+				err = pastelcore.NewClient(config).RunCommandWithArgs("pastelapi.getinfo", []string{"status"}, &mnStatus)
+				if err != nil {
+					log.WithContext(ctx).Errorf("unable to get masternode status: %v", err)
+				}
+				fmt.Println(structure.ToString(mnStatus))
 			}
 		}
 		fmt.Printf("Working Directory: %s\n", config.WorkingDir)

@@ -192,8 +192,7 @@ func setupSubCommand(config *configs.Config,
 	return subCommand
 }
 
-func setupInstallCommand() *cli.Command {
-	config := configs.InitConfig()
+func setupInstallCommand(config *configs.Config) *cli.Command {
 	config.OpMode = "install"
 
 	installNodeSubCommand := setupSubCommand(config, nodeInstall, false, runInstallNodeSubCommand)

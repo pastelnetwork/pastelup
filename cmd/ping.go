@@ -20,9 +20,7 @@ var (
 	superNodePort int
 )
 
-func setupPingCommand() *cli.Command {
-	config := configs.InitConfig()
-
+func setupPingCommand(config *configs.Config) *cli.Command {
 	pingCommand := cli.NewCommand("ping")
 	pingCommand.SetUsage("To check the health of service")
 	addLogFlags(pingCommand, config)

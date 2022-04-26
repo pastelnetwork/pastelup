@@ -276,7 +276,7 @@ func stopPatelCLI(ctx context.Context, config *configs.Config) {
 	}
 	err = StopPastelDAndWait(ctx, config)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to stop Pasteld", config.WorkingDir)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to stop Pasteld")
 	}
 	if CheckProcessRunning(constants.PastelD) {
 		log.WithContext(ctx).Warn("Failed to stop Pasteld")

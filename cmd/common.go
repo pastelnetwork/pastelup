@@ -369,7 +369,7 @@ func StopPastelDAndWait(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 	time.Sleep(10 * time.Second)
-	log.WithContext(ctx).Info("Stopped local pasteld: %+v", resp)
+	log.WithContext(ctx).Infof("Stopped local pasteld: %+v", resp)
 	return nil
 }
 

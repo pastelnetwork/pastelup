@@ -385,7 +385,6 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 			log.WithContext(ctx).WithError(err).Error("master node getinfo call has failed")
 			return 0, err
 		}
-		
 		// Checking mnsync status
 		mnstatus, err := GetMNSyncInfo(ctx, config)
 		if err != nil {

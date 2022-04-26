@@ -77,6 +77,7 @@ clean-dev:
 	rm -rf venv/
 
 lint:
+	gofmt -d -e .
 	revive -config ./.circleci/revive.toml ./...
 	staticcheck ./...
 

@@ -330,9 +330,23 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 	}
 	for _, service := range services {
 		log.WithContext(ctx).Infof("Stopping %s service...", string(service))
-		if service == constants.PastelD {
+		switch service {
+		case constants.PastelD:
 			stopPatelCLI(ctx, config)
-		} else {
+		case constants.DDService:
+			searchTerm := constants.DupeDetectionExecFileName
+			pid, err := FindRunningProcessPid(string(searchTerm))
+			if err != nil {
+				log.WithContext(ctx).Errorf("unable to find service %v to stop it: %v", service, err)
+				return err
+			}
+			log.WithContext(ctx).Infof("Killing process: %v\n", pid)
+			err = KillProcessByPid(ctx, pid)
+			if err != nil {
+				log.WithContext(ctx).Errorf("unable to stop service %v: %v", service, err)
+				return err
+			}
+		default:
 			if servicesEnabled {
 				err = sm.StopService(ctx, service)
 				if err != nil {
@@ -350,7 +364,7 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 				log.WithContext(ctx).Error(fmt.Sprintf("unable to kill process %v: %v", service, err))
 				return err
 			}
-		}
+		}			
 		log.WithContext(ctx).Infof("%s service stopped", string(service))
 	}
 	return nil

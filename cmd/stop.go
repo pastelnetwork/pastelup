@@ -364,7 +364,7 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 				log.WithContext(ctx).Error(fmt.Sprintf("unable to kill process %v: %v", service, err))
 				return err
 			}
-		}			
+		}
 		log.WithContext(ctx).Infof("%s service stopped", string(service))
 	}
 	return nil

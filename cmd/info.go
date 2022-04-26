@@ -249,12 +249,12 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 				fmt.Println(info.String() + "\n")
 
 				fmt.Printf("Masternode status of the host:\n")
-				var mnStatus structure.RPCPastelMSStatus
+				var mnStatus structure.RPCPastelMNStatus
 				err = pastelcore.NewClient(config).RunCommandWithArgs(pastelcore.MasterNodeCmd, []string{"status"}, &mnStatus)
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to get masternode status: %v", err)
 				}
-				fmt.Println(mnStatus.String() + "\n")
+				fmt.Printf("%+v\n", mnStatus)
 			}
 		}
 		fmt.Printf("Working Directory: %s\n", config.WorkingDir)

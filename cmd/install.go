@@ -159,7 +159,7 @@ func setupSubCommand(config *configs.Config,
 		commandFlags = append(commandFlags, userFlags...)
 	}
 
-	if installCommand == ddServiceInstall {
+	if installCommand == ddServiceInstall || installCommand == superNodeInstall {
 		commandFlags = append(commandFlags, ddServiceFlags...)
 	}
 

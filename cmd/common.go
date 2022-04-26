@@ -314,8 +314,8 @@ func GetSNPortList(config *configs.Config) []int {
 }
 
 // GetMNSyncInfo gets result of "mnsync status"
-func GetMNSyncInfo(ctx context.Context, config *configs.Config) (structure.RPCPastelMSStatus, error) {
-	var mnstatus structure.RPCPastelMSStatus
+func GetMNSyncInfo(ctx context.Context, config *configs.Config) (structure.RPCPastelMNSyncStatus, error) {
+	var mnstatus structure.RPCPastelMNSyncStatus
 	err := pastelcore.NewClient(config).RunCommandWithArgs(
 		pastelcore.MasterNodeSyncCmd,
 		[]string{"status"},
@@ -333,7 +333,7 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 	var info structure.RPCGetInfo
 	err := pastelcore.NewClient(config).RunCommand(pastelcore.GetInfoCmd, &info)
 	if err != nil {
-		log.WithContext(ctx).Errorf("unable to get pastel info: %v", err)
+		log.WithContext(ctx).Warnf("unable to get pastel info..server may be starting up: %v", err)
 		return info, err
 	}
 	if info.Error != "" {
@@ -362,14 +362,14 @@ func WaitingForPastelDToStart(ctx context.Context, config *configs.Config) bool 
 // StopPastelDAndWait sends stop command to pasteld and waits 10 seconds
 func StopPastelDAndWait(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Stopping local pasteld...")
-	var resp string
+	var resp map[string]interface{}
 	err := pastelcore.NewClient(config).RunCommand(pastelcore.StopCmd, &resp)
 	if err != nil {
 		log.WithContext(ctx).Errorf("unable to stop pastel: %v", err)
 		return err
 	}
 	time.Sleep(10 * time.Second)
-	log.WithContext(ctx).Info("Stopped local pasteld")
+	log.WithContext(ctx).Info("Stopped local pasteld: %+v", resp)
 	return nil
 }
 
@@ -385,26 +385,26 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 			log.WithContext(ctx).WithError(err).Error("master node getinfo call has failed")
 			return 0, err
 		}
-		// line overwrites itself to avoid abundant loggin
-		fmt.Printf("Waiting for sync... Loading blocks - block #%d; Node has %d connection (elapsed: %v)\r", getinfo.Result.Blocks, getinfo.Result.Connections, time.Since(t))
+		
 		// Checking mnsync status
 		mnstatus, err := GetMNSyncInfo(ctx, config)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("master node mnsync status call has failed")
 			return 0, err
 		}
-
-		if mnstatus.AssetName == "Initial" {
+		// line overwrites itself to avoid abundant loggin
+		fmt.Printf("Waiting for sync... Loading blocks - block #%d; Node has %d connection; mnstatus=%v, isSynced=%v (elapsed: %v)\r", getinfo.Result.Blocks, getinfo.Result.Connections, mnstatus.Result.AssetName, mnstatus.Result.IsSynced, time.Since(t))
+		if mnstatus.Result.AssetName == "Initial" {
 			var output interface{}
 			err := pastelcore.NewClient(config).RunCommandWithArgs(pastelcore.MasterNodeSyncCmd, []string{"reset"}, &output)
 			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("master node reset has failed")
+				log.WithContext(ctx).WithError(err).Error("\nmaster node reset has failed")
 				return 0, err
 			}
 			time.Sleep(10 * time.Second)
 		}
-		if mnstatus.IsSynced {
-			log.WithContext(ctx).Info("masternodes lists are synced!")
+		if mnstatus.Result.IsSynced {
+			log.WithContext(ctx).Info("\nmasternodes lists are synced!")
 			break
 		}
 		time.Sleep(10 * time.Second)

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -21,7 +20,6 @@ import (
 	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/services/pastelcore"
-	"github.com/pastelnetwork/pastelup/structure"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -892,15 +890,18 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 
 		var pastelid string
 		if client == nil {
+			var resp map[string]interface{}
 			err = pastelcore.NewClient(config).RunCommandWithArgs(
 				pastelcore.PastelIDCmd,
 				[]string{"newkey", flagMasterNodePassPhrase},
-				&pastelid,
+				&resp,
 			)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
 				return err
 			}
+			res := resp["result"].(map[string]interface{})
+			pastelid = res["pastelid"].(string)
 		} else { //client is not nil when called from ColdHot Init
 			pastelcliPath := filepath.Join(config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
 			out, err := client.Cmd(fmt.Sprintf("%s %s %s", pastelcliPath, "pastelid newkey",
@@ -912,13 +913,7 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 			pastelid = string(out)
 			fmt.Println("generated pastel key on hotnode: ", pastelid)
 		}
-
-		var pastelidSt structure.RPCPastelID
-		if err = json.Unmarshal([]byte(pastelid), &pastelidSt); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to parse pastelid json")
-			return err
-		}
-		flagMasterNodePastelID = pastelidSt.Pastelid
+		flagMasterNodePastelID = pastelid
 	}
 	log.WithContext(ctx).Infof("Masternode pastelid = %s", flagMasterNodePastelID)
 	return nil
@@ -930,15 +925,17 @@ func checkMasternodePrivKey(ctx context.Context, config *configs.Config, client 
 
 		var mnPrivKey string
 		if client == nil {
+			var resp map[string]interface{}
 			err = pastelcore.NewClient(config).RunCommandWithArgs(
 				pastelcore.MasterNodeCmd,
 				[]string{"genkey"},
-				&mnPrivKey,
+				&resp,
 			)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed to generate new masternode private key")
 				return err
 			}
+			mnPrivKey = resp["result"].(string)
 		} else { //client is not nil when called from ColdHot Init
 			pastelcliPath := filepath.Join(config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
 			cmd := fmt.Sprintf("%s %s", pastelcliPath, "masternode genkey")
@@ -976,8 +973,8 @@ func checkPassphrase(ctx context.Context) error {
 	return nil
 }
 
-func getMasternodeOutputs(ctx context.Context, config *configs.Config) (map[string]string, error) {
-	var mnOutputs map[string]string
+func getMasternodeOutputs(ctx context.Context, config *configs.Config) (map[string]interface{}, error) {
+	var mnOutputs map[string]interface{}
 	err := pastelcore.NewClient(config).RunCommandWithArgs(
 		pastelcore.MasterNodeCmd,
 		[]string{"outputs"},
@@ -987,7 +984,12 @@ func getMasternodeOutputs(ctx context.Context, config *configs.Config) (map[stri
 		log.WithContext(ctx).WithError(err).Error("Failed to get masternode outputs from pasteld")
 		return nil, err
 	}
-	return mnOutputs, nil
+	res, ok := mnOutputs["result"].(map[string]interface{})
+	if !ok {
+		log.WithContext(ctx).Error("Unexpected format for masternode outputs")
+		return nil, err
+	}
+	return res, nil
 }
 
 func checkCollateral(ctx context.Context, config *configs.Config) error {
@@ -998,7 +1000,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 		yes, _ := AskUserToContinue(ctx, "Search existing masternode collateral ready transaction in the wallet? Y/N")
 
 		if yes {
-			var mnOutputs map[string]string
+			var mnOutputs map[string]interface{}
 			mnOutputs, err = getMasternodeOutputs(ctx, config)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed")
@@ -1023,7 +1025,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 				}
 
 				flagMasterNodeTxID = arr[dNum]
-				flagMasterNodeInd = mnOutputs[flagMasterNodeTxID]
+				flagMasterNodeInd = mnOutputs[flagMasterNodeTxID].(string)
 			} else {
 				log.WithContext(ctx).Warn(red("No existing collateral ready transactions"))
 			}
@@ -1065,14 +1067,14 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 
 	for i := 1; i <= 10; i++ {
 
-		var mnOutputs map[string]string
+		var mnOutputs map[string]interface{}
 		mnOutputs, err = getMasternodeOutputs(ctx, config)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed")
 			return err
 		}
 
-		txind, ok := mnOutputs[flagMasterNodeTxID]
+		txind, ok := mnOutputs[flagMasterNodeTxID].(string)
 		if ok {
 			flagMasterNodeInd = txind
 			break

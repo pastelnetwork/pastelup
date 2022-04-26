@@ -510,9 +510,12 @@ func (r *ColdHotRunner) startAndSyncRemoteNode(ctx context.Context, numOfSyncedB
 }
 
 func (r *ColdHotRunner) checkMasterNodeSyncRemote(ctx context.Context, numOfSyncedBlocks int, retryCount int) (err error) {
-	var mnstatus structure.RPCPastelMSStatus
+	// when running cmds against pastel-cli and not RPC server, 
+	// the output is not wrapped in a Result thus set the output catchers
+	// to the underlying Result object instead of base object
+	var mnstatus structure.MNSyncStatusResult
+	var getinfo structure.GetInfoResult 
 	var output []byte
-	var getinfo structure.RPCGetInfo
 
 	for {
 		// Get mnsync status
@@ -563,7 +566,7 @@ func (r *ColdHotRunner) checkMasterNodeSyncRemote(ctx context.Context, numOfSync
 			return err
 		}
 
-		log.WithContext(ctx).Infof("Remote:::Waiting for sync... (%d from %d)", getinfo.Result.Blocks, numOfSyncedBlocks)
+		log.WithContext(ctx).Infof("Remote:::Waiting for sync... (%d from %d)", getinfo.Blocks, numOfSyncedBlocks)
 		time.Sleep(10 * time.Second)
 	}
 	return nil

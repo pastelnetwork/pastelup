@@ -10,8 +10,36 @@ type RPCPastelID struct {
 	Pastelid string
 }
 
-// RPCPastelMSStatus RPC result structure from masternode status
-type RPCPastelMSStatus struct {
+// RPCPastelMNStatus RPC result structure from masternode status
+type RPCPastelMNStatus struct {
+	Result MNStatusResult  `json:"result"`
+	Error                  struct {
+		Code    int    `json:"code,omitempty"`
+		Message string `json:"message,omitempty"`
+	} `json:"error,omitempty"`
+}
+
+type MNStatusResult struct {
+	Outpoint                string    `json:"outpoint,omitempty"`
+	Service              string `json:"service,omitempty"`
+	Status         string `json:"status,omitempty"`
+}
+
+func (s RPCPastelMNStatus) String() string {
+	return toString(s)
+}
+
+
+// RPCPastelMNSyncStatus RPC result structure from masternode sync status
+type RPCPastelMNSyncStatus struct {
+	Result MNSyncStatusResult  `json:"result"`
+	Error                  struct {
+		Code    int    `json:"code,omitempty"`
+		Message string `json:"message,omitempty"`
+	} `json:"error,omitempty"`
+}
+
+type MNSyncStatusResult struct {
 	AssetID                int    `json:"AssetID,omitempty"`
 	AssetName              string `json:"AssetName,omitempty"`
 	AssetStartTime         uint64 `json:"AssetStartTime,omitempty"`
@@ -21,35 +49,33 @@ type RPCPastelMSStatus struct {
 	IsWinnersListSynced    bool   `json:"IsWinnersListSynced,omitempty"`
 	IsSynced               bool   `json:"IsSynced,omitempty"`
 	IsFailed               bool   `json:"IsFailed,omitempty"`
-	Error                  struct {
-		Code    int    `json:"code,omitempty"`
-		Message string `json:"message,omitempty"`
-	} `json:"error,omitempty"`
 }
 
-func (s RPCPastelMSStatus) String() string {
+func (s RPCPastelMNSyncStatus) String() string {
 	return toString(s)
 }
 
 // RPCGetInfo RPC result structure from getinfo
 type RPCGetInfo struct {
-	Result struct {
-		Version         int     `json:"version"`
-		Protocolversion int     `json:"protocolversion"`
-		Walletversion   int     `json:"walletversion"`
-		Balance         float64 `json:"balance"`
-		Blocks          int     `json:"blocks"`
-		Timeoffset      int     `json:"timeoffset"`
-		Connections     int     `json:"connections"`
-		Proxy           string  `json:"proxy"`
-		Difficulty      float64 `json:"difficulty"`
-		Testnet         bool    `json:"testnet"`
-		Keypoololdest   int     `json:"keypoololdest"`
-		Keypoolsize     int     `json:"keypoolsize"`
-		Paytxfee        float64 `json:"paytxfee"`
-		Relayfee        float64 `json:"relayfee"`
-	}
+	Result GetInfoResult `json:"result"`
 	Error string `json:"error"`
+}
+
+type GetInfoResult struct  {
+	Version         int     `json:"version"`
+	Protocolversion int     `json:"protocolversion"`
+	Walletversion   int     `json:"walletversion"`
+	Balance         float64 `json:"balance"`
+	Blocks          int     `json:"blocks"`
+	Timeoffset      int     `json:"timeoffset"`
+	Connections     int     `json:"connections"`
+	Proxy           string  `json:"proxy"`
+	Difficulty      float64 `json:"difficulty"`
+	Testnet         bool    `json:"testnet"`
+	Keypoololdest   int     `json:"keypoololdest"`
+	Keypoolsize     int     `json:"keypoolsize"`
+	Paytxfee        float64 `json:"paytxfee"`
+	Relayfee        float64 `json:"relayfee"`
 }
 
 func (s RPCGetInfo) String() string {

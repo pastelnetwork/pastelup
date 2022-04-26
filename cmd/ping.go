@@ -13,6 +13,7 @@ import (
 
 	pb "github.com/pastelnetwork/gonode/proto/healthcheck"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -78,7 +79,9 @@ func runPingSuperNode(ctx context.Context, _ *configs.Config) error {
 	subCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(subCtx, serverAddr,
-		grpc.WithInsecure(),
+		// grpc.WithInsecure(),
+		// grpc.WithInsecure is deprecated: use WithTransportCredentials and insecure.NewCredentials() instead
+		grpc.WithTransportCredentials(insecure.NewCredentials()), //
 		grpc.WithBlock(),
 	)
 	if err != nil {

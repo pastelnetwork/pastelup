@@ -10,35 +10,37 @@ type RPCPastelID struct {
 	Pastelid string
 }
 
-// RPCPastelMNStatus RPC result structure from masternode status
+// RPCPastelMNStatus is the RPC result structure from masternode status
 type RPCPastelMNStatus struct {
-	Result MNStatusResult  `json:"result"`
-	Error                  struct {
+	Result MNStatusResult `json:"result"`
+	Error  struct {
 		Code    int    `json:"code,omitempty"`
 		Message string `json:"message,omitempty"`
 	} `json:"error,omitempty"`
 }
 
+// MNStatusResult is the result field for the RPC command response
 type MNStatusResult struct {
-	Outpoint                string    `json:"outpoint,omitempty"`
-	Service              string `json:"service,omitempty"`
-	Status         string `json:"status,omitempty"`
+	Outpoint string `json:"outpoint,omitempty"`
+	Service  string `json:"service,omitempty"`
+	Status   string `json:"status,omitempty"`
 }
 
+// String returns the struct as a string
 func (s RPCPastelMNStatus) String() string {
 	return toString(s)
 }
 
-
 // RPCPastelMNSyncStatus RPC result structure from masternode sync status
 type RPCPastelMNSyncStatus struct {
-	Result MNSyncStatusResult  `json:"result"`
-	Error                  struct {
+	Result MNSyncStatusResult `json:"result"`
+	Error  struct {
 		Code    int    `json:"code,omitempty"`
 		Message string `json:"message,omitempty"`
 	} `json:"error,omitempty"`
 }
 
+// MNSyncStatusResult is the result field for the RPC command response
 type MNSyncStatusResult struct {
 	AssetID                int    `json:"AssetID,omitempty"`
 	AssetName              string `json:"AssetName,omitempty"`
@@ -51,6 +53,7 @@ type MNSyncStatusResult struct {
 	IsFailed               bool   `json:"IsFailed,omitempty"`
 }
 
+// String returns the struct as a string
 func (s RPCPastelMNSyncStatus) String() string {
 	return toString(s)
 }
@@ -58,10 +61,11 @@ func (s RPCPastelMNSyncStatus) String() string {
 // RPCGetInfo RPC result structure from getinfo
 type RPCGetInfo struct {
 	Result GetInfoResult `json:"result"`
-	Error string `json:"error"`
+	Error  string        `json:"error"`
 }
 
-type GetInfoResult struct  {
+// GetInfoResult is the result field for the RPC command response
+type GetInfoResult struct {
 	Version         int     `json:"version"`
 	Protocolversion int     `json:"protocolversion"`
 	Walletversion   int     `json:"walletversion"`
@@ -78,6 +82,7 @@ type GetInfoResult struct  {
 	Relayfee        float64 `json:"relayfee"`
 }
 
+// String returns the struct as a string
 func (s RPCGetInfo) String() string {
 	return toString(s)
 }

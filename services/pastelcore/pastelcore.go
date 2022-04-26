@@ -20,7 +20,7 @@ var (
 
 const (
 	// GetInfoCmd is an RPC command
-	GetInfoCmd = "getInfo"
+	GetInfoCmd = "getinfo"
 	// GetBalanceCmd is an RPC command
 	GetBalanceCmd = "getbalance"
 	// SendToAddressCmd is an R`PC command

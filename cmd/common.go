@@ -336,6 +336,10 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 		log.WithContext(ctx).Errorf("unable to get pastel info: %v", err)
 		return info, err
 	}
+	if info.Error != "" {
+		log.WithContext(ctx).Errorf("info response has errors")
+		return info, fmt.Errorf("info response has errors")
+	}
 	return info, nil
 }
 
@@ -382,7 +386,7 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 			return 0, err
 		}
 		// line overwrites itself to avoid abundant loggin
-		fmt.Printf("Waiting for sync... Loading blocks - block #%d; Node has %d connection (elapsed: %v)\r", getinfo.Blocks, getinfo.Connections, time.Since(t))
+		fmt.Printf("Waiting for sync... Loading blocks - block #%d; Node has %d connection (elapsed: %v)\r", getinfo.Result.Blocks, getinfo.Result.Connections, time.Since(t))
 		// Checking mnsync status
 		mnstatus, err := GetMNSyncInfo(ctx, config)
 		if err != nil {
@@ -405,7 +409,7 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 		}
 		time.Sleep(10 * time.Second)
 	}
-	return getinfo.Blocks, nil
+	return getinfo.Result.Blocks, nil
 }
 
 // CheckZksnarkParams validates Zksnark files

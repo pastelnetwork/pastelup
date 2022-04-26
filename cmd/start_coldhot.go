@@ -563,7 +563,7 @@ func (r *ColdHotRunner) checkMasterNodeSyncRemote(ctx context.Context, numOfSync
 			return err
 		}
 
-		log.WithContext(ctx).Infof("Remote:::Waiting for sync... (%d from %d)", getinfo.Blocks, numOfSyncedBlocks)
+		log.WithContext(ctx).Infof("Remote:::Waiting for sync... (%d from %d)", getinfo.Result.Blocks, numOfSyncedBlocks)
 		time.Sleep(10 * time.Second)
 	}
 	return nil

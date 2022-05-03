@@ -20,6 +20,7 @@ type Init struct {
 	Legacy        bool   `json:"legacy,omitempty"`
 	ReIndex       bool   `json:"reindex,omitempty"`
 	NoCache       bool   `json:"nocache,omitempty"`
+	NoBackup      bool   `json:"nobackup,omitempty"`
 
 	// Configs for remote session
 	RemoteHotHomeDir       string `json:"remotehomedir,omitempty"`

@@ -70,6 +70,8 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Clean .pastel folder")),
 		cli.NewFlag("user-pw", &config.UserPw).
 			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
+		cli.NewFlag("no-backup", &config.NoBackup).
+			SetUsage(green("Optional, skip backing up configuration files before updating workspace")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -289,13 +291,13 @@ func stopAndUpdateService(ctx context.Context, config *configs.Config, updateCom
 		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
 		return err
 	}
-	if backUpWorkDir {
+	if backUpWorkDir && !config.NoBackup {
 		err = archiveWorkDir(ctx, config)
 		if err != nil {
 			return err
 		}
 	}
-	if backUpDDDir {
+	if backUpDDDir && !config.NoBackup {
 		if err = archiveDDDir(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to run extra step")
 			return err

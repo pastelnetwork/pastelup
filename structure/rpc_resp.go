@@ -1,25 +1,71 @@
 package structure
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // RPCPastelID RPC result structure from pastelid newkey
 type RPCPastelID struct {
 	Pastelid string
 }
 
-// RPCPastelMSStatus RPC result structure from masternode status
-type RPCPastelMSStatus struct {
-	AssetID                int
-	AssetName              string
-	AssetStartTime         uint64
-	Attempt                int
-	IsBlockchainSynced     bool
-	IsMasternodeListSynced bool
-	IsWinnersListSynced    bool
-	IsSynced               bool
-	IsFailed               bool
+// RPCPastelMNStatus is the RPC result structure from masternode status
+type RPCPastelMNStatus struct {
+	Result MNStatusResult `json:"result"`
+	Error  struct {
+		Code    int    `json:"code,omitempty"`
+		Message string `json:"message,omitempty"`
+	} `json:"error,omitempty"`
+}
+
+// MNStatusResult is the result field for the RPC command response
+type MNStatusResult struct {
+	Outpoint string `json:"outpoint,omitempty"`
+	Service  string `json:"service,omitempty"`
+	Status   string `json:"status,omitempty"`
+}
+
+// String returns the struct as a string
+func (s RPCPastelMNStatus) String() string {
+	return toString(s)
+}
+
+// RPCPastelMNSyncStatus RPC result structure from masternode sync status
+type RPCPastelMNSyncStatus struct {
+	Result MNSyncStatusResult `json:"result"`
+	Error  struct {
+		Code    int    `json:"code,omitempty"`
+		Message string `json:"message,omitempty"`
+	} `json:"error,omitempty"`
+}
+
+// MNSyncStatusResult is the result field for the RPC command response
+type MNSyncStatusResult struct {
+	AssetID                int    `json:"AssetID,omitempty"`
+	AssetName              string `json:"AssetName,omitempty"`
+	AssetStartTime         uint64 `json:"AssetStartTime,omitempty"`
+	Attempt                int    `json:"Attempt,omitempty"`
+	IsBlockchainSynced     bool   `json:"IsBlockchainSynced,omitempty"`
+	IsMasternodeListSynced bool   `json:"IsMasternodeListSynced,omitempty"`
+	IsWinnersListSynced    bool   `json:"IsWinnersListSynced,omitempty"`
+	IsSynced               bool   `json:"IsSynced,omitempty"`
+	IsFailed               bool   `json:"IsFailed,omitempty"`
+}
+
+// String returns the struct as a string
+func (s RPCPastelMNSyncStatus) String() string {
+	return toString(s)
 }
 
 // RPCGetInfo RPC result structure from getinfo
 type RPCGetInfo struct {
+	Result GetInfoResult `json:"result"`
+	Error  string        `json:"error"`
+}
+
+// GetInfoResult is the result field for the RPC command response
+type GetInfoResult struct {
 	Version         int     `json:"version"`
 	Protocolversion int     `json:"protocolversion"`
 	Walletversion   int     `json:"walletversion"`
@@ -34,7 +80,11 @@ type RPCGetInfo struct {
 	Keypoolsize     int     `json:"keypoolsize"`
 	Paytxfee        float64 `json:"paytxfee"`
 	Relayfee        float64 `json:"relayfee"`
-	Errors          string  `json:"errors"`
+}
+
+// String returns the struct as a string
+func (s RPCGetInfo) String() string {
+	return toString(s)
 }
 
 // TxInfo Transaction information
@@ -55,4 +105,12 @@ type TxInfo struct {
 	TimeReceived    uint64
 	Vjoinsplit      []string
 	Size            uint64
+}
+
+func toString(s interface{}) string {
+	b, err := json.MarshalIndent(s, "", "\t")
+	if err != nil {
+		return fmt.Sprintf("%+v", s)
+	}
+	return string(b)
 }

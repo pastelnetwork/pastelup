@@ -156,8 +156,7 @@ func setupUpdateSubCommand(config *configs.Config,
 	return subCommand
 }
 
-func setupUpdateCommand() *cli.Command {
-	config := configs.InitConfig()
+func setupUpdateCommand(config *configs.Config) *cli.Command {
 	config.OpMode = "update"
 
 	updateNodeSubCommand := setupUpdateSubCommand(config, updateNode, false, runUpdateNodeSubCommand)

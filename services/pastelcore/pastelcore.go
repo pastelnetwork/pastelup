@@ -1,87 +1,119 @@
 package pastelcore
 
 import (
-	"net/rpc"
+	"bytes"
+	"encoding/json"
+	"net/http"
 	"strconv"
-)
+	"time"
 
-/*
-All instances to test:
-	RunPastelCLI(ctx, config, "getinfo")
-	RunPastelCLI(ctx, r.config, "getbalance")
-	RunPastelCLI(ctx, r.config, "sendtoaddress", zcashAddr, fmt.Sprintf("%v", amount))
-	RunPastelCLI(ctx, config, "mnsync", "status")
-	RunPastelCLI(ctx, config, "stop")
-	RunPastelCLI(ctx, config, "pastelid", "newkey", flagMasterNodePassPhrase)
-	RunPastelCLI(ctx, config, "masternode", "genkey")
-	RunPastelCLI(ctx, config, "masternode", "outputs")
-	RunPastelCLI(ctx, config, "getnewaddress")
-	RunPastelCLI(ctx, config, "masternode", "start-alias", masternodeName)
-*/
+	"github.com/pastelnetwork/pastelup/configs"
+)
 
 var (
-	network = "http" // "http" or "tcp"
-	port    = 9932
-	addr    = "127.0.0.1:" + strconv.Itoa(port)
+	defaultPort = 9932
+	baseAddr    = "http://127.0.0.1:"
+	// DefaultClient is the default, overridable, http client to interface with pasteld
+	// rpc server
+	DefaultClient = http.Client{Timeout: 30 * time.Second}
 )
-
-// Command represents a pastel-cli command to run
-type Command string
 
 const (
-	// GetInfo is an RPC command
-	GetInfo Command = "getInfo"
-	// GetBalance is an RPC command
-	GetBalance Command = "getbalance"
-	// SendToAdress is an RPC command
-	SendToAdress Command = "sendtoaddress"
-	// MasterNodeSync is an RPC command
-	MasterNodeSync Command = "mnsync"
-	// Stop is an RPC command
-	Stop Command = "stop"
-	// PastelIDNewKey is an RPC command
-	PastelIDNewKey Command = "pastelid"
-	// MasterNode is an RPC command
-	MasterNode Command = "masternode"
-	// GetNewAddress is an RPC command
-	GetNewAddress Command = "getnewaddress"
+	// GetInfoCmd is an RPC command
+	GetInfoCmd = "getinfo"
+	// GetBalanceCmd is an RPC command
+	GetBalanceCmd = "getbalance"
+	// SendToAddressCmd is an R`PC command
+	SendToAddressCmd = "sendtoaddress"
+	// MasterNodeSyncCmd is an RPC command
+	MasterNodeSyncCmd = "mnsync"
+	// StopCmd is an RPC command
+	StopCmd = "stop"
+	// PastelIDCmd is an RPC command
+	PastelIDCmd = "pastelid"
+	// MasterNodeCmd is an RPC command
+	MasterNodeCmd = "masternode"
+	// GetNewAddressCmd is an RPC command
+	GetNewAddressCmd = "getnewaddress"
 )
+
+// RPCRequest represents a jsonrpc request object.
+//
+// See: http://www.jsonrpc.org/specification#request_object
+type RPCRequest struct {
+	JSONRPC string      `json:"jsonrpc"`
+	Method  string      `json:"method"`
+	Params  interface{} `json:"params,omitempty"`
+	ID      string      `json:"id"`
+}
 
 // RPCCommunicator represents a struct that can interact with pastelcore RPC server
 type RPCCommunicator interface {
-	RunCommand(Command) (interface{}, error)
-	RunCommandWithArgs(Command, interface{}) (interface{}, error)
+	RunCommand(string, interface{}) error
+	RunCommandWithArgs(string, interface{}, interface{}) error
 }
 
 // Client represents an rpc client that satisifies the RPCCommunicator interface
-type Client struct{}
+type Client struct {
+	username, password string
+	port               int
+}
 
 // NewClient returns a new client
-func NewClient() *Client { return &Client{} }
-
-// RunCommand runs an RPC command with no args against pastelcore
-func (client *Client) RunCommand(cmd Command) (interface{}, error) {
-	return client.do(string(cmd), nil)
+func NewClient(config *configs.Config) *Client {
+	return &Client{
+		username: config.RPCUser,
+		password: config.RPCPwd,
+		port:     config.RPCPort,
+	}
 }
 
-// RunCommandWithArgs runs an RPC command with args against pastelcore
-func (client *Client) RunCommandWithArgs(cmd Command, args interface{}) (interface{}, error) {
-	return client.do(string(cmd), args)
+// Addr returns the address of the pasteld rpc server
+func (client Client) Addr() string {
+	p := client.port
+	if p == 0 {
+		p = defaultPort
+	}
+	return baseAddr + strconv.Itoa(p)
 }
 
-/*
- * TODO: figure out when the server is available versus when it isnt and create
- * 		 a persistent client instead of initalizing one per call and closing it each time.
- */
-func (client *Client) do(cmd string, args interface{}) (interface{}, error) {
-	var response interface{}
-	rpcClient, err := rpc.Dial(network, addr) // we cant keep an open connection because server starts and stops often
+// RunCommand runs an RPC command with no args against pastelcore. Pass in a pointer to the
+// response object so the client can populate it with the servers responses
+func (client *Client) RunCommand(cmd string, response interface{}) error {
+	var empty interface{}
+	return client.do(cmd, &empty, response)
+}
+
+// RunCommandWithArgs runs an RPC command with args against pastelcore. Pass in a pointer to the
+// response object so the client can populate it with the servers responses
+func (client *Client) RunCommandWithArgs(cmd string, args, response interface{}) error {
+	return client.do(cmd, &args, response)
+}
+
+func (client *Client) do(cmd string, args, response interface{}) error {
+	body, err := json.Marshal(RPCRequest{
+		JSONRPC: "1.0",
+		ID:      "pastelapi",
+		Method:  cmd,
+		Params:  args,
+	})
 	if err != nil {
-		return response, err
+		return err
 	}
-	err = rpcClient.Call(cmd, args, &response)
+	request, err := http.NewRequest("POST", client.Addr(), bytes.NewReader(body))
 	if err != nil {
-		return response, err
+		return err
 	}
-	return response, rpcClient.Close()
+	request.SetBasicAuth(client.username, client.password)
+	request.Header.Set("Content-Type", "text/plain;")
+	result, err := DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+	decoder := json.NewDecoder(result.Body)
+	err = decoder.Decode(&response)
+	if err != nil {
+		return err
+	}
+	return nil
 }

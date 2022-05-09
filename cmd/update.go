@@ -27,6 +27,7 @@ const (
 	updateWNService
 	updateSNService
 	updateRemote
+	updatePastelup
 )
 
 var (
@@ -39,6 +40,7 @@ var (
 		updateWNService:  "walletnode-service",
 		updateSNService:  "supernode-service",
 		updateRemote:     "remote",
+		updatePastelup:   "pastelup",
 	}
 	updateCommandMessage = map[updateCommand]string{
 		updateNode:       "Update Node",
@@ -49,6 +51,7 @@ var (
 		updateWNService:  "Update Walletnode service only",
 		updateSNService:  "Update Supernode service only",
 		updateRemote:     "Update on Remote host",
+		updatePastelup:   "Update Pastelup",
 	}
 )
 
@@ -160,6 +163,7 @@ func setupUpdateCommand() *cli.Command {
 	config := configs.InitConfig()
 	config.OpMode = "update"
 
+	updatePastelupSubCommand := setupUpdateSubCommand(config, updatePastelup, false, runUpdatePastelup)
 	updateNodeSubCommand := setupUpdateSubCommand(config, updateNode, false, runUpdateNodeSubCommand)
 	updateWalletNodeSubCommand := setupUpdateSubCommand(config, updateWalletNode, false, runUpdateWalletNodeSubCommand)
 	updateSuperNodeSubCommand := setupUpdateSubCommand(config, updateSuperNode, false, runUpdateSuperNodeSubCommand)
@@ -179,7 +183,7 @@ func setupUpdateCommand() *cli.Command {
 	// Add update command
 	updateCommand := cli.NewCommand("update")
 	updateCommand.SetUsage(blue("Perform update components for each service: Node, Walletnode and Supernode"))
-
+	updateCommand.AddSubcommands(updatePastelupSubCommand)
 	updateCommand.AddSubcommands(updateNodeSubCommand)
 	updateCommand.AddSubcommands(updateWalletNodeSubCommand)
 	updateCommand.AddSubcommands(updateSuperNodeSubCommand)
@@ -190,6 +194,12 @@ func setupUpdateCommand() *cli.Command {
 
 	return updateCommand
 }
+
+func runUpdatePastelup(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Downloading latest version of pastelup tool ...")
+	return installPastelCore(ctx, config)
+}
+
 func runUpdateRemoteNode(ctx context.Context, config *configs.Config) (err error) {
 	return runRemoteUpdate(ctx, config, "node")
 }

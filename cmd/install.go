@@ -420,6 +420,11 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 	return nil
 }
 
+func installPastelUp(ctx context.Context, config *configs.Config) error {
+
+	return nil
+}
+
 func installPastelCore(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing PastelCore service...")
 

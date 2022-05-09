@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
@@ -134,8 +133,7 @@ func setupStopSubCommand(config *configs.Config,
 	return subCommand
 }
 
-func setupStopCommand() *cli.Command {
-	config := configs.InitConfig()
+func setupStopCommand(config *configs.Config) *cli.Command {
 
 	stopNodeSubCommand := setupStopSubCommand(config, nodeStop, false, runStopNodeSubCommand)
 	stopWalletSubCommand := setupStopSubCommand(config, walletStop, false, runStopWalletSubCommand)
@@ -271,16 +269,17 @@ func stopSNServiceSubCommand(ctx context.Context, config *configs.Config) {
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) {
 	log.WithContext(ctx).Info("Stopping Pasteld")
-	if _, err := RunPastelCLI(ctx, config, "getinfo"); err != nil {
+	_, err := GetPastelInfo(ctx, config)
+	if err != nil {
 		log.WithContext(ctx).Info("Pasteld is not running!")
 		return
 	}
-	if _, err := RunPastelCLI(ctx, config, "stop"); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to run '%s/pastel-cli stop'", config.WorkingDir)
+	err = StopPastelDAndWait(ctx, config)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to stop Pasteld")
 	}
-	time.Sleep(5 * time.Second)
 	if CheckProcessRunning(constants.PastelD) {
-		log.WithContext(ctx).Warn("Failed to stop pasted using 'pastel-cli stop'")
+		log.WithContext(ctx).Warn("Failed to stop Pasteld")
 		return
 	}
 	log.WithContext(ctx).Info("Pasteld stopped")
@@ -291,7 +290,7 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 	for _, service := range services {
 		log.WithContext(ctx).Infof("Stopping %s...", string(service))
 		if service == constants.PastelD {
-			_, err := RunPastelCLI(ctx, config, "getinfo")
+			_, err := GetPastelInfo(ctx, config)
 			if err == nil { // this means the pastel-cli is running
 				servicesToStop = append(servicesToStop, service)
 			}

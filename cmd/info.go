@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cloudfoundry/gosigar"
+	sigar "github.com/cloudfoundry/gosigar"
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/pastelnetwork/gonode/common/cli"
@@ -18,6 +18,8 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/services/pastelcore"
+	"github.com/pastelnetwork/pastelup/structure"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -163,13 +165,9 @@ func setupInfoSubCommand(config *configs.Config,
 	return subCommand
 }
 
-func setupInfoCommand() *cli.Command {
-	config := configs.InitConfig()
-
-	// Add info command
+func setupInfoCommand(config *configs.Config) *cli.Command {
 	infoCommand := setupInfoSubCommand(config, infoLocal, false, runInfoSubCommand)
 	infoCommand.AddSubcommands(setupInfoSubCommand(config, infoLocal, true, runRemoteInfoSubCommand))
-
 	return infoCommand
 }
 
@@ -240,22 +238,26 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 				} else {
 					fmt.Print(blue("pasteld was started without parameters\n"))
 				}
-
 				config.PastelExecDir = process.Path
 
 				fmt.Printf("Blockchain info on the host:\n")
-				_, _ = RunPastelCLI(ctx, config, "getinfo")
+				var info structure.RPCGetInfo
+				err := pastelcore.NewClient(config).RunCommand(pastelcore.GetInfoCmd, &info)
+				if err != nil {
+					log.WithContext(ctx).Errorf("unable to get pastel info: %v", err)
+				}
+				fmt.Println(info.String() + "\n")
 
 				fmt.Printf("Masternode status of the host:\n")
-				_, _ = RunPastelCLI(ctx, config, "masternode", "status")
+				var mnStatus structure.RPCPastelMNStatus
+				err = pastelcore.NewClient(config).RunCommandWithArgs(pastelcore.MasterNodeCmd, []string{"status"}, &mnStatus)
+				if err != nil {
+					log.WithContext(ctx).Errorf("unable to get masternode status: %v", err)
+				}
+				fmt.Printf("%+v\n", mnStatus)
 			}
-			//if strings.HasPrefix(process.Process, "") {
-			//
-			//}
 		}
-
 		fmt.Printf("Working Directory: %s\n", config.WorkingDir)
-		//log.Infof("Pastel Exec Directory: %s", pastelProcNames[string(constants.PastelD)].Path)
 	}
 
 	if flagOutput == "json" {
@@ -265,7 +267,6 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 		//}
 		fmt.Printf("%s\n", string(data))
 	}
-
 	return nil
 }
 
@@ -286,24 +287,10 @@ func runRemoteInfoSubCommand(ctx context.Context, config *configs.Config) error 
 	if len(config.LogLevel) > 0 {
 		infoOptions = fmt.Sprintf("%s --log-level %s", infoOptions, config.LogLevel)
 	}
-
 	infoCmd := fmt.Sprintf("%s info %s", constants.RemotePastelupPath, infoOptions)
 	if err := executeRemoteCommandsWithInventory(ctx, config, []string{infoCmd}, false); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get info from remote hosts")
 	}
-
-	//var info []processInfo
-	//err := json.Unmarshal(data, &info)
-	//if err != nil {
-	//	return
-	//}
-
-	//var info []memInfo
-	//err := json.Unmarshal(data, &info)
-	//if err != nil {
-	//	return
-	//}
-
 	return nil
 }
 

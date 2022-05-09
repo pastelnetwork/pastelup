@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -20,7 +19,7 @@ import (
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pastelnetwork/pastelup/servicemanager"
-	"github.com/pastelnetwork/pastelup/structure"
+	"github.com/pastelnetwork/pastelup/services/pastelcore"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -199,8 +198,7 @@ func setupStartSubCommand(config *configs.Config,
 	return subCommand
 }
 
-func setupStartCommand() *cli.Command {
-	config := configs.InitConfig()
+func setupStartCommand(config *configs.Config) *cli.Command {
 
 	startNodeSubCommand := setupStartSubCommand(config, nodeStart, false, runStartNodeSubCommand)
 	startWalletNodeSubCommand := setupStartSubCommand(config, walletStart, false, runStartWalletNodeSubCommand)
@@ -713,16 +711,13 @@ func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool,
 	}
 
 	log.WithContext(ctx).Infof("Starting -> %s %s", pastelDPath, strings.Join(pasteldArgs, " "))
-
 	pasteldArgs = append(pasteldArgs, "--daemon")
 	go RunCMD(pastelDPath, pasteldArgs...)
-
 	if !WaitingForPastelDToStart(ctx, config) {
 		err = fmt.Errorf("pasteld was not started")
 		log.WithContext(ctx).WithError(err).Error("pasteld didn't start")
 		return err
 	}
-
 	return nil
 }
 
@@ -895,11 +890,18 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 
 		var pastelid string
 		if client == nil {
-			pastelid, err = RunPastelCLI(ctx, config, "pastelid", "newkey", flagMasterNodePassPhrase)
+			var resp map[string]interface{}
+			err = pastelcore.NewClient(config).RunCommandWithArgs(
+				pastelcore.PastelIDCmd,
+				[]string{"newkey", flagMasterNodePassPhrase},
+				&resp,
+			)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
 				return err
 			}
+			res := resp["result"].(map[string]interface{})
+			pastelid = res["pastelid"].(string)
 		} else { //client is not nil when called from ColdHot Init
 			pastelcliPath := filepath.Join(config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
 			out, err := client.Cmd(fmt.Sprintf("%s %s %s", pastelcliPath, "pastelid newkey",
@@ -911,13 +913,7 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 			pastelid = string(out)
 			fmt.Println("generated pastel key on hotnode: ", pastelid)
 		}
-
-		var pastelidSt structure.RPCPastelID
-		if err = json.Unmarshal([]byte(pastelid), &pastelidSt); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to parse pastelid json")
-			return err
-		}
-		flagMasterNodePastelID = pastelidSt.Pastelid
+		flagMasterNodePastelID = pastelid
 	}
 	log.WithContext(ctx).Infof("Masternode pastelid = %s", flagMasterNodePastelID)
 	return nil
@@ -929,11 +925,17 @@ func checkMasternodePrivKey(ctx context.Context, config *configs.Config, client 
 
 		var mnPrivKey string
 		if client == nil {
-			mnPrivKey, err = RunPastelCLI(ctx, config, "masternode", "genkey")
+			var resp map[string]interface{}
+			err = pastelcore.NewClient(config).RunCommandWithArgs(
+				pastelcore.MasterNodeCmd,
+				[]string{"genkey"},
+				&resp,
+			)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed to generate new masternode private key")
 				return err
 			}
+			mnPrivKey = resp["result"].(string)
 		} else { //client is not nil when called from ColdHot Init
 			pastelcliPath := filepath.Join(config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
 			cmd := fmt.Sprintf("%s %s", pastelcliPath, "masternode genkey")
@@ -971,35 +973,34 @@ func checkPassphrase(ctx context.Context) error {
 	return nil
 }
 
-func getMasternodeOutputs(ctx context.Context, config *configs.Config) (map[string]string, error) {
-
-	var mnOutputs map[string]string
-	outputs, err := RunPastelCLI(ctx, config, "masternode", "outputs")
+func getMasternodeOutputs(ctx context.Context, config *configs.Config) (map[string]interface{}, error) {
+	var mnOutputs map[string]interface{}
+	err := pastelcore.NewClient(config).RunCommandWithArgs(
+		pastelcore.MasterNodeCmd,
+		[]string{"outputs"},
+		&mnOutputs,
+	)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get masternode outputs from pasteld")
 		return nil, err
 	}
-	if len(outputs) != 0 {
-		if err := json.Unmarshal([]byte(outputs), &mnOutputs); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to parse masternode outputs json")
-			return nil, err
-		}
+	res, ok := mnOutputs["result"].(map[string]interface{})
+	if !ok {
+		log.WithContext(ctx).Error("Unexpected format for masternode outputs")
+		return nil, err
 	}
-	return mnOutputs, nil
+	return res, nil
 }
 
 func checkCollateral(ctx context.Context, config *configs.Config) error {
-
-	var address string
 	var err error
-
 	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
 
 		log.WithContext(ctx).Warn(red("No collateral --txid and/or --ind provided"))
 		yes, _ := AskUserToContinue(ctx, "Search existing masternode collateral ready transaction in the wallet? Y/N")
 
 		if yes {
-			var mnOutputs map[string]string
+			var mnOutputs map[string]interface{}
 			mnOutputs, err = getMasternodeOutputs(ctx, config)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed")
@@ -1024,7 +1025,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 				}
 
 				flagMasterNodeTxID = arr[dNum]
-				flagMasterNodeInd = mnOutputs[flagMasterNodeTxID]
+				flagMasterNodeInd = mnOutputs[flagMasterNodeTxID].(string)
 			} else {
 				log.WithContext(ctx).Warn(red("No existing collateral ready transactions"))
 			}
@@ -1051,7 +1052,8 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).WithError(err).Error("No collateral funds - exiting")
 			return err
 		}
-		address, err = RunPastelCLI(ctx, config, "getnewaddress")
+		var address string
+		err := pastelcore.NewClient(config).RunCommand(pastelcore.GetNewAddressCmd, &address)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get new address")
 			return err
@@ -1065,14 +1067,14 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 
 	for i := 1; i <= 10; i++ {
 
-		var mnOutputs map[string]string
+		var mnOutputs map[string]interface{}
 		mnOutputs, err = getMasternodeOutputs(ctx, config)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed")
 			return err
 		}
 
-		txind, ok := mnOutputs[flagMasterNodeTxID]
+		txind, ok := mnOutputs[flagMasterNodeTxID].(string)
 		if ok {
 			flagMasterNodeInd = txind
 			break
@@ -1104,24 +1106,22 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 }
 
 ///// Masternode specific
-func runStartAliasMasternode(ctx context.Context, config *configs.Config, masternodeName string) (err error) {
-	var output string
-	if output, err = RunPastelCLI(ctx, config, "masternode", "start-alias", masternodeName); err != nil {
-		return err
-	}
+func runStartAliasMasternode(ctx context.Context, config *configs.Config, masternodeName string) error {
 	var aliasStatus map[string]interface{}
-
-	if err = json.Unmarshal([]byte(output), &aliasStatus); err != nil {
+	err := pastelcore.NewClient(config).RunCommandWithArgs(
+		pastelcore.MasterNodeCmd,
+		[]string{"start-alias", masternodeName},
+		&aliasStatus,
+	)
+	if err != nil {
 		return err
 	}
-
 	if aliasStatus["result"] == "failed" {
 		err = fmt.Errorf("masternode start alias failed")
 		log.WithContext(ctx).WithError(err).Error(aliasStatus["errorMessage"])
 		return err
 	}
-
-	log.WithContext(ctx).Infof("masternode alias status = %s\n", output)
+	log.WithContext(ctx).Infof("masternode alias status = %s\n", aliasStatus["result"])
 	return nil
 }
 

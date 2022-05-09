@@ -10,8 +10,7 @@ import (
 	"github.com/pastelnetwork/pastelup/configs"
 )
 
-func setupShowCommand() *cli.Command {
-	config := configs.InitConfig()
+func setupShowCommand(config *configs.Config) *cli.Command {
 
 	// define flags here
 	var showFlag string

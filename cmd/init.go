@@ -221,8 +221,7 @@ func setupInitSubCommand(config *configs.Config,
 	return subCommand
 }
 
-func setupInitCommand() *cli.Command {
-	config := configs.InitConfig()
+func setupInitCommand(config *configs.Config) *cli.Command {
 
 	initSuperNodeSubCommand := setupInitSubCommand(config, superNodeInit, false, runInitSuperNodeSubCommand)
 	initColdHotSuperNodeSubCommand := setupInitSubCommand(config, coldHotInit, true, runInitColdHotSuperNodeSubCommand)

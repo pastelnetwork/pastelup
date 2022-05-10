@@ -150,7 +150,7 @@ var ServiceName = map[ToolType]map[OSType]string{
 
 // PastelupName - The name of the pastelup
 var PastelupName = map[OSType]string{
-	Windows: "pastelup", //@todo figure out
+	Windows: "pastelup.exe",
 	Linux:   "pastelup",
 	Mac:     "pastelup",
 	Unknown: "",

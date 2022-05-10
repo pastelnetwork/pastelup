@@ -88,6 +88,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
 		cli.NewFlag("enable-service", &config.EnableService).
 			SetUsage(green("Optional, start all apps automatically as system service (i.e. for linux OS, systemd)")),
+		cli.NewFlag("regen-rpc", &config.RegenRPC).
+			SetUsage(green("Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file")),
 	}
 
 	pastelFlags := []*cli.Flag{
@@ -423,7 +425,17 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 }
 
 func installPastelUp(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Installing Pastelup tool ...")
+	pastelupName := constants.PastelupName[utils.GetOS()]
 
+	if err := downloadComponents(ctx, config, constants.PastelD, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.PastelD)
+		return err
+	}
+	if err := makeExecutable(ctx, config.PastelExecDir, pastelupName); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", pastelupName)
+		return err
+	}
 	return nil
 }
 
@@ -1002,14 +1014,14 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 		return err
 	}
 
-	if config.RPCPort == 0 {
+	if config.RPCPort == 0 || config.RegenRPC {
 		portList := GetSNPortList(config)
 		config.RPCPort = portList[constants.NodePort]
 	}
-	if config.RPCUser == "" {
+	if config.RPCUser == "" || config.RegenRPC {
 		config.RPCUser = utils.GenerateRandomString(8)
 	}
-	if config.RPCPwd == "" {
+	if config.RPCPwd == "" || config.RegenRPC {
 		config.RPCPwd = utils.GenerateRandomString(15)
 	}
 

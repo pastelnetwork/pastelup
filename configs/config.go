@@ -265,5 +265,8 @@ func hydrateConfig(config *Config) {
 		if strings.HasPrefix(line, "rpcport=") {
 			config.RPCPort, _ = strconv.Atoi(strings.TrimPrefix(line, "rpcport="))
 		}
+		if strings.HasPrefix(line, "testnet=") {
+			config.IsTestnet, _ = strconv.ParseBool(strings.TrimPrefix(line, "testnet="))
+		}
 	}
 }

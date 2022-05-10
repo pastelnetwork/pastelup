@@ -21,6 +21,8 @@ type Init struct {
 	ReIndex       bool   `json:"reindex,omitempty"`
 	NoCache       bool   `json:"nocache,omitempty"`
 	NoBackup      bool   `json:"nobackup,omitempty"`
+	RegenRPC      bool   `json:"regen-rpc,omitempty"`
+	IsTestnet     bool   `json:"isTestnet,omitempty"` // if true, pastel.conf had testnet=1 when cmd was invoked
 
 	// Configs for remote session
 	RemoteHotHomeDir       string `json:"remotehomedir,omitempty"`

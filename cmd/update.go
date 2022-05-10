@@ -256,7 +256,7 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 }
 
 func runUpdateNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
-	return stopAndUpdateService(ctx, config, constants.PastelD, true, false, true)
+	return stopAndUpdateService(ctx, config, constants.Pastelup, true, false, true)
 }
 
 func runUpdateSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {

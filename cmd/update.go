@@ -196,7 +196,7 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 
 func runUpdatePastelup(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Downloading latest version of pastelup tool ...")
-	return installPastelCore(ctx, config)
+	return installPastelUp(ctx, config)
 }
 
 func runUpdateRemoteNode(ctx context.Context, config *configs.Config) (err error) {

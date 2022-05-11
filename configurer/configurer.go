@@ -103,6 +103,9 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 	case constants.DDService:
 		name = constants.DupeDetectionArchiveName
 		tool = constants.DDService
+	case constants.Pastelup:
+		name = constants.PastelUpExecName[c.osType]
+		tool = constants.Pastelup
 	default:
 		return nil, "", errors.Errorf("unknown tool: %s", tool)
 	}
@@ -112,13 +115,19 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 		constants.GetVersionSubURL(version),
 		tool,
 		name)
+	// need special handling b/c not embedded within subdir
+	if tool == constants.Pastelup {
+		urlString = fmt.Sprintf("%v/%v/%v",
+			constants.DownloadBaseURL,
+			constants.GetVersionSubURL(version),
+			name)
+	}
 
 	url, err := url.Parse(urlString)
 	if err != nil {
 		return nil, "", errors.Errorf("failed to parse url: %v", err)
 	}
 	tokens := strings.Split(urlString, "/")
-
 	return url, tokens[len(tokens)-1], nil
 }
 

@@ -42,6 +42,8 @@ const (
 	// Unknown type
 	Unknown OSType = "Unknown"
 
+	// Pastelup type
+	Pastelup ToolType = "pastelup"
 	// WalletNode type
 	WalletNode ToolType = "walletnode"
 	// SuperNode type
@@ -143,6 +145,15 @@ var ServiceName = map[ToolType]map[OSType]string{
 	WalletNode: WalletNodeExecName,
 	SuperNode:  SuperNodeExecName,
 	RQService:  PastelRQServiceExecName,
+	Pastelup:   PastelupName,
+}
+
+// PastelupName - The name of the pastelup
+var PastelupName = map[OSType]string{
+	Windows: "pastelup.exe",
+	Linux:   "pastelup",
+	Mac:     "pastelup",
+	Unknown: "",
 }
 
 // PasteldName - The name of the pasteld

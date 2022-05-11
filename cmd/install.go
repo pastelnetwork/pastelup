@@ -426,10 +426,16 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 
 func installPastelUp(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing Pastelup tool ...")
+	pastelupExecName := constants.PastelUpExecName[utils.GetOS()]
 	pastelupName := constants.PastelupName[utils.GetOS()]
-
-	if err := downloadComponents(ctx, config, constants.PastelD, config.Version, ""); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.PastelD)
+	if err := downloadComponents(ctx, config, constants.Pastelup, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.Pastelup)
+		return err
+	}
+	downloadedExecPath := filepath.Join(config.PastelExecDir, pastelupExecName)
+	outputPath := filepath.Join(config.PastelExecDir, pastelupName)
+	if err := os.Rename(downloadedExecPath, outputPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to rename %v to %s: %v", downloadedExecPath, outputPath, err)
 		return err
 	}
 	if err := makeExecutable(ctx, config.PastelExecDir, pastelupName); err != nil {

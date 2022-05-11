@@ -351,3 +351,14 @@ var NetworkModes = []string{
 	NetworkTestnet,
 	NetworkRegTest,
 }
+
+type NoVersionSetErr struct{}
+
+func (e NoVersionSetErr) Error() string {
+	return `
+--release or -r must be provided. Recommened to use 'beta' i.e.
+	
+	pastelup install <service> -r beta
+	
+More information can be found: https://download.pastel.network/#"`
+}

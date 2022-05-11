@@ -352,6 +352,8 @@ var NetworkModes = []string{
 	NetworkRegTest,
 }
 
+// NoVersionSetErr is an error returned if a install or update command is initiated without
+// explicitly providing the requested version parameter
 type NoVersionSetErr struct{}
 
 func (e NoVersionSetErr) Error() string {

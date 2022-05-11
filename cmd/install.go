@@ -85,7 +85,7 @@ func setupSubCommand(config *configs.Config,
 		cli.NewFlag("force", &config.Force).SetAliases("f").
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
-			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
+			SetUsage(green("Optional, Pastel version to install")),
 		cli.NewFlag("enable-service", &config.EnableService).
 			SetUsage(green("Optional, start all apps automatically as system service (i.e. for linux OS, systemd)")),
 		cli.NewFlag("regen-rpc", &config.RegenRPC).
@@ -184,7 +184,13 @@ func setupSubCommand(config *configs.Config,
 				os.Exit(0)
 			})
 
-			log.WithContext(ctx).Info("Started")
+			if config.Version == "" {
+				log.WithContext(ctx).
+					WithError(constants.NoVersionSetErr{}).
+					Error("Failed to process install command")
+				return err
+			}
+			log.WithContext(ctx).Infof("Started install...release set to '%v' ", config.Version)
 			if err = f(ctx, config); err != nil {
 				return err
 			}

@@ -68,7 +68,7 @@ func setupUpdateSubCommand(config *configs.Config,
 		cli.NewFlag("peers", &config.Peers).SetAliases("p").
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
-			SetUsage(green("Optional, Pastel version to install")).SetValue("beta"),
+			SetUsage(green("Optional, Pastel version to install")),
 		cli.NewFlag("clean", &config.Clean).SetAliases("c").
 			SetUsage(green("Optional, Clean .pastel folder")),
 		cli.NewFlag("user-pw", &config.UserPw).
@@ -147,7 +147,13 @@ func setupUpdateSubCommand(config *configs.Config,
 				os.Exit(0)
 			})
 
-			log.WithContext(ctx).Info("Started")
+			if config.Version == "" {
+				log.WithContext(ctx).
+					WithError(constants.NoVersionSetErr{}).
+					Error("Failed to process update command")
+				return err
+			}
+			log.WithContext(ctx).Infof("Started update...release set to '%v' ", config.Version)
 			if err = f(ctx, config); err != nil {
 				return err
 			}

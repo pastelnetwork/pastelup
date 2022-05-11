@@ -362,3 +362,16 @@ var NetworkModes = []string{
 	NetworkTestnet,
 	NetworkRegTest,
 }
+
+// NoVersionSetErr is an error returned if a install or update command is initiated without
+// explicitly providing the requested version parameter
+type NoVersionSetErr struct{}
+
+func (e NoVersionSetErr) Error() string {
+	return `
+--release or -r must be provided. Recommened to use 'beta' i.e.
+	
+	pastelup install <service> -r beta
+	
+More information can be found: https://download.pastel.network/#"`
+}

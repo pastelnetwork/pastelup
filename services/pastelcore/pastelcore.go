@@ -57,7 +57,7 @@ type RPCCommunicator interface {
 type Client struct {
 	username, password string
 	port               int
-	isTestNet          bool
+	isTestnet          bool
 }
 
 // NewClient returns a new client
@@ -66,7 +66,7 @@ func NewClient(config *configs.Config) *Client {
 		username:  config.RPCUser,
 		password:  config.RPCPwd,
 		port:      config.RPCPort,
-		isTestNet: config.IsTestnet,
+		isTestnet: config.IsTestnet,
 	}
 }
 
@@ -74,7 +74,7 @@ func NewClient(config *configs.Config) *Client {
 func (client Client) Addr() string {
 	p := client.port
 	if p == 0 {
-		if client.isTestNet {
+		if client.isTestnet {
 			p = constants.TestnetPortList[0]
 		} else {
 			p = constants.MainnetPortList[0]

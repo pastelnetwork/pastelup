@@ -61,7 +61,7 @@ func (s RPCPastelMNSyncStatus) String() string {
 // RPCGetInfo RPC result structure from getinfo
 type RPCGetInfo struct {
 	Result GetInfoResult `json:"result"`
-	Error  string        `json:"error"`
+	Error  interface{}        `json:"error"`
 }
 
 // GetInfoResult is the result field for the RPC command response

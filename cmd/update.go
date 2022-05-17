@@ -411,7 +411,7 @@ func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archi
 	}
 	if len(matchingArchives) > archiveRetention {
 		sort.Slice(matchingArchives, func(i, j int) bool {
-			return matchingArchives[i].ModTime().After(matchingArchives[j].ModTime())
+			return matchingArchives[i].ModTime().Before(matchingArchives[j].ModTime())
 		})
 		archivesToDelete := len(matchingArchives) - archiveRetention
 		i := 0

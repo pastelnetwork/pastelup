@@ -22,9 +22,9 @@ import (
 
 type updateCommand uint8
 
-// ARCHIVE_RETENTION is the number of archives to preserve before deleting old ones to avoid build up
+// archiveRetention is the number of archives to preserve before deleting old ones to avoid build up
 // these are specific to the type of archive i.e. dd-service archives can have this number of archives along side workdir archives
-const ARCHIVE_RETENTION = 3
+const archiveRetention = 3
 
 const (
 	updateNode updateCommand = iota
@@ -409,11 +409,11 @@ func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archi
 			matchingArchives = append(matchingArchives, f)
 		}
 	}
-	if len(matchingArchives) > ARCHIVE_RETENTION {
+	if len(matchingArchives) > archiveRetention {
 		sort.Slice(matchingArchives, func(i, j int) bool {
 			return matchingArchives[i].ModTime().After(matchingArchives[j].ModTime())
 		})
-		archivesToDelete := len(matchingArchives) - ARCHIVE_RETENTION
+		archivesToDelete := len(matchingArchives) - archiveRetention
 		i := 0
 		for i < archivesToDelete {
 			fp := filepath.Join(archiveBaseDir, matchingArchives[i].Name())

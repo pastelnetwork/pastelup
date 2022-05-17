@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/pastelnetwork/pastelup/configs"
+	"github.com/pastelnetwork/pastelup/constants"
 )
 
 var (
-	defaultPort = 9932
-	baseAddr    = "http://127.0.0.1:"
+	baseAddr = "http://127.0.0.1:"
 	// DefaultClient is the default, overridable, http client to interface with pasteld
 	// rpc server
 	DefaultClient = http.Client{Timeout: 30 * time.Second}
@@ -57,14 +57,16 @@ type RPCCommunicator interface {
 type Client struct {
 	username, password string
 	port               int
+	isTestNet          bool
 }
 
 // NewClient returns a new client
 func NewClient(config *configs.Config) *Client {
 	return &Client{
-		username: config.RPCUser,
-		password: config.RPCPwd,
-		port:     config.RPCPort,
+		username:  config.RPCUser,
+		password:  config.RPCPwd,
+		port:      config.RPCPort,
+		isTestNet: config.IsTestnet,
 	}
 }
 
@@ -72,7 +74,11 @@ func NewClient(config *configs.Config) *Client {
 func (client Client) Addr() string {
 	p := client.port
 	if p == 0 {
-		p = defaultPort
+		if client.isTestNet {
+			p = constants.TestnetPortList[0]
+		} else {
+			p = constants.MainnetPortList[0]
+		}
 	}
 	return baseAddr + strconv.Itoa(p)
 }

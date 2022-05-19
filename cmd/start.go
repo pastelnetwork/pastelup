@@ -111,14 +111,14 @@ func setupStartSubCommand(config *configs.Config,
 
 	superNodeStartFlags := []*cli.Flag{
 		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage(red("Required, name of the Masternode to start")).SetRequired(),
+			SetUsage(red("name of the Masternode to start")),
 		cli.NewFlag("activate", &flagMasterNodeIsActivate).
 			SetUsage(green("Optional, if specified, will try to enable node as Masternode (start-alias).")),
 	}
 
 	masternodeFlags := []*cli.Flag{
 		cli.NewFlag("name", &flagMasterNodeName).
-			SetUsage(red("Required, name of the Masternode to start")).SetRequired(),
+			SetUsage(red("name of the Masternode to start")),
 	}
 
 	remoteStartFlags := []*cli.Flag{
@@ -750,13 +750,6 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 
 ///// Validates input parameters
 func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, coldHot bool) error {
-
-	// --name supernode name - Required, name of the Masternode to start and create in the masternode.conf if --create or --update are specified
-	if len(flagMasterNodeName) == 0 {
-		err := fmt.Errorf("required: --name, name of the Masternode to start")
-		log.WithContext(ctx).WithError(err).Error("Missing parameter --name")
-		return err
-	}
 
 	// --ip WAN IP address of the node - Required, WAN address of the host
 	if len(flagNodeExtIP) == 0 && !coldHot { //coldHot will try to get WAN address in the step that is executed on remote host

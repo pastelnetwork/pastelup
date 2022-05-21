@@ -336,8 +336,9 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 		log.WithContext(ctx).Warnf("unable to get pastel info..server may be starting up: %v", err)
 		return info, err
 	}
-	if info.Error != "" {
-		log.WithContext(ctx).Errorf("info response has errors")
+	// this indicates we got an empty or errored response
+	if info.Result.Version == 0 {
+		log.WithContext(ctx).Errorf("info response has errors: %v", info.Error)
 		return info, fmt.Errorf("info response has errors")
 	}
 	return info, nil

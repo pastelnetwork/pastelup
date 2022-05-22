@@ -268,5 +268,8 @@ func hydrateConfig(config *Config) {
 		if strings.HasPrefix(line, "testnet=") {
 			config.IsTestnet, _ = strconv.ParseBool(strings.TrimPrefix(line, "testnet="))
 		}
+		if strings.HasPrefix(line, "txindex=") {
+			config.TxIndex, _ = strconv.Atoi(strings.TrimPrefix(line, "txindex="))
+		}
 	}
 }

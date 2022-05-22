@@ -19,6 +19,7 @@ type Init struct {
 	ArchiveDir    string `json:"archivedir,omitempty"`
 	Legacy        bool   `json:"legacy,omitempty"`
 	ReIndex       bool   `json:"reindex,omitempty"`
+	TxIndex       int    `json:"txindex,omitempty"`
 	NoCache       bool   `json:"nocache,omitempty"`
 	NoBackup      bool   `json:"nobackup,omitempty"`
 	RegenRPC      bool   `json:"regen-rpc,omitempty"`

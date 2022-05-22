@@ -57,16 +57,16 @@ type RPCCommunicator interface {
 type Client struct {
 	username, password string
 	port               int
-	isTestnet          bool
+	network            string
 }
 
 // NewClient returns a new client
 func NewClient(config *configs.Config) *Client {
 	return &Client{
-		username:  config.RPCUser,
-		password:  config.RPCPwd,
-		port:      config.RPCPort,
-		isTestnet: config.IsTestnet,
+		username: config.RPCUser,
+		password: config.RPCPwd,
+		port:     config.RPCPort,
+		network:  config.Network,
 	}
 }
 
@@ -74,10 +74,13 @@ func NewClient(config *configs.Config) *Client {
 func (client Client) Addr() string {
 	p := client.port
 	if p == 0 {
-		if client.isTestnet {
-			p = constants.TestnetPortList[0]
+		// need to reimplemtn the logic in common.go GetSNPortList to avoid import cycle
+		if client.network == constants.NetworkTestnet {
+			p = constants.TestnetPortList[constants.NodePort]
+		} else if client.network == constants.NetworkRegTest {
+			p = constants.RegTestPortList[constants.NodePort]
 		} else {
-			p = constants.MainnetPortList[0]
+			p = constants.MainnetPortList[constants.NodePort]
 		}
 	}
 	return baseAddr + strconv.Itoa(p)

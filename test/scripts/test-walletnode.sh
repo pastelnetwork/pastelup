@@ -65,7 +65,7 @@ ensureExecutableUpdated()
 }
 
 echo "installing walletnode..."
-pastelup install walletnode -n=testnet --peers=18.191.71.196
+pastelup install walletnode -n=testnet --peers=18.191.71.196 -r beta
 
 echo "starting walletnode..."
 pastelup start walletnode
@@ -99,17 +99,17 @@ echo "walletnode last modified detected to be $walletNodeLastModified"
 
 # verify we can update node
 echo "updating node..."
-pastelup update node --force --user-pw="$USR_PW" # pass in force to avoid having to say "yes" to stopping current running processes
+pastelup update node --force --user-pw="$USR_PW" -r beta # pass in force to avoid having to say "yes" to stopping current running processes
 ensureExecutableUpdated $pasteldExecPath $pasteldLastModified "pasetld"
 
 # verify we can update rq-service
 echo "updating rq-service..."
-pastelup update rq-service --force --user-pw="$USR_PW"  # pass in force to avoid having to say "yes" to stopping current running processes
+pastelup update rq-service --force --user-pw="$USR_PW" -r beta  # pass in force to avoid having to say "yes" to stopping current running processes
 ensureExecutableUpdated $rqServiceExecPath $rqServiceLastModified "rq-service"
 
 # verify we can update walletnode-service
 echo "updating walletnode-service..." 
-pastelup update walletnode-service --force --user-pw="$USR_PW"  # pass in force to avoid having to say "yes" to stopping current running processes
+pastelup update walletnode-service --force --user-pw="$USR_PW" -r beta  # pass in force to avoid having to say "yes" to stopping current running processes
 ensureExecutableUpdated $walletNodeServiceExecPath $walletNodeLastModified "walletnode-service"
 
 echo "starting node..."
@@ -132,7 +132,7 @@ echo "rq-service last modified detected to be $rqServiceLastModified"
 walletNodeLastModified=$(date -r $walletNodeServiceExecPath '+%s')
 echo "walletnode last modified detected to be $walletNodeLastModified"
 
-pastelup update walletnode --force --user-pw="$USR_PW"  # pass in force to avoid having to say "yes" to stopping current running processes
+pastelup update walletnode --force --user-pw="$USR_PW" -r beta  # pass in force to avoid having to say "yes" to stopping current running processes
 ensureExecutableUpdated $pasteldExecPath $pasteldLastModified "pasetld"
 ensureExecutableUpdated $rqServiceExecPath $rqServiceLastModified "rq-service"
 ensureExecutableUpdated $walletNodeServiceExecPath $walletNodeLastModified "walletnode-service"

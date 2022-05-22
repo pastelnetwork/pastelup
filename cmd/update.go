@@ -3,8 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	cp "github.com/otiai10/copy"
@@ -17,6 +21,10 @@ import (
 )
 
 type updateCommand uint8
+
+// archiveRetention is the number of archives to preserve before deleting old ones to avoid build up
+// these are specific to the type of archive i.e. dd-service archives can have this number of archives along side workdir archives
+const archiveRetention = 3
 
 const (
 	updateNode updateCommand = iota
@@ -390,7 +398,37 @@ func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archi
 	if err != nil {
 		return err
 	}
-
+	// if we have more than ARCHIVE_RETENTION amount of archives, delete old ones to avoid build up
+	matchingArchives := []fs.FileInfo{}
+	files, err := ioutil.ReadDir(archiveBaseDir)
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		if f.IsDir() && strings.HasPrefix(f.Name(), archivePrefix+"_archive_") {
+			matchingArchives = append(matchingArchives, f)
+		}
+	}
+	if len(matchingArchives) > archiveRetention {
+		sort.Slice(matchingArchives, func(i, j int) bool {
+			return matchingArchives[i].ModTime().Before(matchingArchives[j].ModTime())
+		})
+		archivesToDelete := len(matchingArchives) - archiveRetention
+		i := 0
+		for i < archivesToDelete {
+			fp := filepath.Join(archiveBaseDir, matchingArchives[i].Name())
+			log.WithContext(ctx).Info(fmt.Sprintf("Deleting old arvhive %v to avoid build up: created at %v", fp, matchingArchives[i].ModTime().Format(time.RFC3339)))
+			err = utils.ClearDir(ctx, fp, []string{})
+			if err != nil {
+				return err
+			}
+			err = os.Remove(fp)
+			if err != nil {
+				return err
+			}
+			i++
+		}
+	}
 	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", config.WorkingDir, archiveName))
 	return nil
 }

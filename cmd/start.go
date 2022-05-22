@@ -264,7 +264,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runStartWalletNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	// *************  1. Start pastel node  *************
-	if err := runPastelNode(ctx, config, false, config.ReIndex, flagNodeExtIP, ""); err != nil {
+	if err := runPastelNode(ctx, config, config.TxIndex == 1, config.ReIndex, flagNodeExtIP, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 		return err
 	}

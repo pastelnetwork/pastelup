@@ -475,25 +475,32 @@ func loadMasternodeConfFile(ctx context.Context, config *configs.Config) (map[st
 	return conf, nil
 }
 
-func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string) (privKey string, extAddr string, extPort string, err error) {
-
+func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string) (string, string, string, error) {
 	conf, err := loadMasternodeConfFile(ctx, config)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to load existing masternode.conf file")
 		return "", "", "", err
 	}
-
 	mnNode, ok := conf[mnName]
 	if !ok {
-		err := errors.Errorf("masternode.conf doesn't have node with name - %s", mnName)
+		// if mnName is not set or doesnt have a match, lookup by configs flagNodeExtIP
+		log.WithContext(ctx).Infof("Attempting to load existing masternode.conf file using external IP address...")
+		for mnName, mnConf := range conf {
+			extAddrPort := strings.Split(mnConf.MnAddress, ":")
+			extAddr := extAddrPort[0] // get Ext IP and Port
+			extPort := extAddrPort[1] // get Ext IP and Port
+			if extAddr == flagNodeExtIP {
+				log.WithContext(ctx).Infof("Loading masternode.conf file using %s conf", mnName)
+				return mnConf.MnPrivKey, extAddr, extPort, nil
+			}
+		}
+		err := errors.Errorf("masternode.conf doesn't have node with name - %s or external IP %v", mnName, flagNodeExtIP)
 		log.WithContext(ctx).WithError(err).Errorf("Invalid masternode.conf json: %v", conf)
 		return "", "", "", err
 	}
-
-	privKey = mnNode.MnPrivKey
+	privKey := mnNode.MnPrivKey
 	extAddrPort := strings.Split(mnNode.MnAddress, ":")
-	extAddr = extAddrPort[0] // get Ext IP and Port
-	extPort = extAddrPort[1] // get Ext IP and Port
-
+	extAddr := extAddrPort[0] // get Ext IP and Port
+	extPort := extAddrPort[1] // get Ext IP and Port
 	return privKey, extAddr, extPort, nil
 }

@@ -76,9 +76,9 @@ func (client Client) Addr() string {
 	if p == 0 {
 		// need to reimplemtn the logic in common.go GetSNPortList to avoid import cycle
 		if client.network == constants.NetworkTestnet {
-			p = constants.TestnetPortList[constants.RPCPort]
+			p = constants.TestnetPortList[constants.NodeRPCPort]
 		} else {
-			p = constants.MainnetPortList[constants.RPCPort]
+			p = constants.MainnetPortList[constants.NodeRPCPort]
 		}
 	}
 	return baseAddr + strconv.Itoa(p)

@@ -238,10 +238,10 @@ var GooglePPASourceList = "deb [arch=amd64] http://dl.google.com/linux/chrome/de
 var UbuntuSourceListPath = "/etc/apt/sources.list.d"
 
 // MainnetPortList - PortList of supernode
-var MainnetPortList = []int{9933, 9932, 4444, 4445, 4446, 4447, 9932}
+var MainnetPortList = []int{9933, 9932, 4444, 4445, 4446, 4447}
 
 // TestnetPortList - PortList of supernode
-var TestnetPortList = []int{19933, 19932, 14444, 14445, 14446, 14447, 19932}
+var TestnetPortList = []int{19933, 19932, 14444, 14445, 14446, 14447}
 
 // RegTestPortList - PortList of supernode
 var RegTestPortList = []int{18344, 18343, 14444, 14445, 14446, 14447}
@@ -249,12 +249,11 @@ var RegTestPortList = []int{18344, 18343, 14444, 14445, 14446, 14447}
 // Ports mapping
 const (
 	NodePort    int = 0
-	NodeRpcPort int = 1
+	NodeRPCPort int = 1
 	SNPort      int = 2
 	P2PPort     int = 3
 	MDLPort     int = 4
 	RAFTPort    int = 5
-	RPCPort     int = 6
 )
 
 // PastelRQServiceExecName - The name of the rqservice executable files

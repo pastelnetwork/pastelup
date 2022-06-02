@@ -77,6 +77,8 @@ func (client Client) Addr() string {
 		// need to reimplemtn the logic in common.go GetSNPortList to avoid import cycle
 		if client.network == constants.NetworkTestnet {
 			p = constants.TestnetPortList[constants.NodeRPCPort]
+		} else if client.network == constants.NetworkRegTest {
+			p = constants.RegTestPortList[constants.NodeRPCPort]
 		} else {
 			p = constants.MainnetPortList[constants.NodeRPCPort]
 		}

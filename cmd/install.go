@@ -1028,7 +1028,7 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 
 	if config.RPCPort == 0 || config.RegenRPC {
 		portList := GetSNPortList(config)
-		config.RPCPort = portList[constants.NodeRpcPort]
+		config.RPCPort = portList[constants.NodeRPCPort]
 	}
 	if config.RPCUser == "" || config.RegenRPC {
 		config.RPCUser = utils.GenerateRandomString(8)

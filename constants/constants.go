@@ -139,6 +139,15 @@ const (
 	RemotePastelupPath = "/tmp/pastelup"
 )
 
+var ToolTypeServices = []ToolType{
+	WalletNode,
+	SuperNode,
+	GoNode,
+	DDService,
+	RQService,
+	DDImgService,
+}
+
 // ServiceName defines services name
 var ServiceName = map[ToolType]map[OSType]string{
 	PastelD:    PasteldName,

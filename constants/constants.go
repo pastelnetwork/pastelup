@@ -249,7 +249,7 @@ var RegTestPortList = []int{18344, 18343, 14444, 14445, 14446, 14447}
 // Ports mapping
 const (
 	NodePort    int = 0
-	NodeRpcPort int = 1
+	NodeRPCPort int = 1
 	SNPort      int = 2
 	P2PPort     int = 3
 	MDLPort     int = 4

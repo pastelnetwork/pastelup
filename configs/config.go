@@ -266,10 +266,24 @@ func hydrateConfig(config *Config) {
 			config.RPCPort, _ = strconv.Atoi(strings.TrimPrefix(line, "rpcport="))
 		}
 		if strings.HasPrefix(line, "testnet=") {
-			config.IsTestnet, _ = strconv.ParseBool(strings.TrimPrefix(line, "testnet="))
+			isTestnet, _ := strconv.ParseBool(strings.TrimPrefix(line, "testnet="))
+			config.IsTestnet = isTestnet
+			if isTestnet {
+				config.Network = constants.NetworkTestnet
+			}
+		}
+		if strings.HasPrefix(line, "regtest=") {
+			isRegTestnet, _ := strconv.ParseBool(strings.TrimPrefix(line, "regtest="))
+			if isRegTestnet {
+				config.Network = constants.NetworkRegTest
+			}
 		}
 		if strings.HasPrefix(line, "txindex=") {
 			config.TxIndex, _ = strconv.Atoi(strings.TrimPrefix(line, "txindex="))
 		}
+	}
+	// if both testnet=1 and regtest=1 are not set in pastel.conf -- mainnet mode is on
+	if config.Network == "" {
+		config.Network = constants.NetworkMainnet
 	}
 }

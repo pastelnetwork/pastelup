@@ -43,6 +43,9 @@ func checkPastelFilePath(ctx context.Context, dirPath string, filePath string) (
 }
 
 // ParsePastelConf parse configuration of pasteld.
+// @todo retire this function in favor of func hydrateConfig in config.go
+// we should not require all paths to invoke this, instead invoke once at init time
+// and all fields will be available in the config
 func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("parsing pastel conf at %s", config.WorkingDir)
 

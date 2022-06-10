@@ -58,17 +58,15 @@ type Client struct {
 	username, password string
 	port               int
 	network            string
-	isTestnet          bool
 }
 
 // NewClient returns a new client
 func NewClient(config *configs.Config) *Client {
 	return &Client{
-		username:  config.RPCUser,
-		password:  config.RPCPwd,
-		port:      config.RPCPort,
-		network:   config.Network,
-		isTestnet: config.IsTestnet,
+		username: config.RPCUser,
+		password: config.RPCPwd,
+		port:     config.RPCPort,
+		network:  config.Network,
 	}
 }
 

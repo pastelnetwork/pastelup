@@ -1,6 +1,6 @@
 # Pastelup
 
-[![PastelNetwork](https://circleci.com/gh/pastelnetwork/pastelup.svg?style=shield)](https://circleci.com/pastelnetwork/pastelup)
+[![PastelNetwork](https://circleci.com/gh/pastelnetwork/pastelup.svg?style=shield)](https://app.circleci.com/pipelines/github/pastelnetwork/pastelup)
 
 `pastelup` is a utility that can install `supernode`/`walletnode` and start.
 

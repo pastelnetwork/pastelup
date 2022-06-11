@@ -1,4 +1,7 @@
 # Pastelup
+
+[![PastelNetwork](https://circleci.com/gh/pastelnetwork/pastelup.svg?style=shield)](https://circleci.com/pastelnetwork/pastelup)
+
 `pastelup` is a utility that can install `supernode`/`walletnode` and start.
 
 In order to build `pastelup`, please install `golang` and `upx`:

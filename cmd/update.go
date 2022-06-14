@@ -65,8 +65,8 @@ var (
 		updateSNService:  "Update Supernode service only",
 		updateRemote:     "Update on Remote host",
 		updatePastelup:   "Update Pastelup",
-		installService:   "Install a tool as a manged service on your machine (i.e. systemd if your on linux)",
-		removeService:    "Remove an installed managed service (i.e. systemd if you're on linux)",
+		installService:   "Install managed service",
+		removeService:    "Remove managed service",
 	}
 )
 
@@ -161,8 +161,11 @@ func setupUpdateSubCommand(config *configs.Config,
 				log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
 				os.Exit(0)
 			})
-
-			if config.Version == "" {
+			requiresVersion := true
+			if utils.Contains(config.Args, "install-service") || utils.Contains(config.Args, "remove-service") {
+				requiresVersion = false
+			}
+			if config.Version == "" && requiresVersion {
 				log.WithContext(ctx).
 					WithError(constants.NoVersionSetErr{}).
 					Error("Failed to process update command")
@@ -222,11 +225,10 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 // installSystemService installs and starts an installed system service. For example, on linux, a user
 // may run ./pastelup update install-service and this would install and start the systemd service running via sysemtctl
 func installSystemService(ctx context.Context, config *configs.Config) error {
-	if len(config.Args) == 0 {
+	if len(config.Args) < 4 {
 		return fmt.Errorf("you need to pass in a tooltype as the argument i.e: ./pastelup update install-service node")
 	}
-	fmt.Printf("args are: %+v\n", config.Args)
-	tool := constants.ToolType(config.Args[0])
+	tool := constants.ToolType(config.Args[3]) // pasteluo update install-service walletnode --> we need the 3rd val
 	isValid := false
 	for _, t := range constants.ToolTypeServices {
 		if t == tool {
@@ -258,6 +260,28 @@ func installSystemService(ctx context.Context, config *configs.Config) error {
 // removeSystemService stops and remove an installed system service. For example, on linux, a user
 // may run ./pastelup update remove-service and this would stop and remove the systemd service running via sysemtctl
 func removeSystemService(ctx context.Context, config *configs.Config) error {
+	if len(config.Args) < 4 {
+		return fmt.Errorf("you need to pass in a tooltype as the argument i.e: ./pastelup update install-service node")
+	}
+	tool := constants.ToolType(config.Args[3]) // pasteluo update install-service walletnode --> we need the 3rd val
+	isValid := false
+	for _, t := range constants.ToolTypeServices {
+		if t == tool {
+			isValid = true
+		}
+	}
+	if !isValid {
+		return fmt.Errorf("tool %v is not a valid tool type to run as a service. Please use one of %+v", tool, constants.ToolTypeServices)
+	}
+	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	if err != nil {
+		return err // services feature not configured for users OS
+	}
+	err = sm.StopService(ctx, tool)
+	if err != nil {
+		return fmt.Errorf("unable to stop %v as a system service: %v", tool, err)
+	}
+	log.WithContext(ctx).Infof("Stopped %s as a system service", tool)
 	return nil
 }
 

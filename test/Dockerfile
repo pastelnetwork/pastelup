@@ -14,7 +14,7 @@ RUN go build .
 FROM ubuntu:20.04
 ARG GOLANG_WORK_DIR=/go/src/github.com/pasetlnetwork/pastelup/
 
-RUN apt-get update && apt-get install -y git wget curl sudo gnupg2 libgomp1 jq
+RUN apt-get update && apt-get install -y git wget curl sudo gnupg2 libgomp1 jq systemctl
 RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata
 
 ENV USR_PW="ubuntu"

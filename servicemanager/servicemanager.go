@@ -23,6 +23,8 @@ type ServiceManager interface {
 	RegisterService(context.Context, constants.ToolType, ResgistrationParams) error
 	StartService(context.Context, constants.ToolType) (bool, error)
 	StopService(context.Context, constants.ToolType) error
+	EnableService(context.Context, constants.ToolType) error
+	DisableService(context.Context, constants.ToolType) error
 	IsRunning(context.Context, constants.ToolType) bool
 	IsRegistered(constants.ToolType) (bool, error)
 	ServiceName(constants.ToolType) string
@@ -64,6 +66,16 @@ func (nm NoopManager) IsRunning(context.Context, constants.ToolType) bool {
 	return false
 }
 
+// EnableService checks to see if the service is running
+func (nm NoopManager) EnableService(context.Context, constants.ToolType) error {
+	return nil
+}
+
+// DisableService checks to see if the service is running
+func (nm NoopManager) DisableService(context.Context, constants.ToolType) error {
+	return nil
+}
+
 // IsRegistered checks if the associated app's system command file exists, if it does it returns true, else it returns false
 // if err is not nil, there was an error checking the existence of the file
 func (nm NoopManager) IsRegistered(constants.ToolType) (bool, error) {
@@ -93,7 +105,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 		return nil // already registered
 	}
 	systemdDir := filepath.Join(sm.homeDir, constants.SystemdUserDir)
-	if err := utils.CreateFolder(ctx, systemdDir, params.Force); err != nil {
+	if err := utils.CreateFolder(ctx, systemdDir, params.Force); err != nil && !strings.Contains(err.Error(), "file already exists") {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to create systemd directory: %s", systemdDir)
 		return err
 	}
@@ -192,15 +204,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 
 	// Enable service
 	// @todo -- should this be optional? implications are at device reboot or startup, these services start automatically
-	// furthermore, this prevents from being able to stop the service, when its enabled, if we try to stop it, it will restart.
-	// we would need to keep disabling, stopping, re-enabling and starting. Adds additonal complexity for not much gain for users.
-
-	// log.WithContext(ctx).Info("Setting service for auto start on boot")
-	// if out, err := runCommand("systemctl", "--user", "enable", appServiceFileName); err != nil {
-	// 	log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-	// 		WithError(err).Error("unable to enable " + appServiceFileName + " service")
-	// 	return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
-	// }
+	sm.EnableService(ctx, app)
 	return nil
 }
 
@@ -225,13 +229,39 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.To
 
 // StopService stops a running service, it isn't running it is a no-op
 func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.ToolType) error {
+	err := sm.DisableService(ctx, app)
+	if err != nil {
+		return fmt.Errorf("unable to disable service (%v): %v", app, err)
+	}
 	isRunning := sm.IsRunning(ctx, app) // if not registered, this will be false
 	if !isRunning {
 		return nil // service isnt running, no need to stop
 	}
-	_, err := runCommand("systemctl", "--user", "stop", sm.ServiceName(app))
+	_, err = runCommand("systemctl", "--user", "stop", sm.ServiceName(app))
 	if err != nil {
 		return fmt.Errorf("unable to stop service (%v): %v", app, err)
+	}
+	return nil
+}
+
+func (sm LinuxSystemdManager) EnableService(ctx context.Context, app constants.ToolType) error {
+	appServiceFileName := sm.ServiceName(app)
+	log.WithContext(ctx).Info("Enabiling service for auto-start")
+	if out, err := runCommand("systemctl", "--user", "enable", appServiceFileName); err != nil {
+		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+			WithError(err).Error("unable to enable " + appServiceFileName + " service")
+		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
+	}
+	return nil
+}
+
+func (sm LinuxSystemdManager) DisableService(ctx context.Context, app constants.ToolType) error {
+	appServiceFileName := sm.ServiceName(app)
+	log.WithContext(ctx).Info("Disabling service")
+	if out, err := runCommand("systemctl", "--user", "disable", appServiceFileName); err != nil {
+		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+			WithError(err).Error("unable to disable " + appServiceFileName + " service")
+		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
 	}
 	return nil
 }

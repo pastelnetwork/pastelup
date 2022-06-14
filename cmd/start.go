@@ -184,7 +184,7 @@ func setupStartSubCommand(config *configs.Config,
 					}
 				}
 			}()
-
+			ParsePastelConf(ctx, config)
 			log.WithContext(ctx).Info("Starting")
 			err = f(ctx, config)
 			if err != nil {

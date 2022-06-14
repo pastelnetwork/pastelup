@@ -190,6 +190,7 @@ func setupSubCommand(config *configs.Config,
 					Error("Failed to process install command")
 				return err
 			}
+			ParsePastelConf(ctx, config)
 			log.WithContext(ctx).Infof("Started install...release set to '%v' ", config.Version)
 			if err = f(ctx, config); err != nil {
 				return err

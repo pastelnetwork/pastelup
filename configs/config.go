@@ -1,16 +1,11 @@
 package configs
 
 import (
-	"bufio"
 	"encoding/json"
 	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/configurer"
-	"github.com/pastelnetwork/pastelup/constants"
 )
 
 const (
@@ -242,48 +237,5 @@ func InitConfig() *Config {
 		os.Exit(-1)
 	}
 	config.Configurer = c
-	hydrateConfig(config)
 	return config
-}
-
-func hydrateConfig(config *Config) {
-	pastelConf := filepath.Join(config.Configurer.DefaultWorkingDir(), constants.PastelConfName)
-	file, err := os.Open(pastelConf)
-	if err != nil {
-		return // cant hydrate
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "rpcuser=") {
-			config.RPCUser = strings.TrimPrefix(line, "rpcuser=")
-		}
-		if strings.HasPrefix(line, "rpcpassword=") {
-			config.RPCPwd = strings.TrimPrefix(line, "rpcpassword=")
-		}
-		if strings.HasPrefix(line, "rpcport=") {
-			config.RPCPort, _ = strconv.Atoi(strings.TrimPrefix(line, "rpcport="))
-		}
-		if strings.HasPrefix(line, "testnet=") {
-			isTestnet, _ := strconv.ParseBool(strings.TrimPrefix(line, "testnet="))
-			config.IsTestnet = isTestnet
-			if isTestnet {
-				config.Network = constants.NetworkTestnet
-			}
-		}
-		if strings.HasPrefix(line, "regtest=") {
-			isRegTestnet, _ := strconv.ParseBool(strings.TrimPrefix(line, "regtest="))
-			if isRegTestnet {
-				config.Network = constants.NetworkRegTest
-			}
-		}
-		if strings.HasPrefix(line, "txindex=") {
-			config.TxIndex, _ = strconv.Atoi(strings.TrimPrefix(line, "txindex="))
-		}
-	}
-	// if both testnet=1 and regtest=1 are not set in pastel.conf -- mainnet mode is on
-	if config.Network == "" {
-		config.Network = constants.NetworkMainnet
-	}
 }

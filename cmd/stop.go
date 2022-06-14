@@ -123,7 +123,7 @@ func setupStopSubCommand(config *configs.Config,
 				log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
 				os.Exit(0)
 			})
-
+			ParsePastelConf(ctx, config)
 			log.WithContext(ctx).Info("Stopping...")
 			f(ctx, config)
 			log.WithContext(ctx).Info("Finished successfully!")

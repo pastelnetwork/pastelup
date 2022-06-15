@@ -254,6 +254,7 @@ func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.Too
 	return nil
 }
 
+// EnableService enables a systemd service
 func (sm LinuxSystemdManager) EnableService(ctx context.Context, app constants.ToolType) error {
 	appServiceFileName := sm.ServiceName(app)
 	log.WithContext(ctx).Info("Enabiling service for auto-start")
@@ -265,6 +266,7 @@ func (sm LinuxSystemdManager) EnableService(ctx context.Context, app constants.T
 	return nil
 }
 
+// DisableService disables a systemd service
 func (sm LinuxSystemdManager) DisableService(ctx context.Context, app constants.ToolType) error {
 	appServiceFileName := sm.ServiceName(app)
 	log.WithContext(ctx).Info("Disabling service")

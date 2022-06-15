@@ -171,6 +171,7 @@ func setupUpdateSubCommand(config *configs.Config,
 					Error("Failed to process update command")
 				return err
 			}
+			ParsePastelConf(ctx, config)
 			log.WithContext(ctx).Infof("Started update...release set to '%v' ", config.Version)
 			if err = f(ctx, config); err != nil {
 				return err

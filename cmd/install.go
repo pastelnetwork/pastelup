@@ -190,6 +190,7 @@ func setupSubCommand(config *configs.Config,
 					Error("Failed to process install command")
 				return err
 			}
+			ParsePastelConf(ctx, config)
 			log.WithContext(ctx).Infof("Started install...release set to '%v' ", config.Version)
 			if err = f(ctx, config); err != nil {
 				return err
@@ -1028,7 +1029,7 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 
 	if config.RPCPort == 0 || config.RegenRPC {
 		portList := GetSNPortList(config)
-		config.RPCPort = portList[constants.NodePort]
+		config.RPCPort = portList[constants.NodeRPCPort]
 	}
 	if config.RPCUser == "" || config.RegenRPC {
 		config.RPCUser = utils.GenerateRandomString(8)

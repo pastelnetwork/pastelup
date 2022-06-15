@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,21 +61,39 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 	}
 	defer file.Close()
 
-	configure, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Could not read pastel config - %s", pastelConfPath)
-		return err
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "rpcuser=") {
+			config.RPCUser = strings.TrimPrefix(line, "rpcuser=")
+		}
+		if strings.HasPrefix(line, "rpcpassword=") {
+			config.RPCPwd = strings.TrimPrefix(line, "rpcpassword=")
+		}
+		if strings.HasPrefix(line, "rpcport=") {
+			config.RPCPort, _ = strconv.Atoi(strings.TrimPrefix(line, "rpcport="))
+		}
+		if strings.HasPrefix(line, "testnet=") {
+			isTestnet, _ := strconv.ParseBool(strings.TrimPrefix(line, "testnet="))
+			config.IsTestnet = isTestnet
+			if isTestnet {
+				config.Network = constants.NetworkTestnet
+			}
+		}
+		if strings.HasPrefix(line, "regtest=") {
+			isRegTestnet, _ := strconv.ParseBool(strings.TrimPrefix(line, "regtest="))
+			if isRegTestnet {
+				config.Network = constants.NetworkRegTest
+			}
+		}
+		if strings.HasPrefix(line, "txindex=") {
+			config.TxIndex, _ = strconv.Atoi(strings.TrimPrefix(line, "txindex="))
+		}
 	}
-
-	log.WithContext(ctx).WithField("pastel.conf", string(configure)).Info("pastel conf")
-	if strings.Contains(string(configure), "testnet=1") {
-		config.Network = constants.NetworkTestnet
-	} else if strings.Contains(string(configure), "regtest=1") {
-		config.Network = constants.NetworkRegTest
-	} else {
+	// if both testnet=1 and regtest=1 are not set in pastel.conf -- mainnet mode is on
+	if config.Network == "" {
 		config.Network = constants.NetworkMainnet
 	}
-
 	return nil
 }
 

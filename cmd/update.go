@@ -17,6 +17,7 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
+	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -36,6 +37,8 @@ const (
 	updateSNService
 	updateRemote
 	updatePastelup
+	installService
+	removeService
 )
 
 var (
@@ -49,6 +52,8 @@ var (
 		updateSNService:  "supernode-service",
 		updateRemote:     "remote",
 		updatePastelup:   "pastelup",
+		installService:   "install-service",
+		removeService:    "remove-service",
 	}
 	updateCommandMessage = map[updateCommand]string{
 		updateNode:       "Update Node",
@@ -60,6 +65,8 @@ var (
 		updateSNService:  "Update Supernode service only",
 		updateRemote:     "Update on Remote host",
 		updatePastelup:   "Update Pastelup",
+		installService:   "Install managed service",
+		removeService:    "Remove managed service",
 	}
 )
 
@@ -154,15 +161,21 @@ func setupUpdateSubCommand(config *configs.Config,
 				log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
 				os.Exit(0)
 			})
-
-			if config.Version == "" {
+			requiresVersion := true
+			if utils.Contains(config.Args, "install-service") || utils.Contains(config.Args, "remove-service") {
+				requiresVersion = false
+			}
+			if config.Version == "" && requiresVersion {
 				log.WithContext(ctx).
 					WithError(constants.NoVersionSetErr{}).
 					Error("Failed to process update command")
 				return err
 			}
 			ParsePastelConf(ctx, config)
-			log.WithContext(ctx).Infof("Started update...release set to '%v' ", config.Version)
+			log.WithContext(ctx).Infof("Started update... ")
+			if config.Version != "" {
+				log.WithContext(ctx).Infof("Release version set to '%v", config.Version)
+			}
 			if err = f(ctx, config); err != nil {
 				return err
 			}
@@ -185,6 +198,8 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 	updateDDServiceSubCommand := setupUpdateSubCommand(config, updateDDService, false, runUpdateDDServiceSubCommand)
 	updateWNServiceSubCommand := setupUpdateSubCommand(config, updateWNService, false, runUpdateWNServiceSubCommand)
 	updateSNServiceSubCommand := setupUpdateSubCommand(config, updateSNService, false, runUpdateSNServiceSubCommand)
+	installServiceSubCommand := setupUpdateSubCommand(config, installService, false, installSystemService)
+	removeServiceSubCommand := setupUpdateSubCommand(config, removeService, false, removeSystemService)
 
 	updateNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateNode, true, runUpdateRemoteNode))
 	updateWalletNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateWalletNode, true, runUpdateRemoteWalletNode))
@@ -205,8 +220,73 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 	updateCommand.AddSubcommands(updateDDServiceSubCommand)
 	updateCommand.AddSubcommands(updateWNServiceSubCommand)
 	updateCommand.AddSubcommands(updateSNServiceSubCommand)
+	updateCommand.AddSubcommands(installServiceSubCommand)
+	updateCommand.AddSubcommands(removeServiceSubCommand)
 
 	return updateCommand
+}
+
+// installSystemService installs and starts an installed system service. For example, on linux, a user
+// may run ./pastelup update install-service and this would install and start the systemd service running via sysemtctl
+func installSystemService(ctx context.Context, config *configs.Config) error {
+	if len(config.Args) < 4 {
+		return fmt.Errorf("you need to pass in a tooltype as the argument i.e: ./pastelup update install-service node")
+	}
+	tool := constants.ToolType(config.Args[3]) // pasteluo update install-service walletnode --> we need the 3rd val
+	isValid := false
+	for _, t := range constants.ToolTypeServices {
+		if t == tool {
+			isValid = true
+		}
+	}
+	if !isValid {
+		return fmt.Errorf("tool %v is not a valid tool type to run as a service. Please use one of %+v", tool, constants.ToolTypeServices)
+	}
+	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	if err != nil {
+		return err // services feature not configured for users OS
+	}
+	err = sm.RegisterService(ctx, tool, servicemanager.ResgistrationParams{
+		Force:  config.Force,
+		Config: config,
+	})
+	if err != nil {
+		return err
+	}
+	isRunning, err := sm.StartService(ctx, tool)
+	if !isRunning || err != nil {
+		return fmt.Errorf("unable to start %v as a system service: %v", tool, err)
+	}
+	log.WithContext(ctx).Infof("Started %s as a system service", tool)
+	return nil
+}
+
+// removeSystemService stops and remove an installed system service. For example, on linux, a user
+// may run ./pastelup update remove-service and this would stop and remove the systemd service running via sysemtctl
+func removeSystemService(ctx context.Context, config *configs.Config) error {
+	if len(config.Args) < 4 {
+		return fmt.Errorf("you need to pass in a tooltype as the argument i.e: ./pastelup update install-service node")
+	}
+	tool := constants.ToolType(config.Args[3]) // pasteluo update install-service walletnode --> we need the 3rd val
+	isValid := false
+	for _, t := range constants.ToolTypeServices {
+		if t == tool {
+			isValid = true
+		}
+	}
+	if !isValid {
+		return fmt.Errorf("tool %v is not a valid tool type to run as a service. Please use one of %+v", tool, constants.ToolTypeServices)
+	}
+	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	if err != nil {
+		return err // services feature not configured for users OS
+	}
+	err = sm.StopService(ctx, tool)
+	if err != nil {
+		return fmt.Errorf("unable to stop %v as a system service: %v", tool, err)
+	}
+	log.WithContext(ctx).Infof("Stopped %s as a system service", tool)
+	return nil
 }
 
 func runUpdatePastelup(ctx context.Context, config *configs.Config) error {

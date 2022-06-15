@@ -24,7 +24,7 @@ const (
 var AppWriter io.Writer
 
 // NewApp inits a new command line interface.
-func NewApp() *cli.App {
+func NewApp(args []string) *cli.App {
 
 	app := cli.NewApp(appName)
 	AppWriter = app.Writer
@@ -39,14 +39,14 @@ func NewApp() *cli.App {
 	 * and remove the need to re-instatiate a new conffig for each operation.
 	 */
 	app.AddCommands(
-		setupInstallCommand(configs.InitConfig()),
-		setupUpdateCommand(configs.InitConfig()),
-		setupStartCommand(configs.InitConfig()),
-		setupInitCommand(configs.InitConfig()),
-		setupStopCommand(configs.InitConfig()),
-		setupShowCommand(configs.InitConfig()),
-		setupInfoCommand(configs.InitConfig()),
-		setupPingCommand(configs.InitConfig()),
+		setupInstallCommand(configs.InitConfig(args)),
+		setupUpdateCommand(configs.InitConfig(args)),
+		setupStartCommand(configs.InitConfig(args)),
+		setupInitCommand(configs.InitConfig(args)),
+		setupStopCommand(configs.InitConfig(args)),
+		setupShowCommand(configs.InitConfig(args)),
+		setupInfoCommand(configs.InitConfig(args)),
+		setupPingCommand(configs.InitConfig(args)),
 	)
 	return app
 }

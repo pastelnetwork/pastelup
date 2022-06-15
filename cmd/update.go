@@ -172,7 +172,10 @@ func setupUpdateSubCommand(config *configs.Config,
 				return err
 			}
 			ParsePastelConf(ctx, config)
-			log.WithContext(ctx).Infof("Started update...release set to '%v' ", config.Version)
+			log.WithContext(ctx).Infof("Started update... ")
+			if config.Version != "" {
+				log.WithContext(ctx).Infof("Release version set to '%v", config.Version)
+			}
 			if err = f(ctx, config); err != nil {
 				return err
 			}

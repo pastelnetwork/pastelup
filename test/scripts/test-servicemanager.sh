@@ -88,6 +88,13 @@ echo "ensure walletnode process is still running ..."
 ensureServiceRunning "walletnode"
 
 
+# check that we can kill and it will be a noop
+echo "killing walletnode process"
+ps axf | grep "walletnode" | grep -v grep | awk '{print "kill -9 " $1}'
+sleep 30
+echo "ensure walletnode process has restarted and is running after killing it..."
+ensureServiceRunning "walletnode"
+
 # check that we can stop the service
 echo "stopping walletnode service..."
 pastelup update remove-service walletnode

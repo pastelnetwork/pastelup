@@ -106,6 +106,16 @@ func setupInfoSubCommand(config *configs.Config,
 			SetUsage(green("How to present information. Available choices are: 'console' and 'json'")).SetValue("console"),
 	}
 
+	var dirsFlags []*cli.Flag
+	if !remote {
+		dirsFlags = []*cli.Flag{
+			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
+				SetUsage(green("Optional, Location where to create pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
+			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
+				SetUsage(green("Optional, Location where to create working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
+		}
+	}
+
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
 			SetUsage(red("Required (if `inventory` is not used), SSH address of the remote host")),
@@ -131,6 +141,8 @@ func setupInfoSubCommand(config *configs.Config,
 	commandFlags := infoFlags
 	if remote {
 		commandFlags = append(commandFlags, remoteFlags[:]...)
+	} else {
+		commandFlags = append(commandFlags, dirsFlags[:]...)
 	}
 
 	subCommand := cli.NewCommand(commandName)
@@ -153,6 +165,7 @@ func setupInfoSubCommand(config *configs.Config,
 				os.Exit(0)
 			})
 
+			ParsePastelConf(ctx, config)
 			log.WithContext(ctx).Info("Started")
 			if err = f(ctx, config); err != nil {
 				return err

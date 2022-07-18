@@ -270,6 +270,7 @@ func (sm LinuxSystemdManager) EnableService(ctx context.Context, app constants.T
 func (sm LinuxSystemdManager) DisableService(ctx context.Context, app constants.ToolType) error {
 	appServiceFileName := sm.ServiceName(app)
 	log.WithContext(ctx).Info("Disabling service")
+	log.WithContext(ctx).Info("Disabling service", appServiceFileName)
 	if out, err := runSystemdCmd(disable, appServiceFileName); err != nil {
 		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
 			WithError(err).Error("unable to disable " + appServiceFileName + " service")

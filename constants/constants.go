@@ -56,6 +56,10 @@ const (
 	DDService ToolType = "dd-service"
 	// RQService type
 	RQService ToolType = "rq-service"
+	// Hermes type
+	Hermes ToolType = "hermes"
+	// Bridge type
+	Bridge ToolType = "bridge"
 	// DDImgService type
 	DDImgService ToolType = "dd-img-server"
 	// AMD64 is architecture type
@@ -123,6 +127,9 @@ const (
 	// RQServiceDefaultPort defines rqservice port
 	RQServiceDefaultPort = 50051
 
+	// BridgeServiceDefaultPort defines bridge service port
+	BridgeServiceDefaultPort = 60061
+
 	// DDServerDefaultPort defines dd-server port
 	DDServerDefaultPort = 50052
 
@@ -144,6 +151,8 @@ const (
 var ToolTypeServices = []ToolType{
 	WalletNode,
 	SuperNode,
+	Bridge,
+	Hermes,
 	GoNode,
 	DDService,
 	RQService,
@@ -155,6 +164,8 @@ var ServiceName = map[ToolType]map[OSType]string{
 	PastelD:    PasteldName,
 	WalletNode: WalletNodeExecName,
 	SuperNode:  SuperNodeExecName,
+	Bridge:     BridgeExecName,
+	Hermes:     HermesExecName,
 	RQService:  PastelRQServiceExecName,
 	Pastelup:   PastelupName,
 }
@@ -204,6 +215,20 @@ var PastelUpExecName = map[OSType]string{
 	Windows: "pastelup-windows-amd64.exe",
 	Linux:   "pastelup-linux-amd64",
 	Mac:     "pastelup-darwin-amd64",
+}
+
+// HermesExecName - The name of the hermes
+var HermesExecName = map[OSType]string{
+	Windows: "",
+	Linux:   "hermes-linux-amd64",
+	Mac:     "",
+}
+
+// BridgeExecName - The name of the bridge
+var BridgeExecName = map[OSType]string{
+	Windows: "bridge-win-amd64.exe",
+	Linux:   "bridge-linux-amd64",
+	Mac:     "bridge-darwin-amd64",
 }
 
 // PastelExecArchiveName - The name of the pastel executable files

@@ -63,6 +63,7 @@ var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 	constants.WalletNode: {
 		constants.PastelD,
 		constants.RQService,
+		constants.Bridge,
 		constants.WalletNode,
 	},
 	constants.SuperNode: {
@@ -70,6 +71,7 @@ var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 		constants.RQService,
 		constants.DDService,
 		constants.SuperNode,
+		constants.Hermes,
 	},
 	constants.RQService:    {constants.RQService},
 	constants.DDService:    {constants.DDService},
@@ -505,7 +507,7 @@ func installRQService(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	if err = setupComponentWorkingEnvironment(ctx, config,
+	if err = setupComponentConfigFile(ctx, config,
 		string(constants.RQService),
 		config.Configurer.GetRQServiceConfFile(config.WorkingDir),
 		toolConfig,
@@ -617,8 +619,18 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 func installWNService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing WalletNode service...")
+	installBridge, _ := AskUserToContinue(ctx, "Install Bridge Service? Y/N")
+	var pastelid, passphrase string
+	if pastelidOK, _ := AskUserToContinue(ctx, "Do you have a registered PastelID? Y/N"); pastelidOK {
+		_, pastelid = AskUserToContinue(ctx, "Enter PastelID..")
+		_, passphrase = AskUserToContinue(ctx, "Enter Passphrase..")
+	} else {
+		log.WithContext(ctx).Info("Creating PastelID not supported - please create & register PastelID and continue installation")
+		return errors.New("pastelid not available")
+	}
 
-	toolPath := constants.WalletNodeExecName[utils.GetOS()]
+	wnPath := constants.WalletNodeExecName[utils.GetOS()]
+	bridgePath := constants.BridgeExecName[utils.GetOS()]
 	burnAddress := constants.BurnAddressMainnet
 	if config.Network == constants.NetworkTestnet {
 		burnAddress = constants.BurnAddressTestnet
@@ -627,7 +639,7 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 	}
 	wnTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
 	rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
-	toolConfig, err := utils.GetServiceConfig(string(constants.WalletNode), configs.WalletDefaultConfig, &configs.WalletNodeConfig{
+	wnConfig, err := utils.GetServiceConfig(string(constants.WalletNode), configs.WalletDefaultConfig, &configs.WalletNodeConfig{
 		LogLevel:      constants.WalletNodeDefaultLogLevel,
 		LogFilePath:   config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
 		LogCompress:   constants.LogConfigDefaultCompress,
@@ -639,84 +651,123 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 		RQDir:         rqWorkDirPath,
 		BurnAddress:   burnAddress,
 		RaptorqPort:   constants.RQServiceDefaultPort,
+		BridgePort:    constants.BridgeServiceDefaultPort,
+		BridgeOn:      installBridge,
 	})
 	if err != nil {
 		return errors.Errorf("failed to get walletnode config: %v", err)
 	}
+
 	if err = downloadComponents(ctx, config, constants.WalletNode, config.Version, ""); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", wnPath)
 		return err
 	}
-	if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
+
+	if installBridge {
+		bridgeConfig, err := utils.GetServiceConfig(string(constants.Bridge),
+			configs.BridgeDefaultConfig, &configs.BridgeConfig{
+				LogLevel:           constants.WalletNodeDefaultLogLevel,
+				LogFilePath:        config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
+				LogCompress:        constants.LogConfigDefaultCompress,
+				LogMaxSizeMB:       constants.LogConfigDefaultMaxSizeMB,
+				LogMaxAgeDays:      constants.LogConfigDefaultMaxAgeDays,
+				LogMaxBackups:      constants.LogConfigDefaultMaxBackups,
+				WNTempDir:          wnTempDirPath,
+				WNWorkDir:          config.WorkingDir,
+				BurnAddress:        burnAddress,
+				ConnRefreshTimeout: 300,
+				Connections:        10,
+				ListenAddress:      "127.0.0.1",
+				Port:               constants.BridgeServiceDefaultPort,
+				PastelID:           pastelid,
+				Passphrase:         passphrase,
+			})
+		if err != nil {
+			return errors.Errorf("failed to get bridge config: %v", err)
+		}
+
+		if err = downloadComponents(ctx, config, constants.Bridge, config.Version, ""); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", bridgePath)
+			return err
+		}
+
+		if err = makeExecutable(ctx, config.PastelExecDir, bridgePath); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", bridgePath)
+			return err
+		}
+
+		if err = setupComponentConfigFile(ctx, config, string(constants.Bridge),
+			config.Configurer.GetBridgeConfFile(config.WorkingDir), bridgeConfig); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", bridgePath)
+			return err
+		}
+	}
+
+	if err = makeExecutable(ctx, config.PastelExecDir, wnPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", wnPath)
 		return err
 	}
-	if err = setupComponentWorkingEnvironment(ctx, config,
-		string(constants.WalletNode),
-		config.Configurer.GetWalletNodeConfFile(config.WorkingDir),
-		toolConfig,
-	); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+
+	if err = setupComponentConfigFile(ctx, config, string(constants.WalletNode),
+		config.Configurer.GetWalletNodeConfFile(config.WorkingDir), wnConfig); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", wnPath)
 		return err
 	}
+
 	return nil
 }
 
 func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts bool) error {
 	log.WithContext(ctx).Info("Installing SuperNode service...")
 
-	portList := GetSNPortList(config)
-
 	snTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
-	rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
 	p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
 	mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
-	ddDirPath := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 
-	toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-		LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
-		LogCompress:                     constants.LogConfigDefaultCompress,
-		LogMaxSizeMB:                    constants.LogConfigDefaultMaxSizeMB,
-		LogMaxAgeDays:                   constants.LogConfigDefaultMaxAgeDays,
-		LogMaxBackups:                   constants.LogConfigDefaultMaxBackups,
-		LogLevelCommon:                  constants.SuperNodeDefaultCommonLogLevel,
-		LogLevelP2P:                     constants.SuperNodeDefaultP2PLogLevel,
-		LogLevelMetadb:                  constants.SuperNodeDefaultMetaDBLogLevel,
-		LogLevelDD:                      constants.SuperNodeDefaultDDLogLevel,
-		SNTempDir:                       snTempDirPath,
-		SNWorkDir:                       config.WorkingDir,
-		RQDir:                           rqWorkDirPath,
-		DDDir:                           ddDirPath,
-		SuperNodePort:                   portList[constants.SNPort],
-		P2PPort:                         portList[constants.P2PPort],
-		P2PDataDir:                      p2pDataPath,
-		MDLPort:                         portList[constants.MDLPort],
-		RAFTPort:                        portList[constants.RAFTPort],
-		MDLDataDir:                      mdlDataPath,
-		RaptorqPort:                     constants.RQServiceDefaultPort,
-		NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
-		StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
-	})
+	snConfig, err := GetSNConfigs(config)
 	if err != nil {
 		return errors.Errorf("failed to get supernode config: %v", err)
 	}
 
-	toolPath := constants.SuperNodeExecName[utils.GetOS()]
+	hermesConfig, err := GetHermesConfigs(config)
+	if err != nil {
+		return errors.Errorf("failed to get hermes config: %v", err)
+	}
+
+	snPath := constants.SuperNodeExecName[utils.GetOS()]
+	hermesPath := constants.HermesExecName[utils.GetOS()]
 
 	if err = downloadComponents(ctx, config, constants.SuperNode, config.Version, ""); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", snPath)
 		return err
 	}
-	if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
-		return err
-	}
-	if err = setupComponentWorkingEnvironment(ctx, config,
-		string(constants.SuperNode),
-		config.Configurer.GetSuperNodeConfFile(config.WorkingDir),
-		toolConfig); err != nil {
 
-		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+	if err = downloadComponents(ctx, config, constants.Hermes, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", hermesPath)
+		return err
+	}
+
+	if err = makeExecutable(ctx, config.PastelExecDir, snPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", snPath)
+		return err
+	}
+
+	if err = makeExecutable(ctx, config.PastelExecDir, hermesPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", hermesPath)
+		return err
+	}
+
+	if err = setupComponentConfigFile(ctx, config, string(constants.SuperNode),
+		config.Configurer.GetSuperNodeConfFile(config.WorkingDir), snConfig); err != nil {
+
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", snPath)
+		return err
+	}
+
+	if err = setupComponentConfigFile(ctx, config, string(constants.Hermes),
+		config.Configurer.GetSuperNodeConfFile(config.WorkingDir), hermesConfig); err != nil {
+
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", hermesPath)
 		return err
 	}
 
@@ -737,7 +788,7 @@ func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts 
 
 	if tryOpenPorts {
 		// Open ports
-		if err = openPorts(ctx, config, portList); err != nil {
+		if err = openPorts(ctx, config, GetSNPortList(config)); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to open ports")
 			return err
 		}
@@ -992,7 +1043,7 @@ func makeExecutable(ctx context.Context, dirPath string, fileName string) error 
 	return nil
 }
 
-func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Config,
+func setupComponentConfigFile(ctx context.Context, config *configs.Config,
 	toolName string, configFilePath string, toolConfig string) error {
 
 	// Ignore if not in "install" mode

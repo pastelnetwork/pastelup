@@ -178,6 +178,7 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) {
 	servicesToStop := []constants.ToolType{
 		constants.WalletNode,
 		constants.RQService,
+		constants.Bridge,
 		constants.PastelD}
 	stopServices(ctx, servicesToStop, config)
 	log.WithContext(ctx).Info("Walletnode stopped successfully")
@@ -185,6 +186,7 @@ func runStopWalletSubCommand(ctx context.Context, config *configs.Config) {
 
 func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 	servicesToStop := []constants.ToolType{
+		constants.Hermes,
 		constants.SuperNode,
 		constants.RQService,
 		constants.DDImgService,
@@ -264,7 +266,7 @@ func stopWNServiceSubCommand(ctx context.Context, config *configs.Config) {
 }
 
 func stopSNServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopServices(ctx, []constants.ToolType{constants.SuperNode}, config)
+	stopServices(ctx, []constants.ToolType{constants.Hermes, constants.SuperNode}, config)
 }
 
 func stopPatelCLI(ctx context.Context, config *configs.Config) {
@@ -324,9 +326,9 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warnf("services not enabled for your OS %v", utils.GetOS())
-	} else {
+	} /*else {
 		servicesEnabled = true
-	}
+	}*/
 	for _, service := range services {
 		log.WithContext(ctx).Infof("Stopping %s service...", string(service))
 		switch service {
@@ -347,7 +349,7 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 			}
 		default:
 			if servicesEnabled {
-				err = sm.StopService(ctx, service)
+				err := sm.StopService(ctx, service)
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to stop service %v: %v", service, err)
 					return err

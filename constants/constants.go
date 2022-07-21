@@ -137,6 +137,17 @@ const (
 	RemotePastelupPath = "/tmp/pastelup"
 )
 
+// ToolTypeServices represents the list of tool types that can be enabled as system services
+// i.e. systemd services if on linux
+var ToolTypeServices = []ToolType{
+	WalletNode,
+	SuperNode,
+	GoNode,
+	DDService,
+	RQService,
+	DDImgService,
+}
+
 // ServiceName defines services name
 var ServiceName = map[ToolType]map[OSType]string{
 	PastelD:    PasteldName,

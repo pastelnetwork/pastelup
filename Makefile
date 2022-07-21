@@ -86,6 +86,10 @@ lint:
 build-test-img:
 	docker build -t $(TEST_IMG) -f ./test/Dockerfile .
 
+tmp-local:
+	docker build -t pastel-local -f ./test/Dockerfile .
+	docker run -it pastel-local /bin/bash
+
 test-walletnode:
 	$(eval CONTAINER_NAME := "pastel-walletnode-test")
 	$(eval SCRIPT := "test-walletnode.sh")
@@ -135,3 +139,13 @@ test-ddservice:
 		$(TEST_IMG) \
 		-c "./$(SCRIPT)"
 
+test-servicemanager:
+	$(eval CONTAINER_NAME := "pastel-servicemanager-test")
+	$(eval SCRIPT := "test-servicemanager.sh")
+	docker rm $(CONTAINER_NAME) || true
+	docker run \
+		--name $(CONTAINER_NAME) \
+		--mount type=bind,source=${PWD}/test/scripts/$(SCRIPT),target=/home/ubuntu/$(SCRIPT) \
+		--entrypoint '/bin/bash' \
+		$(TEST_IMG) \
+		-c "./$(SCRIPT)"

@@ -208,6 +208,7 @@ var ZksnarkParamsNamesV1 = []string{
 type Config struct {
 	Main       `json:","`
 	Init       `json:","`
+	Args       []string
 	Configurer configurer.IConfigurer `json:"-"`
 }
 
@@ -225,15 +226,16 @@ func (config *Config) String() (string, error) {
 }
 
 // New returns a new Config instance
-func New() *Config {
+func New(args []string) *Config {
 	return &Config{
 		Main: *NewMain(),
+		Args: args,
 	}
 }
 
 // InitConfig : Get the config from config file. If there is no config file then create a new config.
-func InitConfig() *Config {
-	var config = New()
+func InitConfig(args []string) *Config {
+	var config = New(args)
 	c, err := configurer.NewConfigurer()
 	if err != nil {
 		log.WithError(err).Error("failed to initialize configurer")

@@ -1,14 +1,9 @@
-package servicemanager
+package cmd
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -20,13 +15,13 @@ import (
 
 // ServiceManager handles registering, starting and stopping system processes on the clients respective OS system manager (i.e. linux -> systemctl)
 type ServiceManager interface {
-	RegisterService(context.Context, constants.ToolType, ResgistrationParams) error
-	StartService(context.Context, constants.ToolType) (bool, error)
-	StopService(context.Context, constants.ToolType) error
-	EnableService(context.Context, constants.ToolType) error
-	DisableService(context.Context, constants.ToolType) error
-	IsRunning(context.Context, constants.ToolType) bool
-	IsRegistered(constants.ToolType) (bool, error)
+	RegisterService(context.Context, constants.ToolType, RegistrationParams) error
+	StartService(context.Context, *configs.Config, constants.ToolType) (bool, error)
+	StopService(context.Context, *configs.Config, constants.ToolType) error
+	EnableService(context.Context, *configs.Config, constants.ToolType) error
+	DisableService(context.Context, *configs.Config, constants.ToolType) error
+	IsRunning(context.Context, *configs.Config, constants.ToolType) bool
+	IsRegistered(context.Context, *configs.Config, constants.ToolType) bool
 	ServiceName(constants.ToolType) string
 }
 
@@ -40,8 +35,8 @@ const (
 	status  systemdCmd = "status"
 )
 
-// New returns a new serviceManager, if the OS does not have one configured, the error will be set and Noop Manager will be returned
-func New(os constants.OSType, homeDir string) (ServiceManager, error) {
+// NewServiceManager returns a new serviceManager, if the OS does not have one configured, the error will be set and Noop Manager will be returned
+func NewServiceManager(os constants.OSType, homeDir string) (ServiceManager, error) {
 	switch os {
 	case constants.Linux:
 		return LinuxSystemdManager{
@@ -57,39 +52,39 @@ func New(os constants.OSType, homeDir string) (ServiceManager, error) {
 type NoopManager struct{}
 
 // RegisterService registers a service with the OS system manager
-func (nm NoopManager) RegisterService(context.Context, constants.ToolType, ResgistrationParams) error {
+func (nm NoopManager) RegisterService(context.Context, constants.ToolType, RegistrationParams) error {
 	return nil
 }
 
 // StartService starts the given service as long as it is registered
-func (nm NoopManager) StartService(context.Context, constants.ToolType) (bool, error) {
+func (nm NoopManager) StartService(context.Context, *configs.Config, constants.ToolType) (bool, error) {
 	return false, nil
 }
 
-// StopService stops a running service, it it isnt running it is a no-op
-func (nm NoopManager) StopService(context.Context, constants.ToolType) error {
+// StopService stops a running service, if it isn't running it is a no-op
+func (nm NoopManager) StopService(context.Context, *configs.Config, constants.ToolType) error {
 	return nil
 }
 
 // IsRunning checks to see if the service is running
-func (nm NoopManager) IsRunning(context.Context, constants.ToolType) bool {
+func (nm NoopManager) IsRunning(context.Context, *configs.Config, constants.ToolType) bool {
 	return false
 }
 
 // EnableService checks to see if the service is running
-func (nm NoopManager) EnableService(context.Context, constants.ToolType) error {
+func (nm NoopManager) EnableService(context.Context, *configs.Config, constants.ToolType) error {
 	return nil
 }
 
 // DisableService checks to see if the service is running
-func (nm NoopManager) DisableService(context.Context, constants.ToolType) error {
+func (nm NoopManager) DisableService(context.Context, *configs.Config, constants.ToolType) error {
 	return nil
 }
 
 // IsRegistered checks if the associated app's system command file exists, if it does it returns true, else it returns false
 // if err is not nil, there was an error checking the existence of the file
-func (nm NoopManager) IsRegistered(constants.ToolType) (bool, error) {
-	return false, nil
+func (nm NoopManager) IsRegistered(context.Context, *configs.Config, constants.ToolType) bool {
+	return false
 }
 
 // ServiceName returns the formatted service name given a tooltype
@@ -102,30 +97,32 @@ type LinuxSystemdManager struct {
 	homeDir string
 }
 
-// ResgistrationParams additional flags to pass during service registration
-type ResgistrationParams struct {
+// RegistrationParams additional flags to pass during service registration
+type RegistrationParams struct {
 	Force       bool
 	FlagDevMode bool
 	Config      *configs.Config
 }
 
 // RegisterService registers the service and starts it
-func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants.ToolType, params ResgistrationParams) error {
-	if isRegistered, _ := sm.IsRegistered(app); isRegistered {
+func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants.ToolType, params RegistrationParams) error {
+	if isRegistered := sm.IsRegistered(ctx, params.Config, app); isRegistered {
 		return nil // already registered
 	}
-	systemdDir := filepath.Join(sm.homeDir, constants.SystemdUserDir)
-	if err := utils.CreateFolder(ctx, systemdDir, params.Force); err != nil && !strings.Contains(err.Error(), "file already exists") {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to create systemd directory: %s", systemdDir)
-		return err
-	}
+
 	var systemdFile string
 	var err error
 	var execCmd, execPath, workDir string
 
 	// Service file - will be installed at /etc/systemd/system
 	appServiceFileName := sm.ServiceName(app)
-	appServiceFilePath := filepath.Join(systemdDir, appServiceFileName)
+	appServiceFilePath := filepath.Join(constants.SystemdSystemDir, appServiceFileName)
+	appServiceTempFilePath := filepath.Join("/tmp/", appServiceFileName)
+
+	username, err := RunCMD("whoami")
+	if err != nil {
+		return fmt.Errorf("unable to get own user name (%v): %v", app, err)
+	}
 
 	switch app {
 	case constants.DDImgService:
@@ -146,7 +143,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 			log.WithContext(ctx).WithError(err).Error("Could not get external IP address")
 			return err
 		}
-		execCmd = execPath + " --datadir=" + params.Config.WorkingDir + " --externalip=" + extIP
+		execCmd = execPath + " --datadir=" + params.Config.WorkingDir + " --externalip=" + extIP + " --reindex"
 		workDir = params.Config.PastelExecDir
 	case constants.RQService:
 		execPath = filepath.Join(params.Config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
@@ -200,6 +197,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 			Desc:    fmt.Sprintf("%v daemon", app),
 			ExecCmd: execCmd,
 			WorkDir: workDir,
+			User:    username,
 		})
 	if err != nil {
 		e := fmt.Errorf("unable ot create service file for (%v): %v", app, err)
@@ -208,29 +206,45 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 	}
 
 	// write systemdFile to SystemdUserDir with mode 0644
-	if err := ioutil.WriteFile(appServiceFilePath, []byte(systemdFile), 0644); err != nil {
+	if err := ioutil.WriteFile(appServiceTempFilePath, []byte(systemdFile), 0644); err != nil {
 		log.WithContext(ctx).WithError(err).Error("unable to write " + appServiceFileName + " file")
 	}
 
+	_, err = RunSudoCMD(params.Config, "cp", appServiceTempFilePath, appServiceFilePath)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update")
+		return err
+	}
+
+	// reload systemctl daemon
+	_, err = RunSudoCMD(params.Config, "systemctl", "daemon-reload")
+	if err != nil {
+		return fmt.Errorf("unable to reload systemctl daemon (%v): %v", app, err)
+	}
+
 	// Enable service
-	// @todo -- should this be optional? implications are at device reboot or startup, these services start automatically
-	sm.EnableService(ctx, app)
+	log.WithContext(ctx).Info("Setting service for auto start on boot")
+	if out, err := RunSudoCMD(params.Config, "systemctl", "enable", appServiceFileName); err != nil {
+		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+			WithError(err).Error("unable to enable " + appServiceFileName + " service")
+		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
+	}
 	return nil
 }
 
 // StartService starts the given service as long as it is registered
-func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.ToolType) (bool, error) {
-	isRegisted, _ := sm.IsRegistered(app)
-	if !isRegisted {
+func (sm LinuxSystemdManager) StartService(ctx context.Context, config *configs.Config, app constants.ToolType) (bool, error) {
+	isRegistered := sm.IsRegistered(ctx, config, app)
+	if !isRegistered {
 		log.WithContext(ctx).Infof("skipping start service because %v is not a registered service", app)
 		return false, nil
 	}
-	isRunning := sm.IsRunning(ctx, app)
+	isRunning := sm.IsRunning(ctx, config, app)
 	if isRunning {
 		log.WithContext(ctx).Infof("service %v is already running: noop", app)
 		return true, nil
 	}
-	_, err := runSystemdCmd(start, sm.ServiceName(app))
+	_, err := RunSudoCMD(config, "systemctl", "start", sm.ServiceName(app))
 	if err != nil {
 		return false, fmt.Errorf("unable to start service (%v): %v", app, err)
 	}
@@ -238,16 +252,12 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, app constants.To
 }
 
 // StopService stops a running service, it isn't running it is a no-op
-func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.ToolType) error {
-	err := sm.DisableService(ctx, app)
-	if err != nil {
-		return fmt.Errorf("unable to disable service (%v): %v", app, err)
-	}
-	isRunning := sm.IsRunning(ctx, app) // if not registered, this will be false
+func (sm LinuxSystemdManager) StopService(ctx context.Context, config *configs.Config, app constants.ToolType) error {
+	isRunning := sm.IsRunning(ctx, config, app) // if not registered, this will be false
 	if !isRunning {
 		return nil // service isnt running, no need to stop
 	}
-	_, err = runSystemdCmd(stop, sm.ServiceName(app))
+	_, err := RunSudoCMD(config, "systemctl", "stop", sm.ServiceName(app))
 	if err != nil {
 		return fmt.Errorf("unable to stop service (%v): %v", app, err)
 	}
@@ -255,10 +265,10 @@ func (sm LinuxSystemdManager) StopService(ctx context.Context, app constants.Too
 }
 
 // EnableService enables a systemd service
-func (sm LinuxSystemdManager) EnableService(ctx context.Context, app constants.ToolType) error {
+func (sm LinuxSystemdManager) EnableService(ctx context.Context, config *configs.Config, app constants.ToolType) error {
 	appServiceFileName := sm.ServiceName(app)
-	log.WithContext(ctx).Info("Enabiling service for auto-start")
-	if out, err := runSystemdCmd(enable, appServiceFileName); err != nil {
+	log.WithContext(ctx).Info("Enabling service for auto-start")
+	if out, err := RunSudoCMD(config, "systemctl", "enable", appServiceFileName); err != nil {
 		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
 			WithError(err).Error("unable to enable " + appServiceFileName + " service")
 		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
@@ -267,11 +277,10 @@ func (sm LinuxSystemdManager) EnableService(ctx context.Context, app constants.T
 }
 
 // DisableService disables a systemd service
-func (sm LinuxSystemdManager) DisableService(ctx context.Context, app constants.ToolType) error {
+func (sm LinuxSystemdManager) DisableService(ctx context.Context, config *configs.Config, app constants.ToolType) error {
 	appServiceFileName := sm.ServiceName(app)
-	log.WithContext(ctx).Info("Disabling service")
 	log.WithContext(ctx).Info("Disabling service", appServiceFileName)
-	if out, err := runSystemdCmd(disable, appServiceFileName); err != nil {
+	if out, err := RunSudoCMD(config, "systemctl", "disable", appServiceFileName); err != nil {
 		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
 			WithError(err).Error("unable to disable " + appServiceFileName + " service")
 		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
@@ -280,39 +289,23 @@ func (sm LinuxSystemdManager) DisableService(ctx context.Context, app constants.
 }
 
 // IsRunning checks to see if the service is running
-func (sm LinuxSystemdManager) IsRunning(ctx context.Context, app constants.ToolType) bool {
-	res, _ := runSystemdCmd(status, sm.ServiceName(app))
-	isRunning := strings.Contains(res, "(running)")
-	log.WithContext(ctx).Infof("%v status: %v", sm.ServiceName(app), res)
-	return isRunning
+func (sm LinuxSystemdManager) IsRunning(ctx context.Context, config *configs.Config, app constants.ToolType) bool {
+	res, _ := RunSudoCMD(config, "systemctl", "is-active", sm.ServiceName(app))
+	res = strings.TrimSpace(res)
+	log.WithContext(ctx).Infof("%v is-active status: %v", sm.ServiceName(app), res)
+	return res == "active" || res == "activating"
 }
 
 // IsRegistered checks if the associated app's system command file exists, if it does, it returns true, else it returns false
-// if err is not nil, there was an error checking the existence of the file
-func (sm LinuxSystemdManager) IsRegistered(app constants.ToolType) (bool, error) {
-	fp := filepath.Join(sm.homeDir, constants.SystemdUserDir, sm.ServiceName(app))
-	if _, err := os.Stat(fp); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
+func (sm LinuxSystemdManager) IsRegistered(ctx context.Context, config *configs.Config, app constants.ToolType) bool {
+	res, _ := RunSudoCMD(config, "systemctl", "list-unit-files", sm.ServiceName(app))
+	res = strings.TrimSpace(res)
+	log.WithContext(ctx).Infof("%v list-unit-files status: %v", sm.ServiceName(app), res)
+
+	return !strings.Contains(res, "0 unit files listed.")
 }
 
 // ServiceName returns the formatted service name given a tooltype
 func (sm LinuxSystemdManager) ServiceName(app constants.ToolType) string {
 	return fmt.Sprintf("%v%v.service", constants.SystemdServicePrefix, app)
-}
-
-func runSystemdCmd(command systemdCmd, serviceName string) (string, error) {
-	cmd := exec.Command("systemctl", "--user", string(command), serviceName)
-	var stdBuffer bytes.Buffer
-	mw := io.MultiWriter(os.Stdout, &stdBuffer)
-	cmd.Stdout = mw
-	cmd.Stderr = mw
-	if err := cmd.Run(); err != nil {
-		return stdBuffer.String(), err
-	}
-	return stdBuffer.String(), nil
 }

@@ -93,8 +93,6 @@ const (
 	SystemdServicePrefix = "pastel-"
 	// SystemdSystemDir location of systemd folder in Linux system
 	SystemdSystemDir = "/etc/systemd/system"
-	// SystemdUserDir location of systemd folder in Linux user
-	SystemdUserDir = ".config/systemd/user"
 
 	// RQServiceDir defines location for rq-service file exchange dir
 	RQServiceDir = "rqfiles"

@@ -17,7 +17,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
-	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -242,18 +241,18 @@ func installSystemService(ctx context.Context, config *configs.Config) error {
 	if !isValid {
 		return fmt.Errorf("tool %v is not a valid tool type to run as a service. Please use one of %+v", tool, constants.ToolTypeServices)
 	}
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		return err // services feature not configured for users OS
 	}
-	err = sm.RegisterService(ctx, tool, servicemanager.ResgistrationParams{
+	err = sm.RegisterService(ctx, tool, RegistrationParams{
 		Force:  config.Force,
 		Config: config,
 	})
 	if err != nil {
 		return err
 	}
-	isRunning, err := sm.StartService(ctx, tool)
+	isRunning, err := sm.StartService(ctx, config, tool)
 	if !isRunning || err != nil {
 		return fmt.Errorf("unable to start %v as a system service: %v", tool, err)
 	}
@@ -277,11 +276,11 @@ func removeSystemService(ctx context.Context, config *configs.Config) error {
 	if !isValid {
 		return fmt.Errorf("tool %v is not a valid tool type to run as a service. Please use one of %+v", tool, constants.ToolTypeServices)
 	}
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		return err // services feature not configured for users OS
 	}
-	err = sm.StopService(ctx, tool)
+	err = sm.StopService(ctx, config, tool)
 	if err != nil {
 		return fmt.Errorf("unable to stop %v as a system service: %v", tool, err)
 	}

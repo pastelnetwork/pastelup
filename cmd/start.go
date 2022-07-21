@@ -18,7 +18,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
-	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/services/pastelcore"
 	"github.com/pastelnetwork/pastelup/utils"
 )
@@ -523,7 +522,7 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runRQService(ctx context.Context, config *configs.Config) error {
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -531,7 +530,7 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 	}
 	if serviceEnabled {
 		// if the service isnt registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.RQService)
+		srvStarted, err := sm.StartService(ctx, config, constants.RQService)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
 			return err
@@ -554,7 +553,7 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -562,7 +561,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	}
 	if serviceEnabled {
 		// if the service isn't registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.DDService)
+		srvStarted, err := sm.StartService(ctx, config, constants.DDService)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
 			return err
@@ -608,7 +607,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 // Sub Command
 func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -616,7 +615,7 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 	}
 	if serviceEnabled {
 		// if the service isnt registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.WalletNode)
+		srvStarted, err := sm.StartService(ctx, config, constants.WalletNode)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.WalletNode, err)
 			return err
@@ -683,7 +682,7 @@ func runBridgeService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -691,7 +690,7 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 	}
 	if serviceEnabled {
 		// if the service isnt registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.SuperNode)
+		srvStarted, err := sm.StartService(ctx, config, constants.SuperNode)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.SuperNode, err)
 		}
@@ -819,7 +818,7 @@ func setPastelIDAndPassphraseInHermesConf(ctx context.Context, config *configs.C
 ///// Run helpers
 func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool, reindex bool, extIP string, mnPrivKey string) (err error) {
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -827,7 +826,7 @@ func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool,
 	}
 	if serviceEnabled {
 		// if the service isn't registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.PastelD)
+		srvStarted, err := sm.StartService(ctx, config, constants.PastelD)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.PastelD, err)
 			return err

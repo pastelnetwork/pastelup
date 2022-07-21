@@ -645,7 +645,7 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runBridgeService(ctx context.Context, config *configs.Config) error {
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -653,7 +653,7 @@ func runBridgeService(ctx context.Context, config *configs.Config) error {
 	}
 	if serviceEnabled {
 		// if the service isnt registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.Bridge)
+		srvStarted, err := sm.StartService(ctx, config, constants.Bridge)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.Bridge, err)
 			return err
@@ -728,7 +728,7 @@ func runHermesService(ctx context.Context, config *configs.Config) error {
 	}
 
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -736,7 +736,7 @@ func runHermesService(ctx context.Context, config *configs.Config) error {
 	}
 	if serviceEnabled {
 		// if the service isnt registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.Hermes)
+		srvStarted, err := sm.StartService(ctx, config, constants.Hermes)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.Hermes, err)
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// GetSNConfigs returns SN configs
 func GetSNConfigs(config *configs.Config) (string, error) {
 	portList := GetSNPortList(config)
 
@@ -49,6 +50,7 @@ func GetSNConfigs(config *configs.Config) (string, error) {
 	return toolConfig, nil
 }
 
+// GetHermesConfigs returns hermes configs
 func GetHermesConfigs(config *configs.Config) (string, error) {
 	portList := GetSNPortList(config)
 

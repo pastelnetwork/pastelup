@@ -494,7 +494,7 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runRQService(ctx context.Context, config *configs.Config) error {
 	serviceEnabled := false
-	sm, err := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -525,7 +525,7 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	serviceEnabled := false
-	sm, err := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -579,7 +579,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 // Sub Command
 func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 	serviceEnabled := false
-	sm, err := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -617,7 +617,7 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 	serviceEnabled := false
-	sm, err := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -652,7 +652,7 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 ///// Run helpers
 func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool, reindex bool, extIP string, mnPrivKey string) (err error) {
 	serviceEnabled := false
-	sm, err := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {

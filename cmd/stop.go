@@ -320,7 +320,7 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 
 func stopServices(ctx context.Context, services []constants.ToolType, config *configs.Config) error {
 	servicesEnabled := false
-	sm, err := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warnf("services not enabled for your OS %v", utils.GetOS())
 	} else {

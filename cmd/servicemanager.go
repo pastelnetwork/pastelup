@@ -1,14 +1,9 @@
-package servicemanager
+package cmd
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -40,8 +35,8 @@ const (
 	status  systemdCmd = "status"
 )
 
-// New returns a new serviceManager, if the OS does not have one configured, the error will be set and Noop Manager will be returned
-func New(os constants.OSType, homeDir string) (ServiceManager, error) {
+// NewServiceManager returns a new serviceManager, if the OS does not have one configured, the error will be set and Noop Manager will be returned
+func NewServiceManager(os constants.OSType, homeDir string) (ServiceManager, error) {
 	switch os {
 	case constants.Linux:
 		return LinuxSystemdManager{
@@ -77,12 +72,12 @@ func (nm NoopManager) IsRunning(context.Context, *configs.Config, constants.Tool
 }
 
 // EnableService checks to see if the service is running
-func (nm NoopManager) EnableService(context.Context, constants.ToolType) error {
+func (nm NoopManager) EnableService(context.Context, *configs.Config, constants.ToolType) error {
 	return nil
 }
 
 // DisableService checks to see if the service is running
-func (nm NoopManager) DisableService(context.Context, constants.ToolType) error {
+func (nm NoopManager) DisableService(context.Context, *configs.Config, constants.ToolType) error {
 	return nil
 }
 
@@ -244,7 +239,7 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, config *configs.
 		log.WithContext(ctx).Infof("skipping start service because %v is not a registered service", app)
 		return false, nil
 	}
-	isRunning := sm.IsRunning(ctx, app)
+	isRunning := sm.IsRunning(ctx, config, app)
 	if isRunning {
 		log.WithContext(ctx).Infof("service %v is already running: noop", app)
 		return true, nil
@@ -270,10 +265,10 @@ func (sm LinuxSystemdManager) StopService(ctx context.Context, config *configs.C
 }
 
 // EnableService enables a systemd service
-func (sm LinuxSystemdManager) EnableService(ctx context.Context, app constants.ToolType) error {
+func (sm LinuxSystemdManager) EnableService(ctx context.Context, config *configs.Config, app constants.ToolType) error {
 	appServiceFileName := sm.ServiceName(app)
-	log.WithContext(ctx).Info("Enabiling service for auto-start")
-	if out, err := runSystemdCmd(enable, appServiceFileName); err != nil {
+	log.WithContext(ctx).Info("Enabling service for auto-start")
+	if out, err := RunSudoCMD(config, "systemctl", "enable", appServiceFileName); err != nil {
 		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
 			WithError(err).Error("unable to enable " + appServiceFileName + " service")
 		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
@@ -282,10 +277,10 @@ func (sm LinuxSystemdManager) EnableService(ctx context.Context, app constants.T
 }
 
 // DisableService disables a systemd service
-func (sm LinuxSystemdManager) DisableService(ctx context.Context, app constants.ToolType) error {
+func (sm LinuxSystemdManager) DisableService(ctx context.Context, config *configs.Config, app constants.ToolType) error {
 	appServiceFileName := sm.ServiceName(app)
 	log.WithContext(ctx).Info("Disabling service")
-	if out, err := runSystemdCmd(disable, appServiceFileName); err != nil {
+	if out, err := RunSudoCMD(config, "systemctl", "disable", appServiceFileName); err != nil {
 		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
 			WithError(err).Error("unable to disable " + appServiceFileName + " service")
 		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)

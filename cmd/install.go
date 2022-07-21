@@ -352,7 +352,7 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		possibleCliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
 		if utils.CheckFileExist(possibleCliPath) {
 			log.WithContext(ctx).Info("Trying to stop pasteld...")
-			sm, _ := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+			sm, _ := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 			sm.StopService(ctx, config, constants.PastelD)
 			err := StopPastelDAndWait(ctx, config)
 			if err != nil {
@@ -1183,7 +1183,7 @@ func openPorts(ctx context.Context, config *configs.Config, portList []int) (err
 }
 
 func installServices(ctx context.Context, apps []constants.ToolType, config *configs.Config) error {
-	sm, err := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 		return nil // services aren't implemented for this OS

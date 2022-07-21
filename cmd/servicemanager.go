@@ -25,7 +25,7 @@ type ServiceManager interface {
 	ServiceName(constants.ToolType) string
 }
 
-type systemdCmd string
+/*type systemdCmd string
 
 const (
 	start   systemdCmd = "start"
@@ -34,6 +34,7 @@ const (
 	disable systemdCmd = "disable"
 	status  systemdCmd = "status"
 )
+*/
 
 // NewServiceManager returns a new serviceManager, if the OS does not have one configured, the error will be set and Noop Manager will be returned
 func NewServiceManager(os constants.OSType, homeDir string) (ServiceManager, error) {

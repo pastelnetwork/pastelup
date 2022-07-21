@@ -319,26 +319,16 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	log.WithContext(ctx).Info("starting supernode-service..")
-	snService := fmt.Sprintf("%s-%s", string(constants.SuperNode), "service")
-	if err = r.runServiceRemote(ctx, snService); err != nil {
-		return fmt.Errorf("failed to start supernode-service on hot node: %s", err)
-	}
-	log.WithContext(ctx).Info("started supernode-service successfully..")
-
-	// ***************  9. Start hermes  **************
-
 	if err := r.createAndCopyRemoteHermesConfig(ctx); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update hermes.yml")
 		return err
 	}
 
-	log.WithContext(ctx).Info("starting hermes-service..")
-
-	if err = r.runServiceRemote(ctx, string(constants.Hermes)); err != nil {
-		return fmt.Errorf("failed to start hermes-service on hot node: %s", err)
+	log.WithContext(ctx).Info("starting supernode-service & hermes-service..")
+	snService := fmt.Sprintf("%s-%s", string(constants.SuperNode), "service")
+	if err = r.runServiceRemote(ctx, snService); err != nil {
+		return fmt.Errorf("failed to start supernode-service or hermes-service on hot node: %s", err)
 	}
-	log.WithContext(ctx).Info("started hermes-service successfully..")
 
 	if withErrors {
 		log.WithContext(ctx).Warn("some services was not started, please see log above.\n\tYou can try to restart them manually: see command 'start <service> remote'")

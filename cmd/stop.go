@@ -243,8 +243,10 @@ func runRemoteStop(ctx context.Context, config *configs.Config, tool string) {
 
 func runStopAllSubCommand(ctx context.Context, config *configs.Config) {
 	servicesToStop := []constants.ToolType{
+		constants.Hermes,
 		constants.SuperNode,
 		constants.RQService,
+		constants.Bridge,
 		constants.WalletNode,
 		constants.DDImgService,
 		constants.DDService,
@@ -262,7 +264,7 @@ func stopDDServiceSubCommand(ctx context.Context, config *configs.Config) {
 }
 
 func stopWNServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopServices(ctx, []constants.ToolType{constants.WalletNode}, config)
+	stopServices(ctx, []constants.ToolType{constants.WalletNode, constants.Bridge}, config)
 }
 
 func stopSNServiceSubCommand(ctx context.Context, config *configs.Config) {

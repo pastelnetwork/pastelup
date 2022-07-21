@@ -56,7 +56,7 @@ func GetHermesConfigs(config *configs.Config) (string, error) {
 	ddDirPath := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 
 	toolConfig, err := utils.GetServiceConfig(string(constants.Hermes), configs.HermesDefaultConfig, &configs.HermesConfig{
-		LogFilePath:    config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
+		LogFilePath:    config.Configurer.GetHermesLogFile(config.WorkingDir),
 		LogCompress:    constants.LogConfigDefaultCompress,
 		LogMaxSizeMB:   constants.LogConfigDefaultMaxSizeMB,
 		LogMaxAgeDays:  constants.LogConfigDefaultMaxAgeDays,

@@ -15,6 +15,8 @@ type IConfigurer interface {
 	DefaultPastelExecutableDir() string
 	DefaultArchiveDir() string
 	GetSuperNodeLogFile(workingDir string) string
+	GetHermesLogFile(workingDir string) string
+	GetBridgeLogFile(workingDir string) string
 	GetWalletNodeLogFile(workingDir string) string
 	GetSuperNodeConfFile(workingDir string) string
 	GetHermesConfFile(workingDir string) string

@@ -46,10 +46,10 @@ log-config:
   log-max-age-days: {{.LogMaxAgeDays}}
   log-max-backups: {{.LogMaxBackups}}
   log-levels:
-    common: {{.LogLevelCommon}}
-	p2p: {{.LogLevelP2P}}
-	metadb: {{.LogLevelMetadb}}
-	dd: {{.LogLevelDD}}
+   common: {{.LogLevelCommon}}
+   p2p: {{.LogLevelP2P}}
+   metadb: {{.LogLevelMetadb}}
+   dd: {{.LogLevelDD}}
 quiet: true
 temp-dir: {{.SNTempDir}}
 work-dir: {{.SNWorkDir}}

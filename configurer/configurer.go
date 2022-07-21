@@ -22,6 +22,8 @@ type configurer struct {
 	walletNodeLogFile   string
 	superNodeConfFile   string
 	hermesConfFile      string
+	hermesLogFile       string
+	bridgeLogFile       string
 	bridgeConfFile      string
 	walletNodeConfFile  string
 	rqServiceConfFile   string
@@ -56,6 +58,16 @@ func (c *configurer) GetSuperNodeLogFile(workingDir string) string {
 // GetWalletNodeLogFile returns the default supernode log file
 func (c *configurer) GetWalletNodeLogFile(workingDir string) string {
 	return filepath.Join(workingDir, c.walletNodeLogFile)
+}
+
+// GetHermesLogFile returns the default hermes log file
+func (c *configurer) GetHermesLogFile(workingDir string) string {
+	return filepath.Join(workingDir, c.hermesLogFile)
+}
+
+// GetBridgeLogFile returns the default bridge log file
+func (c *configurer) GetBridgeLogFile(workingDir string) string {
+	return filepath.Join(workingDir, c.bridgeLogFile)
 }
 
 // GetSuperNodeConfFile returns the default supernode log file
@@ -153,6 +165,8 @@ func newLinuxConfigurer(homeDir string) IConfigurer {
 	return &configurer{
 		workingDir:          ".pastel",
 		superNodeLogFile:    "supernode.log",
+		hermesLogFile:       "hermes.log",
+		bridgeLogFile:       "bridge.log",
 		walletNodeLogFile:   "walletnode.log",
 		superNodeConfFile:   "supernode.yml",
 		hermesConfFile:      "hermes.yml",

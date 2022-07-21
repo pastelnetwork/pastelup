@@ -259,6 +259,7 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startCommand.AddSubcommands(startWNServiceCommand)
 	startCommand.AddSubcommands(startSNServiceCommand)
 	startCommand.AddSubcommands(startMasternodeCommand)
+	startCommand.AddSubcommands(startHermesServiceCommand)
 
 	return startCommand
 
@@ -404,14 +405,6 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 		log.WithContext(ctx).WithError(err).Error("Failed to start supernode service")
 		return err
 	}
-
-	// *************  9. Start hermes  **************
-	log.WithContext(ctx).Info("Starting hermes")
-	if err := runHermesService(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to start hermes")
-		return err
-	}
-	log.WithContext(ctx).Info("Hermes started successfully")
 
 	return nil
 }
@@ -720,11 +713,21 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
+	if err := runHermesService(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("start hermes service failed")
+		return err
+	}
+
 	return nil
 }
 
 // Sub Command
 func runHermesService(ctx context.Context, config *configs.Config) error {
+	if err := setPastelIDAndPassphraseInHermesConf(ctx, config); err != nil {
+		log.WithContext(ctx).Errorf("Failed to set pastelID & passphrase in config file : %v", err)
+		return nil
+	}
+
 	serviceEnabled := false
 	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
@@ -753,6 +756,60 @@ func runHermesService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("Options : %s", hermesServiceArgs)
 	if err := runPastelService(ctx, config, constants.Hermes, hermesExecName, hermesServiceArgs...); err != nil {
 		log.WithContext(ctx).WithError(err).Error("hermes start failed")
+		return err
+	}
+
+	return nil
+}
+
+func setPastelIDAndPassphraseInHermesConf(ctx context.Context, config *configs.Config) error {
+	hermesConfigPath := config.Configurer.GetHermesConfFile(config.WorkingDir)
+	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
+
+	// Read existing supernode confif file
+	var snConfFile []byte
+	snConfFile, err := ioutil.ReadFile(supernodeConfigPath)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to open existing supernode.yml file at - %s", supernodeConfigPath)
+		return err
+	}
+	snConf := make(map[string]interface{})
+	if err = yaml.Unmarshal(snConfFile, &snConf); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to parse existing supernode.yml file at - %s", supernodeConfigPath)
+		return err
+	}
+
+	// extract pastelID & Passphrase
+	node := snConf["node"].(map[interface{}]interface{})
+	pastelID := fmt.Sprintf("%s", node["pastel_id"])
+	passPhrase := fmt.Sprintf("%s", node["pass_phrase"])
+
+	// Read hermes config file
+	var hermesConfFile []byte
+	hermesConfFile, err = ioutil.ReadFile(hermesConfigPath)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to open existing hermes.yml file at - %s", hermesConfigPath)
+		return err
+	}
+
+	hermesConf := make(map[string]interface{})
+	if err = yaml.Unmarshal(hermesConfFile, &hermesConf); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to parse existing hermes.yml file at - %s", hermesConfigPath)
+		return err
+	}
+
+	// Update hermes config file
+	hermesConf["pastel_id"] = pastelID
+	hermesConf["pass_phrase"] = passPhrase
+
+	var hermesConfFileUpdated []byte
+	if hermesConfFileUpdated, err = yaml.Marshal(&hermesConf); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for hermes.yml file at - %s", hermesConfigPath)
+		return err
+	}
+
+	if ioutil.WriteFile(hermesConfigPath, hermesConfFileUpdated, 0644) != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update hermes.yml file at - %s", hermesConfigPath)
 		return err
 	}
 

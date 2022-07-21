@@ -34,6 +34,7 @@ const (
 	ddServiceImgServerInstall
 	snServiceInstall
 	wnServiceInstall
+	hermesServiceInstall
 )
 
 var nonNetworkDepedentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
@@ -47,6 +48,7 @@ var (
 		ddServiceInstall:          "dd-service",
 		ddServiceImgServerInstall: "imgserver",
 		remoteInstall:             "remote",
+		hermesServiceInstall:      "hermes-service",
 	}
 	installCmdMessage = map[installCommand]string{
 		nodeInstall:               "Install node",
@@ -56,6 +58,7 @@ var (
 		ddServiceInstall:          "Install Dupe Detection service only",
 		ddServiceImgServerInstall: "Install Dupe Detection Image Server only",
 		remoteInstall:             "Install on Remote host",
+		hermesServiceInstall:      "Install hermes-service only",
 	}
 )
 var appToServiceMap = map[constants.ToolType][]constants.ToolType{
@@ -76,6 +79,7 @@ var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 	constants.RQService:    {constants.RQService},
 	constants.DDService:    {constants.DDService},
 	constants.DDImgService: {constants.DDImgService},
+	constants.Hermes:       {constants.Hermes},
 }
 
 func setupSubCommand(config *configs.Config,
@@ -213,6 +217,7 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	installRQSubCommand := setupSubCommand(config, rqServiceInstall, false, runInstallRaptorQSubCommand)
 	installDDSubCommand := setupSubCommand(config, ddServiceInstall, false, runInstallDupeDetectionSubCommand)
 	installDDImgServerSubCommand := setupSubCommand(config, ddServiceImgServerInstall, false, runInstallDupeDetectionImgServerSubCommand)
+	installHermesServiceSubCommand := setupSubCommand(config, hermesServiceInstall, false, runInstallHermesServiceSubCommand)
 
 	installNodeSubCommand.AddSubcommands(setupSubCommand(config, nodeInstall, true, runRemoteInstallNode))
 	installWalletNodeSubCommand.AddSubcommands(setupSubCommand(config, walletNodeInstall, true, runRemoteInstallWalletNode))
@@ -220,6 +225,7 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	installRQSubCommand.AddSubcommands(setupSubCommand(config, rqServiceInstall, true, runRemoteInstallRQService))
 	installDDSubCommand.AddSubcommands(setupSubCommand(config, ddServiceInstall, true, runRemoteInstallDDService))
 	installDDImgServerSubCommand.AddSubcommands(setupSubCommand(config, ddServiceImgServerInstall, true, runRemoteInstallImgServer))
+	installHermesServiceSubCommand.AddSubcommands(setupSubCommand(config, hermesServiceInstall, true, runRemoteInstallHermesService))
 
 	installCommand := cli.NewCommand("install")
 	installCommand.SetUsage(blue("Performs installation and initialization of the system for both WalletNode and SuperNodes"))
@@ -228,6 +234,7 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	installCommand.AddSubcommands(installNodeSubCommand)
 	installCommand.AddSubcommands(installRQSubCommand)
 	installCommand.AddSubcommands(installDDSubCommand)
+	installCommand.AddSubcommands(installHermesServiceSubCommand)
 	installCommand.AddSubcommands(installDDImgServerSubCommand)
 	return installCommand
 }
@@ -260,6 +267,14 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 	return runServicesInstall(ctx, config, constants.DDService, false)
 }
 
+func runInstallHermesServiceSubCommand(ctx context.Context, config *configs.Config) error {
+	if utils.GetOS() != constants.Linux {
+		log.WithContext(ctx).Error("Hermes service can only be installed on Linux")
+		return fmt.Errorf("hermes service can only be installed on Linux. You are on: %s", string(utils.GetOS()))
+	}
+	return runServicesInstall(ctx, config, constants.Hermes, false)
+}
+
 func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
 	if !config.EnableService {
 		return nil
@@ -284,6 +299,9 @@ func runRemoteInstallDDService(ctx context.Context, config *configs.Config) erro
 }
 func runRemoteInstallImgServer(ctx context.Context, config *configs.Config) error {
 	return runRemoteInstall(ctx, config, "imgserver")
+}
+func runRemoteInstallHermesService(ctx context.Context, config *configs.Config) error {
+	return runRemoteInstall(ctx, config, "hermes-service")
 }
 
 func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) (err error) {
@@ -413,6 +431,13 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		(installCommand == constants.SuperNode && withDependencies) {
 		if err := installDupeDetection(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install dd-service")
+			return err
+		}
+	}
+
+	if installCommand == constants.Hermes {
+		if err := installHermesService(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install hermes-service")
 			return err
 		}
 	}
@@ -667,7 +692,7 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 		bridgeConfig, err := utils.GetServiceConfig(string(constants.Bridge),
 			configs.BridgeDefaultConfig, &configs.BridgeConfig{
 				LogLevel:           constants.WalletNodeDefaultLogLevel,
-				LogFilePath:        config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
+				LogFilePath:        config.Configurer.GetBridgeLogFile(config.WorkingDir),
 				LogCompress:        constants.LogConfigDefaultCompress,
 				LogMaxSizeMB:       constants.LogConfigDefaultMaxSizeMB,
 				LogMaxAgeDays:      constants.LogConfigDefaultMaxAgeDays,
@@ -711,6 +736,36 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 	if err = setupComponentConfigFile(ctx, config, string(constants.WalletNode),
 		config.Configurer.GetWalletNodeConfFile(config.WorkingDir), wnConfig); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", wnPath)
+		return err
+	}
+
+	return nil
+}
+
+func installHermesService(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Installing Hermes service...")
+
+	hermesConfig, err := GetHermesConfigs(config)
+	if err != nil {
+		return errors.Errorf("failed to get hermes config: %v", err)
+	}
+
+	hermesPath := constants.HermesExecName[utils.GetOS()]
+
+	if err = downloadComponents(ctx, config, constants.Hermes, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", hermesPath)
+		return err
+	}
+
+	if err = makeExecutable(ctx, config.PastelExecDir, hermesPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", hermesPath)
+		return err
+	}
+
+	if err = setupComponentConfigFile(ctx, config, string(constants.Hermes),
+		config.Configurer.GetHermesConfFile(config.WorkingDir), hermesConfig); err != nil {
+
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", hermesPath)
 		return err
 	}
 
@@ -765,7 +820,7 @@ func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts 
 	}
 
 	if err = setupComponentConfigFile(ctx, config, string(constants.Hermes),
-		config.Configurer.GetSuperNodeConfFile(config.WorkingDir), hermesConfig); err != nil {
+		config.Configurer.GetHermesConfFile(config.WorkingDir), hermesConfig); err != nil {
 
 		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", hermesPath)
 		return err

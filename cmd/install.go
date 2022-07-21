@@ -18,7 +18,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
-	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -230,6 +229,10 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	return installCommand
 }
 
+func runInstallAsServices(ctx context.Context, config *configs.Config) (err error) {
+	return nil
+}
+
 func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	return runServicesInstall(ctx, config, constants.PastelD, true)
 }
@@ -349,8 +352,8 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		possibleCliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
 		if utils.CheckFileExist(possibleCliPath) {
 			log.WithContext(ctx).Info("Trying to stop pasteld...")
-			sm, _ := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
-			sm.StopService(ctx, constants.PastelD)
+			sm, _ := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+			sm.StopService(ctx, config, constants.PastelD)
 			err := StopPastelDAndWait(ctx, config)
 			if err != nil {
 				log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v", err)
@@ -1180,13 +1183,13 @@ func openPorts(ctx context.Context, config *configs.Config, portList []int) (err
 }
 
 func installServices(ctx context.Context, apps []constants.ToolType, config *configs.Config) error {
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 		return nil // services aren't implemented for this OS
 	}
 	for _, app := range apps {
-		err = sm.RegisterService(ctx, app, servicemanager.ResgistrationParams{
+		err = sm.RegisterService(ctx, app, RegistrationParams{
 			Config:      config,
 			Force:       config.Force,
 			FlagDevMode: flagDevMode,
@@ -1195,7 +1198,7 @@ func installServices(ctx context.Context, apps []constants.ToolType, config *con
 			log.WithContext(ctx).Errorf("unable to register service %v: %v", app, err)
 			return err
 		}
-		_, err := sm.StartService(ctx, app) // if app already running, this will be a noop
+		_, err := sm.StartService(ctx, config, app) // if app already running, this will be a noop
 		if err != nil {
 			log.WithContext(ctx).Errorf("unable to start service %v: %v", app, err)
 			return err
@@ -1205,7 +1208,7 @@ func installServices(ctx context.Context, apps []constants.ToolType, config *con
 	// verify services are up and running
 	var nonRunningServices []constants.ToolType
 	for _, app := range apps {
-		isRunning := sm.IsRunning(ctx, app)
+		isRunning := sm.IsRunning(ctx, config, app)
 		if !isRunning {
 			nonRunningServices = append(nonRunningServices, app)
 		}

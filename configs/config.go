@@ -108,17 +108,19 @@ python3 -m  http.server 80`
 
 	// SystemdService - /etc/systemd/sysstem/rq-service.service
 	SystemdService = `[Unit]
-    Description={{.Desc}}
+Description={{.Desc}}
     
-    [Service]
-    Restart=always
-    RestartSec=10
-    WorkingDirectory={{.WorkDir}}
-    ExecStart={{.ExecCmd}}
-    
-    [Install]
-    WantedBy=multi-user.target
-    `
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+WorkingDirectory={{.WorkDir}}
+ExecStart={{.ExecCmd}}
+User={{.User}}
+
+[Install]
+WantedBy=multi-user.target
+`
 )
 
 // WalletNodeConfig defines configurations for walletnode
@@ -186,6 +188,7 @@ type SystemdServiceScript struct {
 	ExecCmd string
 	Desc    string
 	WorkDir string
+	User    string
 }
 
 // ZksnarkParamsNamesV2 - slice of zksnark parameters

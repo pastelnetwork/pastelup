@@ -10,7 +10,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
-	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -321,7 +320,7 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 
 func stopServices(ctx context.Context, services []constants.ToolType, config *configs.Config) error {
 	servicesEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := New(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warnf("services not enabled for your OS %v", utils.GetOS())
 	} else {
@@ -347,7 +346,7 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 			}
 		default:
 			if servicesEnabled {
-				err = sm.StopService(ctx, service)
+				err = sm.StopService(ctx, config, service)
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to stop service %v: %v", service, err)
 					return err

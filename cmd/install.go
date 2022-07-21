@@ -229,10 +229,6 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	return installCommand
 }
 
-func runInstallAsServices(ctx context.Context, config *configs.Config) (err error) {
-	return nil
-}
-
 func runInstallNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
 	return runServicesInstall(ctx, config, constants.PastelD, true)
 }

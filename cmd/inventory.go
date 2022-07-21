@@ -83,7 +83,7 @@ func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config,
 				config.RemotePort = 22
 			}
 			if err := executeRemoteCommands(ctx, config, commands, false); err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to execute command on remote host %s"+
+				log.WithContext(ctx).WithError(err).Errorf("Failed to execute command on remote host %s"+
 					" [IP:%s; Port:%d; User:%s; KeyFile:%s; ]",
 					srv.Name, config.RemoteIP, config.RemotePort, config.RemoteUser, config.RemoteSSHKey)
 			}

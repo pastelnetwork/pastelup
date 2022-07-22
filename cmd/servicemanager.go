@@ -107,6 +107,8 @@ type RegistrationParams struct {
 
 // RegisterService registers the service and starts it
 func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants.ToolType, params RegistrationParams) error {
+	log.WithContext(ctx).Infof("Installing %v as systemd service", app)
+
 	if isRegistered := sm.IsRegistered(ctx, params.Config, app); isRegistered {
 		return nil // already registered
 	}
@@ -124,6 +126,8 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 	if err != nil {
 		return fmt.Errorf("unable to get own user name (%v): %v", app, err)
 	}
+
+	pastelConfigPath := filepath.Join(params.Config.WorkingDir, constants.PastelConfName)
 
 	switch app {
 	case constants.DDImgService:
@@ -174,7 +178,17 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 			return err
 		}
 		supernodeConfigPath := params.Config.Configurer.GetSuperNodeConfFile(params.Config.WorkingDir)
-		execCmd = execPath + " --config-file=" + supernodeConfigPath
+		execCmd = execPath + " --config-file=" + supernodeConfigPath + " --pastel-config-file=" + pastelConfigPath
+		workDir = params.Config.PastelExecDir
+	case constants.Hermes:
+		execPath = filepath.Join(params.Config.PastelExecDir, constants.HermesExecName[utils.GetOS()])
+		if exists := utils.CheckFileExist(execPath); !exists {
+			log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Could not find %v executable file", app))
+			return err
+		}
+
+		hermesConfigPath := params.Config.Configurer.GetHermesConfFile(params.Config.WorkingDir)
+		execCmd = execPath + " --config-file=" + hermesConfigPath + " --pastel-config-file=" + pastelConfigPath
 		workDir = params.Config.PastelExecDir
 	case constants.WalletNode:
 		execPath = filepath.Join(params.Config.PastelExecDir, constants.WalletNodeExecName[utils.GetOS()])
@@ -183,10 +197,20 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 			return err
 		}
 		walletnodeConfigFile := params.Config.Configurer.GetWalletNodeConfFile(params.Config.WorkingDir)
-		execCmd = execPath + " --config-file=" + walletnodeConfigFile
+		execCmd = execPath + " --config-file=" + walletnodeConfigFile + " --pastel-config-file=" + pastelConfigPath
 		if params.FlagDevMode {
 			execCmd += " --swagger"
 		}
+		workDir = params.Config.PastelExecDir
+	case constants.Bridge:
+		execPath = filepath.Join(params.Config.PastelExecDir, constants.BridgeExecName[utils.GetOS()])
+		if exists := utils.CheckFileExist(execPath); !exists {
+			log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Could not find %v executable file", app))
+			return err
+		}
+
+		bridgeConfigPath := params.Config.Configurer.GetBridgeConfFile(params.Config.WorkingDir)
+		execCmd = execPath + " --config-file=" + bridgeConfigPath + " --pastel-config-file=" + pastelConfigPath
 		workDir = params.Config.PastelExecDir
 	default:
 		return nil

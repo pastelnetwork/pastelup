@@ -256,6 +256,7 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startCommand.AddSubcommands(startSNServiceCommand)
 	startCommand.AddSubcommands(startMasternodeCommand)
 	startCommand.AddSubcommands(startHermesServiceCommand)
+	startCommand.AddSubcommands(startBridgeServiceCommand)
 
 	return startCommand
 

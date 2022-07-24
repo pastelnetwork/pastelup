@@ -78,6 +78,7 @@ var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 	constants.DDService:    {constants.DDService},
 	constants.DDImgService: {constants.DDImgService},
 	constants.Hermes:       {constants.Hermes},
+	constants.Bridge:       {constants.Bridge},
 }
 
 func setupSubCommand(config *configs.Config,

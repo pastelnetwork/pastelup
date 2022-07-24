@@ -130,9 +130,12 @@ func setupUpdateSubCommand(config *configs.Config,
 
 	systemServiceFlags := []*cli.Flag{
 		cli.NewFlag("tool", &config.ServiceTool).
-			SetUsage(red("Required, Name of the Pastel application to set as a system service, " +
+			SetUsage(red("Required (either this or --solution), Name of the Pastel application to set as a system service, " +
 				"One of: node, masternode, supernode, walletnode, dd-service, rq-service, hermes, bridge. " +
-				"NOTE: flags supernode and walletnode will only set service for corresponding application itself")).SetRequired(),
+				"NOTE: flags supernode and walletnode will only set service for corresponding application itself")),
+		cli.NewFlag("solution", &config.ServiceSolution).
+			SetUsage(red("Required (either this or --tool), Name of the Pastel application set (solution) to set as a system services, " +
+				"One of: supernode or walletnode")),
 		cli.NewFlag("autostart", &config.EnableService).
 			SetUsage(yellow("Optional, Enable service for auto start after OS boot")),
 		cli.NewFlag("start", &config.StartService).

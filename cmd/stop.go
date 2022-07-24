@@ -22,6 +22,7 @@ const (
 	allStop
 	ddServiceStop
 	rqServiceStop
+	ddImgServerStop
 	wnServiceStop
 	snServiceStop
 	remoteStop
@@ -37,6 +38,7 @@ var (
 		allStop:           "all",
 		ddServiceStop:     "dd-service",
 		rqServiceStop:     "rq-service",
+		ddImgServerStop:   "imgserver",
 		wnServiceStop:     "walletnode-service",
 		snServiceStop:     "supernode-service",
 		remoteStop:        "remote",
@@ -50,6 +52,7 @@ var (
 		allStop:           "Stop all Pastel services",
 		ddServiceStop:     "Stop Dupe Detection service only",
 		rqServiceStop:     "Stop RaptorQ service only",
+		ddImgServerStop:   "Stop DD Image Server",
 		wnServiceStop:     "Stop Walletnode service only",
 		snServiceStop:     "Stop Supernode service only",
 		remoteStop:        "Stop on Remote Host",
@@ -155,6 +158,8 @@ func setupStopCommand(config *configs.Config) *cli.Command {
 	stopHermesServiceCommand := setupStopSubCommand(config, hermesServiceStop, false, stopHermesService)
 	stopBridgeServiceCommand := setupStopSubCommand(config, bridgeServiceStop, false, stopBridgeService)
 
+	stopDDImgServerCommand := setupStopSubCommand(config, ddImgServerStop, false, stopDDImgServer)
+
 	stopNodeSubCommand.AddSubcommands(setupStopSubCommand(config, nodeStop, true, runStopNodeRemoteSubCommand))
 	stopWalletSubCommand.AddSubcommands(setupStopSubCommand(config, walletStop, true, runStopWalletNodeRemoteSubCommand))
 	stopSuperNodeSubCommand.AddSubcommands(setupStopSubCommand(config, superNodeStop, true, runStopSuperNodeRemoteSubCommand))
@@ -166,6 +171,7 @@ func setupStopCommand(config *configs.Config) *cli.Command {
 
 	stopHermesServiceCommand.AddSubcommands(setupStopSubCommand(config, hermesServiceStop, true, runStopHermesServiceRemoteSubCommand))
 	stopBridgeServiceCommand.AddSubcommands(setupStopSubCommand(config, bridgeServiceStop, true, runStopBridgeServiceRemoteSubCommand))
+	stopDDImgServerCommand.AddSubcommands(setupStopSubCommand(config, ddImgServerStop, true, runStopDDImgServerRemoteSubCommand))
 
 	stopCommand := cli.NewCommand("stop")
 	stopCommand.SetUsage(blue("Performs stop of the system for both WalletNode and SuperNodes"))
@@ -176,6 +182,7 @@ func setupStopCommand(config *configs.Config) *cli.Command {
 
 	stopCommand.AddSubcommands(stopRQSubCommand)
 	stopCommand.AddSubcommands(stopDDSubCommand)
+	stopCommand.AddSubcommands(stopDDImgServerCommand)
 	stopCommand.AddSubcommands(stopWNSubCommand)
 	stopCommand.AddSubcommands(stopSNSubCommand)
 
@@ -227,6 +234,9 @@ func runStopRQServiceRemoteSubCommand(ctx context.Context, config *configs.Confi
 }
 func runStopDDServiceRemoteSubCommand(ctx context.Context, config *configs.Config) {
 	runRemoteStop(ctx, config, "dd-service")
+}
+func runStopDDImgServerRemoteSubCommand(ctx context.Context, config *configs.Config) {
+	runRemoteStop(ctx, config, "imgserver")
 }
 func runStopWNServiceRemoteSubCommand(ctx context.Context, config *configs.Config) {
 	runRemoteStop(ctx, config, "walletnode-service")
@@ -282,6 +292,10 @@ func stopRQServiceSubCommand(ctx context.Context, config *configs.Config) {
 
 func stopDDServiceSubCommand(ctx context.Context, config *configs.Config) {
 	_ = stopServices(ctx, []constants.ToolType{constants.DDService}, config)
+}
+
+func stopDDImgServer(ctx context.Context, config *configs.Config) {
+	_ = stopServices(ctx, []constants.ToolType{constants.DDImgService}, config)
 }
 
 func stopWNServiceSubCommand(ctx context.Context, config *configs.Config) {

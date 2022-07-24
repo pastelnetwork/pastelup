@@ -166,11 +166,16 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, config *confi
 			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Could not find %v executable file", app))
 			return err
 		}
+		envPythonPath := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, "/venv/bin/python3")
+		if exists := utils.CheckFileExist(envPythonPath); !exists {
+			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Could not find venv python executable file at %s", envPythonPath))
+			return err
+		}
 		ddConfigFilePath := filepath.Join(sm.homeDir,
 			constants.DupeDetectionServiceDir,
 			constants.DupeDetectionSupportFilePath,
 			constants.DupeDetectionConfigFilename)
-		execCmd = "python3 " + execPath + " " + ddConfigFilePath
+		execCmd = envPythonPath + " " + execPath + " " + ddConfigFilePath
 		workDir = config.PastelExecDir
 	case constants.SuperNode:
 		execPath = filepath.Join(config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()])

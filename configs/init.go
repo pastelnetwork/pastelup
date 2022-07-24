@@ -13,7 +13,6 @@ type Init struct {
 	PastelExecDir string `json:"pastelexecdir,omitempty"`
 	Version       string `json:"nodeversion,omitempty"`
 	StartedRemote bool   `json:"started-remote,omitempty"`
-	EnableService bool   `json:"enableservice,omitempty"`
 	UserPw        string `json:"user-pw,omitempty"`
 	OpMode        string `json:"opmode,omitempty"`
 	ArchiveDir    string `json:"archivedir,omitempty"`
@@ -24,6 +23,10 @@ type Init struct {
 	NoBackup      bool   `json:"nobackup,omitempty"`
 	RegenRPC      bool   `json:"regen-rpc,omitempty"`
 	IsTestnet     bool   `json:"isTestnet,omitempty"` // if true, pastel.conf had testnet=1 when cmd was invoked
+	EnableService bool   `json:"enable,omitempty"`
+	StartService  bool   `json:"start,omitempty"`
+	ServiceTool   string `json:"tool,omitempty"`
+	DevMode       bool   `json:"devmode,omitempty"`
 
 	// Configs for remote session
 	RemoteHotHomeDir       string `json:"remotehomedir,omitempty"`

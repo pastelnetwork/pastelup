@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/errors"
@@ -36,7 +35,7 @@ const (
 	hermesServiceInstall
 )
 
-var nonNetworkDepedentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
+var nonNetworkDependentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
 
 var (
 	installCmdName = map[installCommand]string{
@@ -91,8 +90,6 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")),
-		cli.NewFlag("enable-service", &config.EnableService).
-			SetUsage(green("Optional, start all apps automatically as system service (i.e. for linux OS, systemd)")),
 		cli.NewFlag("regen-rpc", &config.RegenRPC).
 			SetUsage(green("Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file")),
 	}
@@ -195,7 +192,9 @@ func setupSubCommand(config *configs.Config,
 					Error("Failed to process install command")
 				return err
 			}
-			ParsePastelConf(ctx, config)
+			if err = ParsePastelConf(ctx, config); err != nil {
+				return err
+			}
 			log.WithContext(ctx).Infof("Started install...release set to '%v' ", config.Version)
 			if err = f(ctx, config); err != nil {
 				return err
@@ -275,10 +274,12 @@ func runInstallHermesServiceSubCommand(ctx context.Context, config *configs.Conf
 }
 
 func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
-	if !config.EnableService {
-		return nil
+	if utils.GetOS() != constants.Linux {
+		log.WithContext(ctx).Error("dupe detection image service can only be installed on Linux")
+		return fmt.Errorf("dupe detection service image can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
-	return installServices(ctx, appToServiceMap[constants.DDImgService], config)
+	config.ServiceTool = "dd-img-service"
+	return installSystemService(ctx, config)
 }
 
 func runRemoteInstallNode(ctx context.Context, config *configs.Config) error {
@@ -333,10 +334,6 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 		remoteOptions = fmt.Sprintf("%s -n=regtest", remoteOptions)
 	}
 
-	if config.EnableService {
-		remoteOptions = fmt.Sprintf("%s --enable-service", remoteOptions)
-	}
-
 	if len(config.UserPw) > 0 {
 		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, config.UserPw)
 	}
@@ -353,7 +350,7 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 }
 
 func runServicesInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType, withDependencies bool) error {
-	if config.OpMode == "install" && !utils.ContainsToolType(nonNetworkDepedentServices, installCommand) {
+	if config.OpMode == "install" && !utils.ContainsToolType(nonNetworkDependentServices, installCommand) {
 		if !utils.IsValidNetworkOpt(config.Network) {
 			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
 		}
@@ -369,14 +366,14 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		if utils.CheckFileExist(possibleCliPath) {
 			log.WithContext(ctx).Info("Trying to stop pasteld...")
 			sm, _ := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
-			sm.StopService(ctx, config, constants.PastelD)
+			_ = sm.StopService(ctx, config, constants.PastelD)
 			err := StopPastelDAndWait(ctx, config)
 			if err != nil {
-				log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v", err)
+				log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v, will try to kill it", err)
 			}
 			// ensure the process is killed else will run into a text file busy error
-			// when installing latest executable
-			KillProcess(ctx, constants.PastelD)
+			// when installing the latest executable
+			_ = KillProcess(ctx, constants.PastelD)
 			log.WithContext(ctx).Info("pasteld stopped or was not running")
 		}
 	}
@@ -437,20 +434,6 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 	if installCommand == constants.Hermes {
 		if err := installHermesService(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install hermes-service")
-			return err
-		}
-	}
-
-	// do service installation if enabled
-	if config.EnableService {
-		var serviceApps []constants.ToolType
-		if withDependencies {
-			serviceApps = appToServiceMap[installCommand]
-		} else {
-			serviceApps = append(serviceApps, installCommand)
-		}
-		err := installServices(ctx, serviceApps, config)
-		if err != nil {
 			return err
 		}
 	}
@@ -603,7 +586,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 			}
 			log.WithContext(ctx).Infof("Checksum of DupeDetection Support: %s is %s", ddSupportContent, checksum)
 			if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
-				log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checkum matched, so skipping download.", ddSupportPath)
+				log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checksum matched, so skipping download.", ddSupportPath)
 				continue
 			}
 		}
@@ -635,7 +618,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		if err = utils.WriteFile(ddConfigPath, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
 			return err
 		}
-		os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
+		_ = os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 	}
 	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")
 	return nil
@@ -898,7 +881,7 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	}
 	//remove duplicates
 	keyGuard := make(map[string]bool)
-	packagesRequired := []string{}
+	var packagesRequired []string
 	for _, item := range packagesRequiredDirty {
 		if _, value := keyGuard[item]; !value {
 			keyGuard[item] = true
@@ -907,9 +890,9 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	}
 
 	if utils.GetOS() != constants.Linux {
-		reqPkgsStr := strings.Join(packagesRequired, ",")
-		log.WithContext(ctx).WithField("required-packages", reqPkgsStr).
-			WithError(errors.New("install/update required pkgs")).
+		reqPackagesStr := strings.Join(packagesRequired, ",")
+		log.WithContext(ctx).WithField("required-packages", reqPackagesStr).
+			WithError(errors.New("install/update required packages")).
 			Error("automatic install/update for required packages only set up for linux")
 	}
 
@@ -928,9 +911,9 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		utils.GetOS() == constants.Linux &&
 		len(packagesToUpdate) != 0 {
 
-		pkgsUpdStr := strings.Join(packagesToUpdate, ",")
+		packagesUpdStr := strings.Join(packagesToUpdate, ",")
 		if !config.Force {
-			if yes, _ := AskUserToContinue(ctx, "Some system packages ["+pkgsUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
+			if yes, _ := AskUserToContinue(ctx, "Some system packages ["+packagesUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
 				log.WithContext(ctx).Warn("Exiting...")
 				return fmt.Errorf("user terminated installation")
 			}
@@ -939,7 +922,7 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		if err := installOrUpgradePackagesLinux(ctx, config, "upgrade", packagesToUpdate); err != nil {
 			log.WithContext(ctx).WithField("packages-update", packagesToUpdate).
 				WithError(err).
-				Errorf("failed to update required pkgs - %s", pkgsUpdStr)
+				Errorf("failed to update required packages - %s", packagesUpdStr)
 			return err
 		}
 	}
@@ -948,9 +931,9 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		return nil
 	}
 
-	pkgsMissStr := strings.Join(packagesMissing, ",")
+	packagesMissStr := strings.Join(packagesMissing, ",")
 	if !config.Force {
-		if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+pkgsMissStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
+		if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+packagesMissStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
 			log.WithContext(ctx).Warn("Exiting...")
 			return fmt.Errorf("user terminated installation")
 		}
@@ -958,11 +941,11 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	return installOrUpgradePackagesLinux(ctx, config, "install", packagesMissing)
 }
 
-func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, what string, pkgs []string) error {
+func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, what string, packages []string) error {
 	var out string
 	var err error
 
-	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
+	log.WithContext(ctx).WithField("packages", strings.Join(packages, ",")).
 		Infof("system will now %s packages", what)
 
 	// Update repo
@@ -971,7 +954,7 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 		log.WithContext(ctx).WithError(err).Error("Failed to update")
 		return err
 	}
-	for _, pkg := range pkgs {
+	for _, pkg := range packages {
 		log.WithContext(ctx).Infof("%sing package %s", what, pkg)
 
 		if pkg == "google-chrome-stable" {
@@ -1281,44 +1264,5 @@ func openPorts(ctx context.Context, config *configs.Config, portList []int) (err
 		log.WithContext(ctx).Info(out)
 	}
 
-	return nil
-}
-
-func installServices(ctx context.Context, apps []constants.ToolType, config *configs.Config) error {
-	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
-	if err != nil {
-		log.WithContext(ctx).Warn(err.Error())
-		return nil // services aren't implemented for this OS
-	}
-	for _, app := range apps {
-		err = sm.RegisterService(ctx, app, RegistrationParams{
-			Config:      config,
-			Force:       config.Force,
-			FlagDevMode: flagDevMode,
-		})
-		if err != nil {
-			log.WithContext(ctx).Errorf("unable to register service %v: %v", app, err)
-			return err
-		}
-		_, err := sm.StartService(ctx, config, app) // if app already running, this will be a noop
-		if err != nil {
-			log.WithContext(ctx).Errorf("unable to start service %v: %v", app, err)
-			return err
-		}
-	}
-	time.Sleep(5 * time.Second) // apply artificial buffer for services to start
-	// verify services are up and running
-	var nonRunningServices []constants.ToolType
-	for _, app := range apps {
-		isRunning := sm.IsRunning(ctx, config, app)
-		if !isRunning {
-			nonRunningServices = append(nonRunningServices, app)
-		}
-	}
-	if len(nonRunningServices) > 0 {
-		e := fmt.Errorf("unable to successfully start services: %+v", nonRunningServices)
-		log.WithContext(ctx).Error(e.Error())
-		return e
-	}
 	return nil
 }

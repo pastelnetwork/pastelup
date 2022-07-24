@@ -23,7 +23,7 @@ import (
 type updateCommand uint8
 
 // archiveRetention is the number of archives to preserve before deleting old ones to avoid build up
-// these are specific to the type of archive i.e. dd-service archives can have this number of archives along side workdir archives
+// these are specific to the type of archive i.e. dd-service archives can have this number of archives alongside workdir archives
 const archiveRetention = 3
 
 const (
@@ -128,6 +128,17 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
 	}
 
+	systemServiceFlags := []*cli.Flag{
+		cli.NewFlag("tool", &config.ServiceTool).
+			SetUsage(red("Required, Name of the Pastel application to set as a system service, " +
+				"One of: node, masternode, supernode, walletnode, dd-service, rq-service, hermes, bridge. " +
+				"NOTE: flags supernode and walletnode will only set service for corresponding application itself")).SetRequired(),
+		cli.NewFlag("autostart", &config.EnableService).
+			SetUsage(yellow("Optional, Enable service for auto start after OS boot")),
+		cli.NewFlag("start", &config.StartService).
+			SetUsage(yellow("Optional, Start service right away")),
+	}
+
 	var commandName, commandMessage string
 	if !remote {
 		commandName = updateCommandName[updateCmd]
@@ -137,7 +148,13 @@ func setupUpdateSubCommand(config *configs.Config,
 		commandMessage = updateCommandMessage[updateRemote]
 	}
 
-	commandFlags := append(dirsFlags, commonFlags[:]...)
+	var commandFlags []*cli.Flag
+
+	if updateCmd == installService || updateCmd == removeService {
+		commandFlags = append(systemServiceFlags, dirsFlags[:]...)
+	} else {
+		commandFlags = append(dirsFlags, commonFlags[:]...)
+	}
 	if remote {
 		commandFlags = append(commandFlags, remoteFlags[:]...)
 	}
@@ -170,7 +187,9 @@ func setupUpdateSubCommand(config *configs.Config,
 					Error("Failed to process update command")
 				return err
 			}
-			ParsePastelConf(ctx, config)
+			if err = ParsePastelConf(ctx, config); err != nil {
+				return err
+			}
 			log.WithContext(ctx).Infof("Started update... ")
 			if config.Version != "" {
 				log.WithContext(ctx).Infof("Release version set to '%v", config.Version)
@@ -197,8 +216,6 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 	updateDDServiceSubCommand := setupUpdateSubCommand(config, updateDDService, false, runUpdateDDServiceSubCommand)
 	updateWNServiceSubCommand := setupUpdateSubCommand(config, updateWNService, false, runUpdateWNServiceSubCommand)
 	updateSNServiceSubCommand := setupUpdateSubCommand(config, updateSNService, false, runUpdateSNServiceSubCommand)
-	installServiceSubCommand := setupUpdateSubCommand(config, installService, false, installSystemService)
-	removeServiceSubCommand := setupUpdateSubCommand(config, removeService, false, removeSystemService)
 
 	updateNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateNode, true, runUpdateRemoteNode))
 	updateWalletNodeSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateWalletNode, true, runUpdateRemoteWalletNode))
@@ -207,6 +224,9 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 	updateDDServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateDDService, true, runUpdateRemoteDDService))
 	updateWNServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateWNService, true, runUpdateRemoteWNService))
 	updateSNServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateSNService, true, runUpdateRemoteSNService))
+
+	installServiceSubCommand := setupUpdateSubCommand(config, installService, false, installSystemService)
+	//removeServiceSubCommand := setupUpdateSubCommand(config, removeService, false, removeSystemService)
 
 	// Add update command
 	updateCommand := cli.NewCommand("update")
@@ -220,79 +240,15 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 	updateCommand.AddSubcommands(updateWNServiceSubCommand)
 	updateCommand.AddSubcommands(updateSNServiceSubCommand)
 	updateCommand.AddSubcommands(installServiceSubCommand)
-	updateCommand.AddSubcommands(removeServiceSubCommand)
+	//updateCommand.AddSubcommands(removeServiceSubCommand)
 
 	return updateCommand
-}
-
-// installSystemService installs and starts an installed system service. For example, on linux, a user
-// may run ./pastelup update install-service and this would install and start the systemd service running via sysemtctl
-func installSystemService(ctx context.Context, config *configs.Config) error {
-	if len(config.Args) < 4 {
-		return fmt.Errorf("you need to pass in a tooltype as the argument i.e: ./pastelup update install-service node")
-	}
-	tool := constants.ToolType(config.Args[3]) // pasteluo update install-service walletnode --> we need the 3rd val
-	isValid := false
-	for _, t := range constants.ToolTypeServices {
-		if t == tool {
-			isValid = true
-		}
-	}
-	if !isValid {
-		return fmt.Errorf("tool %v is not a valid tool type to run as a service. Please use one of %+v", tool, constants.ToolTypeServices)
-	}
-	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
-	if err != nil {
-		return err // services feature not configured for users OS
-	}
-	err = sm.RegisterService(ctx, tool, RegistrationParams{
-		Force:  config.Force,
-		Config: config,
-	})
-	if err != nil {
-		return err
-	}
-	isRunning, err := sm.StartService(ctx, config, tool)
-	if !isRunning || err != nil {
-		return fmt.Errorf("unable to start %v as a system service: %v", tool, err)
-	}
-	log.WithContext(ctx).Infof("Started %s as a system service", tool)
-	return nil
-}
-
-// removeSystemService stops and remove an installed system service. For example, on linux, a user
-// may run ./pastelup update remove-service and this would stop and remove the systemd service running via sysemtctl
-func removeSystemService(ctx context.Context, config *configs.Config) error {
-	if len(config.Args) < 4 {
-		return fmt.Errorf("you need to pass in a tooltype as the argument i.e: ./pastelup update install-service node")
-	}
-	tool := constants.ToolType(config.Args[3]) // pasteluo update install-service walletnode --> we need the 3rd val
-	isValid := false
-	for _, t := range constants.ToolTypeServices {
-		if t == tool {
-			isValid = true
-		}
-	}
-	if !isValid {
-		return fmt.Errorf("tool %v is not a valid tool type to run as a service. Please use one of %+v", tool, constants.ToolTypeServices)
-	}
-	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
-	if err != nil {
-		return err // services feature not configured for users OS
-	}
-	err = sm.StopService(ctx, config, tool)
-	if err != nil {
-		return fmt.Errorf("unable to stop %v as a system service: %v", tool, err)
-	}
-	log.WithContext(ctx).Infof("Stopped %s as a system service", tool)
-	return nil
 }
 
 func runUpdatePastelup(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Downloading latest version of pastelup tool ...")
 	return installPastelUp(ctx, config)
 }
-
 func runUpdateRemoteNode(ctx context.Context, config *configs.Config) (err error) {
 	return runRemoteUpdate(ctx, config, "node")
 }
@@ -479,7 +435,7 @@ func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archi
 		return err
 	}
 	// if we have more than ARCHIVE_RETENTION amount of archives, delete old ones to avoid build up
-	matchingArchives := []fs.FileInfo{}
+	var matchingArchives []fs.FileInfo
 	files, err := ioutil.ReadDir(archiveBaseDir)
 	if err != nil {
 		return err

@@ -234,7 +234,7 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 
 	// *************** 4. Start remote node as masternode ***************
 	//Get conf data from masternode.conf File
-	privkey, _, _, err := getMasternodeConfData(ctx, r.config, flagMasterNodeName)
+	privkey, _, _, err := getMasternodeConfData(ctx, r.config, flagMasterNodeName, flagNodeExtIP)
 	if err != nil {
 		return err
 	}

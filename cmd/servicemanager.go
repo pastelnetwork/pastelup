@@ -15,7 +15,7 @@ import (
 
 // ServiceManager handles registering, starting and stopping system processes on the clients respective OS system manager (i.e. linux -> systemctl)
 type ServiceManager interface {
-	RegisterService(context.Context, constants.ToolType, RegistrationParams) error
+	RegisterService(context.Context, *configs.Config, constants.ToolType, bool) error
 	StartService(context.Context, *configs.Config, constants.ToolType) (bool, error)
 	StopService(context.Context, *configs.Config, constants.ToolType) error
 	EnableService(context.Context, *configs.Config, constants.ToolType) error
@@ -53,7 +53,7 @@ func NewServiceManager(os constants.OSType, homeDir string) (ServiceManager, err
 type NoopManager struct{}
 
 // RegisterService registers a service with the OS system manager
-func (nm NoopManager) RegisterService(context.Context, constants.ToolType, RegistrationParams) error {
+func (nm NoopManager) RegisterService(context.Context, *configs.Config, constants.ToolType, bool) error {
 	return nil
 }
 
@@ -98,18 +98,11 @@ type LinuxSystemdManager struct {
 	homeDir string
 }
 
-// RegistrationParams additional flags to pass during service registration
-type RegistrationParams struct {
-	Force       bool
-	FlagDevMode bool
-	Config      *configs.Config
-}
-
 // RegisterService registers the service and starts it
-func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants.ToolType, params RegistrationParams) error {
+func (sm LinuxSystemdManager) RegisterService(ctx context.Context, config *configs.Config, app constants.ToolType, isMn bool) error {
 	log.WithContext(ctx).Infof("Installing %v as systemd service", app)
 
-	if isRegistered := sm.IsRegistered(ctx, params.Config, app); isRegistered {
+	if isRegistered := sm.IsRegistered(ctx, config, app); isRegistered {
 		return nil // already registered
 	}
 
@@ -127,7 +120,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 		return fmt.Errorf("unable to get own user name (%v): %v", app, err)
 	}
 
-	pastelConfigPath := filepath.Join(params.Config.WorkingDir, constants.PastelConfName)
+	pastelConfigPath := filepath.Join(config.WorkingDir, constants.PastelConfName)
 
 	switch app {
 	case constants.DDImgService:
@@ -138,7 +131,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 	case constants.PastelD:
 		var extIP string
 		// Get pasteld path
-		execPath = filepath.Join(params.Config.PastelExecDir, constants.PasteldName[utils.GetOS()])
+		execPath = filepath.Join(config.PastelExecDir, constants.PasteldName[utils.GetOS()])
 		if exists := utils.CheckFileExist(execPath); !exists {
 			log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Could not find %v executable file", app))
 			return err
@@ -148,19 +141,27 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 			log.WithContext(ctx).WithError(err).Error("Could not get external IP address")
 			return err
 		}
-		execCmd = execPath + " --datadir=" + params.Config.WorkingDir + " --externalip=" + extIP + " --reindex"
-		workDir = params.Config.PastelExecDir
+		execCmd = execPath + " --datadir=" + config.WorkingDir + " --externalip=" + extIP + " --reindex"
+		if isMn {
+			privKey, _ /*extIP*/, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName, extIP)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to get masternode details from masternode.conf")
+				return err
+			}
+			execCmd += " --txindex=1 --masternode --masternodeprivkey=" + privKey
+		}
+		workDir = config.PastelExecDir
 	case constants.RQService:
-		execPath = filepath.Join(params.Config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
+		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
 		if exists := utils.CheckFileExist(execPath); !exists {
 			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Could not find %v executable file", app))
 			return err
 		}
-		rqServiceArgs := fmt.Sprintf("--config-file=%s", params.Config.Configurer.GetRQServiceConfFile(params.Config.WorkingDir))
+		rqServiceArgs := fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir))
 		execCmd = execPath + " " + rqServiceArgs
-		workDir = params.Config.PastelExecDir
+		workDir = config.PastelExecDir
 	case constants.DDService:
-		execPath = filepath.Join(params.Config.PastelExecDir, utils.GetDupeDetectionExecName())
+		execPath = filepath.Join(config.PastelExecDir, utils.GetDupeDetectionExecName())
 		if exists := utils.CheckFileExist(execPath); !exists {
 			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Could not find %v executable file", app))
 			return err
@@ -170,48 +171,48 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 			constants.DupeDetectionSupportFilePath,
 			constants.DupeDetectionConfigFilename)
 		execCmd = "python3 " + execPath + " " + ddConfigFilePath
-		workDir = params.Config.PastelExecDir
+		workDir = config.PastelExecDir
 	case constants.SuperNode:
-		execPath = filepath.Join(params.Config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()])
+		execPath = filepath.Join(config.PastelExecDir, constants.SuperNodeExecName[utils.GetOS()])
 		if exists := utils.CheckFileExist(execPath); !exists {
 			log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Could not find %v executable file", app))
 			return err
 		}
-		supernodeConfigPath := params.Config.Configurer.GetSuperNodeConfFile(params.Config.WorkingDir)
+		supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
 		execCmd = execPath + " --config-file=" + supernodeConfigPath + " --pastel-config-file=" + pastelConfigPath
-		workDir = params.Config.PastelExecDir
+		workDir = config.PastelExecDir
 	case constants.Hermes:
-		execPath = filepath.Join(params.Config.PastelExecDir, constants.HermesExecName[utils.GetOS()])
+		execPath = filepath.Join(config.PastelExecDir, constants.HermesExecName[utils.GetOS()])
 		if exists := utils.CheckFileExist(execPath); !exists {
 			log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Could not find %v executable file", app))
 			return err
 		}
 
-		hermesConfigPath := params.Config.Configurer.GetHermesConfFile(params.Config.WorkingDir)
+		hermesConfigPath := config.Configurer.GetHermesConfFile(config.WorkingDir)
 		execCmd = execPath + " --config-file=" + hermesConfigPath + " --pastel-config-file=" + pastelConfigPath
-		workDir = params.Config.PastelExecDir
+		workDir = config.PastelExecDir
 	case constants.WalletNode:
-		execPath = filepath.Join(params.Config.PastelExecDir, constants.WalletNodeExecName[utils.GetOS()])
+		execPath = filepath.Join(config.PastelExecDir, constants.WalletNodeExecName[utils.GetOS()])
 		if exists := utils.CheckFileExist(execPath); !exists {
 			log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Could not find %v executable file", app))
 			return err
 		}
-		walletnodeConfigFile := params.Config.Configurer.GetWalletNodeConfFile(params.Config.WorkingDir)
+		walletnodeConfigFile := config.Configurer.GetWalletNodeConfFile(config.WorkingDir)
 		execCmd = execPath + " --config-file=" + walletnodeConfigFile + " --pastel-config-file=" + pastelConfigPath
-		if params.FlagDevMode {
+		if config.DevMode {
 			execCmd += " --swagger"
 		}
-		workDir = params.Config.PastelExecDir
+		workDir = config.PastelExecDir
 	case constants.Bridge:
-		execPath = filepath.Join(params.Config.PastelExecDir, constants.BridgeExecName[utils.GetOS()])
+		execPath = filepath.Join(config.PastelExecDir, constants.BridgeExecName[utils.GetOS()])
 		if exists := utils.CheckFileExist(execPath); !exists {
 			log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("Could not find %v executable file", app))
 			return err
 		}
 
-		bridgeConfigPath := params.Config.Configurer.GetBridgeConfFile(params.Config.WorkingDir)
+		bridgeConfigPath := config.Configurer.GetBridgeConfFile(config.WorkingDir)
 		execCmd = execPath + " --config-file=" + bridgeConfigPath + " --pastel-config-file=" + pastelConfigPath
-		workDir = params.Config.PastelExecDir
+		workDir = config.PastelExecDir
 	default:
 		return nil
 	}
@@ -235,24 +236,16 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, app constants
 		log.WithContext(ctx).WithError(err).Error("unable to write " + appServiceFileName + " file")
 	}
 
-	_, err = RunSudoCMD(params.Config, "cp", appServiceTempFilePath, appServiceFilePath)
+	_, err = RunSudoCMD(config, "cp", appServiceTempFilePath, appServiceFilePath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to update")
 		return err
 	}
 
 	// reload systemctl daemon
-	_, err = RunSudoCMD(params.Config, "systemctl", "daemon-reload")
+	_, err = RunSudoCMD(config, "systemctl", "daemon-reload")
 	if err != nil {
 		return fmt.Errorf("unable to reload systemctl daemon (%v): %v", app, err)
-	}
-
-	// Enable service
-	log.WithContext(ctx).Info("Setting service for auto start on boot")
-	if out, err := RunSudoCMD(params.Config, "systemctl", "enable", appServiceFileName); err != nil {
-		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
-			WithError(err).Error("unable to enable " + appServiceFileName + " service")
-		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
 	}
 	return nil
 }
@@ -280,7 +273,8 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, config *configs.
 func (sm LinuxSystemdManager) StopService(ctx context.Context, config *configs.Config, app constants.ToolType) error {
 	isRunning := sm.IsRunning(ctx, config, app) // if not registered, this will be false
 	if !isRunning {
-		return nil // service isnt running, no need to stop
+		log.WithContext(ctx).Infof("Service %s is not running", string(app))
+		return nil // service isn't running, no need to stop
 	}
 	_, err := RunSudoCMD(config, "systemctl", "stop", sm.ServiceName(app))
 	if err != nil {

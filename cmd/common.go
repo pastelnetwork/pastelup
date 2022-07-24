@@ -257,7 +257,7 @@ func RunCMDWithInteractive(command string, args ...string) error {
 }
 
 // FindRunningProcessPid search in the ps list using search term
-func FindRunningProcessPid(searchTerm string) (int, error) {
+func FindRunningProcessPid(ctx context.Context, searchTerm string) (int, error) {
 
 	if output, err := FindRunningProcess(searchTerm); len(output) != 0 {
 		output = strings.Trim(output, " ")
@@ -272,8 +272,9 @@ func FindRunningProcessPid(searchTerm string) (int, error) {
 	} else if err != nil {
 		return 0, err
 	}
+	log.WithContext(ctx).Infof("Cannot find running process using search term = %s", searchTerm)
 
-	return 0, errors.Errorf("Cannot find running process using search term = %s", searchTerm)
+	return 0, nil
 }
 
 // FindRunningProcess search in the ps list using search term

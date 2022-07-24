@@ -26,6 +26,7 @@ var (
 	flagMasterNodeConfAdd    bool
 	flagMasterNodeTxID       string
 	flagMasterNodeInd        string
+	flagDontCheckCollateral  bool
 	flagMasterNodePort       int
 	flagMasterNodePrivateKey string
 	flagMasterNodePastelID   string
@@ -113,6 +114,8 @@ func setupInitSubCommand(config *configs.Config,
 			SetUsage(yellow("Required (only if --update or --create specified), collateral payment txid , transaction id of 5M collateral MN payment")),
 		cli.NewFlag("ind", &flagMasterNodeInd).
 			SetUsage(yellow("Required (only if --update or --create specified), collateral payment output index , output index in the transaction of 5M collateral MN payment")),
+		cli.NewFlag("skip-collateral-validation", &flagDontCheckCollateral).
+			SetUsage(yellow("Optional (if both txid and ind specified), skip validation of collateral tx on this node")),
 
 		cli.NewFlag("pastelid", &flagMasterNodePastelID).
 			SetUsage(green("Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered")),
@@ -305,6 +308,10 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 		startOptions = fmt.Sprintf("%s --ind=%s", startOptions, flagMasterNodeInd)
 	}
 
+	if flagDontCheckCollateral {
+		startOptions = fmt.Sprintf("%s --skip-collateral-validation", startOptions)
+	}
+
 	if len(flagMasterNodePastelID) > 0 {
 		startOptions = fmt.Sprintf("%s --pastelid=%s", startOptions, flagMasterNodePastelID)
 	}
@@ -475,7 +482,7 @@ func loadMasternodeConfFile(ctx context.Context, config *configs.Config) (map[st
 	return conf, nil
 }
 
-func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string) (string, string, string, error) {
+func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName string, extIP string) (string, string, string, error) {
 	conf, err := loadMasternodeConfFile(ctx, config)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to load existing masternode.conf file")
@@ -483,18 +490,18 @@ func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName s
 	}
 	mnNode, ok := conf[mnName]
 	if !ok {
-		// if mnName is not set or doesnt have a match, lookup by configs flagNodeExtIP
+		// if mnName is not set or doesn't have a match, lookup by extIP
 		log.WithContext(ctx).Infof("Attempting to load existing masternode.conf file using external IP address...")
 		for mnName, mnConf := range conf {
 			extAddrPort := strings.Split(mnConf.MnAddress, ":")
 			extAddr := extAddrPort[0] // get Ext IP and Port
 			extPort := extAddrPort[1] // get Ext IP and Port
-			if extAddr == flagNodeExtIP {
+			if extAddr == extIP {
 				log.WithContext(ctx).Infof("Loading masternode.conf file using %s conf", mnName)
 				return mnConf.MnPrivKey, extAddr, extPort, nil
 			}
 		}
-		err := errors.Errorf("masternode.conf doesn't have node with name - %s or external IP %v", mnName, flagNodeExtIP)
+		err := errors.Errorf("masternode.conf doesn't have node with name - %s or external IP %v", mnName, extIP)
 		log.WithContext(ctx).WithError(err).Errorf("Invalid masternode.conf json: %v", conf)
 		return "", "", "", err
 	}

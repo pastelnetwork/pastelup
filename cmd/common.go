@@ -175,7 +175,7 @@ func KillProcess(ctx context.Context, toolType constants.ToolType) error {
 		}
 	}
 
-	log.WithContext(ctx).Infof("Service %s is not running", toolType)
+	log.WithContext(ctx).Infof("Application %s is not running", toolType)
 	return nil
 }
 

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"os"
 
 	"github.com/pastelnetwork/gonode/common/cli"
@@ -314,12 +315,12 @@ func stopBridgeService(ctx context.Context, config *configs.Config) {
 	_ = stopServices(ctx, []constants.ToolType{constants.Bridge}, config)
 }
 
-func stopPatelCLI(ctx context.Context, config *configs.Config) {
+func stopPatelCLI(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Stopping Pasteld")
 	_, err := GetPastelInfo(ctx, config)
 	if err != nil {
 		log.WithContext(ctx).Info("Pasteld is not running!")
-		return
+		return nil
 	}
 	err = StopPastelDAndWait(ctx, config)
 	if err != nil {
@@ -327,9 +328,10 @@ func stopPatelCLI(ctx context.Context, config *configs.Config) {
 	}
 	if CheckProcessRunning(constants.PastelD) {
 		log.WithContext(ctx).Warn("Failed to stop Pasteld")
-		return
+		return errors.Errorf("Failed to stop Pasteld")
 	}
 	log.WithContext(ctx).Info("Pasteld stopped")
+	return nil
 }
 
 func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, services []constants.ToolType) error {
@@ -389,7 +391,11 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 
 		switch service {
 		case constants.PastelD:
-			stopPatelCLI(ctx, config)
+			err = stopPatelCLI(ctx, config)
+			if err != nil {
+				log.WithContext(ctx).Errorf("unable to stop pasteld: %v", err)
+				return err
+			}
 		case constants.DDService:
 			searchTerm := constants.DupeDetectionExecFileName
 			pid, err := FindRunningProcessPid(ctx, searchTerm)

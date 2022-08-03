@@ -294,10 +294,16 @@ func runStartWalletNodeSubCommand(ctx context.Context, config *configs.Config) e
 		return err
 	}
 
-	// *************  3. Start bridge node  *************
-	if err := runBridgeService(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("bridge failed to start")
-		return err
+	// *************  3. Check & Start bridge node  *************
+	walletConf := config.Configurer.GetWalletNodeConfFile(config.WorkingDir)
+	enable, err := checkBridgeEnabled(ctx, walletConf)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("unable to check bridge enabled, skipping start bridge service")
+	} else if enable {
+		if err := runBridgeService(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("bridge failed to start")
+			return err
+		}
 	}
 
 	// *************  4. Start wallet node  *************
@@ -675,6 +681,12 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 
 // Sub Command
 func runBridgeService(ctx context.Context, config *configs.Config) error {
+	bridgeConf := config.Configurer.GetBridgeConfFile(config.WorkingDir)
+	if err := checkBridgeConfigPastelID(ctx, config, bridgeConf); err != nil {
+		log.WithContext(ctx).Errorf("Failed to verify bridge Pastelid %v: %v", bridgeConf, err)
+		return err
+	}
+
 	serviceEnabled := false
 	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
@@ -696,8 +708,9 @@ func runBridgeService(ctx context.Context, config *configs.Config) error {
 	bridgeExecName := constants.BridgeExecName[utils.GetOS()]
 	log.WithContext(ctx).Infof("Starting bridge service - %s", bridgeExecName)
 	var bridgeServiceArgs []string
+
 	bridgeServiceArgs = append(bridgeServiceArgs,
-		fmt.Sprintf("--config-file=%s", config.Configurer.GetBridgeConfFile(config.WorkingDir)))
+		fmt.Sprintf("--config-file=%s", bridgeConf))
 	bridgeServiceArgs = append(bridgeServiceArgs,
 		fmt.Sprintf("--pastel-config-file=%s/pastel.conf", config.WorkingDir))
 

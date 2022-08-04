@@ -411,15 +411,9 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	// *************  8. Start supernode  **************
+	// *************  8. Start supernode (& hermes service)  **************
 	if err := runSuperNodeService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to start supernode service")
-		return err
-	}
-
-	// *************  9. Start hermes  **************
-	if err := runHermesService(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to start hermes service")
 		return err
 	}
 
@@ -740,6 +734,11 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.SuperNode, err)
 		}
 		if srvStarted {
+			if err := runHermesService(ctx, config); err != nil {
+				log.WithContext(ctx).WithError(err).Error("sn-service started bu start hermes service failed")
+				return err
+			}
+
 			return nil
 		}
 	}

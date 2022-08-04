@@ -175,7 +175,7 @@ func KillProcess(ctx context.Context, toolType constants.ToolType) error {
 		}
 	}
 
-	log.WithContext(ctx).Infof("Service %s is not running", toolType)
+	log.WithContext(ctx).Infof("Application %s is not running", toolType)
 	return nil
 }
 
@@ -257,7 +257,7 @@ func RunCMDWithInteractive(command string, args ...string) error {
 }
 
 // FindRunningProcessPid search in the ps list using search term
-func FindRunningProcessPid(searchTerm string) (int, error) {
+func FindRunningProcessPid(ctx context.Context, searchTerm string) (int, error) {
 
 	if output, err := FindRunningProcess(searchTerm); len(output) != 0 {
 		output = strings.Trim(output, " ")
@@ -272,8 +272,9 @@ func FindRunningProcessPid(searchTerm string) (int, error) {
 	} else if err != nil {
 		return 0, err
 	}
+	log.WithContext(ctx).Infof("Cannot find running process using search term = %s", searchTerm)
 
-	return 0, errors.Errorf("Cannot find running process using search term = %s", searchTerm)
+	return 0, nil
 }
 
 // FindRunningProcess search in the ps list using search term
@@ -452,7 +453,7 @@ func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePastelUp string) error {
+func copyPastelUpToRemote(ctx context.Context, client *utils.Client, version string, remotePastelUp string) error {
 	// Check if the current os is linux
 	if runtime.GOOS == "linux" {
 		log.WithContext(ctx).Infof("copying pastelup to remote")
@@ -478,9 +479,8 @@ func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePaste
 		log.WithContext(ctx).Infof("current OS is not linux, skipping pastelup copy")
 
 		// Download PastelUpExecName from remote and save to remotePastelUp
-		log.WithContext(ctx).Infof("downloading pastelup from Pastel download portal ...")
-		version := "beta"
 		downloadURL := fmt.Sprintf("%s/%s/%s", constants.DownloadBaseURL, version, constants.PastelUpExecName["Linux"])
+		log.WithContext(ctx).Infof("downloading pastelup from %s", downloadURL)
 
 		if _, err := client.Cmd(fmt.Sprintf("wget %s -O %s", downloadURL, remotePastelUp)).Output(); err != nil {
 			return fmt.Errorf("failed to download pastelup from remote: %s", err.Error())
@@ -525,8 +525,7 @@ func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.C
 
 	// Transfer pastelup to remote
 	log.WithContext(ctx).Info("installing pastelup to remote host...")
-
-	if err := copyPastelUpToRemote(ctx, client, constants.RemotePastelupPath); err != nil {
+	if err := copyPastelUpToRemote(ctx, client, config.Version, constants.RemotePastelupPath); err != nil {
 		log.WithContext(ctx).Errorf("Failed to copy pastelup to remote at %s - %v", constants.RemotePastelupPath, err)
 		client.Close()
 		return nil, fmt.Errorf("failed to install pastelup at %s - %v", constants.RemotePastelupPath, err)

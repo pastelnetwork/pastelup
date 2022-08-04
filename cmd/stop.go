@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"os"
 
 	"github.com/pastelnetwork/gonode/common/cli"
@@ -10,7 +11,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
-	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -23,33 +23,42 @@ const (
 	allStop
 	ddServiceStop
 	rqServiceStop
+	ddImgServerStop
 	wnServiceStop
 	snServiceStop
 	remoteStop
+	bridgeServiceStop
+	hermesServiceStop
 )
 
 var (
 	stopCmdName = map[stopCommand]string{
-		nodeStop:      "node",
-		walletStop:    "walletnode",
-		superNodeStop: "supernode",
-		allStop:       "all",
-		ddServiceStop: "dd-service",
-		rqServiceStop: "rq-service",
-		wnServiceStop: "walletnode-service",
-		snServiceStop: "supernode-service",
-		remoteStop:    "remote",
+		nodeStop:          "node",
+		walletStop:        "walletnode",
+		superNodeStop:     "supernode",
+		allStop:           "all",
+		ddServiceStop:     "dd-service",
+		rqServiceStop:     "rq-service",
+		ddImgServerStop:   "imgserver",
+		wnServiceStop:     "walletnode-service",
+		snServiceStop:     "supernode-service",
+		remoteStop:        "remote",
+		bridgeServiceStop: "bridge-service",
+		hermesServiceStop: "hermes-service",
 	}
 	stopCmdMessage = map[stopCommand]string{
-		nodeStop:      "Stop node",
-		walletStop:    "Stop Walletnode",
-		superNodeStop: "Stop Supernode",
-		allStop:       "Stop all Pastel services",
-		ddServiceStop: "Stop Dupe Detection service only",
-		rqServiceStop: "Stop RaptorQ service only",
-		wnServiceStop: "Stop Walletnode service only",
-		snServiceStop: "Stop Supernode service only",
-		remoteStop:    "Stop on Remote Host",
+		nodeStop:          "Stop node",
+		walletStop:        "Stop Walletnode",
+		superNodeStop:     "Stop Supernode",
+		allStop:           "Stop all Pastel services",
+		ddServiceStop:     "Stop Dupe Detection service only",
+		rqServiceStop:     "Stop RaptorQ service only",
+		ddImgServerStop:   "Stop DD Image Server",
+		wnServiceStop:     "Stop Walletnode service only",
+		snServiceStop:     "Stop Supernode service only",
+		remoteStop:        "Stop on Remote Host",
+		bridgeServiceStop: "Start bridge-service only",
+		hermesServiceStop: "Start hermes-service only",
 	}
 )
 
@@ -123,7 +132,9 @@ func setupStopSubCommand(config *configs.Config,
 				log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
 				os.Exit(0)
 			})
-			ParsePastelConf(ctx, config)
+			if err = ParsePastelConf(ctx, config); err != nil {
+				return err
+			}
 			log.WithContext(ctx).Info("Stopping...")
 			f(ctx, config)
 			log.WithContext(ctx).Info("Finished successfully!")
@@ -145,6 +156,11 @@ func setupStopCommand(config *configs.Config) *cli.Command {
 	stopWNSubCommand := setupStopSubCommand(config, wnServiceStop, false, stopWNServiceSubCommand)
 	stopSNSubCommand := setupStopSubCommand(config, snServiceStop, false, stopSNServiceSubCommand)
 
+	stopHermesServiceCommand := setupStopSubCommand(config, hermesServiceStop, false, stopHermesService)
+	stopBridgeServiceCommand := setupStopSubCommand(config, bridgeServiceStop, false, stopBridgeService)
+
+	stopDDImgServerCommand := setupStopSubCommand(config, ddImgServerStop, false, stopDDImgServer)
+
 	stopNodeSubCommand.AddSubcommands(setupStopSubCommand(config, nodeStop, true, runStopNodeRemoteSubCommand))
 	stopWalletSubCommand.AddSubcommands(setupStopSubCommand(config, walletStop, true, runStopWalletNodeRemoteSubCommand))
 	stopSuperNodeSubCommand.AddSubcommands(setupStopSubCommand(config, superNodeStop, true, runStopSuperNodeRemoteSubCommand))
@@ -153,6 +169,10 @@ func setupStopCommand(config *configs.Config) *cli.Command {
 	stopDDSubCommand.AddSubcommands(setupStopSubCommand(config, ddServiceStop, true, runStopDDServiceRemoteSubCommand))
 	stopWNSubCommand.AddSubcommands(setupStopSubCommand(config, wnServiceStop, true, runStopWNServiceRemoteSubCommand))
 	stopSNSubCommand.AddSubcommands(setupStopSubCommand(config, snServiceStop, true, runStopSNServiceRemoteSubCommand))
+
+	stopHermesServiceCommand.AddSubcommands(setupStopSubCommand(config, hermesServiceStop, true, runStopHermesServiceRemoteSubCommand))
+	stopBridgeServiceCommand.AddSubcommands(setupStopSubCommand(config, bridgeServiceStop, true, runStopBridgeServiceRemoteSubCommand))
+	stopDDImgServerCommand.AddSubcommands(setupStopSubCommand(config, ddImgServerStop, true, runStopDDImgServerRemoteSubCommand))
 
 	stopCommand := cli.NewCommand("stop")
 	stopCommand.SetUsage(blue("Performs stop of the system for both WalletNode and SuperNodes"))
@@ -163,6 +183,7 @@ func setupStopCommand(config *configs.Config) *cli.Command {
 
 	stopCommand.AddSubcommands(stopRQSubCommand)
 	stopCommand.AddSubcommands(stopDDSubCommand)
+	stopCommand.AddSubcommands(stopDDImgServerCommand)
 	stopCommand.AddSubcommands(stopWNSubCommand)
 	stopCommand.AddSubcommands(stopSNSubCommand)
 
@@ -170,16 +191,17 @@ func setupStopCommand(config *configs.Config) *cli.Command {
 }
 
 func runStopNodeSubCommand(ctx context.Context, config *configs.Config) {
-	stopPatelCLI(ctx, config)
-	log.WithContext(ctx).Info("Stopped node successfully")
+	_ = stopServices(ctx, []constants.ToolType{constants.PastelD}, config)
 }
 
 func runStopWalletSubCommand(ctx context.Context, config *configs.Config) {
 	servicesToStop := []constants.ToolType{
 		constants.WalletNode,
 		constants.RQService,
-		constants.PastelD}
-	stopServices(ctx, servicesToStop, config)
+		constants.PastelD,
+		constants.Bridge,
+	}
+	_ = stopServices(ctx, servicesToStop, config)
 	log.WithContext(ctx).Info("Walletnode stopped successfully")
 }
 
@@ -189,8 +211,10 @@ func runStopSuperNodeSubCommand(ctx context.Context, config *configs.Config) {
 		constants.RQService,
 		constants.DDImgService,
 		constants.DDService,
-		constants.PastelD}
-	stopServices(ctx, servicesToStop, config)
+		constants.PastelD,
+		constants.Hermes,
+	}
+	_ = stopServices(ctx, servicesToStop, config)
 	log.WithContext(ctx).Info("Suppernode stopped successfully")
 }
 
@@ -212,11 +236,20 @@ func runStopRQServiceRemoteSubCommand(ctx context.Context, config *configs.Confi
 func runStopDDServiceRemoteSubCommand(ctx context.Context, config *configs.Config) {
 	runRemoteStop(ctx, config, "dd-service")
 }
+func runStopDDImgServerRemoteSubCommand(ctx context.Context, config *configs.Config) {
+	runRemoteStop(ctx, config, "imgserver")
+}
 func runStopWNServiceRemoteSubCommand(ctx context.Context, config *configs.Config) {
 	runRemoteStop(ctx, config, "walletnode-service")
 }
 func runStopSNServiceRemoteSubCommand(ctx context.Context, config *configs.Config) {
 	runRemoteStop(ctx, config, "supernode-service")
+}
+func runStopHermesServiceRemoteSubCommand(ctx context.Context, config *configs.Config) {
+	runRemoteStop(ctx, config, "hermes-service")
+}
+func runStopBridgeServiceRemoteSubCommand(ctx context.Context, config *configs.Config) {
+	runRemoteStop(ctx, config, "bridge-service")
 }
 
 // special handling for remote command
@@ -246,33 +279,48 @@ func runStopAllSubCommand(ctx context.Context, config *configs.Config) {
 		constants.WalletNode,
 		constants.DDImgService,
 		constants.DDService,
-		constants.PastelD}
-	stopServices(ctx, servicesToStop, config)
+		constants.PastelD,
+		constants.Hermes,
+		constants.Bridge,
+	}
+	_ = stopServices(ctx, servicesToStop, config)
 	log.WithContext(ctx).Info("All stopped successfully")
 }
 
 func stopRQServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopServices(ctx, []constants.ToolType{constants.RQService}, config)
+	_ = stopServices(ctx, []constants.ToolType{constants.RQService}, config)
 }
 
 func stopDDServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopServices(ctx, []constants.ToolType{constants.DDService}, config)
+	_ = stopServices(ctx, []constants.ToolType{constants.DDService}, config)
+}
+
+func stopDDImgServer(ctx context.Context, config *configs.Config) {
+	_ = stopServices(ctx, []constants.ToolType{constants.DDImgService}, config)
 }
 
 func stopWNServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopServices(ctx, []constants.ToolType{constants.WalletNode}, config)
+	_ = stopServices(ctx, []constants.ToolType{constants.WalletNode}, config)
 }
 
 func stopSNServiceSubCommand(ctx context.Context, config *configs.Config) {
-	stopServices(ctx, []constants.ToolType{constants.SuperNode}, config)
+	_ = stopServices(ctx, []constants.ToolType{constants.SuperNode}, config)
 }
 
-func stopPatelCLI(ctx context.Context, config *configs.Config) {
+func stopHermesService(ctx context.Context, config *configs.Config) {
+	_ = stopServices(ctx, []constants.ToolType{constants.Hermes}, config)
+}
+
+func stopBridgeService(ctx context.Context, config *configs.Config) {
+	_ = stopServices(ctx, []constants.ToolType{constants.Bridge}, config)
+}
+
+func stopPatelCLI(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Stopping Pasteld")
 	_, err := GetPastelInfo(ctx, config)
 	if err != nil {
 		log.WithContext(ctx).Info("Pasteld is not running!")
-		return
+		return nil
 	}
 	err = StopPastelDAndWait(ctx, config)
 	if err != nil {
@@ -280,13 +328,14 @@ func stopPatelCLI(ctx context.Context, config *configs.Config) {
 	}
 	if CheckProcessRunning(constants.PastelD) {
 		log.WithContext(ctx).Warn("Failed to stop Pasteld")
-		return
+		return errors.Errorf("Failed to stop Pasteld")
 	}
 	log.WithContext(ctx).Info("Pasteld stopped")
+	return nil
 }
 
 func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, services []constants.ToolType) error {
-	servicesToStop := []constants.ToolType{}
+	var servicesToStop []constants.ToolType
 	for _, service := range services {
 		log.WithContext(ctx).Infof("Stopping %s...", string(service))
 		if service == constants.PastelD {
@@ -321,7 +370,7 @@ func stopServicesWithConfirmation(ctx context.Context, config *configs.Config, s
 
 func stopServices(ctx context.Context, services []constants.ToolType, config *configs.Config) error {
 	servicesEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warnf("services not enabled for your OS %v", utils.GetOS())
 	} else {
@@ -329,12 +378,27 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 	}
 	for _, service := range services {
 		log.WithContext(ctx).Infof("Stopping %s service...", string(service))
+
+		if servicesEnabled {
+			log.WithContext(ctx).Infof("Try to stop %s as system service...", string(service))
+			err := sm.StopService(ctx, config, service)
+			if err != nil {
+				log.WithContext(ctx).Errorf("unable to stop %s as system service: %v, will try to kill it", string(service), err)
+			} else {
+				continue
+			}
+		}
+
 		switch service {
 		case constants.PastelD:
-			stopPatelCLI(ctx, config)
+			err = stopPatelCLI(ctx, config)
+			if err != nil {
+				log.WithContext(ctx).Errorf("unable to stop pasteld: %v", err)
+				return err
+			}
 		case constants.DDService:
 			searchTerm := constants.DupeDetectionExecFileName
-			pid, err := FindRunningProcessPid(string(searchTerm))
+			pid, err := FindRunningProcessPid(ctx, searchTerm)
 			if err != nil {
 				log.WithContext(ctx).Errorf("unable to find service %v to stop it: %v", service, err)
 				return err
@@ -346,19 +410,12 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 				return err
 			}
 		default:
-			if servicesEnabled {
-				err = sm.StopService(ctx, service)
-				if err != nil {
-					log.WithContext(ctx).Errorf("unable to stop service %v: %v", service, err)
-					return err
-				}
-			}
 			process := service
 			override, ok := serviceToProcessOverrides[string(service)]
 			if ok {
 				process = constants.ToolType(override)
 			}
-			err := KillProcess(ctx, process) // kill process incase the service wasnt registered
+			err := KillProcess(ctx, process) // kill process in case the service wasn't registered
 			if err != nil {
 				log.WithContext(ctx).Error(fmt.Sprintf("unable to kill process %v: %v", service, err))
 				return err

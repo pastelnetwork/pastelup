@@ -31,7 +31,54 @@ node:
 raptorq:
   host: "localhost"
   port: {{.RaptorqPort}}
+
+bridge:
+  address: "localhost"
+  port: {{.BridgePort}}
+  switch: {{.BridgeOn}}
 `
+	// HermesDefaultConfig - default config for hermes
+	HermesDefaultConfig = `
+log-config:
+  log-file: {{.LogFilePath}}
+  log-compress: {{.LogCompress}}
+  log-max-size-mb: {{.LogMaxSizeMB}}
+  log-max-age-days: {{.LogMaxAgeDays}}
+  log-max-backups: {{.LogMaxBackups}}
+  log-levels:
+   common: {{.LogLevelCommon}}
+   p2p: {{.LogLevelP2P}}
+   metadb: {{.LogLevelMetadb}}
+   dd: {{.LogLevelDD}}
+quiet: true
+temp-dir: {{.SNTempDir}}
+work-dir: {{.SNWorkDir}}
+dd-service-dir: {{.DDDir}}
+pastel_id: {{.PastelID}}
+pass_phrase: {{.Passphrase}}
+sn_host: {{.SNHost}}
+sn_port: {{.SNPort}}`
+
+	// BridgeDefaultConfig - default config for bridge
+	BridgeDefaultConfig = `
+log-config:
+log-level: {{.LogLevel}}
+log-file: {{.LogFilePath}}
+log-compress: {{.LogCompress}}
+log-max-size-mb: {{.LogMaxSizeMB}}
+log-max-age-days: {{.LogMaxAgeDays}}
+log-max-backups: {{.LogMaxBackups}}
+quiet: true
+temp-dir: {{.WNTempDir}}
+work-dir: {{.WNWorkDir}}
+download:
+  pastel_id: {{.PastelID}}
+  passphrase: {{.Passphrase}}
+  connections_refresh_timeout: {{.ConnRefreshTimeout}}
+  connections: {{.Connections}}
+server:
+  listen_address: {{.ListenAddress}}
+  port: {{.Port}}`
 
 	// SupernodeDefaultConfig - default config for supernode
 	SupernodeDefaultConfig = `
@@ -108,18 +155,39 @@ python3 -m  http.server 80`
 
 	// SystemdService - /etc/systemd/sysstem/rq-service.service
 	SystemdService = `[Unit]
-    Description={{.Desc}}
+Description={{.Desc}}
     
-    [Service]
-    Restart=always
-    RestartSec=10
-    WorkingDirectory={{.WorkDir}}
-    ExecStart={{.ExecCmd}}
-    
-    [Install]
-    WantedBy=multi-user.target
-    `
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+WorkingDirectory={{.WorkDir}}
+ExecStart={{.ExecCmd}}
+User={{.User}}
+
+[Install]
+WantedBy=multi-user.target
+`
 )
+
+// BridgeConfig defines configurations for bridge
+type BridgeConfig struct {
+	LogLevel           string
+	LogFilePath        string
+	LogCompress        bool
+	LogMaxSizeMB       int
+	LogMaxAgeDays      int
+	LogMaxBackups      int
+	WNTempDir          string
+	WNWorkDir          string
+	BurnAddress        string
+	PastelID           string
+	Passphrase         string
+	ConnRefreshTimeout int
+	Connections        int
+	ListenAddress      string
+	Port               int
+}
 
 // WalletNodeConfig defines configurations for walletnode
 type WalletNodeConfig struct {
@@ -134,6 +202,8 @@ type WalletNodeConfig struct {
 	RQDir         string
 	RaptorqPort   int
 	BurnAddress   string
+	BridgePort    int
+	BridgeOn      bool
 }
 
 // SuperNodeConfig defines configurations for supernode
@@ -165,6 +235,26 @@ type SuperNodeConfig struct {
 	StorageChallengeExpiredDuration string
 }
 
+// HermesConfig defines configurations for hermes
+type HermesConfig struct {
+	LogFilePath    string
+	LogCompress    bool
+	LogMaxSizeMB   int
+	LogMaxAgeDays  int
+	LogMaxBackups  int
+	LogLevelCommon string
+	LogLevelP2P    string
+	LogLevelMetadb string
+	LogLevelDD     string
+	SNTempDir      string
+	SNWorkDir      string
+	DDDir          string
+	PastelID       string
+	Passphrase     string
+	SNHost         string
+	SNPort         int
+}
+
 // RQServiceConfig defines configurations for rqservice
 type RQServiceConfig struct {
 	HostName string
@@ -186,6 +276,7 @@ type SystemdServiceScript struct {
 	ExecCmd string
 	Desc    string
 	WorkDir string
+	User    string
 }
 
 // ZksnarkParamsNamesV2 - slice of zksnark parameters

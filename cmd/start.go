@@ -18,7 +18,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
-	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/services/pastelcore"
 	"github.com/pastelnetwork/pastelup/utils"
 )
@@ -30,9 +29,6 @@ import (
 var (
 	// node flags
 	flagNodeExtIP string
-
-	// walletnode flag
-	flagDevMode bool
 )
 
 type startCommand uint8
@@ -43,10 +39,13 @@ const (
 	superNodeStart
 	ddService
 	rqService
+	ddImgServer
 	wnService
 	snService
 	masterNode
 	remoteStart
+	bridgeService
+	hermesService
 )
 
 var (
@@ -56,10 +55,13 @@ var (
 		superNodeStart: "supernode",
 		ddService:      "dd-service",
 		rqService:      "rq-service",
+		ddImgServer:    "imgserver",
 		wnService:      "walletnode-service",
 		snService:      "supernode-service",
 		masterNode:     "masterNode",
 		remoteStart:    "remote",
+		bridgeService:  "bridge-service",
+		hermesService:  "hermes-service",
 	}
 	startCmdMessage = map[startCommand]string{
 		nodeStart:      "Start node",
@@ -67,10 +69,13 @@ var (
 		superNodeStart: "Start Supernode",
 		ddService:      "Start Dupe Detection service only",
 		rqService:      "Start RaptorQ service only",
-		wnService:      "Start Walletnode service onlyu",
+		ddImgServer:    "Start dd image server",
+		wnService:      "Start Walletnode service only",
 		snService:      "Start Supernode service only",
 		masterNode:     "Start only pasteld node as Masternode",
 		remoteStart:    "Start on Remote host",
+		bridgeService:  "Start bridge-service only",
+		hermesService:  "Start hermes-service only",
 	}
 )
 
@@ -106,7 +111,7 @@ func setupStartSubCommand(config *configs.Config,
 	}
 
 	walletNodeFlags := []*cli.Flag{
-		cli.NewFlag("development-mode", &flagDevMode),
+		cli.NewFlag("development-mode", &config.DevMode),
 	}
 
 	superNodeStartFlags := []*cli.Flag{
@@ -209,6 +214,9 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startWNServiceCommand := setupStartSubCommand(config, wnService, false, runWalletNodeService)
 	startSNServiceCommand := setupStartSubCommand(config, snService, false, runSuperNodeService)
 	startMasternodeCommand := setupStartSubCommand(config, masterNode, false, runStartMasternode)
+	startHermesServiceCommand := setupStartSubCommand(config, hermesService, false, runHermesService)
+	startBridgeServiceCommand := setupStartSubCommand(config, bridgeService, false, runBridgeService)
+	startDDImgServerCommand := setupStartSubCommand(config, ddImgServer, false, runDDImgServer)
 
 	startSuperNodeRemoteSubCommand := setupStartSubCommand(config, superNodeStart, true, runRemoteSuperNodeStartSubCommand)
 	startSuperNodeSubCommand.AddSubcommands(startSuperNodeRemoteSubCommand)
@@ -222,6 +230,12 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startRQServiceRemoteCommand := setupStartSubCommand(config, rqService, true, runRemoteRQServiceStartSubCommand)
 	startRQServiceCommand.AddSubcommands(startRQServiceRemoteCommand)
 
+	startHermesServiceRemoteCommand := setupStartSubCommand(config, hermesService, true, runRemoteHermesServiceStartSubCommand)
+	startHermesServiceCommand.AddSubcommands(startHermesServiceRemoteCommand)
+
+	startBridgeServiceRemoteCommand := setupStartSubCommand(config, bridgeService, true, runRemoteBridgeServiceStartSubCommand)
+	startBridgeServiceCommand.AddSubcommands(startBridgeServiceRemoteCommand)
+
 	startDDServiceRemoteCommand := setupStartSubCommand(config, ddService, true, runRemoteDDServiceStartSubCommand)
 	startDDServiceCommand.AddSubcommands(startDDServiceRemoteCommand)
 
@@ -234,6 +248,9 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startMasternodeRemoteCommand := setupStartSubCommand(config, masterNode, true, runRemoteSNServiceStartSubCommand)
 	startMasternodeCommand.AddSubcommands(startMasternodeRemoteCommand)
 
+	startDDImgServerRemoteCommand := setupStartSubCommand(config, ddImgServer, true, runRemoteDDImgServerSubCommand)
+	startDDImgServerCommand.AddSubcommands(startDDImgServerRemoteCommand)
+
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
 	startCommand.AddSubcommands(startNodeSubCommand)
@@ -242,9 +259,11 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 
 	startCommand.AddSubcommands(startRQServiceCommand)
 	startCommand.AddSubcommands(startDDServiceCommand)
+	startCommand.AddSubcommands(startDDImgServerCommand)
 	startCommand.AddSubcommands(startWNServiceCommand)
 	startCommand.AddSubcommands(startSNServiceCommand)
 	startCommand.AddSubcommands(startMasternodeCommand)
+	startCommand.AddSubcommands(startHermesServiceCommand)
 
 	return startCommand
 
@@ -275,7 +294,19 @@ func runStartWalletNodeSubCommand(ctx context.Context, config *configs.Config) e
 		return err
 	}
 
-	// *************  3. Start wallet node  *************
+	// *************  3. Check & Start bridge node  *************
+	walletConf := config.Configurer.GetWalletNodeConfFile(config.WorkingDir)
+	enable, err := checkBridgeEnabled(ctx, walletConf)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("unable to check bridge enabled, skipping start bridge service")
+	} else if enable {
+		if err := runBridgeService(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("bridge failed to start")
+			return err
+		}
+	}
+
+	// *************  4. Start wallet node  *************
 	if err := runWalletNodeService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("walletnode failed to start")
 		return err
@@ -292,6 +323,7 @@ func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 		return err
 	}
 	log.WithContext(ctx).Info("Supernode started successfully")
+
 	return nil
 }
 
@@ -366,21 +398,27 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 		}
 	}
 
-	// *************  6. Start rq-servce    *************
+	// *************  6. Start rq-service    *************
 	if err := runRQService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("rqservice failed to start")
 		return err
 	}
 
-	// *************  6. Start dd-servce    *************
+	// *************  7. Start dd-service    *************
 	if err := runDDService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("ddservice failed to start")
 		return err
 	}
 
-	// *************  7. Start supernode  **************
+	// *************  8. Start supernode  **************
 	if err := runSuperNodeService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to start supernode service")
+		return err
+	}
+
+	// *************  9. Start hermes  **************
+	if err := runHermesService(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to start hermes service")
 		return err
 	}
 
@@ -408,6 +446,15 @@ func runRemoteWNServiceStartSubCommand(ctx context.Context, config *configs.Conf
 func runRemoteSNServiceStartSubCommand(ctx context.Context, config *configs.Config) error {
 	return runRemoteStart(ctx, config, "supernode-service")
 }
+func runRemoteHermesServiceStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "hermes-service")
+}
+func runRemoteBridgeServiceStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "bridge-service")
+}
+func runRemoteDDImgServerSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "imgserver")
+}
 
 func runRemoteStart(ctx context.Context, config *configs.Config, tool string) error {
 	log.WithContext(ctx).Infof("Starting remote %s", tool)
@@ -432,7 +479,7 @@ func runRemoteStart(ctx context.Context, config *configs.Config, tool string) er
 	if config.Legacy {
 		startOptions = fmt.Sprintf("%s --legacy", startOptions)
 	}
-	if flagDevMode {
+	if config.DevMode {
 		startOptions = fmt.Sprintf("%s --development-mode", startOptions)
 	}
 	if len(config.PastelExecDir) > 0 {
@@ -460,7 +507,7 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("Finished Reading pastel.conf! Starting Supernode in %s mode", config.Network)
 
 	// Get conf data from masternode.conf File
-	privKey, extIP, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName)
+	privKey, extIP, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName, flagNodeExtIP)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get masternode details from masternode.conf")
 		return err
@@ -495,15 +542,15 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runRQService(ctx context.Context, config *configs.Config) error {
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.RQService)
+		// if the service isn't registered, this will be a noop
+		srvStarted, err := sm.StartService(ctx, config, constants.RQService)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
 			return err
@@ -526,7 +573,7 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -534,9 +581,9 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	}
 	if serviceEnabled {
 		// if the service isn't registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.DDService)
+		srvStarted, err := sm.StartService(ctx, config, constants.DDService)
 		if err != nil {
-			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
+			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.DDService, err)
 			return err
 		}
 		if srvStarted {
@@ -570,25 +617,42 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 		log.WithContext(ctx).WithError(err).Error("dd-service failed to start")
 		return err
 	} else if err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed to test if dd-servise is running")
+		log.WithContext(ctx).WithError(err).Error("failed to test if dd-service is running")
 	} else {
 		log.WithContext(ctx).Info("dd-service is successfully started")
 	}
 	return nil
 }
 
+func runDDImgServer(ctx context.Context, config *configs.Config) (err error) {
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	if err != nil {
+		log.WithContext(ctx).Error(err.Error())
+		return err
+	}
+
+	// if the service isn't registered, this will be a noop
+	_, err = sm.StartService(ctx, config, constants.DDImgService)
+	if err != nil {
+		log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.DDImgService, err)
+		return err
+	}
+
+	return nil
+}
+
 // Sub Command
 func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.WalletNode)
+		// if the service isn't registered, this will be a noop
+		srvStarted, err := sm.StartService(ctx, config, constants.WalletNode)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.WalletNode, err)
 			return err
@@ -604,7 +668,7 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 		fmt.Sprintf("--config-file=%s", config.Configurer.GetWalletNodeConfFile(config.WorkingDir)))
 	wnServiceArgs = append(wnServiceArgs,
 		fmt.Sprintf("--pastel-config-file=%s/pastel.conf", config.WorkingDir))
-	if flagDevMode {
+	if config.DevMode {
 		wnServiceArgs = append(wnServiceArgs, "--swagger")
 	}
 	log.WithContext(ctx).Infof("Options : %s", wnServiceArgs)
@@ -616,17 +680,61 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 }
 
 // Sub Command
-func runSuperNodeService(ctx context.Context, config *configs.Config) error {
+func runBridgeService(ctx context.Context, config *configs.Config) error {
+	bridgeConf := config.Configurer.GetBridgeConfFile(config.WorkingDir)
+	if err := checkBridgeConfigPastelID(ctx, config, bridgeConf); err != nil {
+		log.WithContext(ctx).Errorf("Failed to verify bridge Pastelid %v: %v", bridgeConf, err)
+		return err
+	}
+
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
 		serviceEnabled = true
 	}
 	if serviceEnabled {
-		// if the service isnt registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.SuperNode)
+		// if the service isn't registered, this will be a noop
+		srvStarted, err := sm.StartService(ctx, config, constants.Bridge)
+		if err != nil {
+			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.Bridge, err)
+			return err
+		}
+		if srvStarted {
+			return nil
+		}
+	}
+	bridgeExecName := constants.BridgeExecName[utils.GetOS()]
+	log.WithContext(ctx).Infof("Starting bridge service - %s", bridgeExecName)
+	var bridgeServiceArgs []string
+
+	bridgeServiceArgs = append(bridgeServiceArgs,
+		fmt.Sprintf("--config-file=%s", bridgeConf))
+	bridgeServiceArgs = append(bridgeServiceArgs,
+		fmt.Sprintf("--pastel-config-file=%s/pastel.conf", config.WorkingDir))
+
+	log.WithContext(ctx).Infof("Options : %s", bridgeServiceArgs)
+	if err := runPastelService(ctx, config, constants.Bridge, bridgeExecName, bridgeServiceArgs...); err != nil {
+		log.WithContext(ctx).WithError(err).Error("bridge service failed")
+		return err
+	}
+
+	return nil
+}
+
+// Sub Command
+func runSuperNodeService(ctx context.Context, config *configs.Config) error {
+	serviceEnabled := false
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	if err != nil {
+		log.WithContext(ctx).Warn(err.Error())
+	} else {
+		serviceEnabled = true
+	}
+	if serviceEnabled {
+		// if the service isn't registered, this will be a noop
+		srvStarted, err := sm.StartService(ctx, config, constants.SuperNode)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.SuperNode, err)
 		}
@@ -647,13 +755,24 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 		log.WithContext(ctx).WithError(err).Error("supernode failed")
 		return err
 	}
+
+	if err := runHermesService(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("start hermes service failed")
+		return err
+	}
+
 	return nil
 }
 
-///// Run helpers
-func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool, reindex bool, extIP string, mnPrivKey string) (err error) {
+// Sub Command
+func runHermesService(ctx context.Context, config *configs.Config) error {
+	if err := setPastelIDAndPassphraseInHermesConf(ctx, config); err != nil {
+		log.WithContext(ctx).Errorf("Failed to set pastelID & passphrase in config file : %v", err)
+		return nil
+	}
+
 	serviceEnabled := false
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
 		log.WithContext(ctx).Warn(err.Error())
 	} else {
@@ -661,58 +780,149 @@ func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool,
 	}
 	if serviceEnabled {
 		// if the service isn't registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, constants.PastelD)
+		srvStarted, err := sm.StartService(ctx, config, constants.Hermes)
 		if err != nil {
-			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.PastelD, err)
-			return err
+			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.Hermes, err)
 		}
 		if srvStarted {
 			return nil
 		}
 	}
+	hermesConfigPath := config.Configurer.GetHermesConfFile(config.WorkingDir)
+	hermesExecName := constants.HermesExecName[utils.GetOS()]
+	log.WithContext(ctx).Infof("Starting hermes service - %s", hermesExecName)
 
-	var pastelDPath string
-	if pastelDPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PasteldName[utils.GetOS()]); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Could not find pasteld")
+	var hermesServiceArgs []string
+	hermesServiceArgs = append(hermesServiceArgs,
+		fmt.Sprintf("--config-file=%s", hermesConfigPath))
+
+	log.WithContext(ctx).Infof("Options : %s", hermesServiceArgs)
+	if err := runPastelService(ctx, config, constants.Hermes, hermesExecName, hermesServiceArgs...); err != nil {
+		log.WithContext(ctx).WithError(err).Error("hermes start failed")
 		return err
 	}
 
-	if _, err = checkPastelFilePath(ctx, config.WorkingDir, constants.PastelConfName); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Could not find pastel.conf")
+	return nil
+}
+
+func setPastelIDAndPassphraseInHermesConf(ctx context.Context, config *configs.Config) error {
+	hermesConfigPath := config.Configurer.GetHermesConfFile(config.WorkingDir)
+	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
+
+	// Read existing supernode confif file
+	var snConfFile []byte
+	snConfFile, err := ioutil.ReadFile(supernodeConfigPath)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to open existing supernode.yml file at - %s", supernodeConfigPath)
 		return err
 	}
-	if err = CheckZksnarkParams(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Wrong ZKSnark files")
+	snConf := make(map[string]interface{})
+	if err = yaml.Unmarshal(snConfFile, &snConf); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to parse existing supernode.yml file at - %s", supernodeConfigPath)
 		return err
 	}
 
-	if len(extIP) == 0 {
-		if extIP, err = utils.GetExternalIPAddress(); err != nil {
-			log.WithContext(ctx).WithError(err).Error("Could not get external IP address")
+	// extract pastelID & Passphrase
+	node := snConf["node"].(map[interface{}]interface{})
+	pastelID := fmt.Sprintf("%s", node["pastel_id"])
+	passPhrase := fmt.Sprintf("%s", node["pass_phrase"])
+
+	// Read hermes config file
+	var hermesConfFile []byte
+	hermesConfFile, err = ioutil.ReadFile(hermesConfigPath)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to open existing hermes.yml file at - %s", hermesConfigPath)
+		return err
+	}
+
+	hermesConf := make(map[string]interface{})
+	if err = yaml.Unmarshal(hermesConfFile, &hermesConf); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to parse existing hermes.yml file at - %s", hermesConfigPath)
+		return err
+	}
+
+	// Update hermes config file
+	hermesConf["pastel_id"] = pastelID
+	hermesConf["pass_phrase"] = passPhrase
+
+	var hermesConfFileUpdated []byte
+	if hermesConfFileUpdated, err = yaml.Marshal(&hermesConf); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for hermes.yml file at - %s", hermesConfigPath)
+		return err
+	}
+
+	if ioutil.WriteFile(hermesConfigPath, hermesConfFileUpdated, 0644) != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update hermes.yml file at - %s", hermesConfigPath)
+		return err
+	}
+
+	return nil
+}
+
+///// Run helpers
+func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool, reindex bool, extIP string, mnPrivKey string) (err error) {
+	serviceEnabled := false
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	if err != nil {
+		log.WithContext(ctx).Warn(err.Error())
+	} else {
+		serviceEnabled = true
+	}
+	srvStarted := false
+	if serviceEnabled {
+		// if the service isn't registered, this will be a noop
+		srvStarted, err = sm.StartService(ctx, config, constants.PastelD)
+		if err != nil {
+			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.PastelD, err)
 			return err
 		}
 	}
+	if !srvStarted {
 
-	var pasteldArgs []string
-	pasteldArgs = append(pasteldArgs,
-		fmt.Sprintf("--datadir=%s", config.WorkingDir),
-		fmt.Sprintf("--externalip=%s", extIP))
+		var pastelDPath string
+		if pastelDPath, err = checkPastelFilePath(ctx, config.PastelExecDir, constants.PasteldName[utils.GetOS()]); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find pasteld")
+			return err
+		}
 
-	if txIndexOne {
-		pasteldArgs = append(pasteldArgs, "--txindex=1")
+		if _, err = checkPastelFilePath(ctx, config.WorkingDir, constants.PastelConfName); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find pastel.conf")
+			return err
+		}
+		if err = CheckZksnarkParams(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Wrong ZKSnark files")
+			return err
+		}
+
+		if len(extIP) == 0 {
+			if extIP, err = utils.GetExternalIPAddress(); err != nil {
+				log.WithContext(ctx).WithError(err).Error("Could not get external IP address")
+				return err
+			}
+		}
+
+		var pasteldArgs []string
+		pasteldArgs = append(pasteldArgs,
+			fmt.Sprintf("--datadir=%s", config.WorkingDir),
+			fmt.Sprintf("--externalip=%s", extIP))
+
+		if txIndexOne {
+			pasteldArgs = append(pasteldArgs, "--txindex=1")
+		}
+
+		if reindex {
+			pasteldArgs = append(pasteldArgs, "--reindex")
+		}
+
+		if len(mnPrivKey) != 0 {
+			pasteldArgs = append(pasteldArgs, "--masternode", fmt.Sprintf("--masternodeprivkey=%s", mnPrivKey))
+		}
+
+		log.WithContext(ctx).Infof("Starting -> %s %s", pastelDPath, strings.Join(pasteldArgs, " "))
+		pasteldArgs = append(pasteldArgs, "--daemon")
+		go RunCMD(pastelDPath, pasteldArgs...)
 	}
 
-	if reindex {
-		pasteldArgs = append(pasteldArgs, "--reindex")
-	}
-
-	if len(mnPrivKey) != 0 {
-		pasteldArgs = append(pasteldArgs, "--masternode", fmt.Sprintf("--masternodeprivkey=%s", mnPrivKey))
-	}
-
-	log.WithContext(ctx).Infof("Starting -> %s %s", pastelDPath, strings.Join(pasteldArgs, " "))
-	pasteldArgs = append(pasteldArgs, "--daemon")
-	go RunCMD(pastelDPath, pasteldArgs...)
 	if !WaitingForPastelDToStart(ctx, config) {
 		err = fmt.Errorf("pasteld was not started")
 		log.WithContext(ctx).WithError(err).Error("pasteld didn't start")
@@ -846,6 +1056,7 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, st
 		return err
 	}
 
+	// sets Passphrase to flagMasterNodePassphrase
 	if err := checkPassphrase(ctx); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing passphrase")
 		return err
@@ -856,6 +1067,7 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, st
 		return err
 	}
 
+	// sets PastelID to flagMasterNodePastelID
 	if err := checkPastelID(ctx, config, nil); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing masternode PastelID")
 		return err
@@ -987,6 +1199,11 @@ func getMasternodeOutputs(ctx context.Context, config *configs.Config) (map[stri
 
 func checkCollateral(ctx context.Context, config *configs.Config) error {
 	var err error
+
+	if flagDontCheckCollateral && len(flagMasterNodeTxID) != 0 && len(flagMasterNodeInd) != 0 {
+		return nil
+	}
+
 	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
 
 		log.WithContext(ctx).Warn(red("No collateral --txid and/or --ind provided"))

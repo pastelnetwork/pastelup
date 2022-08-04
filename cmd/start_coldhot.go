@@ -234,7 +234,7 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 
 	// *************** 4. Start remote node as masternode ***************
 	//Get conf data from masternode.conf File
-	privkey, _, _, err := getMasternodeConfData(ctx, r.config, flagMasterNodeName)
+	privkey, _, _, err := getMasternodeConfData(ctx, r.config, flagMasterNodeName, flagNodeExtIP)
 	if err != nil {
 		return err
 	}
@@ -319,12 +319,16 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		return err
 	}
 
-	log.WithContext(ctx).Info("starting supernode-service..")
+	if err := r.createAndCopyRemoteHermesConfig(ctx); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update hermes.yml")
+		return err
+	}
+
+	log.WithContext(ctx).Info("starting supernode-service & hermes-service..")
 	snService := fmt.Sprintf("%s-%s", string(constants.SuperNode), "service")
 	if err = r.runServiceRemote(ctx, snService); err != nil {
-		return fmt.Errorf("failed to start supernode-service on hot node: %s", err)
+		return fmt.Errorf("failed to start supernode-service or hermes-service on hot node: %s", err)
 	}
-	log.WithContext(ctx).Info("started supernode-service successfully..")
 
 	if withErrors {
 		log.WithContext(ctx).Warn("some services was not started, please see log above.\n\tYou can try to restart them manually: see command 'start <service> remote'")
@@ -715,5 +719,105 @@ func (r *ColdHotRunner) copyMasterNodeConToRemote(ctx context.Context) error {
 	if err := r.sshClient.Scp(tmpMNConfPath, hotMasternodeConfPath, "0644"); err != nil {
 		return fmt.Errorf("failed to copy masternode.conf to remote %s", err)
 	}
+	return nil
+}
+
+///// hermes.yml helpers
+func (r *ColdHotRunner) createAndCopyRemoteHermesConfig(ctx context.Context) error {
+
+	hermesConfigPath := "hermes.yml"
+	log.WithContext(ctx).Infof("Creating remote hermes config - %s", hermesConfigPath)
+
+	if _, err := os.Stat(hermesConfigPath); os.IsNotExist(err) {
+		// create new
+		if err = utils.CreateFile(ctx, hermesConfigPath, true); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to create new hermes.yml file at - %s", hermesConfigPath)
+			return err
+		}
+
+		portList := GetSNPortList(r.config)
+
+		snTempDirPath := filepath.Join(r.config.RemoteHotWorkingDir, constants.TempDir)
+		ddDirPath := filepath.Join(r.config.RemoteHotHomeDir, constants.DupeDetectionServiceDir)
+
+		toolConfig, err := utils.GetServiceConfig(string(constants.Hermes), configs.HermesDefaultConfig, &configs.HermesConfig{
+			LogFilePath:    r.config.Configurer.GetSuperNodeLogFile(r.config.RemoteHotWorkingDir),
+			LogCompress:    constants.LogConfigDefaultCompress,
+			LogMaxSizeMB:   constants.LogConfigDefaultMaxSizeMB,
+			LogMaxAgeDays:  constants.LogConfigDefaultMaxAgeDays,
+			LogMaxBackups:  constants.LogConfigDefaultMaxBackups,
+			LogLevelCommon: constants.SuperNodeDefaultCommonLogLevel,
+			LogLevelP2P:    constants.SuperNodeDefaultP2PLogLevel,
+			LogLevelMetadb: constants.SuperNodeDefaultMetaDBLogLevel,
+			LogLevelDD:     constants.SuperNodeDefaultDDLogLevel,
+			SNTempDir:      snTempDirPath,
+			SNWorkDir:      r.config.RemoteHotWorkingDir,
+			DDDir:          ddDirPath,
+			PastelID:       flagMasterNodePastelID,
+			Passphrase:     flagMasterNodePassPhrase,
+			SNHost:         "localhost",
+			SNPort:         portList[constants.SNPort],
+		})
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to get hermes config")
+			return err
+		}
+		if err = utils.WriteFile(hermesConfigPath, toolConfig); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to update new hermes.yml file at - %s", hermesConfigPath)
+			return err
+		}
+
+	} else if err == nil {
+		//update existing
+		var hermesConfFile []byte
+		hermesConfFile, err = ioutil.ReadFile(hermesConfigPath)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to open existing hermes.yml file at - %s", hermesConfigPath)
+			return err
+		}
+		hermesConf := make(map[string]interface{})
+		if err = yaml.Unmarshal(hermesConfFile, &hermesConf); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to parse existing hermes.yml file at - %s", hermesConfigPath)
+			return err
+		}
+
+		hermesConf["pastel_id"] = flagMasterNodePastelID
+		hermesConf["pass_phrase"] = flagMasterNodePassPhrase
+
+		var hermesConfFileUpdated []byte
+		if hermesConfFileUpdated, err = yaml.Marshal(&hermesConf); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for hermes.yml file at - %s", hermesConfigPath)
+			return err
+		}
+		if ioutil.WriteFile(hermesConfigPath, hermesConfFileUpdated, 0644) != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to update hermes.yml file at - %s", hermesConfigPath)
+			return err
+		}
+	} else {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update or create hermes.yml file at - %s", hermesConfigPath)
+		return err
+	}
+
+	log.WithContext(ctx).Info("Hermes config updated")
+
+	remoteHermesConfigPath := r.config.Configurer.GetHermesConfFile(r.config.RemoteHotWorkingDir)
+	remoteHermesConfigPath = strings.ReplaceAll(remoteHermesConfigPath, "\\", "/")
+
+	log.WithContext(ctx).Info("copying hermes config..")
+	if err := r.sshClient.Scp(hermesConfigPath, remoteHermesConfigPath, "0644"); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to copy pastelup executable to remote host")
+		return err
+	}
+
+	if err := utils.DeleteFile(hermesConfigPath); err != nil {
+		log.WithContext(ctx).Errorf("Failed to delete archive file : %s", hermesConfigPath)
+		return err
+	}
+
+	if err := r.sshClient.ShellCmd(ctx, fmt.Sprintf("chmod 755 %s", remoteHermesConfigPath)); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to change permission of pastelup")
+		return err
+	}
+
 	return nil
 }

@@ -56,6 +56,10 @@ const (
 	DDService ToolType = "dd-service"
 	// RQService type
 	RQService ToolType = "rq-service"
+	// Hermes type
+	Hermes ToolType = "hermes"
+	// Bridge type
+	Bridge ToolType = "bridge"
 	// DDImgService type
 	DDImgService ToolType = "dd-img-server"
 	// AMD64 is architecture type
@@ -89,8 +93,6 @@ const (
 	SystemdServicePrefix = "pastel-"
 	// SystemdSystemDir location of systemd folder in Linux system
 	SystemdSystemDir = "/etc/systemd/system"
-	// SystemdUserDir location of systemd folder in Linux user
-	SystemdUserDir = ".config/systemd/user"
 
 	// RQServiceDir defines location for rq-service file exchange dir
 	RQServiceDir = "rqfiles"
@@ -123,6 +125,9 @@ const (
 	// RQServiceDefaultPort defines rqservice port
 	RQServiceDefaultPort = 50051
 
+	// BridgeServiceDefaultPort defines bridge service port
+	BridgeServiceDefaultPort = 60061
+
 	// DDServerDefaultPort defines dd-server port
 	DDServerDefaultPort = 50052
 
@@ -139,22 +144,13 @@ const (
 	RemotePastelupPath = "/tmp/pastelup"
 )
 
-// ToolTypeServices represents the list of tool types that can be enabled as system services
-// i.e. systemd services if on linux
-var ToolTypeServices = []ToolType{
-	WalletNode,
-	SuperNode,
-	GoNode,
-	DDService,
-	RQService,
-	DDImgService,
-}
-
 // ServiceName defines services name
 var ServiceName = map[ToolType]map[OSType]string{
 	PastelD:    PasteldName,
 	WalletNode: WalletNodeExecName,
 	SuperNode:  SuperNodeExecName,
+	Bridge:     BridgeExecName,
+	Hermes:     HermesExecName,
 	RQService:  PastelRQServiceExecName,
 	Pastelup:   PastelupName,
 }
@@ -204,6 +200,20 @@ var PastelUpExecName = map[OSType]string{
 	Windows: "pastelup-windows-amd64.exe",
 	Linux:   "pastelup-linux-amd64",
 	Mac:     "pastelup-darwin-amd64",
+}
+
+// HermesExecName - The name of the hermes
+var HermesExecName = map[OSType]string{
+	Windows: "",
+	Linux:   "hermes-linux-amd64",
+	Mac:     "",
+}
+
+// BridgeExecName - The name of the bridge
+var BridgeExecName = map[OSType]string{
+	Windows: "bridge-win-amd64.exe",
+	Linux:   "bridge-linux-amd64",
+	Mac:     "bridge-darwin-amd64",
 }
 
 // PastelExecArchiveName - The name of the pastel executable files

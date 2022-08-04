@@ -21,6 +21,10 @@ type configurer struct {
 	superNodeLogFile    string
 	walletNodeLogFile   string
 	superNodeConfFile   string
+	hermesConfFile      string
+	hermesLogFile       string
+	bridgeLogFile       string
+	bridgeConfFile      string
 	walletNodeConfFile  string
 	rqServiceConfFile   string
 	zksnarkDir          string
@@ -56,9 +60,29 @@ func (c *configurer) GetWalletNodeLogFile(workingDir string) string {
 	return filepath.Join(workingDir, c.walletNodeLogFile)
 }
 
+// GetHermesLogFile returns the default hermes log file
+func (c *configurer) GetHermesLogFile(workingDir string) string {
+	return filepath.Join(workingDir, c.hermesLogFile)
+}
+
+// GetBridgeLogFile returns the default bridge log file
+func (c *configurer) GetBridgeLogFile(workingDir string) string {
+	return filepath.Join(workingDir, c.bridgeLogFile)
+}
+
 // GetSuperNodeConfFile returns the default supernode log file
 func (c *configurer) GetSuperNodeConfFile(workingDir string) string {
 	return filepath.Join(workingDir, c.superNodeConfFile)
+}
+
+// GetHermesConfFile returns the default Hermes log file
+func (c *configurer) GetHermesConfFile(workingDir string) string {
+	return filepath.Join(workingDir, c.hermesConfFile)
+}
+
+// GetBridgeConfFile returns the default Bridge log file
+func (c *configurer) GetBridgeConfFile(workingDir string) string {
+	return filepath.Join(workingDir, c.bridgeConfFile)
 }
 
 // GetWalletNodeConfFile returns the default supernode log file
@@ -106,6 +130,12 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 	case constants.Pastelup:
 		name = constants.PastelUpExecName[c.osType]
 		tool = constants.Pastelup
+	case constants.Hermes:
+		name = constants.HermesExecName[c.osType]
+		tool = constants.GoNode
+	case constants.Bridge:
+		name = constants.BridgeExecName[c.osType]
+		tool = constants.GoNode
 	default:
 		return nil, "", errors.Errorf("unknown tool: %s", tool)
 	}
@@ -135,8 +165,12 @@ func newLinuxConfigurer(homeDir string) IConfigurer {
 	return &configurer{
 		workingDir:          ".pastel",
 		superNodeLogFile:    "supernode.log",
+		hermesLogFile:       "hermes.log",
+		bridgeLogFile:       "bridge.log",
 		walletNodeLogFile:   "walletnode.log",
 		superNodeConfFile:   "supernode.yml",
+		hermesConfFile:      "hermes.yml",
+		bridgeConfFile:      "bridge.yml",
 		walletNodeConfFile:  "walletnode.yml",
 		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          ".pastel-params",
@@ -154,6 +188,8 @@ func newDarwinConfigurer(homeDir string) IConfigurer {
 		superNodeLogFile:    "supernode.log",
 		walletNodeLogFile:   "walletnode.log",
 		superNodeConfFile:   "supernode.yml",
+		hermesConfFile:      "hermes.yml",
+		bridgeConfFile:      "bridge.yml",
 		walletNodeConfFile:  "walletnode.yml",
 		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          "PastelParams",
@@ -171,6 +207,8 @@ func newWindowsConfigurer(homeDir string) IConfigurer {
 		superNodeLogFile:    "supernode.log",
 		walletNodeLogFile:   "walletnode.log",
 		superNodeConfFile:   "supernode.yml",
+		hermesConfFile:      "hermes.yml",
+		bridgeConfFile:      "bridge.yml",
 		walletNodeConfFile:  "walletnode.yml",
 		rqServiceConfFile:   "rqservice.toml",
 		zksnarkDir:          "PastelParams",

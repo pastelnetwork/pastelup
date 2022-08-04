@@ -5,21 +5,21 @@ export GOSUMDB ?= sum.golang.org
 #export GOROOT ?= dist/
 
 # Applications name
-CGO    ?= 0
+# CGO    ?= 0
 BINARY ?= pastelup
 TEST_IMG = pastel-test
 
 # Version
 VERSION = $(shell git describe --tag)
 
-# Target build and specific extention name
-#PLATFORMS ?= darwin/amd64 windows/amd64/.exe linux/amd64
+# Target for cross build and specific extention name
+PLATFORMS ?= darwin/amd64 windows/amd64/.exe linux/amd64
 
 # Macros to sub info from platforms
-#temp = $(subst /, ,$@)
-#os = $(word 1, $(temp))
-#arch = $(word 2, $(temp))
-#ext = $(word 3, $(temp))
+temp = $(subst /, ,$@)
+cross_os = $(word 1, $(temp))
+cross_arch = $(word 2, $(temp))
+cross_ext = $(word 3, $(temp))
 
 arch = "amd64"
 ifeq ($(OS),Windows_NT)
@@ -39,18 +39,19 @@ endif
 
 # GO build flags
 LDFLAGS="-s -w -X github.com/pastelnetwork/gonode/common/version.version=$(VERSION)"
-#
-# Target build
-#
-#release: $(PLATFORMS)
 
 release:
 	go build $(GCFLAGS) -ldflags=$(LDFLAGS) -o $(BINARY) main.go
 	strip -v $(BINARY) -o dist/$(BINARY)-$(os)-$(arch)$(ext)
 
-#$(PLATFORMS):
-#	CGO_ENABLED=$(CGO) GOOS=$(os) GOARCH=$(arch) go build  $(GCFLAGS) -ldflags=$(LDFLAGS) -o dist/$(BINARY)-$(os)-$(arch)$(ext) main.go
-# #	upx dist/$(BINARY)-$(os)-$(arch)$(ext)
+#
+# Target build
+#
+release-all: $(PLATFORMS)
+
+$(PLATFORMS):
+	CGO_ENABLED=$(CGO) GOOS=$(cross_os) GOARCH=$(cross_arch) go build  $(GCFLAGS) -ldflags=$(LDFLAGS) -o dist/$(BINARY)-$(cross_os)-$(cross_arch)$(cross_ext) main.go
+#	upx dist/$(BINARY)-$(os)-$(arch)$(ext)
 
 #.PHONY: release $(PLATFORMS)
 

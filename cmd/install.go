@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/errors"
@@ -18,7 +17,6 @@ import (
 	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
-	"github.com/pastelnetwork/pastelup/servicemanager"
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
@@ -34,9 +32,10 @@ const (
 	ddServiceImgServerInstall
 	snServiceInstall
 	wnServiceInstall
+	hermesServiceInstall
 )
 
-var nonNetworkDepedentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
+var nonNetworkDependentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
 
 var (
 	installCmdName = map[installCommand]string{
@@ -47,6 +46,7 @@ var (
 		ddServiceInstall:          "dd-service",
 		ddServiceImgServerInstall: "imgserver",
 		remoteInstall:             "remote",
+		hermesServiceInstall:      "hermes-service",
 	}
 	installCmdMessage = map[installCommand]string{
 		nodeInstall:               "Install node",
@@ -56,6 +56,7 @@ var (
 		ddServiceInstall:          "Install Dupe Detection service only",
 		ddServiceImgServerInstall: "Install Dupe Detection Image Server only",
 		remoteInstall:             "Install on Remote host",
+		hermesServiceInstall:      "Install hermes-service only",
 	}
 )
 var appToServiceMap = map[constants.ToolType][]constants.ToolType{
@@ -63,6 +64,7 @@ var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 	constants.WalletNode: {
 		constants.PastelD,
 		constants.RQService,
+		constants.Bridge,
 		constants.WalletNode,
 	},
 	constants.SuperNode: {
@@ -70,10 +72,13 @@ var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 		constants.RQService,
 		constants.DDService,
 		constants.SuperNode,
+		constants.Hermes,
 	},
 	constants.RQService:    {constants.RQService},
 	constants.DDService:    {constants.DDService},
 	constants.DDImgService: {constants.DDImgService},
+	constants.Hermes:       {constants.Hermes},
+	constants.Bridge:       {constants.Bridge},
 }
 
 func setupSubCommand(config *configs.Config,
@@ -86,8 +91,6 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Pastel version to install")),
-		cli.NewFlag("enable-service", &config.EnableService).
-			SetUsage(green("Optional, start all apps automatically as system service (i.e. for linux OS, systemd)")),
 		cli.NewFlag("regen-rpc", &config.RegenRPC).
 			SetUsage(green("Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file")),
 	}
@@ -190,7 +193,6 @@ func setupSubCommand(config *configs.Config,
 					Error("Failed to process install command")
 				return err
 			}
-			ParsePastelConf(ctx, config)
 			log.WithContext(ctx).Infof("Started install...release set to '%v' ", config.Version)
 			if err = f(ctx, config); err != nil {
 				return err
@@ -211,6 +213,7 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	installRQSubCommand := setupSubCommand(config, rqServiceInstall, false, runInstallRaptorQSubCommand)
 	installDDSubCommand := setupSubCommand(config, ddServiceInstall, false, runInstallDupeDetectionSubCommand)
 	installDDImgServerSubCommand := setupSubCommand(config, ddServiceImgServerInstall, false, runInstallDupeDetectionImgServerSubCommand)
+	installHermesServiceSubCommand := setupSubCommand(config, hermesServiceInstall, false, runInstallHermesServiceSubCommand)
 
 	installNodeSubCommand.AddSubcommands(setupSubCommand(config, nodeInstall, true, runRemoteInstallNode))
 	installWalletNodeSubCommand.AddSubcommands(setupSubCommand(config, walletNodeInstall, true, runRemoteInstallWalletNode))
@@ -218,6 +221,7 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	installRQSubCommand.AddSubcommands(setupSubCommand(config, rqServiceInstall, true, runRemoteInstallRQService))
 	installDDSubCommand.AddSubcommands(setupSubCommand(config, ddServiceInstall, true, runRemoteInstallDDService))
 	installDDImgServerSubCommand.AddSubcommands(setupSubCommand(config, ddServiceImgServerInstall, true, runRemoteInstallImgServer))
+	installHermesServiceSubCommand.AddSubcommands(setupSubCommand(config, hermesServiceInstall, true, runRemoteInstallHermesService))
 
 	installCommand := cli.NewCommand("install")
 	installCommand.SetUsage(blue("Performs installation and initialization of the system for both WalletNode and SuperNodes"))
@@ -226,6 +230,7 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	installCommand.AddSubcommands(installNodeSubCommand)
 	installCommand.AddSubcommands(installRQSubCommand)
 	installCommand.AddSubcommands(installDDSubCommand)
+	installCommand.AddSubcommands(installHermesServiceSubCommand)
 	installCommand.AddSubcommands(installDDImgServerSubCommand)
 	return installCommand
 }
@@ -258,11 +263,21 @@ func runInstallDupeDetectionSubCommand(ctx context.Context, config *configs.Conf
 	return runServicesInstall(ctx, config, constants.DDService, false)
 }
 
-func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
-	if !config.EnableService {
-		return nil
+func runInstallHermesServiceSubCommand(ctx context.Context, config *configs.Config) error {
+	if utils.GetOS() != constants.Linux {
+		log.WithContext(ctx).Error("Hermes service can only be installed on Linux")
+		return fmt.Errorf("hermes service can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
-	return installServices(ctx, appToServiceMap[constants.DDImgService], config)
+	return runServicesInstall(ctx, config, constants.Hermes, false)
+}
+
+func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *configs.Config) error {
+	if utils.GetOS() != constants.Linux {
+		log.WithContext(ctx).Error("dupe detection image service can only be installed on Linux")
+		return fmt.Errorf("dupe detection service image can only be installed on Linux. You are on: %s", string(utils.GetOS()))
+	}
+	config.ServiceTool = "dd-img-service"
+	return installSystemService(ctx, config)
 }
 
 func runRemoteInstallNode(ctx context.Context, config *configs.Config) error {
@@ -282,6 +297,9 @@ func runRemoteInstallDDService(ctx context.Context, config *configs.Config) erro
 }
 func runRemoteInstallImgServer(ctx context.Context, config *configs.Config) error {
 	return runRemoteInstall(ctx, config, "imgserver")
+}
+func runRemoteInstallHermesService(ctx context.Context, config *configs.Config) error {
+	return runRemoteInstall(ctx, config, "hermes-service")
 }
 
 func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) (err error) {
@@ -314,10 +332,6 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 		remoteOptions = fmt.Sprintf("%s -n=regtest", remoteOptions)
 	}
 
-	if config.EnableService {
-		remoteOptions = fmt.Sprintf("%s --enable-service", remoteOptions)
-	}
-
 	if len(config.UserPw) > 0 {
 		remoteOptions = fmt.Sprintf("%s --user-pw=%s", remoteOptions, config.UserPw)
 	}
@@ -334,7 +348,7 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 }
 
 func runServicesInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType, withDependencies bool) error {
-	if config.OpMode == "install" && !utils.ContainsToolType(nonNetworkDepedentServices, installCommand) {
+	if config.OpMode == "install" && !utils.ContainsToolType(nonNetworkDependentServices, installCommand) {
 		if !utils.IsValidNetworkOpt(config.Network) {
 			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
 		}
@@ -346,18 +360,28 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		(installCommand == constants.SuperNode && withDependencies) {
 
 		// need to stop pasteld else we'll get a text file busy error
-		possibleCliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
-		if utils.CheckFileExist(possibleCliPath) {
-			log.WithContext(ctx).Info("Trying to stop pasteld...")
-			sm, _ := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
-			sm.StopService(ctx, constants.PastelD)
-			err := StopPastelDAndWait(ctx, config)
-			if err != nil {
-				log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v", err)
+		if CheckProcessRunning(constants.PastelD) {
+			log.WithContext(ctx).Infof("pasteld is already running")
+			if yes, _ := AskUserToContinue(ctx,
+				"Do you want to stop it and continue? Y/N"); !yes {
+				log.WithContext(ctx).Warn("Exiting...")
+				return fmt.Errorf("user terminated installation")
 			}
-			// ensure the process is killed else will run into a text file busy error
-			// when installing latest executable
-			KillProcess(ctx, constants.PastelD)
+
+			sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
+			if err == nil {
+				_ = sm.StopService(ctx, config, constants.PastelD)
+			}
+			if CheckProcessRunning(constants.PastelD) {
+				if err = ParsePastelConf(ctx, config); err != nil {
+					return err
+				}
+				err = stopPatelCLI(ctx, config)
+				if err != nil {
+					log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v, will try to kill it", err)
+					_ = KillProcess(ctx, constants.PastelD)
+				}
+			}
 			log.WithContext(ctx).Info("pasteld stopped or was not running")
 		}
 	}
@@ -415,16 +439,9 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		}
 	}
 
-	// do service installation if enabled
-	if config.EnableService {
-		var serviceApps []constants.ToolType
-		if withDependencies {
-			serviceApps = appToServiceMap[installCommand]
-		} else {
-			serviceApps = append(serviceApps, installCommand)
-		}
-		err := installServices(ctx, serviceApps, config)
-		if err != nil {
+	if installCommand == constants.Hermes {
+		if err := installHermesService(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to install hermes-service")
 			return err
 		}
 	}
@@ -505,7 +522,7 @@ func installRQService(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 
-	if err = setupComponentWorkingEnvironment(ctx, config,
+	if err = setupComponentConfigFile(ctx, config,
 		string(constants.RQService),
 		config.Configurer.GetRQServiceConfFile(config.WorkingDir),
 		toolConfig,
@@ -577,7 +594,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 			}
 			log.WithContext(ctx).Infof("Checksum of DupeDetection Support: %s is %s", ddSupportContent, checksum)
 			if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
-				log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checkum matched, so skipping download.", ddSupportPath)
+				log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checksum matched, so skipping download.", ddSupportPath)
 				continue
 			}
 		}
@@ -609,7 +626,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		if err = utils.WriteFile(ddConfigPath, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
 			return err
 		}
-		os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
+		_ = os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 	}
 	log.WithContext(ctx).Info("Installing DupeDetection finished successfully")
 	return nil
@@ -617,8 +634,10 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 func installWNService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing WalletNode service...")
+	installBridge, _ := AskUserToContinue(ctx, "Install Bridge Service? Y/N")
 
-	toolPath := constants.WalletNodeExecName[utils.GetOS()]
+	wnPath := constants.WalletNodeExecName[utils.GetOS()]
+	bridgePath := constants.BridgeExecName[utils.GetOS()]
 	burnAddress := constants.BurnAddressMainnet
 	if config.Network == constants.NetworkTestnet {
 		burnAddress = constants.BurnAddressTestnet
@@ -627,7 +646,7 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 	}
 	wnTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
 	rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
-	toolConfig, err := utils.GetServiceConfig(string(constants.WalletNode), configs.WalletDefaultConfig, &configs.WalletNodeConfig{
+	wnConfig, err := utils.GetServiceConfig(string(constants.WalletNode), configs.WalletDefaultConfig, &configs.WalletNodeConfig{
 		LogLevel:      constants.WalletNodeDefaultLogLevel,
 		LogFilePath:   config.Configurer.GetWalletNodeLogFile(config.WorkingDir),
 		LogCompress:   constants.LogConfigDefaultCompress,
@@ -639,84 +658,151 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 		RQDir:         rqWorkDirPath,
 		BurnAddress:   burnAddress,
 		RaptorqPort:   constants.RQServiceDefaultPort,
+		BridgePort:    constants.BridgeServiceDefaultPort,
+		BridgeOn:      installBridge,
 	})
 	if err != nil {
 		return errors.Errorf("failed to get walletnode config: %v", err)
 	}
+
 	if err = downloadComponents(ctx, config, constants.WalletNode, config.Version, ""); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", wnPath)
 		return err
 	}
-	if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
+
+	if installBridge {
+		bridgeConfig, err := utils.GetServiceConfig(string(constants.Bridge),
+			configs.BridgeDefaultConfig, &configs.BridgeConfig{
+				LogLevel:           constants.WalletNodeDefaultLogLevel,
+				LogFilePath:        config.Configurer.GetBridgeLogFile(config.WorkingDir),
+				LogCompress:        constants.LogConfigDefaultCompress,
+				LogMaxSizeMB:       constants.LogConfigDefaultMaxSizeMB,
+				LogMaxAgeDays:      constants.LogConfigDefaultMaxAgeDays,
+				LogMaxBackups:      constants.LogConfigDefaultMaxBackups,
+				WNTempDir:          wnTempDirPath,
+				WNWorkDir:          config.WorkingDir,
+				BurnAddress:        burnAddress,
+				ConnRefreshTimeout: 300,
+				Connections:        10,
+				ListenAddress:      "127.0.0.1",
+				Port:               constants.BridgeServiceDefaultPort,
+			})
+		if err != nil {
+			return errors.Errorf("failed to get bridge config: %v", err)
+		}
+
+		if err = downloadComponents(ctx, config, constants.Bridge, config.Version, ""); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", bridgePath)
+			return err
+		}
+
+		if err = makeExecutable(ctx, config.PastelExecDir, bridgePath); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", bridgePath)
+			return err
+		}
+
+		if err = setupComponentConfigFile(ctx, config, string(constants.Bridge),
+			config.Configurer.GetBridgeConfFile(config.WorkingDir), bridgeConfig); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", bridgePath)
+			return err
+		}
+	}
+
+	if err = makeExecutable(ctx, config.PastelExecDir, wnPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", wnPath)
 		return err
 	}
-	if err = setupComponentWorkingEnvironment(ctx, config,
-		string(constants.WalletNode),
-		config.Configurer.GetWalletNodeConfFile(config.WorkingDir),
-		toolConfig,
-	); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+
+	if err = setupComponentConfigFile(ctx, config, string(constants.WalletNode),
+		config.Configurer.GetWalletNodeConfFile(config.WorkingDir), wnConfig); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", wnPath)
 		return err
 	}
+
+	return nil
+}
+
+func installHermesService(ctx context.Context, config *configs.Config) error {
+	log.WithContext(ctx).Info("Installing Hermes service...")
+
+	hermesConfig, err := GetHermesConfigs(config)
+	if err != nil {
+		return errors.Errorf("failed to get hermes config: %v", err)
+	}
+
+	hermesPath := constants.HermesExecName[utils.GetOS()]
+
+	if err = downloadComponents(ctx, config, constants.Hermes, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", hermesPath)
+		return err
+	}
+
+	if err = makeExecutable(ctx, config.PastelExecDir, hermesPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", hermesPath)
+		return err
+	}
+
+	if err = setupComponentConfigFile(ctx, config, string(constants.Hermes),
+		config.Configurer.GetHermesConfFile(config.WorkingDir), hermesConfig); err != nil {
+
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", hermesPath)
+		return err
+	}
+
 	return nil
 }
 
 func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts bool) error {
 	log.WithContext(ctx).Info("Installing SuperNode service...")
 
-	portList := GetSNPortList(config)
-
 	snTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
-	rqWorkDirPath := filepath.Join(config.WorkingDir, constants.RQServiceDir)
 	p2pDataPath := filepath.Join(config.WorkingDir, constants.P2PDataDir)
 	mdlDataPath := filepath.Join(config.WorkingDir, constants.MDLDataDir)
-	ddDirPath := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 
-	toolConfig, err := utils.GetServiceConfig(string(constants.SuperNode), configs.SupernodeDefaultConfig, &configs.SuperNodeConfig{
-		LogFilePath:                     config.Configurer.GetSuperNodeLogFile(config.WorkingDir),
-		LogCompress:                     constants.LogConfigDefaultCompress,
-		LogMaxSizeMB:                    constants.LogConfigDefaultMaxSizeMB,
-		LogMaxAgeDays:                   constants.LogConfigDefaultMaxAgeDays,
-		LogMaxBackups:                   constants.LogConfigDefaultMaxBackups,
-		LogLevelCommon:                  constants.SuperNodeDefaultCommonLogLevel,
-		LogLevelP2P:                     constants.SuperNodeDefaultP2PLogLevel,
-		LogLevelMetadb:                  constants.SuperNodeDefaultMetaDBLogLevel,
-		LogLevelDD:                      constants.SuperNodeDefaultDDLogLevel,
-		SNTempDir:                       snTempDirPath,
-		SNWorkDir:                       config.WorkingDir,
-		RQDir:                           rqWorkDirPath,
-		DDDir:                           ddDirPath,
-		SuperNodePort:                   portList[constants.SNPort],
-		P2PPort:                         portList[constants.P2PPort],
-		P2PDataDir:                      p2pDataPath,
-		MDLPort:                         portList[constants.MDLPort],
-		RAFTPort:                        portList[constants.RAFTPort],
-		MDLDataDir:                      mdlDataPath,
-		RaptorqPort:                     constants.RQServiceDefaultPort,
-		NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
-		StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
-	})
+	snConfig, err := GetSNConfigs(config)
 	if err != nil {
 		return errors.Errorf("failed to get supernode config: %v", err)
 	}
 
-	toolPath := constants.SuperNodeExecName[utils.GetOS()]
+	hermesConfig, err := GetHermesConfigs(config)
+	if err != nil {
+		return errors.Errorf("failed to get hermes config: %v", err)
+	}
+
+	snPath := constants.SuperNodeExecName[utils.GetOS()]
+	hermesPath := constants.HermesExecName[utils.GetOS()]
 
 	if err = downloadComponents(ctx, config, constants.SuperNode, config.Version, ""); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", snPath)
 		return err
 	}
-	if err = makeExecutable(ctx, config.PastelExecDir, toolPath); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", toolPath)
-		return err
-	}
-	if err = setupComponentWorkingEnvironment(ctx, config,
-		string(constants.SuperNode),
-		config.Configurer.GetSuperNodeConfFile(config.WorkingDir),
-		toolConfig); err != nil {
 
-		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", toolPath)
+	if err = downloadComponents(ctx, config, constants.Hermes, config.Version, ""); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", hermesPath)
+		return err
+	}
+
+	if err = makeExecutable(ctx, config.PastelExecDir, snPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", snPath)
+		return err
+	}
+
+	if err = makeExecutable(ctx, config.PastelExecDir, hermesPath); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", hermesPath)
+		return err
+	}
+
+	if err = setupComponentConfigFile(ctx, config, string(constants.SuperNode),
+		config.Configurer.GetSuperNodeConfFile(config.WorkingDir), snConfig); err != nil {
+
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", snPath)
+		return err
+	}
+
+	if err = setupComponentConfigFile(ctx, config, string(constants.Hermes),
+		config.Configurer.GetHermesConfFile(config.WorkingDir), hermesConfig); err != nil {
+
+		log.WithContext(ctx).WithError(err).Errorf("Failed to setup %s", hermesPath)
 		return err
 	}
 
@@ -737,7 +823,7 @@ func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts 
 
 	if tryOpenPorts {
 		// Open ports
-		if err = openPorts(ctx, config, portList); err != nil {
+		if err = openPorts(ctx, config, GetSNPortList(config)); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to open ports")
 			return err
 		}
@@ -793,7 +879,7 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	}
 	//remove duplicates
 	keyGuard := make(map[string]bool)
-	packagesRequired := []string{}
+	var packagesRequired []string
 	for _, item := range packagesRequiredDirty {
 		if _, value := keyGuard[item]; !value {
 			keyGuard[item] = true
@@ -802,9 +888,9 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	}
 
 	if utils.GetOS() != constants.Linux {
-		reqPkgsStr := strings.Join(packagesRequired, ",")
-		log.WithContext(ctx).WithField("required-packages", reqPkgsStr).
-			WithError(errors.New("install/update required pkgs")).
+		reqPackagesStr := strings.Join(packagesRequired, ",")
+		log.WithContext(ctx).WithField("required-packages", reqPackagesStr).
+			WithError(errors.New("install/update required packages")).
 			Error("automatic install/update for required packages only set up for linux")
 	}
 
@@ -823,9 +909,9 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		utils.GetOS() == constants.Linux &&
 		len(packagesToUpdate) != 0 {
 
-		pkgsUpdStr := strings.Join(packagesToUpdate, ",")
+		packagesUpdStr := strings.Join(packagesToUpdate, ",")
 		if !config.Force {
-			if yes, _ := AskUserToContinue(ctx, "Some system packages ["+pkgsUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
+			if yes, _ := AskUserToContinue(ctx, "Some system packages ["+packagesUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
 				log.WithContext(ctx).Warn("Exiting...")
 				return fmt.Errorf("user terminated installation")
 			}
@@ -834,7 +920,7 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		if err := installOrUpgradePackagesLinux(ctx, config, "upgrade", packagesToUpdate); err != nil {
 			log.WithContext(ctx).WithField("packages-update", packagesToUpdate).
 				WithError(err).
-				Errorf("failed to update required pkgs - %s", pkgsUpdStr)
+				Errorf("failed to update required packages - %s", packagesUpdStr)
 			return err
 		}
 	}
@@ -843,9 +929,9 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		return nil
 	}
 
-	pkgsMissStr := strings.Join(packagesMissing, ",")
+	packagesMissStr := strings.Join(packagesMissing, ",")
 	if !config.Force {
-		if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+pkgsMissStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
+		if yes, _ := AskUserToContinue(ctx, "The system misses some packages ["+packagesMissStr+"] required for "+string(tool)+". Do you want to install them? Y/N"); !yes {
 			log.WithContext(ctx).Warn("Exiting...")
 			return fmt.Errorf("user terminated installation")
 		}
@@ -853,11 +939,11 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 	return installOrUpgradePackagesLinux(ctx, config, "install", packagesMissing)
 }
 
-func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, what string, pkgs []string) error {
+func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, what string, packages []string) error {
 	var out string
 	var err error
 
-	log.WithContext(ctx).WithField("packages", strings.Join(pkgs, ",")).
+	log.WithContext(ctx).WithField("packages", strings.Join(packages, ",")).
 		Infof("system will now %s packages", what)
 
 	// Update repo
@@ -866,7 +952,7 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 		log.WithContext(ctx).WithError(err).Error("Failed to update")
 		return err
 	}
-	for _, pkg := range pkgs {
+	for _, pkg := range packages {
 		log.WithContext(ctx).Infof("%sing package %s", what, pkg)
 
 		if pkg == "google-chrome-stable" {
@@ -992,7 +1078,7 @@ func makeExecutable(ctx context.Context, dirPath string, fileName string) error 
 	return nil
 }
 
-func setupComponentWorkingEnvironment(ctx context.Context, config *configs.Config,
+func setupComponentConfigFile(ctx context.Context, config *configs.Config,
 	toolName string, configFilePath string, toolConfig string) error {
 
 	// Ignore if not in "install" mode
@@ -1176,44 +1262,5 @@ func openPorts(ctx context.Context, config *configs.Config, portList []int) (err
 		log.WithContext(ctx).Info(out)
 	}
 
-	return nil
-}
-
-func installServices(ctx context.Context, apps []constants.ToolType, config *configs.Config) error {
-	sm, err := servicemanager.New(utils.GetOS(), config.Configurer.DefaultHomeDir())
-	if err != nil {
-		log.WithContext(ctx).Warn(err.Error())
-		return nil // services aren't implemented for this OS
-	}
-	for _, app := range apps {
-		err = sm.RegisterService(ctx, app, servicemanager.ResgistrationParams{
-			Config:      config,
-			Force:       config.Force,
-			FlagDevMode: flagDevMode,
-		})
-		if err != nil {
-			log.WithContext(ctx).Errorf("unable to register service %v: %v", app, err)
-			return err
-		}
-		_, err := sm.StartService(ctx, app) // if app already running, this will be a noop
-		if err != nil {
-			log.WithContext(ctx).Errorf("unable to start service %v: %v", app, err)
-			return err
-		}
-	}
-	time.Sleep(5 * time.Second) // apply artificial buffer for services to start
-	// verify services are up and running
-	var nonRunningServices []constants.ToolType
-	for _, app := range apps {
-		isRunning := sm.IsRunning(ctx, app)
-		if !isRunning {
-			nonRunningServices = append(nonRunningServices, app)
-		}
-	}
-	if len(nonRunningServices) > 0 {
-		e := fmt.Errorf("unable to successfully start services: %+v", nonRunningServices)
-		log.WithContext(ctx).Error(e.Error())
-		return e
-	}
 	return nil
 }

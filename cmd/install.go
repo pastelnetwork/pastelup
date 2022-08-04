@@ -635,14 +635,6 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 func installWNService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing WalletNode service...")
 	installBridge, _ := AskUserToContinue(ctx, "Install Bridge Service? Y/N")
-	var pastelid, passphrase string
-	if pastelidOK, _ := AskUserToContinue(ctx, "Do you have a registered PastelID? Y/N"); pastelidOK {
-		_, pastelid = AskUserToContinue(ctx, "Enter PastelID..")
-		_, passphrase = AskUserToContinue(ctx, "Enter Passphrase..")
-	} else {
-		log.WithContext(ctx).Info("Creating PastelID not supported - please create & register PastelID and continue installation")
-		return errors.New("pastelid not available")
-	}
 
 	wnPath := constants.WalletNodeExecName[utils.GetOS()]
 	bridgePath := constants.BridgeExecName[utils.GetOS()]
@@ -694,8 +686,6 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 				Connections:        10,
 				ListenAddress:      "127.0.0.1",
 				Port:               constants.BridgeServiceDefaultPort,
-				PastelID:           pastelid,
-				Passphrase:         passphrase,
 			})
 		if err != nil {
 			return errors.Errorf("failed to get bridge config: %v", err)

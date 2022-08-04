@@ -39,6 +39,7 @@ const (
 	superNodeStart
 	ddService
 	rqService
+	ddImgServer
 	wnService
 	snService
 	masterNode
@@ -54,6 +55,7 @@ var (
 		superNodeStart: "supernode",
 		ddService:      "dd-service",
 		rqService:      "rq-service",
+		ddImgServer:    "imgserver",
 		wnService:      "walletnode-service",
 		snService:      "supernode-service",
 		masterNode:     "masterNode",
@@ -67,7 +69,8 @@ var (
 		superNodeStart: "Start Supernode",
 		ddService:      "Start Dupe Detection service only",
 		rqService:      "Start RaptorQ service only",
-		wnService:      "Start Walletnode service onlyu",
+		ddImgServer:    "Start dd image server",
+		wnService:      "Start Walletnode service only",
 		snService:      "Start Supernode service only",
 		masterNode:     "Start only pasteld node as Masternode",
 		remoteStart:    "Start on Remote host",
@@ -213,6 +216,7 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startMasternodeCommand := setupStartSubCommand(config, masterNode, false, runStartMasternode)
 	startHermesServiceCommand := setupStartSubCommand(config, hermesService, false, runHermesService)
 	startBridgeServiceCommand := setupStartSubCommand(config, bridgeService, false, runBridgeService)
+	startDDImgServerCommand := setupStartSubCommand(config, ddImgServer, false, runDDImgServer)
 
 	startSuperNodeRemoteSubCommand := setupStartSubCommand(config, superNodeStart, true, runRemoteSuperNodeStartSubCommand)
 	startSuperNodeSubCommand.AddSubcommands(startSuperNodeRemoteSubCommand)
@@ -244,6 +248,9 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startMasternodeRemoteCommand := setupStartSubCommand(config, masterNode, true, runRemoteSNServiceStartSubCommand)
 	startMasternodeCommand.AddSubcommands(startMasternodeRemoteCommand)
 
+	startDDImgServerRemoteCommand := setupStartSubCommand(config, ddImgServer, true, runRemoteDDImgServerSubCommand)
+	startDDImgServerCommand.AddSubcommands(startDDImgServerRemoteCommand)
+
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
 	startCommand.AddSubcommands(startNodeSubCommand)
@@ -252,6 +259,7 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 
 	startCommand.AddSubcommands(startRQServiceCommand)
 	startCommand.AddSubcommands(startDDServiceCommand)
+	startCommand.AddSubcommands(startDDImgServerCommand)
 	startCommand.AddSubcommands(startWNServiceCommand)
 	startCommand.AddSubcommands(startSNServiceCommand)
 	startCommand.AddSubcommands(startMasternodeCommand)
@@ -287,10 +295,16 @@ func runStartWalletNodeSubCommand(ctx context.Context, config *configs.Config) e
 		return err
 	}
 
-	// *************  3. Start bridge node  *************
-	if err := runBridgeService(ctx, config); err != nil {
-		log.WithContext(ctx).WithError(err).Error("bridge failed to start")
-		return err
+	// *************  3. Check & Start bridge node  *************
+	walletConf := config.Configurer.GetWalletNodeConfFile(config.WorkingDir)
+	enable, err := checkBridgeEnabled(ctx, walletConf)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("unable to check bridge enabled, skipping start bridge service")
+	} else if enable {
+		if err := runBridgeService(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Error("bridge failed to start")
+			return err
+		}
 	}
 
 	// *************  4. Start wallet node  *************
@@ -385,13 +399,13 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 		}
 	}
 
-	// *************  6. Start rq-servce    *************
+	// *************  6. Start rq-service    *************
 	if err := runRQService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("rqservice failed to start")
 		return err
 	}
 
-	// *************  7. Start dd-servce    *************
+	// *************  7. Start dd-service    *************
 	if err := runDDService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("ddservice failed to start")
 		return err
@@ -400,6 +414,12 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 	// *************  8. Start supernode  **************
 	if err := runSuperNodeService(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to start supernode service")
+		return err
+	}
+
+	// *************  9. Start hermes  **************
+	if err := runHermesService(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to start hermes service")
 		return err
 	}
 
@@ -432,6 +452,9 @@ func runRemoteHermesServiceStartSubCommand(ctx context.Context, config *configs.
 }
 func runRemoteBridgeServiceStartSubCommand(ctx context.Context, config *configs.Config) error {
 	return runRemoteStart(ctx, config, "bridge-service")
+}
+func runRemoteDDImgServerSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "imgserver")
 }
 
 func runRemoteStart(ctx context.Context, config *configs.Config, tool string) error {
@@ -561,7 +584,7 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 		// if the service isn't registered, this will be a noop
 		srvStarted, err := sm.StartService(ctx, config, constants.DDService)
 		if err != nil {
-			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.RQService, err)
+			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.DDService, err)
 			return err
 		}
 		if srvStarted {
@@ -595,10 +618,27 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 		log.WithContext(ctx).WithError(err).Error("dd-service failed to start")
 		return err
 	} else if err != nil {
-		log.WithContext(ctx).WithError(err).Error("failed to test if dd-servise is running")
+		log.WithContext(ctx).WithError(err).Error("failed to test if dd-service is running")
 	} else {
 		log.WithContext(ctx).Info("dd-service is successfully started")
 	}
+	return nil
+}
+
+func runDDImgServer(ctx context.Context, config *configs.Config) (err error) {
+	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
+	if err != nil {
+		log.WithContext(ctx).Error(err.Error())
+		return err
+	}
+
+	// if the service isn't registered, this will be a noop
+	_, err = sm.StartService(ctx, config, constants.DDImgService)
+	if err != nil {
+		log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.DDImgService, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -642,6 +682,12 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 
 // Sub Command
 func runBridgeService(ctx context.Context, config *configs.Config) error {
+	bridgeConf := config.Configurer.GetBridgeConfFile(config.WorkingDir)
+	if err := checkBridgeConfigPastelID(ctx, config, bridgeConf); err != nil {
+		log.WithContext(ctx).Errorf("Failed to verify bridge Pastelid %v: %v", bridgeConf, err)
+		return err
+	}
+
 	serviceEnabled := false
 	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
 	if err != nil {
@@ -663,8 +709,9 @@ func runBridgeService(ctx context.Context, config *configs.Config) error {
 	bridgeExecName := constants.BridgeExecName[utils.GetOS()]
 	log.WithContext(ctx).Infof("Starting bridge service - %s", bridgeExecName)
 	var bridgeServiceArgs []string
+
 	bridgeServiceArgs = append(bridgeServiceArgs,
-		fmt.Sprintf("--config-file=%s", config.Configurer.GetBridgeConfFile(config.WorkingDir)))
+		fmt.Sprintf("--config-file=%s", bridgeConf))
 	bridgeServiceArgs = append(bridgeServiceArgs,
 		fmt.Sprintf("--pastel-config-file=%s/pastel.conf", config.WorkingDir))
 

@@ -193,9 +193,6 @@ func setupSubCommand(config *configs.Config,
 					Error("Failed to process install command")
 				return err
 			}
-			if err = ParsePastelConf(ctx, config); err != nil {
-				return err
-			}
 			log.WithContext(ctx).Infof("Started install...release set to '%v' ", config.Version)
 			if err = f(ctx, config); err != nil {
 				return err
@@ -363,18 +360,28 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		(installCommand == constants.SuperNode && withDependencies) {
 
 		// need to stop pasteld else we'll get a text file busy error
-		possibleCliPath := filepath.Join(config.PastelExecDir, constants.PastelCliName[utils.GetOS()])
-		if utils.CheckFileExist(possibleCliPath) {
-			log.WithContext(ctx).Info("Trying to stop pasteld...")
-			sm, _ := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
-			_ = sm.StopService(ctx, config, constants.PastelD)
-			err := StopPastelDAndWait(ctx, config)
-			if err != nil {
-				log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v, will try to kill it", err)
+		if CheckProcessRunning(constants.PastelD) {
+			log.WithContext(ctx).Infof("pasteld is already running")
+			if yes, _ := AskUserToContinue(ctx,
+				"Do you want to stop it and continue? Y/N"); !yes {
+				log.WithContext(ctx).Warn("Exiting...")
+				return fmt.Errorf("user terminated installation")
 			}
-			// ensure the process is killed else will run into a text file busy error
-			// when installing the latest executable
-			_ = KillProcess(ctx, constants.PastelD)
+
+			sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
+			if err == nil {
+				_ = sm.StopService(ctx, config, constants.PastelD)
+			}
+			if CheckProcessRunning(constants.PastelD) {
+				if err = ParsePastelConf(ctx, config); err != nil {
+					return err
+				}
+				err = stopPatelCLI(ctx, config)
+				if err != nil {
+					log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v, will try to kill it", err)
+					_ = KillProcess(ctx, constants.PastelD)
+				}
+			}
 			log.WithContext(ctx).Info("pasteld stopped or was not running")
 		}
 	}
@@ -628,14 +635,6 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 func installWNService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing WalletNode service...")
 	installBridge, _ := AskUserToContinue(ctx, "Install Bridge Service? Y/N")
-	var pastelid, passphrase string
-	if pastelidOK, _ := AskUserToContinue(ctx, "Do you have a registered PastelID? Y/N"); pastelidOK {
-		_, pastelid = AskUserToContinue(ctx, "Enter PastelID..")
-		_, passphrase = AskUserToContinue(ctx, "Enter Passphrase..")
-	} else {
-		log.WithContext(ctx).Info("Creating PastelID not supported - please create & register PastelID and continue installation")
-		return errors.New("pastelid not available")
-	}
 
 	wnPath := constants.WalletNodeExecName[utils.GetOS()]
 	bridgePath := constants.BridgeExecName[utils.GetOS()]
@@ -687,8 +686,6 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 				Connections:        10,
 				ListenAddress:      "127.0.0.1",
 				Port:               constants.BridgeServiceDefaultPort,
-				PastelID:           pastelid,
-				Passphrase:         passphrase,
 			})
 		if err != nil {
 			return errors.Errorf("failed to get bridge config: %v", err)

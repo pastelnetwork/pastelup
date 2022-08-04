@@ -186,6 +186,8 @@ func setupStopCommand(config *configs.Config) *cli.Command {
 	stopCommand.AddSubcommands(stopDDImgServerCommand)
 	stopCommand.AddSubcommands(stopWNSubCommand)
 	stopCommand.AddSubcommands(stopSNSubCommand)
+	stopCommand.AddSubcommands(stopBridgeServiceCommand)
+	stopCommand.AddSubcommands(stopHermesServiceCommand)
 
 	return stopCommand
 }

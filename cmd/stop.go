@@ -380,12 +380,17 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 		log.WithContext(ctx).Infof("Stopping %s service...", string(service))
 
 		if servicesEnabled {
-			log.WithContext(ctx).Infof("Try to stop %s as system service...", string(service))
-			err := sm.StopService(ctx, config, service)
-			if err != nil {
-				log.WithContext(ctx).Errorf("unable to stop %s as system service: %v, will try to kill it", string(service), err)
+			isRegistered := sm.IsRegistered(ctx, config, service)
+			if !isRegistered {
+				log.WithContext(ctx).Infof("skipping stop service because %v is not a registered service", service)
 			} else {
-				continue
+				log.WithContext(ctx).Infof("Try to stop %s as system service...", string(service))
+				err := sm.StopService(ctx, config, service)
+				if err != nil {
+					log.WithContext(ctx).Errorf("unable to stop %s as system service: %v, will try to kill it", string(service), err)
+				} else {
+					continue
+				}
 			}
 		}
 

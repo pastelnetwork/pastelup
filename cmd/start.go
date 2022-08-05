@@ -58,7 +58,7 @@ var (
 		ddImgServer:    "imgserver",
 		wnService:      "walletnode-service",
 		snService:      "supernode-service",
-		masterNode:     "masterNode",
+		masterNode:     "masternode",
 		remoteStart:    "remote",
 		bridgeService:  "bridge-service",
 		hermesService:  "hermes-service",
@@ -213,7 +213,7 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startDDServiceCommand := setupStartSubCommand(config, ddService, false, runDDService)
 	startWNServiceCommand := setupStartSubCommand(config, wnService, false, runWalletNodeService)
 	startSNServiceCommand := setupStartSubCommand(config, snService, false, runSuperNodeService)
-	startMasternodeCommand := setupStartSubCommand(config, masterNode, false, runStartMasternode)
+	startMasternodeCommand := setupStartSubCommand(config, masterNode, false, runStartMasternodeService)
 	startHermesServiceCommand := setupStartSubCommand(config, hermesService, false, runHermesService)
 	startBridgeServiceCommand := setupStartSubCommand(config, bridgeService, false, runBridgeService)
 	startDDImgServerCommand := setupStartSubCommand(config, ddImgServer, false, runDDImgServer)
@@ -491,6 +491,26 @@ func runRemoteStart(ctx context.Context, config *configs.Config, tool string) er
 
 	log.WithContext(ctx).Infof("Remote %s started successfully", tool)
 	return nil
+}
+
+func runStartMasternodeService(ctx context.Context, config *configs.Config) error {
+	// *************  1. Parse pastel config parameters  *************
+	log.WithContext(ctx).Info("Reading pastel.conf")
+	if err := ParsePastelConf(ctx, config); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to parse pastel config")
+		return err
+	}
+	log.WithContext(ctx).Infof("Finished Reading pastel.conf! Starting Masternode service in %s mode", config.Network)
+
+	// *************  2. Parse parameters  *************
+	log.WithContext(ctx).Info("Checking arguments")
+	if err := checkStartMasterNodeParams(ctx, config, false); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to validate input arguments")
+		return err
+	}
+	log.WithContext(ctx).Info("Finished checking arguments!")
+
+	return runStartMasternode(ctx, config)
 }
 
 func runStartMasternode(ctx context.Context, config *configs.Config) error {

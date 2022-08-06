@@ -132,8 +132,10 @@ func setupStopSubCommand(config *configs.Config,
 				log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
 				os.Exit(0)
 			})
-			if err = ParsePastelConf(ctx, config); err != nil {
-				return err
+			if !remote {
+				if err = ParsePastelConf(ctx, config); err != nil {
+					return err
+				}
 			}
 			log.WithContext(ctx).Info("Stopping...")
 			f(ctx, config)

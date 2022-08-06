@@ -189,7 +189,11 @@ func setupStartSubCommand(config *configs.Config,
 					}
 				}
 			}()
-			ParsePastelConf(ctx, config)
+			if !remote {
+				if err = ParsePastelConf(ctx, config); err != nil {
+					return err
+				}
+			}
 			log.WithContext(ctx).Info("Starting")
 			err = f(ctx, config)
 			if err != nil {
@@ -319,7 +323,7 @@ func runStartWalletNodeSubCommand(ctx context.Context, config *configs.Config) e
 // Sub Command
 func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Starting supernode")
-	if err := runStartSuperNode(ctx, config); err != nil {
+	if err := runStartSuperNode(ctx, config, false); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to start supernode")
 		return err
 	}
@@ -328,7 +332,7 @@ func runStartSuperNodeSubCommand(ctx context.Context, config *configs.Config) er
 	return nil
 }
 
-func runStartSuperNode(ctx context.Context, config *configs.Config) error {
+func runStartSuperNode(ctx context.Context, config *configs.Config, justInit bool) error {
 	// *************  1. Parse pastel config parameters  *************
 	log.WithContext(ctx).Info("Reading pastel.conf")
 	if err := ParsePastelConf(ctx, config); err != nil {
@@ -370,6 +374,8 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
 			return err
 		}
+		config.ReIndex = false // prepareMasterNodeParameters already run paslted with txindex and reindex
+		// so no need to use reindex again
 	}
 
 	if pastelDIsRunning {
@@ -397,6 +403,11 @@ func runStartSuperNode(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to start alias - %s", flagMasterNodeName)
 			return err
 		}
+	}
+
+	if justInit {
+		log.WithContext(ctx).Info("Init exits")
+		return nil
 	}
 
 	// *************  6. Start rq-service    *************

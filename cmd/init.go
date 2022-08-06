@@ -27,6 +27,7 @@ var (
 	flagMasterNodeTxID       string
 	flagMasterNodeInd        string
 	flagDontCheckCollateral  bool
+	flagDontReindex          bool
 	flagMasterNodePort       int
 	flagMasterNodePrivateKey string
 	flagMasterNodePastelID   string
@@ -116,6 +117,8 @@ func setupInitSubCommand(config *configs.Config,
 			SetUsage(yellow("Required (only if --update or --create specified), collateral payment output index , output index in the transaction of 5M collateral MN payment")),
 		cli.NewFlag("skip-collateral-validation", &flagDontCheckCollateral).
 			SetUsage(yellow("Optional (if both txid and ind specified), skip validation of collateral tx on this node")),
+		cli.NewFlag("noReindex", &flagDontReindex).
+			SetUsage(yellow("Optional, disable any default --reindex")),
 
 		cli.NewFlag("pastelid", &flagMasterNodePastelID).
 			SetUsage(green("Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered")),
@@ -210,7 +213,11 @@ func setupInitSubCommand(config *configs.Config,
 					}
 				}
 			}()
-			ParsePastelConf(ctx, config)
+			if !remote {
+				if err = ParsePastelConf(ctx, config); err != nil {
+					return err
+				}
+			}
 			log.WithContext(ctx).Info("Starting")
 			err = f(ctx, config)
 			if err != nil {
@@ -246,8 +253,10 @@ func setupInitCommand(config *configs.Config) *cli.Command {
 // Sub Command
 func runInitSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Initialising local supernode")
-	config.ReIndex = true // init means first start, reindex is required
-	if err := runStartSuperNode(ctx, config); err != nil {
+	if !flagDontReindex {
+		config.ReIndex = true // init means first start, reindex is required
+	}
+	if err := runStartSuperNode(ctx, config, true); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to initialize local supernode")
 		return err
 	}

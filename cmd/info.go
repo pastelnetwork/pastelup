@@ -165,7 +165,11 @@ func setupInfoSubCommand(config *configs.Config,
 				os.Exit(0)
 			})
 
-			ParsePastelConf(ctx, config)
+			if !remote {
+				if err = ParsePastelConf(ctx, config); err != nil {
+					return err
+				}
+			}
 			log.WithContext(ctx).Info("Started")
 			if err = f(ctx, config); err != nil {
 				return err

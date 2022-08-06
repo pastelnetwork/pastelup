@@ -117,6 +117,7 @@ func setupStopSubCommand(config *configs.Config,
 	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))
 	subCommand.AddFlags(commandFlags...)
+	addLogFlags(subCommand, config)
 
 	if f != nil {
 		subCommand.SetActionFunc(func(ctx context.Context, args []string) error {
@@ -403,20 +404,20 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 			err = stopPatelCLI(ctx, config)
 			if err != nil {
 				log.WithContext(ctx).Errorf("unable to stop pasteld: %v", err)
-				return err
+				continue
 			}
 		case constants.DDService:
 			searchTerm := constants.DupeDetectionExecFileName
 			pid, err := FindRunningProcessPid(ctx, searchTerm)
 			if err != nil {
 				log.WithContext(ctx).Errorf("unable to find service %v to stop it: %v", service, err)
-				return err
+				continue
 			}
 			log.WithContext(ctx).Infof("Killing process: %v\n", pid)
 			err = KillProcessByPid(ctx, pid)
 			if err != nil {
 				log.WithContext(ctx).Errorf("unable to stop service %v: %v", service, err)
-				return err
+				continue
 			}
 		default:
 			process := service
@@ -427,7 +428,7 @@ func stopServices(ctx context.Context, services []constants.ToolType, config *co
 			err := KillProcess(ctx, process) // kill process in case the service wasn't registered
 			if err != nil {
 				log.WithContext(ctx).Error(fmt.Sprintf("unable to kill process %v: %v", service, err))
-				return err
+				continue
 			}
 		}
 		log.WithContext(ctx).Infof("%s service stopped", string(service))

@@ -164,6 +164,8 @@ func setupStartSubCommand(config *configs.Config,
 	subCommand := cli.NewCommand(commandName)
 	subCommand.SetUsage(cyan(commandMessage))
 	subCommand.AddFlags(commandFlags...)
+	addLogFlags(subCommand, config)
+
 	if f != nil {
 		subCommand.SetActionFunc(func(ctx context.Context, args []string) error {
 			ctx, err := configureLogging(ctx, commandMessage, config)

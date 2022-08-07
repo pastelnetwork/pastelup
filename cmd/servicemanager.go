@@ -141,7 +141,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, config *confi
 			log.WithContext(ctx).WithError(err).Error("Could not get external IP address")
 			return err
 		}
-		execCmd = execPath + " --datadir=" + config.WorkingDir + " --externalip=" + extIP + " --reindex"
+		execCmd = execPath + " --datadir=" + config.WorkingDir + " --externalip=" + extIP // + " --reindex"
 		if isMn {
 			privKey, _ /*extIP*/, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName, extIP)
 			if err != nil {

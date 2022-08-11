@@ -29,7 +29,7 @@ commands:
       - run:
           name: "pastelup << parameters.package >>: xgo build for << parameters.targets >>"
           command: |
-            export WORKING_DIR=~/project/build/github.com/pastelnetwork/pastelup
+            export WORKING_DIR=~/project/build/github.com/pastelnetwork
             export MACOS_ARTIFACT=$WORKING_DIR/pastelup-darwin-10.14-amd64
             export WINDOWS_ARTIFACT=$WORKING_DIR/pastelup-windows-4.0-amd64.exe
             export LINUX_ARTIFACT=$WORKING_DIR/pastelup-linux-amd64
@@ -119,7 +119,7 @@ commands:
           targets: << parameters.targets >>
           outputDirectory: "build"
       - github-upload-all-os:
-          working_directory: "~/project/build/github.com/pastelnetwork/pastelup"
+          working_directory: "~/project/build/github.com/pastelnetwork"
           binaryName: << parameters.binaryName >>
           repo: "pastelup"
           targets: << parameters.targets >>

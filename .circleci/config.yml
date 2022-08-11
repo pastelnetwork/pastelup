@@ -190,7 +190,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 20.10.14
+          version: 20.10.2
           docker_layer_caching: true
       - run:
           name: Install github-release
@@ -200,10 +200,6 @@ jobs:
           name: Install xgo
           command: |
             go install -v github.com/pastelnetwork/xgo@cfada204f14596d56540b02e38526a56d57ddc30
-      - run:
-          name: Print the go version
-          command: |
-            go version
       - create-sources-container:
           containerName: "sourcesContainer"
       - release:

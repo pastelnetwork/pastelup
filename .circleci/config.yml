@@ -9,6 +9,8 @@ defaults: &defaults
     - image: "circleci/golang:<< parameters.version >>"
   environment:
     GO111MODULE: "on"
+    GOPATH: "/home/circleci/project/.go"
+    PATH: "/home/circleci/.local/bin:/home/circleci/bin:/home/circleci/project/.go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 commands:
   xgo-build:
@@ -198,6 +200,10 @@ jobs:
           name: Install xgo
           command: |
             go install -v github.com/pastelnetwork/xgo@cfada204f14596d56540b02e38526a56d57ddc30
+      - run:
+          name: Print the go version
+          command: |
+            go version
       - create-sources-container:
           containerName: "sourcesContainer"
       - release:

@@ -163,10 +163,10 @@ jobs:
           name: Fetch dependencies
           command: |
             go get -v ./...
-      - run:
-          name: Run gofmt
-          command: |
-            diff -u <(echo -n) <(gofmt -d -e .)
+     # - run:
+      #    name: Run gofmt
+       #   command: |
+        #    diff -u <(echo -n) <(gofmt -d -e .)
       - run:
           name: Run go vet
           command: |

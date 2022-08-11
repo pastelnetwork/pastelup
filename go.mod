@@ -15,7 +15,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
 	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
-	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
+	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -26,7 +26,7 @@ require (
 )
 
 require (
-	github.com/cloudfoundry/gosigar v1.3.3
+	github.com/cloudfoundry/gosigar v1.3.4
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/otiai10/copy v1.7.0
 	github.com/pastelnetwork/gonode/proto v0.0.0-20210829143729-0507e3d6306c

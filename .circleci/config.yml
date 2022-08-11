@@ -11,23 +11,133 @@ defaults: &defaults
     GO111MODULE: "on"
 
 commands:
-  release-os:
+  xgo-build:
     parameters:
+      sourcesContainerName:
+        type: string
+      buildContainerName:
+        type: string
       package:
         type: string
-        default: "pastelup"
-      goos:
-        type: enum
-        enum: ["darwin", "linux", "windows"]
+      targets:
+        type: string
+      outputDirectory:
+        type: string
     steps:
       - run:
-          name: "Build binary for << parameters.goos >>"
+          name: "pastelup << parameters.package >>: xgo build for << parameters.targets >>"
           command: |
-            CGO_ENABLED=0 GOOS=<< parameters.goos >> GOARCH=amd64 go build -o bin/<< parameters.package >>-<< parameters.goos >>-amd64 -ldflags "-X github.com/pastelnetwork/pastelup/common/version.version=$CIRCLE_TAG -extldflags '-static'" .
+            export WORKING_DIR=~/project/build/github.com/pastelnetwork/pastelup
+            export MACOS_ARTIFACT=$WORKING_DIR/pastelup-darwin-10.14-amd64
+            export WINDOWS_ARTIFACT=$WORKING_DIR/pastelup-windows-4.0-amd64.exe
+            export LINUX_ARTIFACT=$WORKING_DIR/pastelup-linux-amd64
+            export CIRCLE_TAG=$(git describe --tag)
+            export APP_LDFLAGS="-X github.com/pastelnetwork/pastelup/common/version.version=$CIRCLE_TAG -extldflags '-static'" 
+            GOPATH= xgo -go latest --targets=<< parameters.targets >> -pkg=<< parameters.package >> -volumesFrom=<< parameters.sourcesContainerName >> -dockerRM=false -dockerContainerName=<< parameters.buildContainerName >> -ldflags "$APP_LDFLAGS"  ./
+
+            mkdir -p << parameters.outputDirectory >>
+            docker cp << parameters.buildContainerName >>:/build/. ./<< parameters.outputDirectory >>
+            
+            ls -R ./<< parameters.outputDirectory >>
+            cd ./<< parameters.outputDirectory >>
+            if [[ "<< parameters.targets >>" == *"linux/amd64,"* ]]; then
+              echo "Create sha256 checksum of linux/amd64 build"
+              sha256sum "$LINUX_ARTIFACT" > "$LINUX_ARTIFACT.sha256"
+            fi
+            if [[ "<< parameters.targets >>" == *"darwin-10.14/amd64,"* ]]; then
+              echo "Create sha256 checksum of darwin-10.14/amd64 build"
+              sha256sum  "$MACOS_ARTIFACT" > "$MACOS_ARTIFACT.sha256"
+            fi
+            if [[ "<< parameters.targets >>" == *"windows/amd64,"* ]]; then
+              echo "Create sha256 checksum of windows/amd64 build"
+              sha256sum "$WINDOWS_ARTIFACT" > "$WINDOWS_ARTIFACT.sha256"
+            fi
+            ls -R ./*
+  create-sources-container:
+    parameters:
+      containerName:
+        type: string
+    steps:
       - run:
-          name: "Upload << parameters.package >>-<< parameters.goos >>-amd64 to GitHub"
+          name: "Create named docker container << parameters.containerName >> with project's sources"
           command: |
-            github-release upload --user pastelnetwork --repo pastelup --tag $CIRCLE_TAG --name << parameters.package >>-<< parameters.goos >>-amd64 --file bin/<< parameters.package >>-<< parameters.goos >>-amd64
+            docker create -v /source --name << parameters.containerName >> ubuntu:18.04 /bin/true
+            docker cp ./. << parameters.containerName >>:/source
+  github-upload-all-os:
+    parameters:
+      working_directory:
+        type: string
+      binaryName:
+        type: string
+      repo:
+        type: string
+      targets:
+        type: string
+    steps:
+      - run:
+          name: Upload << parameters.targets >> to << parameters.repo >> GitHub repo
+          working_directory: << parameters.working_directory >>
+          command: |
+            export MACOS_ARTIFACT=<< parameters.binaryName >>-darwin-10.14-amd64
+            export WINDOWS_ARTIFACT=<< parameters.binaryName >>-windows-4.0-amd64.exe
+            export LINUX_ARTIFACT=<< parameters.binaryName >>-linux-amd64
+            if [[ "<< parameters.targets >>" == *"linux/amd64,"* ]]; then
+              echo "Check existence of linux/amd64 build and upload to GitHub"
+              test -f $LINUX_ARTIFACT
+              github-release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-ubuntu-linux-amd64 --file << parameters.binaryName >>-linux-amd64
+              github-release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-ubuntu-linux-amd64.sha256 --file << parameters.binaryName >>-linux-amd64.sha256
+            fi
+            if [[ "<< parameters.targets >>" == *"darwin-10.14/amd64,"* ]]; then
+              echo "Check existence of darwin-10.14/amd64 build and upload to GitHub"
+              test -f $MACOS_ARTIFACT
+              github-release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-darwin-amd64 --file << parameters.binaryName >>-darwin-10.14-amd64
+              github-release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-darwin-amd64.sha256 --file << parameters.binaryName >>-darwin-10.14-amd64.sha256
+            fi
+            if [[ "<< parameters.targets >>" == *"windows/amd64,"* ]]; then
+              echo "Check existence of windows/amd64 build and upload to GitHub"
+              test -f $WINDOWS_ARTIFACT
+              github-release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-win-amd64.exe --file << parameters.binaryName >>-windows-4.0-amd64.exe
+              github-release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-win-amd64.sha256 --file << parameters.binaryName >>-windows-4.0-amd64.exe.sha256
+            fi
+  release:
+    parameters:
+      buildContainerName:
+        type: string
+      package:
+        type: string
+      targets:
+        type: string
+      binaryName:
+        type: string
+    steps:
+      - xgo-build:
+          sourcesContainerName: "sourcesContainer"
+          buildContainerName: << parameters.buildContainerName >>
+          package: << parameters.package >>
+          targets: << parameters.targets >>
+          outputDirectory: "build"
+      - github-upload-all-os:
+          working_directory: "~/project/build/github.com/pastelnetwork/pastelup"
+          binaryName: << parameters.binaryName >>
+          repo: "pastelup"
+          targets: << parameters.targets >>
+  #release-os:
+  #  parameters:
+  #    package:
+  #      type: string
+  #      default: "pastelup"
+  #    goos:
+  #      type: enum
+  #      enum: ["darwin", "linux", "windows"]
+  #  steps:
+  #    - run:
+  #        name: "Build binary for << parameters.goos >>"
+  #        command: |
+  #          CGO_ENABLED=0 GOOS=<< parameters.goos >> GOARCH=amd64 go build -o bin/<< parameters.package >>-<< parameters.goos >>-amd64 -ldflags "-X github.com/pastelnetwork/pastelup/common/version.version=$CIRCLE_TAG -extldflags '-static'" .
+  #    - run:
+  #        name: "Upload << parameters.package >>-<< parameters.goos >>-amd64 to GitHub"
+  #        command: |
+  #          github-release upload --user pastelnetwork --repo pastelup --tag $CIRCLE_TAG --name << parameters.package >>-<< parameters.goos >>-amd64 --file bin/<< parameters.package >>-<< parameters.goos >>-amd64
 
 jobs:
   # Run automated tests
@@ -77,21 +187,24 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+      - setup_remote_docker:
+          version: 20.10.2
+          docker_layer_caching: true
       - run:
           name: Install github-release
           command: |
             GO111MODULE=off go get github.com/github-release/github-release
       - run:
-          name: Fetch dependencies
+          name: Install xgo
           command: |
-            go get -v ./...
-      - release-os:
-          goos: "darwin"
-      - release-os:
-          goos: "linux"
-      - release-os:
-          goos: "windows"
-
+            go install -v github.com/pastelnetwork/xgo@cfada204f14596d56540b02e38526a56d57ddc30
+      - create-sources-container:
+          containerName: "sourcesContainer"
+      - release:
+          buildContainerName: "pastelup"
+          package: ""
+          targets: "linux/amd64,darwin-10.14/amd64,windows/amd64,"
+          binaryName: "pastelup"
 workflows:
   build-and-test:
     jobs:

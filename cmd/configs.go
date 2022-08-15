@@ -51,6 +51,7 @@ func GetSNConfigs(config *configs.Config) (string, error) {
 		RaptorqPort:                     constants.RQServiceDefaultPort,
 		NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
 		StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
+		DDServerPort:                    constants.DDServerDefaultPort,
 	})
 	if err != nil {
 		return "", errors.Errorf("failed to get supernode config: %v", err)

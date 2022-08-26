@@ -121,6 +121,7 @@ func (client *Client) do(cmd string, args, response interface{}) error {
 	if err != nil {
 		return err
 	}
+
 	decoder := json.NewDecoder(result.Body)
 	err = decoder.Decode(&response)
 	if err != nil {

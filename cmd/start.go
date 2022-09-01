@@ -1296,12 +1296,13 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 			return err
 		}
 		var address string
-		err := pastelcore.NewClient(config).RunCommand(pastelcore.GetNewAddressCmd, &address)
+		out, err := RunPastelCLI(ctx, config, pastelcore.GetNewAddressCmd)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get new address")
 			return err
 		}
-		address = strings.Trim(address, "\n")
+
+		address = strings.Trim(out, "\n")
 		log.WithContext(ctx).Warnf(red(fmt.Sprintf("Your new address for collateral payment is %s", address)))
 		log.WithContext(ctx).Warnf(red(fmt.Sprintf("Use another wallet to send exactly %sM %s to that address.", collateralAmount, collateralCoins)))
 		_, newTxid := AskUserToContinue(ctx, "Enter txid of the send and press Enter to continue when ready")

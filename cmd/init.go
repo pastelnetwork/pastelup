@@ -258,6 +258,12 @@ func runInitSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 	if !flagDontReindex {
 		config.ReIndex = true // init means first start, reindex is required
 	}
+
+	if flagMasterNodeConfNew && flagMasterNodeName == "" {
+		log.WithContext(ctx).Error("flag 'new' provided but name is missing")
+		return errors.New("flag 'new' provided but name is missing")
+	}
+
 	if err := runStartSuperNode(ctx, config, true); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to initialize local supernode")
 		return err

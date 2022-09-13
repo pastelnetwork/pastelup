@@ -949,11 +949,14 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 		Infof("system will now %s packages", what)
 
 	// Update repo
-	_, err = RunSudoCMD(config, "apt", "update")
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to update")
-		return err
+	if !config.SkipSystemUpdate {
+		_, err = RunSudoCMD(config, "apt", "update")
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to update")
+			return err
+		}
 	}
+
 	for _, pkg := range packages {
 		log.WithContext(ctx).Infof("%sing package %s", what, pkg)
 
@@ -962,10 +965,12 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 				log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
 				return err
 			}
-			_, err = RunSudoCMD(config, "apt", "update")
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to update")
-				return err
+			if !config.SkipSystemUpdate {
+				_, err = RunSudoCMD(config, "apt", "update")
+				if err != nil {
+					log.WithContext(ctx).WithError(err).Error("Failed to update")
+					return err
+				}
 			}
 		}
 		out, err = RunSudoCMD(config, "apt", "-y", what, pkg) //"install" or "upgrade"

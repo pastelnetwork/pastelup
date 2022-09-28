@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -1116,44 +1117,61 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, st
 }
 
 func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Client) (err error) {
-	if len(flagMasterNodePastelID) == 0 {
+	if len(flagMasterNodePastelID) != 0 {
+		log.WithContext(ctx).Infof("Masternode pastelid already set = %s", flagMasterNodePastelID)
+		return nil
+	}
 
-		log.WithContext(ctx).Info("Masternode PastelID is empty - will create new one")
+	log.WithContext(ctx).Info("Masternode PastelID is empty - will create new one")
 
-		if len(flagMasterNodePassPhrase) == 0 { //check one more time just because
-			err := fmt.Errorf("required parameter if --create or --update specified: --passphrase <passphrase to pastelid private key>")
-			log.WithContext(ctx).WithError(err).Error("Missing parameter --passphrase")
+	if len(flagMasterNodePassPhrase) == 0 { //check one more time just because
+		err := fmt.Errorf("required parameter if --create or --update specified: --passphrase <passphrase to pastelid private key>")
+		log.WithContext(ctx).WithError(err).Error("Missing parameter --passphrase")
+		return err
+	}
+
+	var pastelid string
+	if client == nil {
+		var resp map[string]interface{}
+		err = pastelcore.NewClient(config).RunCommandWithArgs(
+			pastelcore.PastelIDCmd,
+			[]string{"newkey", flagMasterNodePassPhrase},
+			&resp,
+		)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
 			return err
 		}
-
-		var pastelid string
-		if client == nil {
-			var resp map[string]interface{}
-			err = pastelcore.NewClient(config).RunCommandWithArgs(
-				pastelcore.PastelIDCmd,
-				[]string{"newkey", flagMasterNodePassPhrase},
-				&resp,
-			)
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
-				return err
-			}
-			res := resp["result"].(map[string]interface{})
-			pastelid = res["pastelid"].(string)
-		} else { //client is not nil when called from ColdHot Init
-			pastelcliPath := filepath.Join(config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
-			out, err := client.Cmd(fmt.Sprintf("%s %s %s", pastelcliPath, "pastelid newkey",
-				flagMasterNodePassPhrase)).Output()
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key on Hot node")
-				return err
-			}
-			pastelid = string(out)
-			fmt.Println("generated pastel key on hotnode: ", pastelid)
+		res := resp["result"].(map[string]interface{})
+		pastelid = res["pastelid"].(string)
+	} else { //client is not nil when called from ColdHot Init
+		pastelcliPath := filepath.Join(config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
+		out, err := client.Cmd(fmt.Sprintf("%s %s %s", pastelcliPath, "pastelid newkey",
+			flagMasterNodePassPhrase)).Output()
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key on Hot node")
+			return err
 		}
-		flagMasterNodePastelID = pastelid
+		log.WithContext(ctx).WithField("out", string(out)).Info("Pastelid new key generated")
+
+		var resp map[string]interface{}
+		if err := json.Unmarshal(out, &resp); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to unmarshal response of pastelid new key")
+			return err
+		}
+		if val, ok := resp["result"]; ok {
+			res := val.(map[string]interface{})
+			pastelid = res["pastelid"].(string)
+		} else {
+			pastelid = resp["pastelid"].(string)
+		}
+
+		log.WithContext(ctx).WithField("pastelid", pastelid).Info("generated pastel key on hotnode")
 	}
+	flagMasterNodePastelID = pastelid
+
 	log.WithContext(ctx).Infof("Masternode pastelid = %s", flagMasterNodePastelID)
+
 	return nil
 }
 

@@ -157,9 +157,9 @@ var ServiceName = map[ToolType]map[OSType]string{
 
 // PastelupName - The name of the pastelup
 var PastelupName = map[OSType]string{
-	Windows: "pastelup.exe",
-	Linux:   "pastelup",
-	Mac:     "pastelup",
+	Windows: "pastelup-win-amd64.exe",
+	Linux:   "pastelup-linux-amd64",
+	Mac:     "pastelup-darwin-amd64",
 	Unknown: "",
 }
 
@@ -197,7 +197,7 @@ var SuperNodeExecName = map[OSType]string{
 
 // PastelUpExecName - The name of the pastelup
 var PastelUpExecName = map[OSType]string{
-	Windows: "pastelup-windows-amd64.exe",
+	Windows: "pastelup-win-amd64.exe",
 	Linux:   "pastelup-linux-amd64",
 	Mac:     "pastelup-darwin-amd64",
 }

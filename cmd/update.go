@@ -79,6 +79,8 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
+		cli.NewFlag("skip-system-update", &config.SkipSystemUpdate).
+			SetUsage(green("Optional, Skip System Update skips linux apt-update")),
 		cli.NewFlag("peers", &config.Peers).SetAliases("p").
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").

@@ -459,12 +459,12 @@ func installPastelUp(ctx context.Context, config *configs.Config) error {
 		return err
 	}
 	downloadedExecPath := filepath.Join(config.PastelExecDir, pastelupExecName)
-	outputPath := filepath.Join(config.PastelExecDir, pastelupName)
+	outputPath := filepath.Join(".", pastelupName)
 	if err := os.Rename(downloadedExecPath, outputPath); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to rename %v to %s: %v", downloadedExecPath, outputPath, err)
 		return err
 	}
-	if err := makeExecutable(ctx, config.PastelExecDir, pastelupName); err != nil {
+	if err := makeExecutable(ctx, ".", pastelupName); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", pastelupName)
 		return err
 	}
@@ -949,11 +949,14 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 		Infof("system will now %s packages", what)
 
 	// Update repo
-	_, err = RunSudoCMD(config, "apt", "update")
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to update")
-		return err
+	if !config.SkipSystemUpdate {
+		_, err = RunSudoCMD(config, "apt", "update")
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to update")
+			return err
+		}
 	}
+
 	for _, pkg := range packages {
 		log.WithContext(ctx).Infof("%sing package %s", what, pkg)
 
@@ -962,10 +965,12 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 				log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
 				return err
 			}
-			_, err = RunSudoCMD(config, "apt", "update")
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to update")
-				return err
+			if !config.SkipSystemUpdate {
+				_, err = RunSudoCMD(config, "apt", "update")
+				if err != nil {
+					log.WithContext(ctx).WithError(err).Error("Failed to update")
+					return err
+				}
 			}
 		}
 		out, err = RunSudoCMD(config, "apt", "-y", what, pkg) //"install" or "upgrade"

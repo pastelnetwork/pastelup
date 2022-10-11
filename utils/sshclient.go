@@ -178,6 +178,41 @@ func (c *Client) Scp(srcFile string, destFile string, perm string) error {
 	return nil
 }
 
+// ScpFrom implements scp command to copy remote file to local host
+func (c *Client) ScpFrom(destFile string, srcFile string) error {
+	// Connect to the remote server
+	scpClient, err := scp.NewClientBySSH(c.client)
+	if err != nil {
+		return errors.Errorf("failed to create scp client: %v", err)
+	}
+
+	err = scpClient.Connect()
+	if err != nil {
+		return errors.Errorf("failed to connect to scp remote: %v", err)
+	}
+
+	// Close client connection after the file has been copied
+	defer scpClient.Close()
+
+	// create a file to copy content from remote file
+	file, err := os.Create(srcFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer file.Close()
+	// Close the file after it has been copied
+
+	// Finally, copy the file from remote to local
+	// Usage: CopyFromRemote(file, remotePath)
+	err = scpClient.CopyFromRemote(file, destFile)
+	if err != nil {
+		return errors.Errorf("failed to transfer file: %v", err)
+	}
+
+	return nil
+}
+
 // ScriptFile creates a RemoteScript that can read a local script file and run it remotely on the client.
 func (c *Client) ScriptFile(fname string) *RemoteScript {
 	return &RemoteScript{

@@ -2,7 +2,7 @@
 
 [![PastelNetwork](https://circleci.com/gh/pastelnetwork/pastelup.svg?style=shield)](https://app.circleci.com/pipelines/github/pastelnetwork/pastelup)
 
-`pastelup` is a utility that can install `supernode`/`walletnode` and start.
+`pastelup` is a utility that can install & start `supernode` and `walletnode`.
 
 In order to build `pastelup`, please install `golang` and `upx`:
 ```
@@ -87,20 +87,24 @@ OPTIONS:
    --work-dir value, -w value  Optional, Location to create working directory (default: "/home/bacnh/.pastel")
    --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
    --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
+   --release value, -r value   Optional, Pastel version to install
+   --regen-rpc                 Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file (default: false)
    --peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"
-   --release value, -r value   Optional, Pastel version to install (default: "beta")
-   --enable-service            Optional, start all apps automatically as systemd service (default: false)
+   --log-level level           Set the log level. (default: "info")
+   --log-file file             The log file to write to.
+   --quiet, -q                 Disallows log output to stdout. (default: false)
    --user-pw value             Optional, password of current sudo user - so no sudo password request is prompted
    --help, -h                  show help (default: false)
+
    ```
 
 ``` shell
-./pastelup install node --enable-service
+./pastelup install node -r latest -n=mainnet --enable-service
 ```
 
 For testnet:
 ``` shell
-./pastelup install node -n=testnet --enable-service
+./pastelup install node -r beta -n=testnet --enable-service
 ```
 
 2. Start node
@@ -111,20 +115,32 @@ For testnet:
 
 3. Update node
 
+``` shelll
+   ./pastelup stop node (if node is already running)
+```
+
 ```shell
-./pastelup update node
+   ./pastelup update node -r beta -n=mainnet
+```
+if it was running as masternode then please do
+
+``` shell
+   ./pastelup-linux-amd64 start masternode
+   ./pastel-cli masternode start-alias <name>
 ```
 
 ### Start walletnode
 1. Install walletnode
 
+   Install walletnode will ask about whether we want to install birdge service or not. If we opt-in for bridge install, `init` will generate an address, an artist PastelID and try to register PastelID on the network. In case you already have a registered PastelID, please add it in bridge config file so that `init` command may not ask. 
+   
 ``` shell
-./pastelup install walletnode
+./pastelup install walletnode -r beta
 ```
 
 For testnet:
 ``` shell
-./pastelup install walletnode -n=testnet
+./pastelup install walletnode -r beta -n=testnet
 ```
 
 2. Start walletnode
@@ -136,25 +152,25 @@ For testnet:
 3. Update walletnode
 
 ```shell
-./pastelup update walletnode
+./pastelup update walletnode -r latest
 ```
 
 ### Start supernode
 1. Install supernode
 
 ``` shell
-./pastelup install supernode
+./pastelup install supernode -r latest -n testnet
 ```
 
 For testnet:
 ``` shell
-./pastelup install supernode -n=testnet
+./pastelup install supernode -r latest -n=testnet
 ```
 
 2. Start **_new_** supernode
 
 ``` shell
-./pastelup start supernode --create --activate --name=<local name for masternode.conf file>
+ ./pastelup init supernode --new --name=tmn01 (name of node) --activate
 ```
 
 The above command will:
@@ -162,15 +178,17 @@ The above command will:
 - create and register new SN's PastelID
 - asks for collateral transaction txid and vout index
   - if no collateral was sent yet, it will offer to create new address and will wait until collateral is sent to it and the transaction is confirmed
-- create masternode.conf file
+- create masternode.conf file and add configuration against the provided node alias --name
 - start pasteld as masternode
 - activate pasteld as masternode
-- start rq-server, dd-server and supernode
+- start rq-server, dd-server and supernode-service <br/>
+
+Verify that `pastel-cli masternode status` returns 'masternode successfully started status`
 
 3. Update supernode
 
 ```
-./pastelup update supernode  --name=<local name for masternode.conf file>
+./pastelup update supernode  --name=<local name for masternode.conf file> -r latest
 ```
 
 ### Install supernode remotely
@@ -184,8 +202,24 @@ Below is example to create supernode with `testnet` network:
   --ssh-user=<remote username> \
   --ssh-user-pw=<remote_user_pw> \
   --ssh-key=$HOME/.ssh/id_rsa \
+  --ssh-dir=<pastelup path on remote node> \
   -n=testnet \
+  -r latest \
   --force
+```
+
+### Init supernode remotely
+
+When starting supernode for the first time, we need to `init`.Below is example to init supernode on remote:
+
+```
+./pastelup init supernode-coldhot \
+ --ssh-dir=/home/ubuntu/utility \
+ -ssh-key=<<priv_key_filepath>> \
+ --ssh-ip=<<ip_addr>>  \
+ --txid=<<txid>> --passphrase=passphrase \
+ --new --name=<<name>> --activate
+
 ```
 ### Update supernode remotely
 
@@ -244,7 +278,8 @@ c) In case `--bin` is missing, the tool will update the latest from the download
    --ssh-ip <remote ip> \
    --ssh-user <remote username> \
    --ssh-key=$HOME/.ssh/id_rsa \
-   --user-pw=<pw of remote user>
+   --user-pw=<pw of remote user> \
+   -r latest 
 ```
 
 ### Stop supernode remotely
@@ -385,7 +420,7 @@ The path depends on the OS:
 
 The path depends on the OS:
 * MacOS `$HOME/Applications/PastelWallet`
-* Linux `$HOME/pastel-node`
+* Linux `$HOME/pastel`
 * Windows (>= Vista) `%userprofile%\AppData\Roaming\PastelWallet`
 
 

@@ -213,11 +213,11 @@ Below is example to create supernode with `testnet` network:
 When starting supernode for the first time, we need to `init`.Below is example to init supernode on remote:
 
 ```
-./pastelup init supernode-coldhot \
- --ssh-dir=/home/ubuntu/utility \
- -ssh-key=<<priv_key_filepath>> \
+./pastelup init supernode coldhot \
  --ssh-ip=<<ip_addr>>  \
- --txid=<<txid>> --passphrase=passphrase \
+ --ssh-dir=/home/ubuntu/utility \
+ --ssh-user=<remote username> \
+ -ssh-key=<<priv_key_filepath>> \
  --new --name=<<name>> --activate
 
 ```

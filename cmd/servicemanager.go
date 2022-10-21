@@ -267,9 +267,10 @@ func (sm LinuxSystemdManager) StartService(ctx context.Context, config *configs.
 		log.WithContext(ctx).Infof("service %v is already running: noop", app)
 		return true, nil
 	}
-	_, err := RunSudoCMD(config, "systemctl", "start", sm.ServiceName(app))
+	res, err := RunSudoCMD(config, "systemctl", "start", sm.ServiceName(app))
 	if err != nil {
-		return false, fmt.Errorf("unable to start service (%v): %v", app, err)
+		log.WithContext(ctx).Infof("%v systemctl start: %v", sm.ServiceName(app), res)
+		return false, nil
 	}
 	return true, nil
 }

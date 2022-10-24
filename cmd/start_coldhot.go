@@ -64,6 +64,14 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 	//	return fmt.Errorf("failed to copy pastel.comf from remote %s", err)
 	//}
 
+	log.WithContext(ctx).Info("checking network modes for remote and local nodes...")
+	if err := checkHotAndColdNodesNetworkMode(ctx, client, r.config); err != nil {
+		log.WithContext(ctx).Errorf("checkHotAndColdNodesNetworkMode error: %v", err)
+		client.Close()
+		return fmt.Errorf("failed to check hot and cold nodes network mode - %v", err)
+	}
+	log.WithContext(ctx).Info("hot and cold nodes are operating in same network mode")
+
 	// Get external IP
 	if flagNodeExtIP == "" {
 		out, err := client.Cmd(fmt.Sprintf("curl %s", "http://ipinfo.io/ip")).Output()

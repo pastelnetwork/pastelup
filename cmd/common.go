@@ -507,6 +507,86 @@ func copyPastelUpToRemote(ctx context.Context, client *utils.Client, version str
 	return nil
 }
 
+func checkHotAndColdNodesNetworkMode(ctx context.Context, client *utils.Client, config *configs.Config) error {
+	tempConfFilePath := filepath.Join(config.PastelExecDir, "tempconf")
+	defer func() {
+		if _, err := os.Stat(tempConfFilePath); errors.Is(err, os.ErrNotExist) {
+			log.WithContext(ctx).Error("file does not exist")
+		} else {
+			err := os.Remove(tempConfFilePath)
+			if err != nil {
+				log.Error(err)
+			}
+		}
+	}()
+
+	// Copy pastel.conf from remote
+	log.WithContext(ctx).Info("copying pastel.conf from remote...")
+	remotePastelConfPath := filepath.Join(config.RemoteHotWorkingDir, constants.PastelConfName)
+	if err := client.ScpFrom(remotePastelConfPath, tempConfFilePath); err != nil {
+		return fmt.Errorf("failed to copy pastel.comf from remote %s", err)
+	}
+	log.WithContext(ctx).Info("pastel.conf copied from remote...")
+
+	log.WithContext(ctx).Info("getting network mode from remote.conf...")
+	remoteNetwork, err := getNetworkModeFromRemote(ctx, tempConfFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to copy pastel.comf from remote %s", err)
+	}
+	log.WithContext(ctx).Info("network mode retrieved from remote.conf...")
+
+	if config.Network != remoteNetwork {
+		err = errors.New("hot and cold nodes are operating in different network modes")
+		log.WithContext(ctx).WithError(err).Errorf("hot node network:%s , cold node network: %s", remoteNetwork, config.Network)
+		return err
+	}
+
+	return nil
+}
+
+func getNetworkModeFromRemote(ctx context.Context, confFilePath string) (remoteNetwork string, err error) {
+	log.WithContext(ctx).Info("opening the copied remote.conf...")
+	file, err := os.OpenFile(confFilePath, os.O_RDWR, 0644)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Could not open remote pastel config - %s", confFilePath)
+		return remoteNetwork, err
+	}
+	log.WithContext(ctx).Info("File opened")
+	defer file.Close()
+
+	log.WithContext(ctx).Info("Parsing network mode from remote.conf")
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "testnet=") {
+			isTestnet, err := strconv.ParseBool(strings.TrimPrefix(line, "testnet="))
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Could not parse testnet= bool from file: - %s", confFilePath)
+				return remoteNetwork, err
+			}
+
+			if isTestnet {
+				log.WithContext(ctx).Infof("remote node is operating in testnet")
+				return constants.NetworkTestnet, nil
+			}
+		}
+		if strings.HasPrefix(line, "regtest=") {
+			isRegTestnet, err := strconv.ParseBool(strings.TrimPrefix(line, "regtest="))
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Could not parse regtest= bool from file: - %s", confFilePath)
+				return remoteNetwork, err
+			}
+
+			if isRegTestnet {
+				log.WithContext(ctx).Infof("remote node is operating in regtest")
+				return constants.NetworkRegTest, nil
+			}
+		}
+	}
+
+	return constants.NetworkMainnet, nil
+}
 func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.Client, error) {
 	var err error
 

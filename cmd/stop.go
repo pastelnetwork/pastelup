@@ -3,8 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"os"
+
+	"github.com/pkg/errors"
 
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
@@ -309,7 +310,7 @@ func stopWNServiceSubCommand(ctx context.Context, config *configs.Config) {
 }
 
 func stopSNServiceSubCommand(ctx context.Context, config *configs.Config) {
-	_ = stopServices(ctx, []constants.ToolType{constants.SuperNode}, config)
+	_ = stopServices(ctx, []constants.ToolType{constants.SuperNode, constants.Hermes}, config)
 }
 
 func stopHermesService(ctx context.Context, config *configs.Config) {

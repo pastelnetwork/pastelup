@@ -8,12 +8,65 @@ In order to build `pastelup`, please install `golang` and `upx`:
 ```
 sudo apt-get install upx
 ```
-and then:
+
+To install the latest version of golang:
+
+First, remove existing versions of golang as follows:
+```
+sudo apt-get remove --auto-remove golang-go
+sudo rm -rvf /usr/local/go
+```
+
+Then, download and install golang as follows:
+
+```
+wget https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
+sudo tar -xf go1.19.3.linux-amd64.tar.gz
+sudo mv go /usr/local
+```
+
+Now, edit the following file:
+
+```
+nano  ~/.profile
+```
+
+Add the following lines to the end and save with Ctrl-x:
+
+```
+export GOPATH=$HOME/go
+export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
+```
+
+Make settings effective with:
+
+```
+source ~/.profile
+```
+
+Check that everything is working by running:
+
+```
+go version
+```
+This shoudl return something similar to:
+
+`go version go1.19.3 linux/amd64`
+
+Then, clone and build the pastelup repo as follows:
+
 ```
 git clone https://github.com/pastelnetwork/pastelup.git
 cd pastelup
 make
 ```
+
+You may need to first run:
+
+```
+go mod tidy -compat=1.17
+```
+
 
 ## Install and Start
 

@@ -104,7 +104,7 @@ OPTIONS:
 
 For testnet:
 ``` shell
-./pastelup install node -r beta -n=testnet --enable-service
+./pastelup install node -r latest -n=testnet --enable-service
 ```
 
 2. Start node
@@ -120,9 +120,9 @@ For testnet:
 ```
 
 ```shell
-   ./pastelup update node -r beta -n=mainnet
+   ./pastelup update node -r latest -n=mainnet
 ```
-if it was running as masternode then please do
+if it was running as masternode (as part of supernode) then please do
 
 ``` shell
    ./pastelup-linux-amd64 start masternode

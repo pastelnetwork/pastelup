@@ -132,7 +132,7 @@ if it was running as masternode (as part of supernode) then please do
 ### Start walletnode
 1. Install walletnode
 
-   Install walletnode will ask about whether we want to install birdge service or not. If we opt-in for bridge install, `init` will generate an address, an artist PastelID and try to register PastelID on the network. In case you already have a registered PastelID, please add it in bridge config file so that `init` command may not ask. 
+   Install walletnode will ask about whether we want to install birdge service or not. If we opt-in for bridge install, the first time when walletnode will be started throught `start walletnode` command, it will generate an address, an artist PastelID and try to register PastelID on the network. In case you already have a registered PastelID, please add it in bridge config file so that `start` command may not ask. 
    
 ``` shell
 ./pastelup install walletnode -r beta

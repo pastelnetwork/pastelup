@@ -293,7 +293,7 @@ c) In case `--bin` is missing, the tool will update the latest from the download
 
 ### Start supernode-coldhot
 
-How cold-hot config works: https://pastel.wiki/en/home/how-to-start-mn
+[How cold-hot config works](https://docs.pastel.network/development-guide/supernode)
 
 Usage:
 ```

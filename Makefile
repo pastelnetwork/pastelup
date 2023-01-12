@@ -38,7 +38,7 @@ else
 endif
 
 # GO build flags
-LDFLAGS="-s -w -X github.com/pastelnetwork/gonode/common/version.version=$(VERSION)"
+LDFLAGS="-s -w -X github.com/pastelnetwork/pastelup/common/version.version=$(VERSION)"
 
 release:
 	go build $(GCFLAGS) -ldflags=$(LDFLAGS) -o $(BINARY) main.go

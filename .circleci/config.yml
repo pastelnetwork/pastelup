@@ -105,6 +105,9 @@ commands:
     parameters:
       working_directory:
         type: string
+      sub_directory:
+        type: string
+        default: pastelup
     steps:
       - run:
           name: prepare binaries
@@ -119,23 +122,23 @@ commands:
           aws-secret-access-key: AWS_SECRET_ACCESS_KEY
       - aws-s3/copy:
           from: << parameters.working_directory >>/pastelup-linux-amd64
-          to: s3://$ROOT_BUCKET_NAME/pastelup-linux-amd64
+          to: s3://$ROOT_BUCKET_NAME/<< parameters.sub_directory >>/pastelup-linux-amd64
           arguments: |
             --acl public-read \
             --cache-control "max-age=86400"
       - aws-s3/copy:
           from: << parameters.working_directory >>/pastelup-win-amd64.exe
-          to: s3://$ROOT_BUCKET_NAME/pastelup-win-amd64.exe
+          to: s3://$ROOT_BUCKET_NAME/<< parameters.sub_directory >>/pastelup-win-amd64.exe
           arguments: |
             --acl public-read \
             --cache-control "max-age=86400"
       - aws-s3/copy:
           from: << parameters.working_directory >>/pastelup-darwin-amd64
-          to: s3://$ROOT_BUCKET_NAME/pastelup-darwin-amd64
+          to: s3://$ROOT_BUCKET_NAME/<< parameters.sub_directory >>/pastelup-darwin-amd64
           arguments: |
             --acl public-read \
             --cache-control "max-age=86400"
-      - run: aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths /beta/\* 
+      - run: aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths /beta/<< parameters.sub_directory >>/\* 
   
   release:
     parameters:

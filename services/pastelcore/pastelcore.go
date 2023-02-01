@@ -37,7 +37,7 @@ const (
 	GetNewAddressCmd = "getnewaddress"
 	// TicketsCmd is an RPC command
 	TicketsCmd = "tickets"
-	// PastelIDCmd is an RPC command
+	// AddNode is an RPC command
 	AddNode = "addnode"
 )
 

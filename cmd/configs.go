@@ -132,7 +132,7 @@ func checkBridgeConfigPastelID(ctx context.Context, config *configs.Config, conf
 		log.WithContext(ctx).WithError(err).Error("Failed to list existing pastelid keys")
 	} else {
 		keys := res["result"].([]interface{})
-		if keys != nil && len(keys) > 0 {
+		if keys != nil {
 			log.WithContext(ctx).Warn(red("You pastel has some PastelID, You can choose one of them to use for bridge service.\n"))
 			n := 0
 			var arr []string
@@ -149,7 +149,7 @@ func checkBridgeConfigPastelID(ctx context.Context, config *configs.Config, conf
 			} else if !strings.EqualFold(strNum, "Y") {
 				dNum, err := strconv.Atoi(strNum)
 				if err != nil || dNum < 0 || dNum >= n {
-					err = fmt.Errorf("wrong input - no PastelID selected")
+					log.WithContext(ctx).Error("wrong input - no PastelID selected")
 				} else {
 					pastelid = arr[dNum]
 					log.WithContext(ctx).Info(green("You selected PastelID: " + pastelid))

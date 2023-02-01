@@ -32,7 +32,7 @@ const (
 	ddServiceImgServerInstall
 	snServiceInstall
 	wnServiceInstall
-Y	hermesServiceInstall
+	hermesServiceInstall
 )
 
 var nonNetworkDependentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}

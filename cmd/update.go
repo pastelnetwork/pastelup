@@ -75,6 +75,8 @@ func setupUpdateSubCommand(config *configs.Config,
 ) *cli.Command {
 
 	commonFlags := []*cli.Flag{
+		cli.NewFlag("release", &config.Version).SetAliases("r").
+			SetUsage(green("Required, Pastel version to install")).SetRequired(),
 		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
@@ -83,8 +85,6 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Skip System Update skips linux apt-update")),
 		cli.NewFlag("peers", &config.Peers).SetAliases("p").
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
-		cli.NewFlag("release", &config.Version).SetAliases("r").
-			SetUsage(green("Optional, Pastel version to install")),
 		cli.NewFlag("clean", &config.Clean).SetAliases("c").
 			SetUsage(green("Optional, Clean .pastel folder")),
 		cli.NewFlag("user-pw", &config.UserPw).

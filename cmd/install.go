@@ -32,7 +32,7 @@ const (
 	ddServiceImgServerInstall
 	snServiceInstall
 	wnServiceInstall
-	hermesServiceInstall
+Y	hermesServiceInstall
 )
 
 var nonNetworkDependentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
@@ -87,10 +87,10 @@ func setupSubCommand(config *configs.Config,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 	commonFlags := []*cli.Flag{
+		cli.NewFlag("release", &config.Version).SetAliases("r").
+			SetUsage(green("Required, Pastel version to install")).SetRequired(),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
-		cli.NewFlag("release", &config.Version).SetAliases("r").
-			SetUsage(green("Optional, Pastel version to install")),
 		cli.NewFlag("regen-rpc", &config.RegenRPC).
 			SetUsage(green("Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file")),
 	}

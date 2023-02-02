@@ -231,7 +231,7 @@ func handleWaitForBalance(ctx context.Context, config *configs.Config, address s
 		time.Sleep(6 * time.Second)
 
 		if i == 9 {
-			if ok, _ := AskUserToContinue(ctx, `Enough balance not recieved yet. 
+			if ok, _ := AskUserToContinue(ctx, `Enough balance not received yet. 
 			Would you like to continue & wait? Y/N`); !ok {
 				return false, nil
 			}

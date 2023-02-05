@@ -114,30 +114,83 @@ func checkBridgeConfigPastelID(ctx context.Context, config *configs.Config, conf
 	}
 
 	if pastelid != "" && passphrase != "" {
-		log.WithContext(ctx).Info("Bridge service on & found pastelid & pass")
+		log.WithContext(ctx).Info("Bridge service found pastelid & pass")
 		return nil
 	}
 
-	if pastelidOK, _ := AskUserToContinue(ctx, "Do you have a registered PastelID? Y/N"); pastelidOK {
-		_, pastelid = AskUserToContinue(ctx, "Enter PastelID..")
-		_, passphrase = AskUserToContinue(ctx, "Enter Passphrase..")
+	log.WithContext(ctx).Warn(red("Bridge service config file is missing PastelID and passphrase."))
+	log.WithContext(ctx).Warn(red("This is probably the first time you're starting bridge service."))
+
+	pastelIDRegistered := false
+	var res map[string]interface{}
+	err = pastelcore.NewClient(config).RunCommandWithArgs(
+		pastelcore.PastelIDCmd,
+		[]string{"list"},
+		&res,
+	)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to list existing pastelid keys")
 	} else {
-		_, passphrase = AskUserToContinue(ctx, "Enter Passphrase for new pastelid")
-		var resp map[string]interface{}
-		err = pastelcore.NewClient(config).RunCommandWithArgs(
-			pastelcore.PastelIDCmd,
-			[]string{"newkey", passphrase},
-			&resp,
-		)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
-			return err
+		keys := res["result"].([]interface{})
+		if keys != nil {
+			log.WithContext(ctx).Warn(red("You pastel has some PastelID, You can choose one of them to use for bridge service.\n"))
+			n := 0
+			var arr []string
+			for _, item := range keys {
+				keyPair := item.(map[string]interface{})
+				key := keyPair["PastelID"].(string)
+				log.WithContext(ctx).Warn(red(fmt.Sprintf("%d - %s", n, key)))
+				arr = append(arr, key)
+				n++
+			}
+			_, strNum := AskUserToContinue(ctx, "Enter number of PastelID to use, 'Y' to generate new one or 'N' to skip...")
+			if strings.EqualFold(strNum, "N") {
+				return nil
+			} else if !strings.EqualFold(strNum, "Y") {
+				dNum, err := strconv.Atoi(strNum)
+				if err != nil || dNum < 0 || dNum >= n {
+					log.WithContext(ctx).Error("wrong input - no PastelID selected")
+				} else {
+					pastelid = arr[dNum]
+					log.WithContext(ctx).Info(green("You selected PastelID: " + pastelid))
+					_, passphrase = AskUserToContinue(ctx, "Enter its Passphrase...")
+					//TODO: check if pastelID registered or not
+					pastelIDRegistered = true
+				}
+			}
 		}
+	}
 
-		res := resp["result"].(map[string]interface{})
-		pastelid = res["pastelid"].(string)
+	if pastelid == "" || passphrase == "" {
+		if pastelidOK, _ := AskUserToContinue(ctx, "Do you want to create new PastelID? Y/N"); pastelidOK {
+			_, passphrase = AskUserToContinue(ctx, "Enter Passphrase for new pastelid")
+			var resp map[string]interface{}
+			err = pastelcore.NewClient(config).RunCommandWithArgs(
+				pastelcore.PastelIDCmd,
+				[]string{"newkey", passphrase},
+				&resp,
+			)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key")
+				return err
+			}
 
-		log.WithContext(ctx).WithField("pastelid", pastelid).WithField("legroastKey", res["legRoastKey"].(string)).Info("Please save these generated keys")
+			res := resp["result"].(map[string]interface{})
+			pastelid = res["pastelid"].(string)
+
+			log.WithContext(ctx).WithField("pastelid", pastelid).WithField("legroastKey", res["legRoastKey"].(string)).Info("Please save these generated keys")
+		}
+	}
+
+	doRegisterPastelID := false
+	if pastelid != "" && passphrase != "" && !pastelIDRegistered {
+		log.WithContext(ctx).Warn(red("New PastelID must be registered in the network before it can be used."))
+		log.WithContext(ctx).Warn(red("You can do it later after all services started by command `pastel-cli tickets register id ..."))
+		log.WithContext(ctx).Warn(red("Or we can try register it now, but that can take long time (mostly waiting for network sync).\n"))
+		doRegisterPastelID, _ = AskUserToContinue(ctx, "Do you want to try register it now? Y/N")
+	}
+
+	if doRegisterPastelID {
 		var regResp map[string]interface{}
 		_, address := AskUserToContinue(ctx, "Enter Address to register pastelid against - please make sure it has enough balance.\nLeave Empty(Press Enter) to generate a new address")
 
@@ -152,6 +205,7 @@ func checkBridgeConfigPastelID(ctx context.Context, config *configs.Config, conf
 
 			address = out
 			log.WithContext(ctx).WithField("address", address).Info("Please save the newly generated address")
+			log.WithContext(ctx).WithField("address", address).Warn("And send some Pastel coins to it")
 		}
 
 		ok, err := handleWaitForBalance(ctx, config, address)
@@ -177,10 +231,15 @@ func checkBridgeConfigPastelID(ctx context.Context, config *configs.Config, conf
 				log.WithContext(ctx).WithError(err).WithField("res", regRes).Error("Failed to register new pastelid: txid not found")
 				return err
 			}
-		} else {
-			_, _ = AskUserToContinue(ctx, "Ignoring ticket registeration. Please register pastelid on network for proper functioning of Walletnode & Bridge service\nPress any key to continue")
-
+			pastelIDRegistered = true
 		}
+	}
+	if !pastelIDRegistered {
+		_, _ = AskUserToContinue(ctx, "Ignoring ticket registration. Please register pastelid on network for proper functioning of Walletnode & Bridge service\nPress Enter to continue")
+	}
+
+	if pastelid == "" && passphrase == "" {
+		return nil
 	}
 
 	download["pastel_id"] = pastelid
@@ -217,22 +276,62 @@ func getBalance(ctx context.Context, config *configs.Config, address string) (ba
 
 func handleWaitForBalance(ctx context.Context, config *configs.Config, address string) (bool, error) {
 	i := 0
+	firstTime := true
 	for {
 		fmt.Println("checking for balance...")
 		balance, err := getBalance(ctx, config, address)
 		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("unable to get  balance")
+			log.WithContext(ctx).WithError(err).Error("unable to get balance")
 			return false, fmt.Errorf("handleWaitForBalance: getBalance: %s", err)
 		}
 
 		if balance >= minBalanceForTicketReg {
 			return true, nil
 		}
+		if firstTime {
+			if ok, _ := AskUserToContinue(ctx, `Not enough balance on the address. 
+			Would you like to wait (It might take some time)? Y/N`); !ok {
+				return false, nil
+			}
+			firstTime = false
+		}
 		time.Sleep(6 * time.Second)
 
 		if i == 9 {
-			if ok, _ := AskUserToContinue(ctx, `Enough balance not received yet. 
-			Would you like to continue & wait? Y/N`); !ok {
+			log.WithContext(ctx).Warn(yellow("Enough balance not received yet"))
+
+			mnstatus, err := GetMNSyncInfo(ctx, config)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("mnsync status call has failed")
+				return false, err
+			}
+
+			if !mnstatus.Result.IsSynced {
+				log.WithContext(ctx).Warn(red("It seems you node is not syncing"))
+				getinfo, err := GetPastelInfo(ctx, config)
+				if err != nil {
+					log.WithContext(ctx).WithError(err).Error("getinfo call has failed")
+					return false, err
+				}
+				log.WithContext(ctx).Warnf("You have %d blocks and %d connections", getinfo.Result.Blocks, getinfo.Result.Connections)
+
+				//if getinfo.Result.Connections == 0 {
+				//	log.WithContext(ctx).WithError(err).Warn(red("And you are not connected to any node"))
+				//	if ok, _ := AskUserToContinue(ctx, `Do you want to try to connect and wait? Y/N`); ok {
+				//		return false, nil
+				//	}
+				//	var resp interface{}
+				//	err = pastelcore.NewClient(config).RunCommandWithArgs(
+				//		pastelcore.AddNode,
+				//		[]string{"list", networkSpecificAddress, "onetry"},
+				//		&resp,
+				//	)
+				//	if err != nil {
+				//		log.WithContext(ctx).WithError(err).Error("Failed to call addnode")
+				//	}
+				//}
+			}
+			if ok, _ := AskUserToContinue(ctx, `Would you like to continue to wait? Y/N`); !ok {
 				return false, nil
 			}
 			i = 0

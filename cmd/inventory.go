@@ -33,9 +33,11 @@ type CommonInventoryParameters struct {
 
 // InventoryServer defines remote host
 type InventoryServer struct {
-	CommonInventoryParameters
-	Name string `yaml:"name,omitempty"`
-	Host string `yaml:"host,omitempty"`
+	Name         string `yaml:"name,omitempty"`
+	Host         string `yaml:"host,omitempty"`
+	User         string `yaml:"user,omitempty"`
+	IdentityFile string `yaml:"identity-file,omitempty"`
+	Port         int    `yaml:"port,omitempty"`
 }
 
 // ReadInventory read and load inventory file

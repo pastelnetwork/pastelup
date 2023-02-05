@@ -3,48 +3,68 @@
   -
     name: testnet
     common:
-      identity-file:
+      identity-file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-testnet-new
       user: testnet
     servers:
-      # - name: tmn1
-      #   host: 18.221.2.126
-      #   user: "user can be specified on the each host level and it will override the one from `common` section"
-      #   identity-file: "same for identity file path"
-      # - name: tmn2
-      #   host: 3.144.158.215
-      # - name: tmn3
-      #   host: 18.118.156.158
-      # - name: tmn4
-      #   host: 18.118.218.104
-      # - name: tmn5
-      #   host: 18.222.224.103
-     - name: tmn6
-       host: 18.191.214.151
-     - name: tmn7
-       host: 52.15.244.16
-     - name: tmn8
-       host: 3.137.140.98
-     - name: tmn9
-       host: 18.191.71.196
-     - name: tmn10
-       host: 3.21.245.2
-     - name: tmn11
-       host: 3.142.225.146
-     - name: tmn12
-       host: 3.16.167.42
-     - name: tmn13
-       host: 3.139.77.92
-     - name: tmn14
-       host: 18.191.122.15
-     - name: tmn15
-       host: 13.58.23.224
-     - name: tmn16
-       host: 18.216.195.162
-     - name: tmn17
-       host: 3.21.35.106
-     - name: tmn18
-       host: 18.218.251.137
-     - name: tmn19
-       host: 18.223.16.159
+    #  - name: tmn1
+    #    host: 3.16.22.178
+    #     # user: "user can be specified on the each host level and it will override the one from `common` section"
+    #     # identity-file: "same for identity file path"
+    #  - name: tmn2
+    #    host: 18.219.79.194
+    #  - name: tmn3
+    #    host: 3.141.36.234
+    #  - name: tmn4
+    #    host: 3.133.97.1
+    #  - name: tmn5
+    #    host: 18.116.112.159
+    #  - name: tmn6
+    #    host: 18.191.214.151
+    #  - name: tmn7
+    #    host: 52.15.244.16
+    #  - name: tmn8
+    #    host: 3.137.140.98
+    #  - name: tmn9
+    #    host: 18.191.71.196
+    #  - name: tmn10
+    #    host: 3.15.232.55
+    #  - name: tmn11
+    #    host: 3.144.203.168
+    #  - name: tmn12
+    #    host: 3.15.158.164
+    #  - name: tmn13
+    #    host: 3.16.188.166
+    #  - name: tmn14
+    #    host: 3.16.131.168
+    #  - name: tmn15
+    #    host: 18.188.80.47
+    #  - name: tmn16
+    #    host: 52.14.5.156
+    #  - name: tmn17
+    #    host: 3.23.130.188
+    #  - name: tmn18
+    #    host: 3.142.93.125
+    #  - name: tmn19
+    #    host: 3.19.246.86
      - name: tmn20
-       host: 18.219.202.168
+       host: 52.14.200.95
+     - name: tmn21
+       host: 18.217.157.24
+       user: ubuntu
+       identity-file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+     - name: tmn22
+       host: 13.59.216.207
+       user: ubuntu
+       identity-file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+     - name: tmn23
+       host: 3.14.81.221
+       user: ubuntu
+       identity-file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+     - name: tmn24
+       host: 18.223.0.63
+       user: ubuntu
+       identity-file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+     - name: tmn25
+       host: 18.118.159.169
+       user: ubuntu
+       identity-file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem

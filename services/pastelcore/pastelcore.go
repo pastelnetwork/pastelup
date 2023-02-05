@@ -37,6 +37,8 @@ const (
 	GetNewAddressCmd = "getnewaddress"
 	// TicketsCmd is an RPC command
 	TicketsCmd = "tickets"
+	// AddNode is an RPC command
+	AddNode = "addnode"
 )
 
 // RPCRequest represents a jsonrpc request object.

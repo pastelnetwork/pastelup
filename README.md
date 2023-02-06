@@ -2,14 +2,11 @@
 
 [![PastelNetwork](https://circleci.com/gh/pastelnetwork/pastelup.svg?style=shield)](https://app.circleci.com/pipelines/github/pastelnetwork/pastelup)
 
-`pastelup` is a utility that can install & start `supernode` and `walletnode`.
+`pastelup` is a utility that can install, initialize, start, updatr and monitor Pastel Network `node`, supernode` and `walletnode`.
 
-In order to build `pastelup`, please install `golang` and `upx`:
-```
-sudo apt-get install upx
-```
+## Build
 
-To install the latest version of golang:
+#### 1. Install the latest version of golang (1.17 or higher)
 
 First, remove existing versions of golang as follows:
 ```
@@ -49,11 +46,11 @@ Check that everything is working by running:
 ```
 go version
 ```
-This shoudl return something similar to:
+This should return something similar to:
 
 `go version go1.19.3 linux/amd64`
 
-Then, clone and build the pastelup repo as follows:
+#### 2. Clone and build the pastelup repo as follows:
 
 ```
 git clone https://github.com/pastelnetwork/pastelup.git
@@ -68,355 +65,165 @@ go mod tidy -compat=1.17
 ```
 
 
-## Install and Start
+## Quick start guide
 
-### Start node
-1. Install node
-
-Usage:
-```
-./pastelup install node --help
-NAME:
-   Pastelup install node - Install node
-
-USAGE:
-   Pastelup install node [command options] [arguments...]
-
-OPTIONS:
-   --dir value, -d value       Optional, Location to create pastel node directory (default: "/home/bacnh/pastel")
-   --work-dir value, -w value  Optional, Location to create working directory (default: "/home/bacnh/.pastel")
-   --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
-   --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
-   --release value, -r value   Optional, Pastel version to install
-   --regen-rpc                 Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file (default: false)
-   --peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"
-   --log-level level           Set the log level. (default: "info")
-   --log-file file             The log file to write to.
-   --quiet, -q                 Disallows log output to stdout. (default: false)
-   --user-pw value             Optional, password of current sudo user - so no sudo password request is prompted
-   --help, -h                  show help (default: false)
-
-   ```
+### Start single node
+#### 1. Install node
 
 ``` shell
 ./pastelup install node -r latest -n=mainnet --enable-service
 ```
-
-For testnet:
+Or for testnet:
 ``` shell
 ./pastelup install node -r latest -n=testnet --enable-service
 ```
 
-2. Start node
+#### 2. Start node
 
 ``` shell
 ./pastelup start node
 ```
 
-3. Update node
+#### 3. Update node
 
 ``` shelll
-   ./pastelup stop node (if node is already running)
+   ./pastelup stop node
 ```
 
 ```shell
    ./pastelup update node -r latest -n=mainnet
 ```
-if it was running as masternode (as part of supernode) then please do
-
-``` shell
-   ./pastelup-linux-amd64 start masternode
-   ./pastel-cli masternode start-alias <name>
+Or for testnet:
+```shell
+   ./pastelup update node -r latest -n=testnet
 ```
 
 ### Start walletnode
-1. Install walletnode
 
-   Install walletnode will ask about whether we want to install birdge service or not. If we opt-in for bridge install, the first time when walletnode will be started throught `start walletnode` command, it will generate an address, an artist PastelID and try to register PastelID on the network. In case you already have a registered PastelID, please add it in bridge config file so that `start` command may not ask. 
+> `install walletnode` will ask about whether you want to install bridge service or not. It is **RECOMMENDED** to install bridge service.
+
+> If you opt-in for bridge install, then the first time you start walletnode with `start walletnode` command, it will guide you either to generate new address, new artist PastelID and try to register PastelID on the network or to select existing PastelID from the list of registered PastelIDs on THIS node. 
+> As alternative, in case you already have a registered PastelID on this NODE, you can add it and its passphrase into the bridge config file (`bridge.yml`) so that `start` command may not ask.
+> ```shell
+> download:
+>     connections: 10
+>     connections_refresh_timeout: 300
+>     passphrase: "<PASTELID>"
+>     pastel_id: "<PASSPHRASE>"
+> ...
+> ```
+
+#### 1. Install walletnode
    
 ``` shell
-./pastelup install walletnode -r beta
+./pastelup install walletnode -r latest
 ```
-
-For testnet:
+Or for testnet:
 ``` shell
-./pastelup install walletnode -r beta -n=testnet
+./pastelup install walletnode -r latest -n=testnet
 ```
 
-2. Start walletnode
+#### 2. Start walletnode
 
 ``` shell
 ./pastelup start walletnode
 ```
 
-3. Update walletnode
+#### 3. Update walletnode
 
 ```shell
 ./pastelup update walletnode -r latest
 ```
-
-### Start supernode
-1. Install supernode
-
+Or for testnet:
 ``` shell
-./pastelup install supernode -r latest -n testnet
+./pastelup update walletnode -r latest -n=testnet
 ```
 
-For testnet:
+### Start supernode
+
+> Supernode can only be installed on Linux OS.
+
+There are two ways to run supernode:
+* **Simple** - also called **HOT/HOT** mode - when address with the collateral transaction of 5M PSL (or 1M LSP - on testnet) stored in the wallet on the host where supernode is running
+* **Secure** - also called **HOT/COLD** mode - when address with the collateral transaction of 5M PSL (or 1M LSP - on testnet) stored in the wallet on the different host (cold wallet) from the host where supernode is running
+
+It is **RECOMMENDED** to use **Secure** mode. But this guide will explain install and start for both modes.
+
+#### A. Install supernode in **COLD/COLD** mode - on the single host
+
+##### 1. Install supernode
+``` shell
+./pastelup install supernode -r latest
+```
+Or for testnet:
 ``` shell
 ./pastelup install supernode -r latest -n=testnet
 ```
 
-2. Start **_new_** supernode
+##### 2. Initialize **_newly_** installed supernode
 
 ``` shell
- ./pastelup init supernode --new --name=tmn01 (name of node) --activate
+ ./pastelup init supernode --new --name=<SN-name> --activate
 ```
+
+Here:
+- `SN-name` is the name you want to use to address your SN in the masternode.conf file. This name has meaning only on the host where supernode is running. It is not used on the network.
+- `--activate` is optional. If you want to activate your SN immediately after initialization, then add this flag. Otherwise, you can activate it later with `pastel-cli masternode start-alias <SN-name>` command.
 
 The above command will:
 - ask for passphrase
 - create and register new SN's PastelID
-- asks for collateral transaction txid and vout index
+- asks for collateral transaction `txid` and `vout` index
   - if no collateral was sent yet, it will offer to create new address and will wait until collateral is sent to it and the transaction is confirmed
 - create masternode.conf file and add configuration against the provided node alias --name
 - start pasteld as masternode
 - activate pasteld as masternode
-- start rq-server, dd-server and supernode-service <br/>
+- start rq-server, dd-server and hermes and supernode services
 
-Verify that `pastel-cli masternode status` returns 'masternode successfully started status`
-
-3. Update supernode
-
-```
-./pastelup update supernode  --name=<local name for masternode.conf file> -r latest
+Alternatively, if you already know collateral transaction `txid` and `vout` index, then you can initialize supernode with the following command:
+``` shell
+ ./pastelup init supernode --new --name=<SN-name> --txid=<txid> --ind=<vout index> --activate
 ```
 
-### Install supernode remotely
-
-In order to install all extra packages and set system services, `password` of current user with `sudo` access is needed via param `--ssh-user-pw`.
-
-Below is example to create supernode with `testnet` network:
-```
-./pastelup install supernode remote \
-  --ssh-ip <remote_ip> \
-  --ssh-user=<remote username> \
-  --ssh-user-pw=<remote_user_pw> \
-  --ssh-key=$HOME/.ssh/id_rsa \
-  --ssh-dir=<pastelup path on remote node> \
-  -n=testnet \
-  -r latest \
-  --force
+After initialization, you can check the status of your supernode with the following command:
+``` shell
+pastel-cli masternode status
 ```
 
-### Init supernode remotely
+Verify it returns `masternode successfully started` message.
 
-When starting supernode for the first time, we need to `init`.Below is example to init supernode on remote:
+##### 3. Start supernode
 
-```
-./pastelup init supernode coldhot \
- --ssh-ip=<<ip_addr>>  \
- --ssh-dir=/home/ubuntu/utility \
- --ssh-user=<remote username> \
- -ssh-key=<<priv_key_filepath>> \
- --new --name=<<name>> --activate
+> You don't need to start supernode right after initialization. You only need to start it if it was stopped before.
 
+``` shell
+./pastelup start supernode
 ```
-### Update supernode remotely
+The above command will:
+- start rq-server, dd-server and hermes and supernode services
 
-#### Usage
-```
-NAME:
-   pastelup update supernode remote - 
+##### 4. Update supernode
 
-USAGE:
-   pastelup update supernode remote [command options] [arguments...]
-
-OPTIONS:
-   --user-pw value             Optional, password of current sudo user - so no sudo password request is prompted
-   --dir value, -d value       Optional, Location where to create pastel node directory (default: "/home/bacnh/pastel")
-   --work-dir value, -w value  Optional, Location where to create working directory (default: "/home/bacnh/.pastel")
-   --name value                Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)
-   --ssh-ip value              Required, SSH address of the remote host
-   --ssh-port value            Optional, SSH port of the remote host, default is 22 (default: 22)
-   --ssh-user value            Optional, Username of user at remote host
-   --ssh-key value             Optional, Path to SSH private key for SSH Key Authentication
-   --bin value                 Required, local path to the local binary (pasteld, pastel-cli, rq-service, supernode) file  or a folder of binary to remote host
-   --help, -h                  show help (default: false)
-```
-`pastelup update` will do the folowing steps:
-- Copy `pastelup` tool specified by `--utility-path' to `/tmp` folder of remote side
-- Stop `supernode` services by `pastel-ulity stop supernode`
-- Copy the file specified at `--bin` to `--dir` at remote side. If the path is a directory, it will copy all files inside that folder to the remote side
-- Start `supernode` again with masternode config `--name`
-
-a) To update supernode bin to remote side:
-
-```
-./pastelup update supernode remote \
-  --bin=$HOME/pastel/supernode-linux-amd64 \
-  --name=<masternode name> \
-  --ssh-ip=<remote ip> \
-  --ssh-user=<remote user> \
-  --user-pw=<pw of remote user> \
-  --ssh-key=<private key path>
-```
-b) To update all binaries at once, create a local folder and copy all binaries into a folder and execute below command with `--bin` pointing to that folder path:
-```
-./pastelup update supernode remote \ 
-  --bin=<path fo that folder> \
-  --name=<masternode name> \
-  --ssh-ip=<remote ip> \
-  --ssh-user=<remote user> \
-  --user-pw=<pw of remote user> \
-  --ssh-key=<private key path>
-```
-c) In case `--bin` is missing, the tool will update the latest from the download page
-
-```
-./pastelup update supernode remote  \
-   --name=<masternode name> \
-   --ssh-ip <remote ip> \
-   --ssh-user <remote username> \
-   --ssh-key=$HOME/.ssh/id_rsa \
-   --user-pw=<pw of remote user> \
-   -r latest 
+``` shell
+./pastelup update supernode  --name=<SN-name> -r latest
 ```
 
-### Stop supernode remotely
+#### B. Install supernode in **HOT/COLD** mode - on the two hosts
 
-```
-./pastelup stop supernode remote \
-   --ssh-ip 10.211.55.5 \
-   --ssh-user bacnh \
-   --ssh-key $HOME/.ssh/id_rsa
-```
-
-### Start supernode-coldhot
-
+Pelase refer to the following guide to install supernode in **HOT/COLD** mode:
 [How cold-hot config works](https://docs.pastel.network/development-guide/supernode)
 
-Usage:
-```
-./pastelup start supernode-coldhot \
-   --ssh-ip 10.211.55.5 \
-   --ssh-user bacnh \
-   --ssh-key=$HOME/.ssh/id_rsa 
-   --name=mn01 
-   --create
-```
 
-### Install command options
+## Default settings for all commands
 
-`pastelup install <node|walletnode|supernode> ...` supports the following common parameters:
-
-- `--dir value, -d value       Optional, Location to create pastel node directory (default: "$HOME/pastel")`
-- `--work-dir value, -w value  Optional, Location to create working directory (default: "$HOME/.pastel")`
-- `--network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")`
-- `--force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)`
-- `--peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"`
-- `--release value, -r value   Optional, Pastel version to install (default: "beta")`
-- `--enable-service            Optional, start all apps automatically as systemd services`
-- `--user-pw value             Optional, password of current sudo user - so no sudo password request is prompted`
-- `--help, -h                  show help (default: false)`
-
-### Start command options
-
-### Common options
-
-`pastelup start <node|walletnode|supernode> ...` supports the following common parameters:
-
-- `--ip value                  Optional, WAN address of the host`
-- `--dir value, -d value       Optional, Location of pastel node directory (default: "$HOME/pastel")`
-- `--work-dir value, -w value  Optional, location of working directory (default: "$HOME/.pastel")`
-- `--reindex, -r               Optional, Start with reindex (default: false)`
-- `--help, -h                  show help (default: false)`
-
-### Walletnode specific options
-
-`pastelup start walletnode ...` supports the following parameters in addition to common:
-
-- `--development-mode          Optional, Starts walletnode service with swagger enabled (default: false)`
-
-### Supernode specific options
-
-`pastelup start walletnode ...` supports the following parameters in addition to common:
-
-- `--activate                  Optional, if specified, will try to enable node as Masternode (start-alias). (default: false)`
-- `--name value                Required, name of the Masternode to start (and create or update in the masternode.conf if --create or --update are specified)`
-- `--pkey value                Optional, Masternode private key, if omitted, new masternode private key will be created`
-- `--create                    Optional, if specified, will create Masternode record in the masternode.conf. (default: false)`
-- `--update                    Optional, if specified, will update Masternode record in the masternode.conf. (default: false)`
-- `--txid value                Required (only if --update or --create specified), collateral payment txid , transaction id of 5M collateral MN payment`
-- `--ind value                 Required (only if --update or --create specified), collateral payment output index , output index in the transaction of 5M collateral MN payment`
-- `--pastelid value            Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered`
-- `--passphrase value          Required (only if --update or --create specified), passphrase to pastelid private key`
-- `--port value                Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet) (default: 0)`
-- `--rpc-ip value              Optional, supernode IP address. If omitted, value passed to --ip will be used`
-- `--rpc-port value            Optional, supernode port, default - 4444 (14444 for Testnet (default: 0)`
-- `--p2p-ip value              Optional, Kademlia IP address, if omitted, value passed to --ip will be used`
-- `--p2p-port value            Optional, Kademlia port, default - 4445 (14445 for Testnet) (default: 0)`
-- `--ip value                  Optional, WAN address of the host`
-- `--dir value, -d value       Optional, Location of pastel node directory (default: "/home/alexey/pastel")`
-- `--work-dir value, -w value  Optional, location of working directory (default: "/home/alexey/.pastel")`
-- `--reindex, -r               Optional, Start with reindex (default: false)`
-- `--help, -h                  show help (default: false)`
-
-
-## Stop
-Command [stop](#stop) stops Pastel network services
-
-### Stop all
-
-stop ALL local Pastel Network services
-
-``` shell
-./pastelup stop all [options]
-```
-
-### Stop node
-
-stop Pastel Core node
-
-``` shell
-./pastelup stop node [options]
-```
-
-### Stop walletnode
-
-stop Pastel Network Walletnode (not UI Wallet!)
-
-``` shell
-./pastelup stop walletnode [options]
-```
-
-### Stop supernode
-
-stop Pastel Network Supernode
-
-``` shell
-./pastelup stop supernode [options]
-```
-
-### Options
-
-#### --d, --dir
-
-Optional, location to Pastel executables installation, default - see platform specific in [install](#install) section
-
-#### --w, --workdir
-
-Optional, location to working directory, default - see platform specific in [install](#install) section
-
-### Default settings
-
-##### default_working_dir
+### default_working_dir
 
 The path depends on the OS:
 * MacOS `$HOME/Library/Application Support/Pastel`
 * Linux `$HOME/.pastel`
 * Windows (>= Vista) `%userprofile%\AppData\Roaming\Pastel`
 
-##### default_exec_dir
+### default_exec_dir
 
 The path depends on the OS:
 * MacOS `$HOME/Applications/PastelWallet`
@@ -424,7 +231,7 @@ The path depends on the OS:
 * Windows (>= Vista) `%userprofile%\AppData\Roaming\PastelWallet`
 
 
-### Testing 
+## Testing 
 All tests are contained in the `test/` directory. You can invoke the tests by running
 ```
 make build-test-img

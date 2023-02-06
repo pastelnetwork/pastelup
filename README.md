@@ -238,3 +238,7 @@ make build-test-img
 make <test-walletnode|test-local-supernode|test-local-supernode-service>
 ```
 This will run the associated script found in `test/scripts/` inside a docker container to validate specific functionality of `pastelup`.
+
+## More information
+
+https://docs.pastel.network/development-guide/types-of-pastel-installations

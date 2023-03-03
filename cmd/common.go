@@ -630,7 +630,7 @@ func executeRemoteCommandsWithInventory(ctx context.Context, config *configs.Con
 	if len(config.InventoryFile) > 0 {
 
 		var inv Inventory
-		err := inv.Read(config.InventoryFile)
+		err := inv.ReadAnsibleYamlInventory(config.InventoryFile)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to load inventory file")
 			return err

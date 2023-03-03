@@ -39,6 +39,7 @@ type Init struct {
 	RemoteUser             string `json:"remote-user,omitempty"`
 	RemoteSSHKey           string `json:"remote-ssh-key,omitempty"`
 	InventoryFile          string `json:"inventory-file,omitempty"`
+	InventoryFilter        string `json:"inventory-filter,omitempty"`
 }
 
 /*

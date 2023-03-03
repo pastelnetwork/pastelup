@@ -127,6 +127,8 @@ func setupInfoSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
 		cli.NewFlag("inventory", &config.InventoryFile).
 			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
+		cli.NewFlag("filter", &config.InventoryFilter).
+			SetUsage(red("Optional, use only specified host groups from the inventory file, comma separated list")),
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Optional, Version of pastelup to download to remote " +
 				"host if different local and remote OS's")),

@@ -9,14 +9,14 @@
 #### 1. Install the latest version of golang (1.17 or higher)
 
 First, remove existing versions of golang as follows:
-```
+``` shell
 sudo apt-get remove --auto-remove golang-go
 sudo rm -rvf /usr/local/go
 ```
 
 Then, download and install golang as follows:
 
-```
+``` shell
 wget https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
 sudo tar -xf go1.19.3.linux-amd64.tar.gz
 sudo mv go /usr/local
@@ -24,26 +24,26 @@ sudo mv go /usr/local
 
 Now, edit the following file:
 
-```
+``` shell
 nano  ~/.profile
 ```
 
 Add the following lines to the end and save with Ctrl-x:
 
-```
+``` shell
 export GOPATH=$HOME/go
 export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
 ```
 
 Make settings effective with:
 
-```
+``` shell
 source ~/.profile
 ```
 
 Check that everything is working by running:
 
-```
+``` shell
 go version
 ```
 This should return something similar to:
@@ -52,7 +52,7 @@ This should return something similar to:
 
 #### 2. Clone and build the pastelup repo as follows:
 
-```
+``` shell
 git clone https://github.com/pastelnetwork/pastelup.git
 cd pastelup
 make
@@ -60,14 +60,14 @@ make
 
 You may need to first run:
 
-```
+``` shell
 go mod tidy -compat=1.17
 ```
 
 
 ## Quick start guide
 
-### Start single node
+### Single node
 #### 1. Install node
 
 ``` shell
@@ -87,18 +87,18 @@ Or for testnet:
 #### 3. Update node
 
 ``` shelll
-   ./pastelup stop node
+./pastelup stop node
 ```
 
 ```shell
-   ./pastelup update node -r latest -n=mainnet
+./pastelup update node -r latest -n=mainnet
 ```
 Or for testnet:
 ```shell
-   ./pastelup update node -r latest -n=testnet
+./pastelup update node -r latest -n=testnet
 ```
 
-### Start walletnode
+### Walletnode
 
 > `install walletnode` will ask about whether you want to install bridge service or not. It is **RECOMMENDED** to install bridge service.
 
@@ -139,7 +139,7 @@ Or for testnet:
 ./pastelup update walletnode -r latest -n=testnet
 ```
 
-### Start supernode
+### Supernode
 
 > Supernode can only be installed on Linux OS.
 
@@ -161,6 +161,9 @@ Or for testnet:
 ```
 
 ##### 2. Initialize **_newly_** installed supernode
+
+> You should only run this command after first installation of supernode.
+> If you already have initialized supernode, then you can skip this step.
 
 ``` shell
  ./pastelup init supernode --new --name=<SN-name> --activate
@@ -199,8 +202,11 @@ Verify it returns `masternode successfully started` message.
 ``` shell
 ./pastelup start supernode
 ```
-The above command will:
-- start rq-server, dd-server and hermes and supernode services
+The above command will start following services:
+- rq-server
+- dd-server
+- hermes (if you chose to install it during installation)
+- supernode
 
 ##### 4. Update supernode
 
@@ -210,7 +216,7 @@ The above command will:
 
 #### B. Install supernode in **HOT/COLD** mode - on the two hosts
 
-Pelase refer to the following guide to install supernode in **HOT/COLD** mode:
+Please refer to the following guide to install supernode in **HOT/COLD** mode:
 [How cold-hot config works](https://docs.pastel.network/development-guide/supernode)
 
 
@@ -522,3 +528,34 @@ OPTIONS:
    --help, -h                  show help (default: false)
 ```
 
+#### Update
+Update commands for all tools are the same.
+```shell
+./pastelup update node --help
+NAME:
+   Pastel-Utility update node - Update Node
+
+USAGE:
+   Pastel-Utility update node command [command options] [arguments...]
+
+COMMANDS:
+   remote   Update on Remote host
+   help, h  Shows a list of commands or help for one command
+
+OPTIONS:
+   --dir value, -d value       Optional, Location where to create pastel node directory
+   --work-dir value, -w value  Optional, Location where to create working directory
+   --archive-dir value         Optional, Location where to store archived backup before update
+   --release value, -r value   Required, Pastel version to install
+   --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
+   --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
+   --skip-system-update        Optional, Skip System Update skips linux apt-update (default: false)
+   --peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"
+   --clean, -c                 Optional, Clean .pastel folder (default: false)
+   --user-pw value             Optional, password of current sudo user - so no sudo password request is prompted
+   --no-backup                 Optional, skip backing up configuration files before updating workspace (default: false)
+   --log-level level           Set the log level. (default: "info")
+   --log-file file             The log file to write to.
+   --quiet, -q                 Disallows log output to stdout. (default: false)
+   --help, -h                  show help (default: false)
+```

@@ -6,10 +6,10 @@ import (
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -136,9 +136,7 @@ func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config,
 
 	for _, sg := range i.ServerGroups {
 		if len(filters) > 0 {
-			index := sort.SearchStrings(filters, sg.Name)
-			if index < len(filters) && filters[index] == sg.Name {
-			} else {
+			if !slices.Contains(filters, sg.Name) {
 				continue
 			}
 		}

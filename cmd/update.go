@@ -30,12 +30,12 @@ const (
 	updateNode updateCommand = iota
 	updateWalletNode
 	updateSuperNode
-	updateDDService
 	updateRQService
+	updateDDService
 	updateWNService
 	updateSNService
-	updateRemote
 	updatePastelup
+	remoteUpdate
 	installService
 	removeService
 )
@@ -45,12 +45,12 @@ var (
 		updateNode:       "node",
 		updateWalletNode: "walletnode",
 		updateSuperNode:  "supernode",
-		updateDDService:  "dd-service",
 		updateRQService:  "rq-service",
+		updateDDService:  "dd-service",
 		updateWNService:  "walletnode-service",
 		updateSNService:  "supernode-service",
-		updateRemote:     "remote",
 		updatePastelup:   "pastelup",
+		remoteUpdate:     "remote",
 		installService:   "install-service",
 		removeService:    "remove-service",
 	}
@@ -58,39 +58,49 @@ var (
 		updateNode:       "Update Node",
 		updateWalletNode: "Update Walletnode",
 		updateSuperNode:  "Update Supernode",
-		updateDDService:  "Update DupeDetection service only",
 		updateRQService:  "Update RaptorQ service only",
+		updateDDService:  "Update DupeDetection service only",
 		updateWNService:  "Update Walletnode service only",
 		updateSNService:  "Update Supernode service only",
-		updateRemote:     "Update on Remote host",
 		updatePastelup:   "Update Pastelup",
+		remoteUpdate:     "Update on Remote host",
 		installService:   "Install managed service",
 		removeService:    "Remove managed service",
 	}
 )
 
 func setupUpdateSubCommand(config *configs.Config,
-	updateCmd updateCommand, remote bool,
+	updateCommand updateCommand, remote bool,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 
 	commonFlags := []*cli.Flag{
 		cli.NewFlag("release", &config.Version).SetAliases("r").
 			SetUsage(green("Required, Pastel version to install")).SetRequired(),
-		cli.NewFlag("network", &config.Network).SetAliases("n").
-			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
-		cli.NewFlag("skip-system-update", &config.SkipSystemUpdate).
-			SetUsage(green("Optional, Skip System Update skips linux apt-update")),
-		cli.NewFlag("peers", &config.Peers).SetAliases("p").
-			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
+		cli.NewFlag("regen-rpc", &config.RegenRPC).
+			SetUsage(green("Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file")),
+		cli.NewFlag("ignore-dependencies", &flagIgnoreDependencies).
+			SetUsage(green("Optional, ignore checking dependencies and continue installation even if dependencies are not met")),
 		cli.NewFlag("clean", &config.Clean).SetAliases("c").
 			SetUsage(green("Optional, Clean .pastel folder")),
-		cli.NewFlag("user-pw", &config.UserPw).
-			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 		cli.NewFlag("no-backup", &config.NoBackup).
 			SetUsage(green("Optional, skip backing up configuration files before updating workspace")),
+		cli.NewFlag("skip-system-update", &config.SkipSystemUpdate).
+			SetUsage(green("Optional, Skip System Update skips linux apt-update")),
+	}
+
+	pastelFlags := []*cli.Flag{
+		cli.NewFlag("network", &config.Network).SetAliases("n").
+			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
+		cli.NewFlag("peers", &config.Peers).SetAliases("p").
+			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
+	}
+
+	userFlags := []*cli.Flag{
+		cli.NewFlag("user-pw", &config.UserPw).
+			SetUsage(green("Optional, password of current sudo user - so no sudo password request is prompted")),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -117,17 +127,17 @@ func setupUpdateSubCommand(config *configs.Config,
 
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
-			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
+			SetUsage(red("Required (if inventory not used), SSH address of the remote host")).SetRequired(),
 		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, Username of user at remote host")),
 		cli.NewFlag("ssh-user-pw", &config.UserPw).
-			SetUsage(red("Required, password of remote user - so no sudo password request is prompted")).SetRequired(),
+			SetUsage(yellow("Optional, password of remote user - so no sudo password request is prompted")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
 		cli.NewFlag("inventory", &config.InventoryFile).
-			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
+			SetUsage(yellow("Required (if ssh-ip not used), Path to the file with configuration of the remote hosts")),
 	}
 
 	systemServiceFlags := []*cli.Flag{
@@ -146,22 +156,29 @@ func setupUpdateSubCommand(config *configs.Config,
 
 	var commandName, commandMessage string
 	if !remote {
-		commandName = updateCommandName[updateCmd]
-		commandMessage = updateCommandMessage[updateCmd]
+		commandName = updateCommandName[updateCommand]
+		commandMessage = updateCommandMessage[updateCommand]
 	} else {
-		commandName = updateCommandName[updateRemote]
-		commandMessage = updateCommandMessage[updateRemote]
+		commandName = updateCommandName[remoteUpdate]
+		commandMessage = updateCommandMessage[remoteUpdate]
 	}
 
 	var commandFlags []*cli.Flag
 
-	if updateCmd == installService || updateCmd == removeService {
+	if updateCommand == installService || updateCommand == removeService {
 		commandFlags = append(systemServiceFlags, dirsFlags[:]...)
 	} else {
 		commandFlags = append(dirsFlags, commonFlags[:]...)
 	}
+	if updateCommand == updateNode ||
+		updateCommand == updateWalletNode ||
+		updateCommand == updateSuperNode {
+		commandFlags = append(commandFlags, pastelFlags[:]...)
+	}
 	if remote {
 		commandFlags = append(commandFlags, remoteFlags[:]...)
+	} else {
+		commandFlags = append(commandFlags, userFlags[:]...)
 	}
 
 	subCommand := cli.NewCommand(commandName)
@@ -305,7 +322,7 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 	}
 
 	updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update %s", constants.RemotePastelupPath, updateOptions)
-	if err := executeRemoteCommandsWithInventory(ctx, config, []string{updateSuperNodeCmd}, false); err != nil {
+	if err, _ := executeRemoteCommandsWithInventory(ctx, config, []string{updateSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s on remote host", tool)
 	}
 	log.WithContext(ctx).Infof("Remote %s updated", tool)

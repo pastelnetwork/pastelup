@@ -23,8 +23,11 @@ import (
 	"github.com/pastelnetwork/pastelup/utils"
 )
 
-/*var (
+/*
+var (
+
 	wg sync.WaitGroup
+
 )
 */
 var (
@@ -499,7 +502,7 @@ func runRemoteStart(ctx context.Context, config *configs.Config, tool string) er
 	}
 
 	startSuperNodeCmd := fmt.Sprintf("%s start %s", constants.RemotePastelupPath, startOptions)
-	if err := executeRemoteCommandsWithInventory(ctx, config, []string{startSuperNodeCmd}, false); err != nil {
+	if err, _ := executeRemoteCommandsWithInventory(ctx, config, []string{startSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to start %s on remote host", tool)
 	}
 
@@ -893,7 +896,7 @@ func setPastelIDAndPassphraseInHermesConf(ctx context.Context, config *configs.C
 	return nil
 }
 
-///// Run helpers
+// /// Run helpers
 func runPastelNode(ctx context.Context, config *configs.Config, txIndexOne bool, reindex bool, extIP string, mnPrivKey string) (err error) {
 	serviceEnabled := false
 	sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
@@ -992,7 +995,7 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 	return nil
 }
 
-///// Validates input parameters
+// /// Validates input parameters
 func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, coldHot bool) error {
 
 	// --ip WAN IP address of the node - Required, WAN address of the host
@@ -1062,7 +1065,7 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 	return nil
 }
 
-///// Run helpers
+// /// Run helpers
 func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, startPasteld bool) (err error) {
 
 	// this function must only be called when --create or --update
@@ -1367,7 +1370,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-///// Masternode specific
+// /// Masternode specific
 func runStartAliasMasternode(ctx context.Context, config *configs.Config, masternodeName string) error {
 	var aliasStatus map[string]interface{}
 	err := pastelcore.NewClient(config).RunCommandWithArgs(
@@ -1387,7 +1390,7 @@ func runStartAliasMasternode(ctx context.Context, config *configs.Config, master
 	return nil
 }
 
-///// supernode.yml hlpers
+// /// supernode.yml hlpers
 func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) error {
 
 	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)

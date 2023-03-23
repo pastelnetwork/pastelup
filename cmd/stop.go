@@ -271,7 +271,7 @@ func runRemoteStop(ctx context.Context, config *configs.Config, tool string) {
 	}
 
 	stopSuperNodeCmd := fmt.Sprintf("%s stop %s", constants.RemotePastelupPath, stopOptions)
-	if err := executeRemoteCommandsWithInventory(ctx, config, []string{stopSuperNodeCmd}, false); err != nil {
+	if err, _ := executeRemoteCommandsWithInventory(ctx, config, []string{stopSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to stop %s on remote host", tool)
 	}
 

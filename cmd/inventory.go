@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pkg/errors"
@@ -128,19 +127,20 @@ func (i *Inventory) ReadAnsibleYamlInventory(path string) error {
 }
 
 // ExecuteCommands executes commands on all hosts from inventory
-func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config, commands []string) error {
+func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config, commands []string, needOutput bool) (error, [][]byte) {
 	var filters []string
 	if config.InventoryFilter != "" {
 		filters = strings.Split(config.InventoryFilter, ",")
 	}
 
+	var outs [][]byte
 	for _, sg := range i.ServerGroups {
 		if len(filters) > 0 {
 			if !slices.Contains(filters, sg.Name) {
 				continue
 			}
 		}
-		fmt.Printf(green("\n********** Accessing host group %s **********\n"), sg.Name)
+		log.WithContext(ctx).Infof(green("\n********** Accessing host group %s **********\n"), sg.Name)
 		config.RemoteUser = ""
 		config.RemoteIP = ""
 		config.RemotePort = 0
@@ -156,7 +156,8 @@ func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config,
 			config.RemoteSSHKey = sg.Common.IdentityFile
 		}
 		for _, srv := range sg.Servers {
-			fmt.Printf(green("\n********** Executing command on %s **********\n"), srv.Name)
+			log.WithContext(ctx).Infof(green("\n********** Executing command on %s **********\n"), srv.Name)
+
 			if len(srv.User) > 0 {
 				config.RemoteUser = srv.User
 			}
@@ -170,12 +171,14 @@ func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config,
 			if config.RemotePort == 0 {
 				config.RemotePort = 22
 			}
-			if err := executeRemoteCommands(ctx, config, commands, false); err != nil {
+			err, out := executeRemoteCommands(ctx, config, commands, false, needOutput)
+			if err != nil {
 				log.WithContext(ctx).WithError(err).Errorf("Failed to execute command on remote host %s"+
 					" [IP:%s; Port:%d; User:%s; KeyFile:%s; ]",
 					srv.Name, config.RemoteIP, config.RemotePort, config.RemoteUser, config.RemoteSSHKey)
 			}
+			outs = append(outs, out)
 		}
 	}
-	return nil
+	return nil, outs
 }

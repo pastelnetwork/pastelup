@@ -23,40 +23,45 @@ import (
 type installCommand uint8
 
 const (
-	nodeInstall installCommand = iota
-	walletNodeInstall
-	superNodeInstall
+	installNode installCommand = iota
+	installWalletNode
+	installSuperNode
+	installRQService
+	installDDService
+	installDDImgServer
+	installWNService
+	installSNService
+	installHermesService
 	remoteInstall
-	rqServiceInstall
-	ddServiceInstall
-	ddServiceImgServerInstall
-	snServiceInstall
-	wnServiceInstall
-	hermesServiceInstall
+)
+
+var (
+	// node flags
+	flagIgnoreDependencies bool
 )
 
 var nonNetworkDependentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
 
 var (
 	installCmdName = map[installCommand]string{
-		nodeInstall:               "node",
-		walletNodeInstall:         "walletnode",
-		superNodeInstall:          "supernode",
-		rqServiceInstall:          "rq-service",
-		ddServiceInstall:          "dd-service",
-		ddServiceImgServerInstall: "imgserver",
-		remoteInstall:             "remote",
-		hermesServiceInstall:      "hermes-service",
+		installNode:          "node",
+		installWalletNode:    "walletnode",
+		installSuperNode:     "supernode",
+		installRQService:     "rq-service",
+		installDDService:     "dd-service",
+		installDDImgServer:   "imgserver",
+		installHermesService: "hermes-service",
+		remoteInstall:        "remote",
 	}
 	installCmdMessage = map[installCommand]string{
-		nodeInstall:               "Install node",
-		walletNodeInstall:         "Install Walletnode",
-		superNodeInstall:          "Install Supernode",
-		rqServiceInstall:          "Install RaptorQ service",
-		ddServiceInstall:          "Install Dupe Detection service only",
-		ddServiceImgServerInstall: "Install Dupe Detection Image Server only",
-		remoteInstall:             "Install on Remote host",
-		hermesServiceInstall:      "Install hermes-service only",
+		installNode:          "Install node",
+		installWalletNode:    "Install Walletnode",
+		installSuperNode:     "Install Supernode",
+		installRQService:     "Install RaptorQ service",
+		installDDService:     "Install Dupe Detection service only",
+		installDDImgServer:   "Install Dupe Detection Image Server only",
+		installHermesService: "Install hermes-service only",
+		remoteInstall:        "Install on Remote host",
 	}
 )
 var appToServiceMap = map[constants.ToolType][]constants.ToolType{
@@ -93,6 +98,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
 		cli.NewFlag("regen-rpc", &config.RegenRPC).
 			SetUsage(green("Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file")),
+		cli.NewFlag("ignore-dependencies", &flagIgnoreDependencies).
+			SetUsage(green("Optional, ignore checking dependencies and continue installation even if dependencies are not met")),
 	}
 
 	pastelFlags := []*cli.Flag{
@@ -127,15 +134,17 @@ func setupSubCommand(config *configs.Config,
 
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
-			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
+			SetUsage(red("Required (if inventory not used), SSH address of the remote host")).SetRequired(),
 		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-user-pw", &config.UserPw).
-			SetUsage(red("Required, password of remote user - so no sudo password request is prompted")).SetRequired(),
+			SetUsage(yellow("Optional, password of remote user - so no sudo password request is prompted")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
+		cli.NewFlag("inventory", &config.InventoryFile).
+			SetUsage(yellow("Required (if ssh-ip not used), Path to the file with configuration of the remote hosts")),
 	}
 
 	ddServiceFlags := []*cli.Flag{
@@ -153,18 +162,18 @@ func setupSubCommand(config *configs.Config,
 	}
 
 	commandFlags := append(dirsFlags, commonFlags[:]...)
-	if installCommand == nodeInstall ||
-		installCommand == walletNodeInstall ||
-		installCommand == superNodeInstall {
+	if installCommand == installNode ||
+		installCommand == installWalletNode ||
+		installCommand == installSuperNode {
 		commandFlags = append(commandFlags, pastelFlags[:]...)
 	}
 	if remote {
 		commandFlags = append(commandFlags, remoteFlags[:]...)
-	} else if installCommand == superNodeInstall {
+	} else if installCommand == installSuperNode {
 		commandFlags = append(commandFlags, userFlags...)
 	}
 
-	if installCommand == ddServiceInstall || installCommand == superNodeInstall {
+	if installCommand == installDDService || installCommand == installSuperNode {
 		commandFlags = append(commandFlags, ddServiceFlags...)
 	}
 
@@ -209,21 +218,21 @@ func setupSubCommand(config *configs.Config,
 func setupInstallCommand(config *configs.Config) *cli.Command {
 	config.OpMode = "install"
 
-	installNodeSubCommand := setupSubCommand(config, nodeInstall, false, runInstallNodeSubCommand)
-	installWalletNodeSubCommand := setupSubCommand(config, walletNodeInstall, false, runInstallWalletNodeSubCommand)
-	installSuperNodeSubCommand := setupSubCommand(config, superNodeInstall, false, runInstallSuperNodeSubCommand)
-	installRQSubCommand := setupSubCommand(config, rqServiceInstall, false, runInstallRaptorQSubCommand)
-	installDDSubCommand := setupSubCommand(config, ddServiceInstall, false, runInstallDupeDetectionSubCommand)
-	installDDImgServerSubCommand := setupSubCommand(config, ddServiceImgServerInstall, false, runInstallDupeDetectionImgServerSubCommand)
-	installHermesServiceSubCommand := setupSubCommand(config, hermesServiceInstall, false, runInstallHermesServiceSubCommand)
+	installNodeSubCommand := setupSubCommand(config, installNode, false, runInstallNodeSubCommand)
+	installWalletNodeSubCommand := setupSubCommand(config, installWalletNode, false, runInstallWalletNodeSubCommand)
+	installSuperNodeSubCommand := setupSubCommand(config, installSuperNode, false, runInstallSuperNodeSubCommand)
+	installRQSubCommand := setupSubCommand(config, installRQService, false, runInstallRaptorQSubCommand)
+	installDDSubCommand := setupSubCommand(config, installDDService, false, runInstallDupeDetectionSubCommand)
+	installDDImgServerSubCommand := setupSubCommand(config, installDDImgServer, false, runInstallDupeDetectionImgServerSubCommand)
+	installHermesServiceSubCommand := setupSubCommand(config, installHermesService, false, runInstallHermesServiceSubCommand)
 
-	installNodeSubCommand.AddSubcommands(setupSubCommand(config, nodeInstall, true, runRemoteInstallNode))
-	installWalletNodeSubCommand.AddSubcommands(setupSubCommand(config, walletNodeInstall, true, runRemoteInstallWalletNode))
-	installSuperNodeSubCommand.AddSubcommands(setupSubCommand(config, superNodeInstall, true, runRemoteInstallSuperNode))
-	installRQSubCommand.AddSubcommands(setupSubCommand(config, rqServiceInstall, true, runRemoteInstallRQService))
-	installDDSubCommand.AddSubcommands(setupSubCommand(config, ddServiceInstall, true, runRemoteInstallDDService))
-	installDDImgServerSubCommand.AddSubcommands(setupSubCommand(config, ddServiceImgServerInstall, true, runRemoteInstallImgServer))
-	installHermesServiceSubCommand.AddSubcommands(setupSubCommand(config, hermesServiceInstall, true, runRemoteInstallHermesService))
+	installNodeSubCommand.AddSubcommands(setupSubCommand(config, installNode, true, runRemoteInstallNode))
+	installWalletNodeSubCommand.AddSubcommands(setupSubCommand(config, installWalletNode, true, runRemoteInstallWalletNode))
+	installSuperNodeSubCommand.AddSubcommands(setupSubCommand(config, installSuperNode, true, runRemoteInstallSuperNode))
+	installRQSubCommand.AddSubcommands(setupSubCommand(config, installRQService, true, runRemoteInstallRQService))
+	installDDSubCommand.AddSubcommands(setupSubCommand(config, installDDService, true, runRemoteInstallDDService))
+	installDDImgServerSubCommand.AddSubcommands(setupSubCommand(config, installDDImgServer, true, runRemoteInstallImgServer))
+	installHermesServiceSubCommand.AddSubcommands(setupSubCommand(config, installHermesService, true, runRemoteInstallHermesService))
 
 	installCommand := cli.NewCommand("install")
 	installCommand.SetUsage(blue("Performs installation and initialization of the system for both WalletNode and SuperNodes"))
@@ -339,13 +348,11 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 	}
 
 	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install %s", constants.RemotePastelupPath, remoteOptions)
-
-	if err = executeRemoteCommands(ctx, config, []string{installSuperNodeCmd}, true); err != nil {
+	if err, _ := executeRemoteCommandsWithInventory(ctx, config, []string{installSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to install remote %s", tool)
-		return err
 	}
-
 	log.WithContext(ctx).Infof("Finished remote installation of %s", tool)
+
 	return nil
 }
 
@@ -357,34 +364,39 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		log.WithContext(ctx).Infof("initiating in %s mode", config.Network)
 	}
 
+	getDefaultRPCParameters(config)
+
 	if installCommand == constants.PastelD ||
 		(installCommand == constants.WalletNode && withDependencies) ||
 		(installCommand == constants.SuperNode && withDependencies) {
 
 		// need to stop pasteld else we'll get a text file busy error
 		if CheckProcessRunning(constants.PastelD) {
-			log.WithContext(ctx).Infof("pasteld is already running")
-			if yes, _ := AskUserToContinue(ctx,
-				"Do you want to stop it and continue? Y/N"); !yes {
-				log.WithContext(ctx).Warn("Exiting...")
-				return fmt.Errorf("user terminated installation")
-			}
-
-			sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
+			_, err := GetPastelInfo(ctx, config) // this needed to check if pasteld is running in the same mode
 			if err == nil {
-				_ = sm.StopService(ctx, config, constants.PastelD)
-			}
-			if CheckProcessRunning(constants.PastelD) {
-				if err = ParsePastelConf(ctx, config); err != nil {
-					return err
+				log.WithContext(ctx).Infof("pasteld is already running")
+				if yes, _ := AskUserToContinue(ctx,
+					"Do you want to stop it and continue? Y/N"); !yes {
+					log.WithContext(ctx).Warn("Exiting...")
+					return fmt.Errorf("user terminated installation")
 				}
-				err = stopPatelCLI(ctx, config)
-				if err != nil {
-					log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v, will try to kill it", err)
-					_ = KillProcess(ctx, constants.PastelD)
+
+				sm, err := NewServiceManager(utils.GetOS(), config.Configurer.DefaultHomeDir())
+				if err == nil {
+					_ = sm.StopService(ctx, config, constants.PastelD)
 				}
+				if CheckProcessRunning(constants.PastelD) {
+					if err = ParsePastelConf(ctx, config); err != nil {
+						return err
+					}
+					err = stopPatelCLI(ctx, config)
+					if err != nil {
+						log.WithContext(ctx).Warnf("Encountered error trying to stop pasteld %v, will try to kill it", err)
+						_ = KillProcess(ctx, constants.PastelD)
+					}
+				}
+				log.WithContext(ctx).Info("pasteld stopped or was not running")
 			}
-			log.WithContext(ctx).Info("pasteld stopped or was not running")
 		}
 	}
 
@@ -394,9 +406,11 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		return err
 	}
 
-	if err := checkInstalledPackages(ctx, config, installCommand, withDependencies); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Missing packages...")
-		return err
+	if !flagIgnoreDependencies {
+		if err := checkInstalledPackages(ctx, config, installCommand, withDependencies); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Missing packages...")
+			return err
+		}
 	}
 
 	// install pasteld and pastel-cli; setup working dir (~/.pastel) and pastel.conf
@@ -412,14 +426,14 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 	if installCommand == constants.RQService ||
 		(installCommand == constants.WalletNode && withDependencies) ||
 		(installCommand == constants.SuperNode && withDependencies) {
-		if err := installRQService(ctx, config); err != nil {
+		if err := installRaptorQService(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install RaptorQ service")
 			return err
 		}
 	}
 	// install WalletNode and its config
 	if installCommand == constants.WalletNode {
-		if err := installWNService(ctx, config); err != nil {
+		if err := installWalletNodeService(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install WalletNode service")
 			return err
 		}
@@ -427,7 +441,7 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 
 	// install SuperNode, dd-service and their configs; open ports
 	if installCommand == constants.SuperNode {
-		if err := installSNService(ctx, config, withDependencies /*only open ports when full system install*/); err != nil {
+		if err := installSuperNodeService(ctx, config, withDependencies /*only open ports when full system install*/); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install WalletNode service")
 			return err
 		}
@@ -442,7 +456,7 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 	}
 
 	if installCommand == constants.Hermes {
-		if err := installHermesService(ctx, config); err != nil {
+		if err := installHermes(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install hermes-service")
 			return err
 		}
@@ -489,14 +503,14 @@ func installPastelCore(ctx context.Context, config *configs.Config) error {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to make %s executable", pastelCliName)
 		return err
 	}
-	if err := setupBasePasteWorkingEnvironment(ctx, config); err != nil {
+	if err := setupBasePastelWorkingEnvironment(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to install Pastel Node")
 		return err
 	}
 	return nil
 }
 
-func installRQService(ctx context.Context, config *configs.Config) error {
+func installRaptorQService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing rq-service...")
 
 	toolPath := constants.PastelRQServiceExecName[utils.GetOS()]
@@ -634,7 +648,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	return nil
 }
 
-func installWNService(ctx context.Context, config *configs.Config) error {
+func installWalletNodeService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing WalletNode service...")
 	installBridge, _ := AskUserToContinue(ctx, "Install Bridge Service? Y/N")
 
@@ -724,7 +738,7 @@ func installWNService(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func installHermesService(ctx context.Context, config *configs.Config) error {
+func installHermes(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing Hermes service...")
 
 	hermesConfig, err := GetHermesConfigs(config)
@@ -754,7 +768,7 @@ func installHermesService(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func installSNService(ctx context.Context, config *configs.Config, tryOpenPorts bool) error {
+func installSuperNodeService(ctx context.Context, config *configs.Config, tryOpenPorts bool) error {
 	log.WithContext(ctx).Info("Installing SuperNode service...")
 
 	snTempDirPath := filepath.Join(config.WorkingDir, constants.TempDir)
@@ -1108,7 +1122,7 @@ func setupComponentConfigFile(ctx context.Context, config *configs.Config,
 	return nil
 }
 
-func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Config) error {
+func setupBasePastelWorkingEnvironment(ctx context.Context, config *configs.Config) error {
 	// Ignore if not in "install" mode
 	if config.OpMode != "install" {
 		return nil
@@ -1118,17 +1132,6 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	if err := utils.CreateFolder(ctx, config.WorkingDir, config.Force); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to create folder %s", config.WorkingDir)
 		return err
-	}
-
-	if config.RPCPort == 0 || config.RegenRPC {
-		portList := GetSNPortList(config)
-		config.RPCPort = portList[constants.NodeRPCPort]
-	}
-	if config.RPCUser == "" || config.RegenRPC {
-		config.RPCUser = utils.GenerateRandomString(8)
-	}
-	if config.RPCPwd == "" || config.RegenRPC {
-		config.RPCPwd = utils.GenerateRandomString(15)
 	}
 
 	// create pastel.conf file
@@ -1160,13 +1163,26 @@ func setupBasePasteWorkingEnvironment(ctx context.Context, config *configs.Confi
 	return nil
 }
 
+func getDefaultRPCParameters(config *configs.Config) {
+	if config.RPCPort == 0 || config.RegenRPC {
+		portList := GetSNPortList(config)
+		config.RPCPort = portList[constants.NodeRPCPort]
+	}
+	if config.RPCUser == "" || config.RegenRPC {
+		config.RPCUser = utils.GenerateRandomString(8)
+	}
+	if config.RPCPwd == "" || config.RegenRPC {
+		config.RPCPwd = utils.GenerateRandomString(15)
+	}
+}
+
 func updatePastelConfigFile(ctx context.Context, filePath string, config *configs.Config) error {
 	cfgBuffer := bytes.Buffer{}
 
 	// Populate pastel.conf line-by-line to file.
 	cfgBuffer.WriteString("server=1\n")                                     // creates server line
 	cfgBuffer.WriteString("listen=1\n\n")                                   // creates server line
-	cfgBuffer.WriteString("rpcuser=" + config.RPCUser + "\n")               // creates  rpcuser line
+	cfgBuffer.WriteString("rpcuser=" + config.RPCUser + "\n")               // creates rpcuser line
 	cfgBuffer.WriteString("rpcpassword=" + config.RPCPwd + "\n")            // creates rpcpassword line
 	cfgBuffer.WriteString("rpcport=" + strconv.Itoa(config.RPCPort) + "\n") // creates rpcport line
 

@@ -2,8 +2,11 @@ package cmd
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -40,6 +43,11 @@ var (
 	}
 )
 
+type hostInfo struct {
+	Hostname string
+	OS       string
+}
+
 type processInfo struct {
 	Process   string
 	Pid       string
@@ -50,6 +58,8 @@ type processInfo struct {
 	Runtime   string
 	Path      string
 	Args      []string
+	Version   string
+	Hash      string
 }
 
 type memoryInfo struct {
@@ -69,9 +79,24 @@ type filesystemInfo struct {
 }
 
 type systemInfo struct {
+	HostInfo hostInfo
 	MemInfo  []memoryInfo
 	FsInfo   []filesystemInfo
 	ProcInfo []processInfo
+}
+
+type pastelInfo struct {
+	Args       []string
+	WorkingDir string
+	ExecDir    string
+	GetInfo    structure.GetInfoResult
+	MNStatus   structure.MNStatusResult
+	MNConfig   structure.MasternodeConfResult
+}
+
+type AllInfo struct {
+	SystemInfo systemInfo
+	PastelInfo pastelInfo
 }
 
 type infoCommand uint8
@@ -204,10 +229,15 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 	//var err error
 	var sysInfo systemInfo
 	if flagHostInfo {
-		fmt.Println(green("\n=== System info ==="))
+		if flagOutput == "console" {
+			log.WithContext(ctx).Info(green("\n=== System info ==="))
+		}
+
 		host, _ := os.Hostname()
-		fmt.Printf("HostName: %s\n", host)
-		fmt.Printf("OS: %s\n", utils.GetOS())
+		sysInfo.HostInfo = hostInfo{
+			Hostname: fmt.Sprintf("%s", host),
+			OS:       fmt.Sprintf("%s", utils.GetOS()),
+		}
 
 		pastelProcNames := make(map[string]bool)
 		pastelProcNamesShort := make(map[string]bool)
@@ -232,21 +262,26 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 		sysInfo.ProcInfo = getPastelProcessesInfo(&pastelProcNames, &pastelProcNamesShort)
 
 		if flagOutput == "console" {
+			printHostInfo(sysInfo.HostInfo)
 			printMemoryInfo(sysInfo.MemInfo)
 			printFSInfo(sysInfo.FsInfo)
 			printProcessInfo(sysInfo.ProcInfo)
 		}
 	}
 
+	pastelInfo := pastelInfo{}
+
 	if flagPastelInfo {
-		fmt.Println(blue("\n=== Pastel info ==="))
+		if flagOutput == "console" {
+			log.WithContext(ctx).Info(blue("\n=== Pastel info ==="))
+		}
+
 		for _, process := range sysInfo.ProcInfo {
 			if strings.HasPrefix(process.Process, "pasteld") {
+				config.PastelExecDir = process.Path
 				config.WorkingDir = config.Configurer.DefaultWorkingDir()
 				if len(process.Args) > 0 {
-					fmt.Printf(red("pasteld") + " was started with the following parameters:\n")
 					for _, arg := range process.Args[1:] {
-						fmt.Printf(cyan("\t%s\n"), arg)
 						if strings.Contains(arg, "--datadir") {
 							datadir := strings.Split(arg, "=")
 							if len(datadir) == 1 {
@@ -257,37 +292,53 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 							}
 						}
 					}
-				} else {
-					fmt.Print(blue("pasteld was started without parameters\n"))
 				}
-				config.PastelExecDir = process.Path
+				pastelInfo.Args = process.Args
+				pastelInfo.WorkingDir = config.WorkingDir
+				pastelInfo.ExecDir = config.PastelExecDir
 
-				fmt.Printf("Blockchain info on the host:\n")
 				var info structure.RPCGetInfo
 				err := pastelcore.NewClient(config).RunCommand(pastelcore.GetInfoCmd, &info)
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to get pastel info: %v", err)
+				} else {
+					pastelInfo.GetInfo = info.Result
 				}
-				fmt.Println(info.String() + "\n")
 
-				fmt.Printf("Masternode status of the host:\n")
 				var mnStatus structure.RPCPastelMNStatus
 				err = pastelcore.NewClient(config).RunCommandWithArgs(pastelcore.MasterNodeCmd, []string{"status"}, &mnStatus)
 				if err != nil {
 					log.WithContext(ctx).Errorf("unable to get masternode status: %v", err)
+				} else {
+					pastelInfo.MNStatus = mnStatus.Result
 				}
-				fmt.Printf("%+v\n", mnStatus)
+
+				var mnConfig structure.RPCMasternodeConf
+				err = pastelcore.NewClient(config).RunCommandWithArgs(pastelcore.MasterNodeCmd, []string{"list-conf"}, &mnConfig)
+				if err != nil {
+					log.WithContext(ctx).Errorf("unable to get masternode config: %v", err)
+				} else {
+					pastelInfo.MNConfig = mnConfig.Result
+				}
 			}
 		}
-		fmt.Printf("Working Directory: %s\n", config.WorkingDir)
+
+		if flagOutput == "console" {
+			printPastelInfo(pastelInfo)
+		}
 	}
 
 	if flagOutput == "json" {
-		data, _ := json.Marshal(sysInfo)
+		allInfo := AllInfo{
+			SystemInfo: sysInfo,
+			PastelInfo: pastelInfo,
+		}
+		//data, _ := json.MarshalIndent(allInfo, "", "  ")
+		data, _ := json.Marshal(allInfo)
 		//if err != nil {
 		//	fmt.Printf("Error %v\n", err)
 		//}
-		fmt.Printf("%s\n", string(data))
+		fmt.Println(string(data))
 	}
 	return nil
 }
@@ -303,17 +354,65 @@ func runRemoteInfoSubCommand(ctx context.Context, config *configs.Config) error 
 	if len(flagOutput) > 0 {
 		infoOptions = fmt.Sprintf("%s --output %s", infoOptions, flagOutput)
 	}
-	if config.Quiet {
+	if config.Quiet && flagOutput == "json" {
 		infoOptions = fmt.Sprintf("%s -q", infoOptions)
 	}
 	if len(config.LogLevel) > 0 {
 		infoOptions = fmt.Sprintf("%s --log-level %s", infoOptions, config.LogLevel)
 	}
 	infoCmd := fmt.Sprintf("%s info %s", constants.RemotePastelupPath, infoOptions)
-	if err := executeRemoteCommandsWithInventory(ctx, config, []string{infoCmd}, false); err != nil {
+	if err, outs := executeRemoteCommandsWithInventory(ctx, config, []string{infoCmd}, false, flagOutput == "json"); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get info from remote hosts")
+	} else {
+		if flagOutput == "json" {
+			sliceOfStrings := make([]json.RawMessage, len(outs))
+			for i, byteSlice := range outs {
+				sliceOfStrings[i] = byteSlice
+			}
+			jsonData, err := json.MarshalIndent(sliceOfStrings, "", "  ")
+			if err != nil {
+				fmt.Println("Error:", err)
+				log.WithContext(ctx).WithError(err).Error("Failed to format responses as JSON")
+				return err
+			}
+			fmt.Printf("Info from remote hosts: %s\n", string(jsonData))
+		}
 	}
 	return nil
+}
+
+func printHostInfo(info hostInfo) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"", ""})
+	table.SetColumnColor(
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiRedColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgBlackColor},
+	)
+	table.Append([]string{
+		"Hostname",
+		info.Hostname,
+	})
+	table.Append([]string{
+		"OS",
+		info.OS,
+	})
+	table.Render()
+}
+
+func calcFileHash(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	hashInBytes := hash.Sum(nil)[:20]
+	return hex.EncodeToString(hashInBytes), nil
 }
 
 func getPastelProcessesInfo(procNames *map[string]bool, procNamesShort *map[string]bool) []processInfo {
@@ -382,6 +481,28 @@ func getPastelProcessesInfo(procNames *map[string]bool, procNamesShort *map[stri
 			cpup = strconv.Itoa(int(cpu.Percent))
 		}
 
+		hash, err := calcFileHash(dir + file)
+		if err != nil {
+			log.WithContext(context.Background()).WithError(err).Errorf("Failed to calculate hash of %s", dir+file)
+		}
+
+		var version = ""
+		//if file != "dupe_detection_server.py" && file != "start_dd_img_server.sh" {
+		//	version, err := RunCMD(dir+file, "--version")
+		//	if err != nil {
+		//		log.WithContext(context.Background()).WithError(err).Errorf("Failed to get version of %s", dir+file)
+		//	}
+		//	if file == "pasteld" || file == "pastel-cli" {
+		//		lines := strings.SplitN(version, "\n", 2)
+		//		// Extract the first line
+		//		if len(lines) > 0 {
+		//			version = lines[0]
+		//		} else {
+		//			version = ""
+		//		}
+		//	}
+		//}
+
 		procInfo = append(procInfo, processInfo{
 			Pid:       strconv.Itoa(pid),
 			Process:   file,
@@ -392,15 +513,19 @@ func getPastelProcessesInfo(procNames *map[string]bool, procNamesShort *map[stri
 			Runtime:   rtime,
 			CPU:       cpup,
 			Args:      pasteldArgs,
+			Hash:      hash,
+			Version:   version,
 		})
 	}
 	return procInfo
 }
 func printProcessInfo(info []processInfo) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Process", "Pid", "CPU%", "VirtMem", "RMem", "StartTime", "RunTime", "Path"})
+	table.SetHeader([]string{"Process", "Pid", "CPU%", "VirtMem", "RMem", "StartTime", "RunTime", "Path", "Version", "Hash"})
 	table.SetColumnColor(
 		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiRedColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgBlackColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgBlackColor},
 		tablewriter.Colors{tablewriter.Bold, tablewriter.FgBlackColor},
 		tablewriter.Colors{tablewriter.Bold, tablewriter.FgBlackColor},
 		tablewriter.Colors{tablewriter.Bold, tablewriter.FgBlackColor},
@@ -419,6 +544,8 @@ func printProcessInfo(info []processInfo) {
 			process.Starttime,
 			process.Runtime,
 			process.Path,
+			process.Version,
+			process.Hash,
 		})
 	}
 	table.Render()
@@ -522,4 +649,37 @@ func printFSInfo(info []filesystemInfo) {
 		})
 	}
 	table.Render()
+}
+
+func printPastelInfo(info pastelInfo) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetRowLine(true)
+	table.SetHeader([]string{"", ""})
+	table.SetColumnColor(
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiGreenColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgWhiteColor},
+	)
+
+	cmdArgs := ""
+	if len(info.Args) > 0 {
+		for _, arg := range info.Args[1:] {
+			cmdArgs = fmt.Sprintf("%s\t%s\n", cmdArgs, arg)
+		}
+	}
+	table.Append([]string{
+		"Command line arguments",
+		cmdArgs,
+	})
+	table.Append([]string{
+		"Working Directory",
+		info.WorkingDir,
+	})
+	table.Append([]string{
+		"Installation Directory",
+		info.ExecDir,
+	})
+	table.Render()
+	fmt.Printf("Blockchain info:\n%s\n", info.GetInfo)
+	fmt.Printf("Masternode status:\n%s\n", info.MNStatus)
+	fmt.Printf("Masternode config:\n%s\n", info.MNConfig)
 }

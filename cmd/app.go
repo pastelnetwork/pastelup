@@ -2,15 +2,13 @@ package cmd
 
 import (
 	"context"
-	"io"
-	"io/ioutil"
-
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/pastelup/common/version"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pkg/errors"
+	"io"
 )
 
 const (
@@ -64,7 +62,7 @@ func configureLogging(ctx context.Context, logPrefix string, config *configs.Con
 	ctx = log.ContextWithPrefix(ctx, logPrefix)
 
 	if config.Quiet {
-		log.SetOutput(ioutil.Discard)
+		log.SetOutput(io.Discard)
 	} else {
 		log.SetOutput(AppWriter)
 	}

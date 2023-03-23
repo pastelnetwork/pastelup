@@ -351,11 +351,14 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 	var info structure.RPCGetInfo
 	err := pastelcore.NewClient(config).RunCommand(pastelcore.GetInfoCmd, &info)
 	if err != nil {
-		log.WithContext(ctx).Warnf("unable to get pastel info..server may be starting up: %v", err)
+		log.WithContext(ctx).Warnf("unable to access pastel server (on port %d) to get pastel info... [%v]", config.RPCPort, err)
 		return info, err
 	}
 	// this indicates we got an empty or errored response
 	if info.Result.Version == 0 {
+		//if info.Error != nil {
+		//	info.Error.(map[string]interface{})["code"]
+		//}
 		log.WithContext(ctx).Errorf("info response has errors: %v", info.Error)
 		return info, fmt.Errorf("info response has errors")
 	}
@@ -364,12 +367,12 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 
 // WaitingForPastelDToStart whether pasteld is running
 func WaitingForPastelDToStart(ctx context.Context, config *configs.Config) bool {
-	log.WithContext(ctx).Info("Waiting the pasteld to be started...")
+	log.WithContext(ctx).Info("Waiting the pasteld to start...")
 	var attempts = 0
 	for attempts < 10 {
 		_, err := GetPastelInfo(ctx, config)
 		if err == nil {
-			log.WithContext(ctx).Info("pasteld was started successfully")
+			log.WithContext(ctx).Info("pasteld started successfully")
 			return true
 		}
 		time.Sleep(10 * time.Second)
@@ -626,51 +629,64 @@ func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.C
 	return client, nil
 }
 
-func executeRemoteCommandsWithInventory(ctx context.Context, config *configs.Config, commands []string, tryStop bool) error {
+func executeRemoteCommandsWithInventory(ctx context.Context, config *configs.Config, commands []string, tryStop bool, needOutput bool) (error, [][]byte) {
 	if len(config.InventoryFile) > 0 {
-
 		var inv Inventory
 		err := inv.ReadAnsibleYamlInventory(config.InventoryFile)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to load inventory file")
-			return err
+			return err, nil
 		}
-		if err := inv.ExecuteCommands(ctx, config, commands); err != nil {
+		err, outs := inv.ExecuteCommands(ctx, config, commands, needOutput)
+		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to execute command on remote host from inventory")
-			return err
+			return err, nil
 		}
+		return nil, outs
 	} else {
-		if err := executeRemoteCommands(ctx, config, commands, tryStop); err != nil {
+		err, out := executeRemoteCommands(ctx, config, commands, tryStop, needOutput)
+		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to execute command on remote host")
-			return err
+			return err, nil
 		}
+		return nil, [][]byte{out}
 	}
-	return nil
 }
 
-func executeRemoteCommands(ctx context.Context, config *configs.Config, commands []string, tryStop bool) error {
+func executeRemoteCommands(ctx context.Context, config *configs.Config, commands []string, tryStop bool, needOutput bool) (error, []byte) {
 	// Connect to remote
 	client, err := prepareRemoteSession(ctx, config)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to prepare remote session")
-		return fmt.Errorf("failed to prepare remote session: %v", err)
+		return fmt.Errorf("failed to prepare remote session: %v", err), nil
 	}
 	defer client.Close()
 
 	if tryStop {
 		if err = checkAndStopRemoteServices(ctx, config, client); err != nil {
-			return err
+			return err, nil
 		}
 	}
 
+	var outs []byte
 	for _, command := range commands {
-		err = client.ShellCmd(ctx, command)
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed while executing remote command")
-			return err
+		if needOutput {
+			out, err := client.Cmd(command).Output()
+			if err != nil {
+				log.WithContext(ctx).WithField("out", string(out)).WithField("cmd", command).
+					WithError(err).Error("failed to execute remote command")
+				return fmt.Errorf("failed to execute remote command: %s", err.Error()), nil
+			}
+			outs = append(outs, out...)
+		} else {
+			err = client.ShellCmd(ctx, command)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed while executing remote command")
+				return err, nil
+			}
 		}
 	}
-	return nil
+	return nil, outs
 }
 
 func checkAndStopRemoteServices(ctx context.Context, config *configs.Config, client *utils.Client) error {

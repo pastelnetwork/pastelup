@@ -39,7 +39,7 @@ sns_old:
     MN20:
       ansible_host: 52.14.200.95
   vars:
-    ansible_private_key_file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-testnet-new
+    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-testnet-new
     ansible_user: testnet
 sns:
   hosts:
@@ -49,12 +49,12 @@ sns:
       ansible_host: 13.59.216.207
     MN23:
       ansible_host: 3.14.81.221
-    MN24:
-      ansible_host: 18.223.0.63
+#    MN24:
+#      ansible_host: 18.223.0.63
     MN25:
       ansible_host: 18.118.159.169
   vars:
-    ansible_private_key_file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
     ansible_user: ubuntu
 wns:
   hosts:
@@ -73,7 +73,7 @@ wns:
     WN07:
       ansible_host: 3.143.215.182
   vars:
-    ansible_private_key_file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
     ansible_user: ubuntu
 pools:
   hosts:
@@ -83,16 +83,16 @@ pools:
       ansible_host: 18.116.26.219
   vars:
     ansible_port: 2323
-    ansible_private_key_file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
     ansible_user: ubuntu
 explorers:
   vars:
     ansible_use: ubuntu
-    ansible_private_key_file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
 seeders:
   hosts:
     Seeder01:
       ansible_host: 3.141.8.87
   vars:
     ansible_user: ubuntu
-    ansible_private_key_file: /Users/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem

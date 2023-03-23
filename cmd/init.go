@@ -77,7 +77,10 @@ func setupInitSubCommand(config *configs.Config,
 
 	commonFlags := []*cli.Flag{
 		cli.NewFlag("ip", &flagNodeExtIP).
-			SetUsage(green("Optional, WAN address of the host")),
+			SetUsage(green("Optional, WAN IP address of the SuperNode, default - WAN IP address of the host")),
+		cli.NewFlag("port", &flagMasterNodePort).
+			SetUsage(green("Optional, Port for WAN IP address of the SuperNode, default - 9933 (19933 for Testnet)")).
+			SetValue(constants.MainnetPortList[constants.NodePort]),
 		cli.NewFlag("reindex", &config.ReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
 	}
@@ -110,40 +113,41 @@ func setupInitSubCommand(config *configs.Config,
 			SetUsage(red("Required (if --new is not used), if specified, will add new Masternode record to the existing masternode.conf.")),
 
 		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
-			SetUsage(green("Optional, Masternode private key, if omitted, new masternode private key will be created")),
+			SetUsage(yellow("Optional, Masternode private key, if omitted, new masternode private key will be created")),
+
 		cli.NewFlag("txid", &flagMasterNodeTxID).
-			SetUsage(yellow("Required (only if --update or --create specified), collateral payment txid , transaction id of 5M collateral MN payment")),
+			SetUsage(yellow("Optional, collateral payment txid, transaction id of 5M collateral MN payment")),
 		cli.NewFlag("ind", &flagMasterNodeInd).
-			SetUsage(yellow("Required (only if --update or --create specified), collateral payment output index , output index in the transaction of 5M collateral MN payment")),
+			SetUsage(yellow("Optional, collateral payment output index, output index in the transaction of 5M collateral MN payment")),
+
 		cli.NewFlag("skip-collateral-validation", &flagDontCheckCollateral).
 			SetUsage(yellow("Optional (if both txid and ind specified), skip validation of collateral tx on this node")),
 		cli.NewFlag("noReindex", &flagDontReindex).
 			SetUsage(yellow("Optional, disable any default --reindex")),
 
 		cli.NewFlag("pastelid", &flagMasterNodePastelID).
-			SetUsage(green("Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered")),
+			SetUsage(yellow("Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered")),
 		cli.NewFlag("passphrase", &flagMasterNodePassPhrase).
 			SetUsage(yellow("Optional, passphrase to pastelid private key. If omitted, user will be asked interactively")),
-		cli.NewFlag("port", &flagMasterNodePort).
-			SetUsage(green("Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet)")),
+
 		cli.NewFlag("rpc-ip", &flagMasterNodeRPCIP).
-			SetUsage(green("Optional, supernode IP address. If omitted, value passed to --ip will be used")),
+			SetUsage(yellow("Optional, SuperNode IP address. If omitted, value passed to --ip will be used")),
 		cli.NewFlag("rpc-port", &flagMasterNodeRPCPort).
-			SetUsage(green("Optional, supernode port, default - 4444 (14444 for Testnet")),
+			SetUsage(yellow("Optional, SuperNode port, default - 4444 (14444 for Testnet")).SetValue(constants.MainnetPortList[constants.SNPort]),
 		cli.NewFlag("p2p-ip", &flagMasterNodeP2PIP).
-			SetUsage(green("Optional, Kademlia IP address, if omitted, value passed to --ip will be used")),
+			SetUsage(yellow("Optional, Kademlia IP address, if omitted, value passed to --ip will be used")),
 		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort).
-			SetUsage(green("Optional, Kademlia port, default - 4445 (14445 for Testnet)")),
+			SetUsage(yellow("Optional, Kademlia port, default - 4445 (14445 for Testnet)")).SetValue(constants.MainnetPortList[constants.P2PPort]),
 
 		cli.NewFlag("activate", &flagMasterNodeIsActivate).
-			SetUsage(green("Optional, if specified, will try to enable node as Masternode (start-alias).")),
+			SetUsage(yellow("Optional, if specified, will try to enable node as Masternode (start-alias).")),
 	}
 
 	remoteStartFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
 			SetUsage(red("Required, SSH address of the remote node")),
 		cli.NewFlag("ssh-port", &config.RemotePort).
-			SetUsage(green("Optional, SSH port of the remote node")).SetValue(22),
+			SetUsage(yellow("Optional, SSH port of the remote node")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
@@ -153,17 +157,17 @@ func setupInitSubCommand(config *configs.Config,
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
 			SetUsage(red("Required, SSH address of the remote HOT node")),
 		cli.NewFlag("ssh-port", &config.RemotePort).
-			SetUsage(green("Optional, SSH port of the remote HOT node")).SetValue(22),
+			SetUsage(yellow("Optional, SSH port of the remote HOT node")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).
 			SetUsage(yellow("Optional, SSH user")),
 		cli.NewFlag("ssh-key", &config.RemoteSSHKey).
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("remote-dir", &config.RemoteHotPastelExecDir).
-			SetUsage(green("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel)")),
+			SetUsage(yellow("Optional, Location where of pastel node directory on the remote computer (default: $HOME/pastel)")),
 		cli.NewFlag("remote-work-dir", &config.RemoteHotWorkingDir).
-			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME/.pastel)")),
+			SetUsage(yellow("Optional, Location of working directory on the remote computer (default: $HOME/.pastel)")),
 		cli.NewFlag("remote-home-dir", &config.RemoteHotHomeDir).
-			SetUsage(green("Optional, Location of working directory on the remote computer (default: $HOME)")),
+			SetUsage(yellow("Optional, Location of working directory on the remote computer (default: $HOME)")),
 	}
 
 	var commandName, commandMessage string
@@ -175,8 +179,8 @@ func setupInitSubCommand(config *configs.Config,
 		commandMessage = initCmdMessage[initCommand]
 	}
 
-	commandFlags := append(dirsFlags, commonFlags[:]...)
-	commandFlags = append(commandFlags, superNodeInitFlags[:]...)
+	commandFlags := append(superNodeInitFlags, dirsFlags[:]...)
+	commandFlags = append(commandFlags, commonFlags[:]...)
 
 	if remote && initCommand != coldHotInit {
 		commandFlags = append(commandFlags, remoteStartFlags[:]...)
@@ -374,7 +378,7 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 	}
 
 	initSuperNodeCmd := fmt.Sprintf("%s init supernode %s", constants.RemotePastelupPath, startOptions)
-	if err := executeRemoteCommands(ctx, config, []string{initSuperNodeCmd}, false); err != nil {
+	if err, _ := executeRemoteCommands(ctx, config, []string{initSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to init remote Supernode services")
 		return err
 	}
@@ -383,7 +387,7 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 	return nil
 }
 
-///// masternode.conf helpers
+// /// masternode.conf helpers
 func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) error {
 
 	// this function must only be called when --create or --update

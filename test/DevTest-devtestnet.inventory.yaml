@@ -1,0 +1,39 @@
+sns:
+    hosts:    
+        TestMN01:
+            ansible_host: 3.131.35.47
+        TestMN02:
+            ansible_host: 18.220.119.98
+        TestMN03:
+            ansible_host: 13.59.95.229
+        TestMN04:
+            ansible_host: 13.58.241.81
+        TestMN05:
+            ansible_host: 3.142.152.217
+    vars:
+        ansible_user: ubuntu
+        ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-testnet-test.pem
+
+wns:
+    hosts:    
+    vars:
+        ansible_user: ubuntu
+        ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-testnet-test.pem
+
+pools:
+    hosts:    
+    vars:
+        ansible_user: ubuntu
+        ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-testnet-test.pem
+
+explorers:
+    hosts:    
+    vars:
+        ansible_user: ubuntu
+        ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-testnet-test.pem
+
+seeders:
+    hosts:    
+    vars:
+        ansible_user: ubuntu
+        ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-testnet-test.pem

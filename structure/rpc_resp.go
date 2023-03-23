@@ -31,6 +31,11 @@ func (s RPCPastelMNStatus) String() string {
 	return toString(s)
 }
 
+// String returns the struct as a string
+func (s MNStatusResult) String() string {
+	return toString(s)
+}
+
 // RPCPastelMNSyncStatus RPC result structure from masternode sync status
 type RPCPastelMNSyncStatus struct {
 	Result MNSyncStatusResult `json:"result"`
@@ -55,6 +60,11 @@ type MNSyncStatusResult struct {
 
 // String returns the struct as a string
 func (s RPCPastelMNSyncStatus) String() string {
+	return toString(s)
+}
+
+// String returns the struct as a string
+func (s MNSyncStatusResult) String() string {
 	return toString(s)
 }
 
@@ -84,6 +94,43 @@ type GetInfoResult struct {
 
 // String returns the struct as a string
 func (s RPCGetInfo) String() string {
+	return toString(s)
+}
+
+// String returns the struct as a string
+func (s GetInfoResult) String() string {
+	return toString(s)
+}
+
+// RPCMasternodeConf RPC result structure from masterode list-conf
+type RPCMasternodeConf struct {
+	Result MasternodeConfResult `json:"result"`
+	Error  interface{}          `json:"error"`
+}
+
+// MasternodeConf is the result field for the RPC command response
+type MasternodeConfResult struct {
+	Masternode struct {
+		Alias       string `json:"alias"`
+		Address     string `json:"address"`
+		PrivateKey  string `json:"privateKey"`
+		TxHash      string `json:"txHash"`
+		OutputIndex string `json:"outputIndex"`
+		ExtAddress  string `json:"extAddress"`
+		ExtP2P      string `json:"extP2P"`
+		ExtKey      string `json:"extKey"`
+		ExtCfg      string `json:"extCfg"`
+		Status      string `json:"status"`
+	} `json:"masternode"`
+}
+
+// String returns the struct as a string
+func (s RPCMasternodeConf) String() string {
+	return toString(s)
+}
+
+// String returns the struct as a string
+func (s MasternodeConfResult) String() string {
 	return toString(s)
 }
 

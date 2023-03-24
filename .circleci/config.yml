@@ -181,7 +181,7 @@ jobs:
       - run:
           name: Install staticcheck
           command: |
-            go install honnef.co/go/tools/cmd/staticcheck@0.3.3
+            go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
       - run:
           name: Fetch dependencies
           command: |

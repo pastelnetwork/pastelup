@@ -3,12 +3,13 @@ orbs:
   aws-s3: circleci/aws-s3@3.0.0
 version: 2.1
 defaults: &defaults
-  parameters:
-    version:
-      type: string
-      default: "latest"
+#  parameters:
+#    version:
+#      type: string
+#      default: "latest"
   docker:
-    - image: "circleci/golang:<< parameters.version >>"
+#    - image: "circleci/golang:<< parameters.version >>"
+    - image: cimg/go:1.20.2
   environment:
     GO111MODULE: "on"
    

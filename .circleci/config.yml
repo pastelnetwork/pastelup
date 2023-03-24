@@ -181,11 +181,11 @@ jobs:
       - run:
           name: Install staticcheck
           command: |
-            go install honnef.co/go/tools/cmd/staticcheck@latest
+            go install honnef.co/go/tools/cmd/staticcheck@0.3.3
       - run:
           name: Fetch dependencies
           command: |
-            go get -v ./...
+            GO111MODULE=on go mod download
       - run:
           name: Run gofmt
           command: |

@@ -222,8 +222,9 @@ func newWindowsConfigurer(homeDir string) IConfigurer {
 
 // NewConfigurer return a new configurer instance
 // Returns:
-//		$HOME for MacOS and Linux
-//		%userprofile% for Windows
+//
+//	$HOME for MacOS and Linux
+//	%userprofile% for Windows
 func NewConfigurer() (IConfigurer, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {

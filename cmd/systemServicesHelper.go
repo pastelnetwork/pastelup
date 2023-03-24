@@ -144,6 +144,7 @@ func installSystemService(ctx context.Context, config *configs.Config) error {
 // removeSystemService stops and remove an installed system service. For example, on linux, a user
 // may run ./pastelup update remove-service --tool node and this would stop and remove the systemd service running via systemtctl
 // TODO: REMOVE service part is not yet implemented
+//
 //lint:ignore U1000 Ignore unused function temporarily
 func removeSystemService(ctx context.Context, config *configs.Config) error {
 

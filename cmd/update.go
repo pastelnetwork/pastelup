@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -322,7 +321,7 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 	}
 
 	updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update %s", constants.RemotePastelupPath, updateOptions)
-	if err, _ := executeRemoteCommandsWithInventory(ctx, config, []string{updateSuperNodeCmd}, false, false); err != nil {
+	if _, err := executeRemoteCommandsWithInventory(ctx, config, []string{updateSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s on remote host", tool)
 	}
 	log.WithContext(ctx).Infof("Remote %s updated", tool)
@@ -461,13 +460,18 @@ func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archi
 	}
 	// if we have more than ARCHIVE_RETENTION amount of archives, delete old ones to avoid build up
 	var matchingArchives []fs.FileInfo
-	files, err := ioutil.ReadDir(archiveBaseDir)
+	//files, err := ioutil.ReadDir(archiveBaseDir)
+	files, err := os.ReadDir(archiveBaseDir)
 	if err != nil {
 		return err
 	}
 	for _, f := range files {
 		if f.IsDir() && strings.HasPrefix(f.Name(), archivePrefix+"_archive_") {
-			matchingArchives = append(matchingArchives, f)
+			info, err := f.Info()
+			if err != nil {
+				return err
+			}
+			matchingArchives = append(matchingArchives, info)
 		}
 	}
 	if len(matchingArchives) > archiveRetention {

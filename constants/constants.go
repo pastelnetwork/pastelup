@@ -30,9 +30,6 @@ const (
 	// PipRequirmentsFileName - pip install requirements file name
 	PipRequirmentsFileName string = "requirements.txt"
 
-	// DupeDetectionImageFingerPrintDataBase - dupe_detection_image_fingerprint_database file
-	DupeDetectionImageFingerPrintDataBase string = "dupe_detection_image_fingerprint_database.sqlite"
-
 	// Windows type
 	Windows OSType = "Windows"
 	// Linux type
@@ -300,18 +297,16 @@ var DupeDetectionConfigs = []string{
 var DupeDetectionSupportDownloadURL = []string{
 	"https://download.pastel.network/machine-learning/DupeDetector_gray.pth.tar",
 	"https://download.pastel.network/machine-learning/pca_bw.vt",
-	"https://download.pastel.network/machine-learning/registered_image_fingerprints_db.sqlite",
 	"https://download.pastel.network/machine-learning/train_0_bw.hdf5",
 	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
 }
 
 // DupeDetectionSupportChecksum - The checksum of dupe detection support files
 var DupeDetectionSupportChecksum = map[string]string{
-	"DupeDetector_gray.pth.tar":               "9eb31f27c5ce362dc558b4b77abedcbe327909f093d97f24acce20fcfb872c36",
-	"pca_bw.vt":                               "d1bd688fcfa09f650d42a0160479c2bebf1cf87596645a55220e56696f386c73",
-	"train_0_bw.hdf5":                         "659a2d480783709130c56e862a3a6e16d659c6dd063e80271fe51542b8b92590",
-	"registered_image_fingerprints_db.sqlite": "5d01d8c944022d8346c25d7f70bc4ff985de1ec40d2465b70c18e7f370ce44f6",
-	"mobilenet_v2_140_224":                    "825a4298a25334201ad5fb29e089fce0258c9a13793cc0d0b6a7dbe9c96ad9f3",
+	"DupeDetector_gray.pth.tar": "9eb31f27c5ce362dc558b4b77abedcbe327909f093d97f24acce20fcfb872c36",
+	"pca_bw.vt":                 "d1bd688fcfa09f650d42a0160479c2bebf1cf87596645a55220e56696f386c73",
+	"train_0_bw.hdf5":           "659a2d480783709130c56e862a3a6e16d659c6dd063e80271fe51542b8b92590",
+	"mobilenet_v2_140_224":      "825a4298a25334201ad5fb29e089fce0258c9a13793cc0d0b6a7dbe9c96ad9f3",
 }
 
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files

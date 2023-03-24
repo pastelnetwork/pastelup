@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -348,7 +347,7 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 	}
 
 	installSuperNodeCmd := fmt.Sprintf("yes Y | %s install %s", constants.RemotePastelupPath, remoteOptions)
-	if err, _ := executeRemoteCommandsWithInventory(ctx, config, []string{installSuperNodeCmd}, false, false); err != nil {
+	if _, err := executeRemoteCommandsWithInventory(ctx, config, []string{installSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to install remote %s", tool)
 	}
 	log.WithContext(ctx).Infof("Finished remote installation of %s", tool)
@@ -1202,7 +1201,7 @@ func updatePastelConfigFile(ctx context.Context, filePath string, config *config
 	}
 
 	// Save file changes.
-	err := ioutil.WriteFile(filePath, cfgBuffer.Bytes(), 0644)
+	err := os.WriteFile(filePath, cfgBuffer.Bytes(), 0644)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Error saving file")
 		return errors.Errorf("failed to save file changes: %v", err)

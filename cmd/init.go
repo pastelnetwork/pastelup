@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
@@ -378,7 +377,7 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 	}
 
 	initSuperNodeCmd := fmt.Sprintf("%s init supernode %s", constants.RemotePastelupPath, startOptions)
-	if err, _ := executeRemoteCommands(ctx, config, []string{initSuperNodeCmd}, false, false); err != nil {
+	if _, err := executeRemoteCommands(ctx, config, []string{initSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to init remote Supernode services")
 		return err
 	}
@@ -444,7 +443,7 @@ func writeMasterNodeConfFile(ctx context.Context, config *configs.Config, conf m
 		return err
 	}
 
-	if err := ioutil.WriteFile(masternodeConfPath, confData, 0644); err != nil {
+	if err := os.WriteFile(masternodeConfPath, confData, 0644); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to create and write new masternode.conf file")
 		return err
 	}
@@ -488,7 +487,7 @@ func loadMasternodeConfFile(ctx context.Context, config *configs.Config) (map[st
 	masternodeConfPath := getMasternodeConfPath(config, config.WorkingDir, "masternode.conf")
 
 	// Read ConfData from masternode.conf
-	confFile, err := ioutil.ReadFile(masternodeConfPath)
+	confFile, err := os.ReadFile(masternodeConfPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to read existing masternode.conf file - %s", masternodeConfPath)
 		return nil, err
@@ -526,9 +525,9 @@ func getMasternodeConfData(ctx context.Context, config *configs.Config, mnName s
 		log.WithContext(ctx).WithError(err).Errorf("Invalid masternode.conf json: %v", conf)
 		return "", "", "", err
 	}
-	privKey := mnNode.MnPrivKey
+	privateKey := mnNode.MnPrivKey
 	extAddrPort := strings.Split(mnNode.MnAddress, ":")
 	extAddr := extAddrPort[0] // get Ext IP and Port
 	extPort := extAddrPort[1] // get Ext IP and Port
-	return privKey, extAddr, extPort, nil
+	return privateKey, extAddr, extPort, nil
 }

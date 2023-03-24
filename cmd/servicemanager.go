@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -49,7 +49,7 @@ func NewServiceManager(os constants.OSType, homeDir string) (ServiceManager, err
 	return NoopManager{}, fmt.Errorf("services are not comptabile with your OS (%v)", os)
 }
 
-// NoopManager can be used to do nothing if the OS doesnt have a system manager configured
+// NoopManager can be used to do nothing if the OS doesn't have a system manager configured
 type NoopManager struct{}
 
 // RegisterService registers a service with the OS system manager
@@ -82,7 +82,7 @@ func (nm NoopManager) DisableService(context.Context, *configs.Config, constants
 	return nil
 }
 
-// IsRegistered checks if the associated app's system command file exists, if it does it returns true, else it returns false
+// IsRegistered checks if the associated app's system command file exists, if it does it return true, else it returns false
 // if err is not nil, there was an error checking the existence of the file
 func (nm NoopManager) IsRegistered(context.Context, *configs.Config, constants.ToolType) bool {
 	return false
@@ -237,7 +237,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, config *confi
 	}
 
 	// write systemdFile to SystemdUserDir with mode 0644
-	if err := ioutil.WriteFile(appServiceTempFilePath, []byte(systemdFile), 0644); err != nil {
+	if err := os.WriteFile(appServiceTempFilePath, []byte(systemdFile), 0644); err != nil {
 		log.WithContext(ctx).WithError(err).Error("unable to write " + appServiceFileName + " file")
 	}
 

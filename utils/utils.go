@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
@@ -87,13 +86,13 @@ func CreateFile(ctx context.Context, filePath string, force bool) error {
 // random string of the given input length
 // returns the generated string
 func GenerateRandomString(length int) string {
-	rand.Seed(time.Now().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 		"abcdefghijklmnopqrstuvwxyz" +
 		"0123456789")
 	var b strings.Builder
 	for i := 0; i < length; i++ {
-		b.WriteRune(chars[rand.Intn(len(chars))])
+		b.WriteRune(chars[r.Intn(len(chars))])
 	}
 	str := b.String()
 
@@ -206,8 +205,8 @@ func DownloadFile(ctx context.Context, filepath string, url string) error {
 
 // GetOS gets current OS.
 func GetOS() constants.OSType {
-	os := runtime.GOOS
-	switch os {
+	osType := runtime.GOOS
+	switch osType {
 	case "windows":
 		return constants.Windows
 	case "darwin":
@@ -491,8 +490,8 @@ func GetInstalledPackages(ctx context.Context) map[string]bool {
 		}
 	case constants.Mac:
 		paths := os.Getenv("PATH")
-		for _, path := range strings.Split(paths, ":") {
-			files, err := ioutil.ReadDir(path)
+		for _, onePath := range strings.Split(paths, ":") {
+			files, err := os.ReadDir(onePath)
 			if err != nil {
 				log.WithContext(ctx).Errorf("failed to read dir: %v", err)
 				continue
@@ -586,7 +585,7 @@ func GetExternalIPAddress() (externalIP string, err error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -598,9 +597,9 @@ func GetExternalIPAddress() (externalIP string, err error) {
 
 // ClearDir removes all contents in the provided directory unless they are in the skipFiles array.
 // this recursively calls itself to clear out files in subdirs.
-// skipFiles only works for top-level files in the original dir provided, it doesnt get applied to subdirs.
+// skipFiles only works for top-level files in the original dir provided, it doesn't get applied to subdirs.
 func ClearDir(ctx context.Context, dir string, skipFiles []string) error {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		log.WithContext(ctx).Errorf("Failed to read directory files: %v", err)
 		return err

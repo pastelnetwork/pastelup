@@ -3,8 +3,8 @@ package utils
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -145,7 +145,7 @@ func TestWriteFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf(fmt.Sprintf("Write File Function Failed %s ", err.Error()))
 		} else {
-			data, err := ioutil.ReadAll(file)
+			data, err := io.ReadAll(file)
 			if err != nil {
 				t.Fatalf(fmt.Sprintf("Write File Function Failed %s ", err.Error()))
 			} else {

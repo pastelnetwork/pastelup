@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -46,16 +45,18 @@ type AnsibleInventory struct {
 	AnsibleHostGroups map[string]AnsibleInventoryGroup
 }
 
+// AnsibleInventoryGroup defines group of hosts in the Ansible Inventory file
 type AnsibleInventoryGroup struct {
 	AnsibleHosts    map[string]AnsibleVars `yaml:"hosts"`
 	AnsibleHostVars AnsibleVars            `yaml:"vars"`
 }
 
+// AnsibleVars defines variables of Ansible Inventory file
 type AnsibleVars map[string]string
 
 // ReadLegacyInventory read and load pastelup's legacy inventory file
 func (i *Inventory) ReadLegacyInventory(path string) error {
-	invFile, err := ioutil.ReadFile(path)
+	invFile, err := os.ReadFile(path)
 	if err != nil {
 		return errors.Errorf("failed to read Inventory file: %v", err)
 	}
@@ -68,6 +69,7 @@ func (i *Inventory) ReadLegacyInventory(path string) error {
 	return nil
 }
 
+// ReadAnsibleYamlInventory read and load Ansible's YAML inventory file
 func (i *Inventory) ReadAnsibleYamlInventory(path string) error {
 	// Read YAML file
 	file, err := os.ReadFile(path)
@@ -98,7 +100,7 @@ func (i *Inventory) ReadAnsibleYamlInventory(path string) error {
 			if port, ok := serverVars["ansible_port"]; ok {
 				portInt, err := strconv.Atoi(port)
 				if err != nil {
-					log.Printf("error converting port for server %s: %s", serverName, err)
+					log.Errorf("error converting port for server %s: %s", serverName, err)
 				} else {
 					server.Port = portInt
 				}
@@ -116,7 +118,7 @@ func (i *Inventory) ReadAnsibleYamlInventory(path string) error {
 		if port, ok := group.AnsibleHostVars["ansible_port"]; ok {
 			portInt, err := strconv.Atoi(port)
 			if err != nil {
-				log.Printf("error converting port for group %s: %s", groupName, err)
+				log.Errorf("error converting port for group %s: %s", groupName, err)
 			} else {
 				serverGroup.Common.Port = portInt
 			}
@@ -127,7 +129,7 @@ func (i *Inventory) ReadAnsibleYamlInventory(path string) error {
 }
 
 // ExecuteCommands executes commands on all hosts from inventory
-func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config, commands []string, needOutput bool) (error, [][]byte) {
+func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config, commands []string, needOutput bool) ([][]byte, error) {
 	var filters []string
 	if config.InventoryFilter != "" {
 		filters = strings.Split(config.InventoryFilter, ",")
@@ -171,7 +173,7 @@ func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config,
 			if config.RemotePort == 0 {
 				config.RemotePort = 22
 			}
-			err, out := executeRemoteCommands(ctx, config, commands, false, needOutput)
+			out, err := executeRemoteCommands(ctx, config, commands, false, needOutput)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Errorf("Failed to execute command on remote host %s"+
 					" [IP:%s; Port:%d; User:%s; KeyFile:%s; ]",
@@ -180,5 +182,5 @@ func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config,
 			outs = append(outs, out)
 		}
 	}
-	return nil, outs
+	return outs, nil
 }

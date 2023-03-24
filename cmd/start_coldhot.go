@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -542,7 +541,7 @@ func (r *ColdHotRunner) checkMasterNodeSyncRemote(ctx context.Context, numOfSync
 			return err
 		}
 
-		if err = json.Unmarshal([]byte(output), &mnstatus); err != nil {
+		if err = json.Unmarshal(output, &mnstatus); err != nil {
 			log.WithContext(ctx).WithField("payload", string(output)).WithError(err).
 				Error("Remote:::failed to unmarshal mnsync status")
 
@@ -570,7 +569,7 @@ func (r *ColdHotRunner) checkMasterNodeSyncRemote(ctx context.Context, numOfSync
 			return err
 		}
 
-		if err = json.Unmarshal([]byte(output), &getinfo); err != nil {
+		if err = json.Unmarshal(output, &getinfo); err != nil {
 			log.WithContext(ctx).WithField("payload", string(output)).WithError(err).
 				Error("Remote:::pasteld failed to unmarshal getinfo")
 			return err
@@ -582,7 +581,7 @@ func (r *ColdHotRunner) checkMasterNodeSyncRemote(ctx context.Context, numOfSync
 	return nil
 }
 
-///// supernode.yml helpers
+// /// supernode.yml helpers
 func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context) error {
 
 	supernodeConfigPath := "supernode.yml"
@@ -642,7 +641,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context) 
 	} else if err == nil {
 		//update existing
 		var snConfFile []byte
-		snConfFile, err = ioutil.ReadFile(supernodeConfigPath)
+		snConfFile, err = os.ReadFile(supernodeConfigPath)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to open existing supernode.yml file at - %s", supernodeConfigPath)
 			return err
@@ -665,7 +664,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context) 
 			log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for supernode.yml file at - %s", supernodeConfigPath)
 			return err
 		}
-		if ioutil.WriteFile(supernodeConfigPath, snConfFileUpdated, 0644) != nil {
+		if os.WriteFile(supernodeConfigPath, snConfFileUpdated, 0644) != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to update supernode.yml file at - %s", supernodeConfigPath)
 			return err
 		}
@@ -718,7 +717,7 @@ func (r *ColdHotRunner) copyMasterNodeConToRemote(ctx context.Context) error {
 	}
 
 	tmpMNConfPath := "/tmp/mn.conf"
-	if err := ioutil.WriteFile(tmpMNConfPath, confData, 0644); err != nil {
+	if err := os.WriteFile(tmpMNConfPath, confData, 0644); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to create and write temporary masternode.conf file at '/tmp/mn.conf'")
 		return err
 	}
@@ -730,7 +729,7 @@ func (r *ColdHotRunner) copyMasterNodeConToRemote(ctx context.Context) error {
 	return nil
 }
 
-///// hermes.yml helpers
+// /// hermes.yml helpers
 func (r *ColdHotRunner) createAndCopyRemoteHermesConfig(ctx context.Context) error {
 
 	hermesConfigPath := "hermes.yml"
@@ -778,7 +777,7 @@ func (r *ColdHotRunner) createAndCopyRemoteHermesConfig(ctx context.Context) err
 	} else if err == nil {
 		//update existing
 		var hermesConfFile []byte
-		hermesConfFile, err = ioutil.ReadFile(hermesConfigPath)
+		hermesConfFile, err = os.ReadFile(hermesConfigPath)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to open existing hermes.yml file at - %s", hermesConfigPath)
 			return err
@@ -797,7 +796,7 @@ func (r *ColdHotRunner) createAndCopyRemoteHermesConfig(ctx context.Context) err
 			log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for hermes.yml file at - %s", hermesConfigPath)
 			return err
 		}
-		if ioutil.WriteFile(hermesConfigPath, hermesConfFileUpdated, 0644) != nil {
+		if os.WriteFile(hermesConfigPath, hermesConfFileUpdated, 0644) != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to update hermes.yml file at - %s", hermesConfigPath)
 			return err
 		}

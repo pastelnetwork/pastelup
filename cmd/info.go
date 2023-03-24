@@ -94,7 +94,7 @@ type pastelInfo struct {
 	MNConfig   structure.MasternodeConfResult
 }
 
-type AllInfo struct {
+type allInfo struct {
 	SystemInfo systemInfo
 	PastelInfo pastelInfo
 }
@@ -235,8 +235,8 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 
 		host, _ := os.Hostname()
 		sysInfo.HostInfo = hostInfo{
-			Hostname: fmt.Sprintf("%s", host),
-			OS:       fmt.Sprintf("%s", utils.GetOS()),
+			Hostname: host,
+			OS:       string(utils.GetOS()),
 		}
 
 		pastelProcNames := make(map[string]bool)
@@ -329,7 +329,7 @@ func runInfoSubCommand(ctx context.Context, config *configs.Config) error {
 	}
 
 	if flagOutput == "json" {
-		allInfo := AllInfo{
+		allInfo := allInfo{
 			SystemInfo: sysInfo,
 			PastelInfo: pastelInfo,
 		}
@@ -361,7 +361,7 @@ func runRemoteInfoSubCommand(ctx context.Context, config *configs.Config) error 
 		infoOptions = fmt.Sprintf("%s --log-level %s", infoOptions, config.LogLevel)
 	}
 	infoCmd := fmt.Sprintf("%s info %s", constants.RemotePastelupPath, infoOptions)
-	if err, outs := executeRemoteCommandsWithInventory(ctx, config, []string{infoCmd}, false, flagOutput == "json"); err != nil {
+	if outs, err := executeRemoteCommandsWithInventory(ctx, config, []string{infoCmd}, false, flagOutput == "json"); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get info from remote hosts")
 	} else {
 		if flagOutput == "json" {

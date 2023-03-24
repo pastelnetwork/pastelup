@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -91,7 +91,7 @@ func GetHermesConfigs(config *configs.Config) (string, error) {
 }
 
 func checkBridgeConfigPastelID(ctx context.Context, config *configs.Config, confPath string) error {
-	bridgeConfFile, err := ioutil.ReadFile(confPath)
+	bridgeConfFile, err := os.ReadFile(confPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to open existing bridge.yml file at - %s", confPath)
 		return err
@@ -197,7 +197,7 @@ func checkBridgeConfigPastelID(ctx context.Context, config *configs.Config, conf
 		if address == "" {
 			out, err := RunPastelCLI(ctx, config, "getnewaddress")
 			if err != nil {
-				log.WithContext(ctx).WithError(err).WithField("out", string(out)).
+				log.WithContext(ctx).WithError(err).WithField("out", out).
 					Error("Failed to generate new address")
 
 				return err
@@ -252,7 +252,7 @@ func checkBridgeConfigPastelID(ctx context.Context, config *configs.Config, conf
 		return err
 	}
 
-	if ioutil.WriteFile(confPath, bridgeConfFileUpdated, 0644) != nil {
+	if os.WriteFile(confPath, bridgeConfFileUpdated, 0644) != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update bridge.yml file at - %s", confPath)
 		return err
 	}
@@ -264,7 +264,7 @@ func checkBridgeConfigPastelID(ctx context.Context, config *configs.Config, conf
 func getBalance(ctx context.Context, config *configs.Config, address string) (balance float64, err error) {
 	out, err := RunPastelCLI(ctx, config, "z_getbalance", address)
 	if err != nil {
-		log.WithContext(ctx).WithError(err).WithField("out", string(out)).
+		log.WithContext(ctx).WithError(err).WithField("out", out).
 			Error("Failed to get balance")
 
 		return 0.0, err
@@ -341,7 +341,7 @@ func handleWaitForBalance(ctx context.Context, config *configs.Config, address s
 }
 
 func checkBridgeEnabled(ctx context.Context, confPath string) (bool, error) {
-	walletConfFile, err := ioutil.ReadFile(confPath)
+	walletConfFile, err := os.ReadFile(confPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to open existing bridge.yml file at - %s", confPath)
 		return false, err

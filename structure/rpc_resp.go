@@ -108,7 +108,7 @@ type RPCMasternodeConf struct {
 	Error  interface{}          `json:"error"`
 }
 
-// MasternodeConf is the result field for the RPC command response
+// MasternodeConfResult is the result field for the RPC command response
 type MasternodeConfResult struct {
 	Masternode struct {
 		Alias       string `json:"alias"`

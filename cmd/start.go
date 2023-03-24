@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -502,7 +501,7 @@ func runRemoteStart(ctx context.Context, config *configs.Config, tool string) er
 	}
 
 	startSuperNodeCmd := fmt.Sprintf("%s start %s", constants.RemotePastelupPath, startOptions)
-	if err, _ := executeRemoteCommandsWithInventory(ctx, config, []string{startSuperNodeCmd}, false, false); err != nil {
+	if _, err := executeRemoteCommandsWithInventory(ctx, config, []string{startSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to start %s on remote host", tool)
 	}
 
@@ -848,7 +847,7 @@ func setPastelIDAndPassphraseInHermesConf(ctx context.Context, config *configs.C
 
 	// Read existing supernode confif file
 	var snConfFile []byte
-	snConfFile, err := ioutil.ReadFile(supernodeConfigPath)
+	snConfFile, err := os.ReadFile(supernodeConfigPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to open existing supernode.yml file at - %s", supernodeConfigPath)
 		return err
@@ -866,7 +865,7 @@ func setPastelIDAndPassphraseInHermesConf(ctx context.Context, config *configs.C
 
 	// Read hermes config file
 	var hermesConfFile []byte
-	hermesConfFile, err = ioutil.ReadFile(hermesConfigPath)
+	hermesConfFile, err = os.ReadFile(hermesConfigPath)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to open existing hermes.yml file at - %s", hermesConfigPath)
 		return err
@@ -888,7 +887,7 @@ func setPastelIDAndPassphraseInHermesConf(ctx context.Context, config *configs.C
 		return err
 	}
 
-	if ioutil.WriteFile(hermesConfigPath, hermesConfFileUpdated, 0644) != nil {
+	if os.WriteFile(hermesConfigPath, hermesConfFileUpdated, 0644) != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update hermes.yml file at - %s", hermesConfigPath)
 		return err
 	}
@@ -1274,7 +1273,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 			if len(mnOutputs) > 0 {
 
 				n := 0
-				arr := []string{}
+				var arr []string
 				for txid, txind := range mnOutputs {
 					log.WithContext(ctx).Warn(red(fmt.Sprintf("%d - %s:%s", n, txid, txind)))
 					arr = append(arr, txid)
@@ -1448,7 +1447,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 	} else if err == nil {
 		//update existing
 		var snConfFile []byte
-		snConfFile, err = ioutil.ReadFile(supernodeConfigPath)
+		snConfFile, err = os.ReadFile(supernodeConfigPath)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to open existing supernode.yml file at - %s", supernodeConfigPath)
 			return err
@@ -1471,7 +1470,7 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 			log.WithContext(ctx).WithError(err).Errorf("Failed to unparse yml for supernode.yml file at - %s", supernodeConfigPath)
 			return err
 		}
-		if ioutil.WriteFile(supernodeConfigPath, snConfFileUpdated, 0644) != nil {
+		if os.WriteFile(supernodeConfigPath, snConfFileUpdated, 0644) != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to update supernode.yml file at - %s", supernodeConfigPath)
 			return err
 		}

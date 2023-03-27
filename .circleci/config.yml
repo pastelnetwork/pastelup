@@ -223,7 +223,7 @@ jobs:
       - run:
           name: Install xgo
           command: |
-            go install -v github.com/pastelnetwork/xgo@cfada204f14596d56540b02e38526a56d57ddc30
+            go install src.techknowlogick.com/xgo@latest
       - create-sources-container:
           containerName: "sourcesContainer"
       - release:

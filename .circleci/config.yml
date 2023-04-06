@@ -31,9 +31,15 @@ commands:
           name: "pastelup << parameters.package >>: xgo build for << parameters.targets >>"
           working_directory: "~/project/build/github.com/pastelnetwork/pastelup"
           command: |
+            cd
+            cd go/src/github.com && mkdir pastelnetwork
+            cd pastelnetwork
+            cp -r ~/project pastelup
+ 
             export CIRCLE_TAG=$(git describe --tag)
             export APP_LDFLAGS="-X github.com/pastelnetwork/pastelup/common/version.version=$CIRCLE_TAG" 
             ls -R
+            
             xgo -go go-1.20.3 --targets=<< parameters.targets >> -ldflags "$APP_LDFLAGS"  ./
             
             ls -R

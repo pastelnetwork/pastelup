@@ -36,7 +36,7 @@ commands:
             export LINUX_ARTIFACT=$WORKING_DIR/pastelup-linux-amd64
             export CIRCLE_TAG=$(git describe --tag)
             export APP_LDFLAGS="-X github.com/pastelnetwork/pastelup/common/version.version=$CIRCLE_TAG" 
-            GOPATH= xgo -go latest --targets=<< parameters.targets >> -pkg=<< parameters.package >> -volumesFrom=<< parameters.sourcesContainerName >> -dockerRM=false -dockerContainerName=<< parameters.buildContainerName >> -ldflags "$APP_LDFLAGS"  ./
+            GOPATH= xgo -go go-1.20.3 --targets=<< parameters.targets >> -pkg=<< parameters.package >> -ldflags "$APP_LDFLAGS"  ./
 
             mkdir -p << parameters.outputDirectory >>
             docker cp << parameters.buildContainerName >>:/build/. ./<< parameters.outputDirectory >>
@@ -223,7 +223,7 @@ jobs:
       - run:
           name: Install xgo
           command: |
-            go install -v github.com/pastelnetwork/xgo@cfada204f14596d56540b02e38526a56d57ddc30
+            go install -v src.techknowlogick.com/xgo@v1.7.0+1.19.5
       - create-sources-container:
           containerName: "sourcesContainer"
       - release:

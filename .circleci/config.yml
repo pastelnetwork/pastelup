@@ -3,13 +3,8 @@ orbs:
   aws-s3: circleci/aws-s3@3.0.0
 version: 2.1
 defaults: &defaults
-#  parameters:
-#    version:
-#      type: string
-#      default: "latest"
-  docker:
-#    - image: "circleci/golang:<< parameters.version >>"
-    - image: cimg/go:1.20.2
+  machine:
+    image: ubuntu-2204:current
   environment:
     GO111MODULE: "on"
    
@@ -173,6 +168,19 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install Go
+          command: |
+            cd ..
+            wget https://golang.org/dl/go1.20.3.linux-amd64.tar.gz
+            sudo rm -r /usr/local/go
+            sudo tar -C /usr/local -xzf go1.20.linux-amd64.tar.gz
+            echo 'export PATH=$PATH:/usr/local/go/bin:~/go/bin' >> ~/.bashrc
+            echo 'export CGO_ENABLED=1' >> ~/.bashrc
+            echo "export GOPATH=\"$HOME/go\"" >> ~/.bashrc
+            echo 'export GOROOT="/usr/local/go"' >> ~/.bashrc
+            source ~/.bashrc
+            go version
+      - run:
           name: Print the go version
           command: |
             go version
@@ -214,9 +222,19 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - setup_remote_docker:
-          version: 20.10.14
-          docker_layer_caching: false
+      - run:
+          name: Install Go
+          command: |
+            cd ..
+            wget https://golang.org/dl/go1.20.3.linux-amd64.tar.gz
+            sudo rm -r /usr/local/go
+            sudo tar -C /usr/local -xzf go1.20.linux-amd64.tar.gz
+            echo 'export PATH=$PATH:/usr/local/go/bin:~/go/bin' >> ~/.bashrc
+            echo 'export CGO_ENABLED=1' >> ~/.bashrc
+            echo "export GOPATH=\"$HOME/go\"" >> ~/.bashrc
+            echo 'export GOROOT="/usr/local/go"' >> ~/.bashrc
+            source ~/.bashrc
+            go version
       - run:
           name: Install github-release
           command: |

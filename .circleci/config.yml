@@ -19,6 +19,10 @@ commands:
       - run:
           name: "pastelup - xgo build for << parameters.targets >>"
           command: |
+            export WORKING_DIR=~/project/github.com/pastelnetwork
+            export MACOS_ARTIFACT=$WORKING_DIR/pastelup-darwin-10.14-amd64
+            export WINDOWS_ARTIFACT=$WORKING_DIR/pastelup-windows-4.0-amd64.exe
+            export LINUX_ARTIFACT=$WORKING_DIR/pastelup-linux-amd64
             cd
             cd project
 

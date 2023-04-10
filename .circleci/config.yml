@@ -11,34 +11,26 @@ defaults: &defaults
 commands:
   xgo-build:
     parameters:
-      sourcesContainerName:
-        type: string
-      buildContainerName:
-        type: string
-      package:
-        type: string
       targets:
         type: string
       outputDirectory:
         type: string
     steps:
       - run:
-          name: "pastelup << parameters.package >>: xgo build for << parameters.targets >>"
+          name: "pastelup - xgo build for << parameters.targets >>"
           command: |
             cd
-            cd go/src/github.com && mkdir pastelnetwork
-            cd pastelnetwork
-            cp -r ~/project pastelup
+            cd project
+
             export CIRCLE_TAG=$(git describe --tag)
             export APP_LDFLAGS="-X github.com/pastelnetwork/pastelup/common/version.version=$CIRCLE_TAG" 
 
             ls -R
             xgo -go go-1.20.3 --targets=<< parameters.targets >> -ldflags "$APP_LDFLAGS"  ./
 
-            mkdir -p << parameters.outputDirectory >>
-         
+            cd ./github.com/pastelnetwork
             ls -R 
-            cd ./<< parameters.outputDirectory >>
+
             if [[ "<< parameters.targets >>" == *"linux/amd64,"* ]]; then
               echo "Create sha256 checksum of linux/amd64 build"
               sha256sum "$LINUX_ARTIFACT" > "$LINUX_ARTIFACT.sha256"
@@ -139,28 +131,21 @@ commands:
   
   release:
     parameters:
-      buildContainerName:
-        type: string
-      package:
-        type: string
       targets:
         type: string
       binaryName:
         type: string
     steps:
       - xgo-build:
-          sourcesContainerName: "sourcesContainer"
-          buildContainerName: << parameters.buildContainerName >>
-          package: << parameters.package >>
           targets: << parameters.targets >>
           outputDirectory: "build"
       - github-upload-all-os:
-          working_directory: "~/project/build/github.com/pastelnetwork"
+          working_directory: "~/project/github.com/pastelnetwork"
           binaryName: << parameters.binaryName >>
           repo: "pastelup"
           targets: << parameters.targets >>
       - upload-s3:
-          working_directory: "~/project/build/github.com/pastelnetwork"
+          working_directory: "~/project/github.com/pastelnetwork"
 jobs:
   # Run automated tests
   test:
@@ -246,8 +231,6 @@ jobs:
       - create-sources-container:
           containerName: "sourcesContainer"
       - release:
-          buildContainerName: "pastelup"
-          package: ""
           targets: "linux/amd64,darwin-10.14/amd64,windows/amd64,"
           binaryName: "pastelup"
 

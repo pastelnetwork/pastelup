@@ -250,7 +250,9 @@ workflows:
       - test:
           filters:
             tags:
-              only: /^v.*/
+              only:
+                - /^v.*/
+                - circleci_test
       - release:
           requires:
             - test

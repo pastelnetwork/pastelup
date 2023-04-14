@@ -86,20 +86,17 @@ commands:
             if [[ "<< parameters.targets >>" == *"linux/amd64,"* ]]; then
               echo "Check existence of linux/amd64 build and upload to GitHub"
               test -f $LINUX_ARTIFACT
-              gh release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-linux-amd64 --file << parameters.binaryName >>-linux-amd64
-              gh release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-linux-amd64.sha256 --file << parameters.binaryName >>-linux-amd64.sha256
+              gh release upload --clobber --repo pastelnetwork/<< parameters.repo >> ${CIRCLE_TAG} << parameters.binaryName >>-linux-amd64 << parameters.binaryName >>-linux-amd64.sha256
             fi
             if [[ "<< parameters.targets >>" == *"darwin-10.14/amd64,"* ]]; then
               echo "Check existence of darwin-10.14/amd64 build and upload to GitHub"
               test -f $MACOS_ARTIFACT
-              gh release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-darwin-amd64 --file << parameters.binaryName >>-darwin-10.14-amd64
-              gh release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-darwin-amd64.sha256 --file << parameters.binaryName >>-darwin-10.14-amd64.sha256
+              gh release upload --clobber --repo pastelnetwork/<< parameters.repo >> ${CIRCLE_TAG} << parameters.binaryName >>-darwin-10.14-amd64 << parameters.binaryName >>-darwin-10.14-amd64.sha256
             fi
             if [[ "<< parameters.targets >>" == *"windows/amd64,"* ]]; then
               echo "Check existence of windows/amd64 build and upload to GitHub"
               test -f $WINDOWS_ARTIFACT
-              gh release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-win-amd64.exe --file << parameters.binaryName >>-windows-4.0-amd64.exe
-              gh release upload --user pastelnetwork --repo << parameters.repo >> --tag $CIRCLE_TAG --name << parameters.binaryName >>-win-amd64.sha256 --file << parameters.binaryName >>-windows-4.0-amd64.exe.sha256
+              gh release upload --clobber --repo pastelnetwork/<< parameters.repo >> ${CIRCLE_TAG} << parameters.binaryName >>-windows-4.0-amd64.exe << parameters.binaryName >>-windows-4.0-amd64.exe.sha256
             fi
   upload-s3:
     parameters:
@@ -235,10 +232,6 @@ jobs:
             source ~/.bashrc
             go version
       - run:
-          name: Install github-release
-          command: |
-            GO111MODULE=off go get github.com/github-release/github-release
-      - run:
           name: Install xgo
           command: |
             go install -v src.techknowlogick.com/xgo@v1.7.0+1.19.5
@@ -254,7 +247,9 @@ workflows:
       - test:
           filters:
             tags:
-              only: /^v.*/
+              only:
+                - /^v.*/
+                - circleci_test
       - release:
           requires:
             - test
@@ -262,7 +257,9 @@ workflows:
             branches:
               ignore: /.*/
             tags:
-              only: /^v.*/
+              only:
+                - /^v.*/
+                - circleci_test
           context:
             - Release
             - weekly-beta-builds

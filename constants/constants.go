@@ -303,10 +303,10 @@ var DupeDetectionSupportDownloadURL = []string{
 
 // DupeDetectionSupportChecksum - The checksum of dupe detection support files
 var DupeDetectionSupportChecksum = map[string]string{
-	"pastel_image_dupe_detection_model_v_1_0.pth.tar":	"5fb3e01cc73654825d17b8d49c60cc138912fca0fe752d5476ed00e8827ae082",
-	"pca_byol_bw.vt":									"2515062da53f39fb08cbabdc392beff9749240021513f0bf6fed1eeac2aae3de",
-	"bayesian_ridge_model_3.joblib":					"8960914863f6a9859e440d57b4af59e17932b6f4d2ebe9515e89138072a52b06",
-	"nsfw_mobilenet_v2_140_224":						"57278dd5a158b7ad8cb4f8d32f26c5f836d0d038044a2119f76fecff7aa241e9",
+	"pastel_image_dupe_detection_model_v_1_0.pth.tar": "5fb3e01cc73654825d17b8d49c60cc138912fca0fe752d5476ed00e8827ae082",
+	"pca_byol_bw.vt":                "2515062da53f39fb08cbabdc392beff9749240021513f0bf6fed1eeac2aae3de",
+	"bayesian_ridge_model_3.joblib": "8960914863f6a9859e440d57b4af59e17932b6f4d2ebe9515e89138072a52b06",
+	"nsfw_mobilenet_v2_140_224":     "57278dd5a158b7ad8cb4f8d32f26c5f836d0d038044a2119f76fecff7aa241e9",
 }
 
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files

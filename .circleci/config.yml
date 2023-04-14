@@ -150,6 +150,7 @@ commands:
       - xgo-build:
           targets: << parameters.targets >>
           outputDirectory: "build"
+      - gh/install
       - github-upload-all-os:
           working_directory: "~/project/github.com/pastelnetwork"
           binaryName: << parameters.binaryName >>

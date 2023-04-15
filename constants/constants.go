@@ -295,18 +295,18 @@ var DupeDetectionConfigs = []string{
 
 // DupeDetectionSupportDownloadURL - The URL of dupe detection support files
 var DupeDetectionSupportDownloadURL = []string{
-	"https://download.pastel.network/machine-learning/DupeDetector_gray.pth.tar",
-	"https://download.pastel.network/machine-learning/pca_bw.vt",
-	"https://download.pastel.network/machine-learning/train_0_bw.hdf5",
+	"https://download.pastel.network/machine-learning/pastel_image_dupe_detection_model_v_1_0.pth.tar",
+	"https://download.pastel.network/machine-learning/pca_byol_bw.vt",
+	"https://download.pastel.network/machine-learning/bayesian_ridge_model_3.joblib",
 	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
 }
 
 // DupeDetectionSupportChecksum - The checksum of dupe detection support files
 var DupeDetectionSupportChecksum = map[string]string{
-	"DupeDetector_gray.pth.tar": "9eb31f27c5ce362dc558b4b77abedcbe327909f093d97f24acce20fcfb872c36",
-	"pca_bw.vt":                 "d1bd688fcfa09f650d42a0160479c2bebf1cf87596645a55220e56696f386c73",
-	"train_0_bw.hdf5":           "659a2d480783709130c56e862a3a6e16d659c6dd063e80271fe51542b8b92590",
-	"mobilenet_v2_140_224":      "825a4298a25334201ad5fb29e089fce0258c9a13793cc0d0b6a7dbe9c96ad9f3",
+	"pastel_image_dupe_detection_model_v_1_0.pth.tar": "5fb3e01cc73654825d17b8d49c60cc138912fca0fe752d5476ed00e8827ae082",
+	"pca_byol_bw.vt":                "2515062da53f39fb08cbabdc392beff9749240021513f0bf6fed1eeac2aae3de",
+	"bayesian_ridge_model_3.joblib": "8960914863f6a9859e440d57b4af59e17932b6f4d2ebe9515e89138072a52b06",
+	"nsfw_mobilenet_v2_140_224":     "57278dd5a158b7ad8cb4f8d32f26c5f836d0d038044a2119f76fecff7aa241e9",
 }
 
 // DupeDetectionSupportFilePath - The target path for downloading dupe detection support files

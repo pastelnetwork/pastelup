@@ -366,8 +366,8 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 func WaitingForPastelDToStart(ctx context.Context, config *configs.Config) bool {
 	log.WithContext(ctx).Info("Waiting the pasteld to start...")
 	var attempts = 0
-	var maxAttempts = 10
-	for attempts < maxAttempts {
+	var maxAttempts = 30
+	for attempts <= maxAttempts {
 		info, err := GetPastelInfo(ctx, config)
 		if err == nil {
 			log.WithContext(ctx).Info("pasteld started successfully")
@@ -380,7 +380,7 @@ func WaitingForPastelDToStart(ctx context.Context, config *configs.Config) bool 
 				errorMessage, _ := errorMap["message"].(string)
 				if strings.Contains(errorMessage, "Rescanning...") {
 					if attempts == maxAttempts-1 {
-						maxAttempts = 30
+						maxAttempts += 30
 					}
 				}
 			}

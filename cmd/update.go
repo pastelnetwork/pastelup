@@ -387,7 +387,7 @@ func stopAndUpdateService(ctx context.Context, config *configs.Config, updateCom
 		}
 	}
 	if err = updateSolution(ctx, config, updateCommand, withDependencies); err != nil {
-		log.WithContext(ctx).WithError(err).Error(fmt.Printf("Failed to update '%v': %v", updateCommand, err))
+		log.WithContext(ctx).WithError(err).Errorf("Failed to update '%v': %v", updateCommand, err)
 		return err
 	}
 	log.WithContext(ctx).Infof("Successfully updated %s component and its dependencies", string(updateCommand))

@@ -156,12 +156,12 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 func (wc WriteCounter) PrintProgress() {
 	// Clear the line by using a character return to go back to the start and remove
 	// the remaining characters by filling it with spaces
-	fmt.Printf("\r%s", strings.Repeat(" ", 35))
+	log.Infof("\r%s", strings.Repeat(" ", 35))
 
 	// Return again and print current status of download
 	// We use the humanize package to print the bytes in a meaningful way (e.g. 10 MB)
 
-	fmt.Printf("\rDownloading... %s complete", humanize.Bytes(wc.Total))
+	log.Infof("\rDownloading... %s complete", humanize.Bytes(wc.Total))
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will
@@ -524,7 +524,7 @@ func GetServiceConfig(templName string, format string, value interface{}) (strin
 func ReadStrings(comment string) (string, error) {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Printf("%s-> ", comment)
+	log.Infof("%s-> ", comment)
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		return "", err

@@ -30,6 +30,25 @@ type Init struct {
 	ServiceSolution  string `json:"solution,omitempty"`
 	DevMode          bool   `json:"devmode,omitempty"`
 
+	NodeExtIP string `json:"nodeextip,omitempty"`
+
+	ActivateMasterNode      bool   `json:"activatemasternode,omitempty"`
+	MasterNodeName          string `json:"masternodename,omitempty"`
+	CreateNewMasterNodeConf bool   `json:"createnewmasternodeconf,omitempty"`
+	AddToMasterNodeConf     bool   `json:"addtomasternodeconf,omitempty"`
+	MasterNodeTxID          string `json:"masternodetxid,omitempty"`
+	MasterNodeTxInd         string `json:"masternodetxind,omitempty"`
+	DontCheckCollateral     bool   `json:"dontcheckcollateral,omitempty"`
+	DontUseReindex          bool   `json:"dontusereindex,omitempty"`
+	MasterNodePort          int    `json:"masternodeport,omitempty"`
+	MasterNodePrivateKey    string `json:"masternodeprivatekey,omitempty"`
+	MasterNodePastelID      string `json:"masternodepastelid,omitempty"`
+	MasterNodePassPhrase    string `json:"masternodepassphrase,omitempty"`
+	MasterNodeRPCIP         string `json:"masternoderpcip,omitempty"`
+	MasterNodeRPCPort       int    `json:"masternoderpcport,omitempty"`
+	MasterNodeP2PIP         string `json:"masternodep2pip,omitempty"`
+	MasterNodeP2PPort       int    `json:"masternodep2pport,omitempty"`
+
 	// Configs for remote session
 	RemoteHotHomeDir       string `json:"remotehomedir,omitempty"`
 	RemoteHotWorkingDir    string `json:"remoteworkingdir,omitempty"`

@@ -356,9 +356,6 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 	}
 	// this indicates we got an empty or errored response
 	if info.Result.Version == 0 {
-		//if info.Error != nil {
-		//	info.Error.(map[string]interface{})["code"]
-		//}
 		log.WithContext(ctx).Errorf("info response has errors: %v", info.Error)
 		return info, fmt.Errorf("info response has errors")
 	}
@@ -369,12 +366,26 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 func WaitingForPastelDToStart(ctx context.Context, config *configs.Config) bool {
 	log.WithContext(ctx).Info("Waiting the pasteld to start...")
 	var attempts = 0
-	for attempts < 10 {
-		_, err := GetPastelInfo(ctx, config)
+	var maxAttempts = 10
+	for attempts < maxAttempts {
+		info, err := GetPastelInfo(ctx, config)
 		if err == nil {
 			log.WithContext(ctx).Info("pasteld started successfully")
 			return true
 		}
+		if info.Error != nil {
+			errorMap, ok := info.Error.(map[string]interface{})
+			if ok {
+				//errorCode, _ := errorMap["code"].(int)
+				errorMessage, _ := errorMap["message"].(string)
+				if strings.Contains(errorMessage, "Rescanning...") {
+					if attempts == maxAttempts-1 {
+						maxAttempts = 30
+					}
+				}
+			}
+		}
+
 		time.Sleep(10 * time.Second)
 		attempts++
 	}
@@ -414,7 +425,7 @@ func CheckMasterNodeSync(ctx context.Context, config *configs.Config) (int, erro
 			return 0, err
 		}
 		// line overwrites itself to avoid abundant loggin
-		fmt.Printf("Waiting for sync... Loading blocks - block #%d; Node has %d connection; mnstatus=%v, isSynced=%v (elapsed: %v)\r", getinfo.Result.Blocks, getinfo.Result.Connections, mnstatus.Result.AssetName, mnstatus.Result.IsSynced, time.Since(t))
+		log.WithContext(ctx).Infof("Waiting for sync... Loading blocks - block #%d; Node has %d connection; mnstatus=%v, isSynced=%v (elapsed: %v)\r", getinfo.Result.Blocks, getinfo.Result.Connections, mnstatus.Result.AssetName, mnstatus.Result.IsSynced, time.Since(t))
 		if mnstatus.Result.AssetName == "Initial" {
 			var output interface{}
 			err := pastelcore.NewClient(config).RunCommandWithArgs(pastelcore.MasterNodeSyncCmd, []string{"reset"}, &output)

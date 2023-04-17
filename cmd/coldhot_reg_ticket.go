@@ -123,7 +123,7 @@ func (r *ColdHotRunner) handleTransferBalance(ctx context.Context, remoteBalance
 
 func (r *ColdHotRunner) registerTicketPastelID(ctx context.Context) (err error) {
 	cmd := fmt.Sprintf("%s %s %s %s", r.opts.remotePastelCli, "tickets register mnid",
-		flagMasterNodePastelID, flagMasterNodePassPhrase)
+		r.config.MasterNodePastelID, r.config.MasterNodePassPhrase)
 
 	remoteBalance, err := r.getBalance(ctx, false)
 	if err != nil {

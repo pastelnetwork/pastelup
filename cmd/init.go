@@ -17,26 +17,6 @@ import (
 	"github.com/pastelnetwork/pastelup/constants"
 )
 
-var (
-	// masternode flags
-	flagMasterNodeIsActivate bool
-	flagMasterNodeName       string
-	flagMasterNodeConfNew    bool
-	flagMasterNodeConfAdd    bool
-	flagMasterNodeTxID       string
-	flagMasterNodeInd        string
-	flagDontCheckCollateral  bool
-	flagDontReindex          bool
-	flagMasterNodePort       int
-	flagMasterNodePrivateKey string
-	flagMasterNodePastelID   string
-	flagMasterNodePassPhrase string
-	flagMasterNodeRPCIP      string
-	flagMasterNodeRPCPort    int
-	flagMasterNodeP2PIP      string
-	flagMasterNodeP2PPort    int
-)
-
 type initCommand uint8
 
 const (
@@ -75,11 +55,10 @@ func setupInitSubCommand(config *configs.Config,
 ) *cli.Command {
 
 	commonFlags := []*cli.Flag{
-		cli.NewFlag("ip", &flagNodeExtIP).
+		cli.NewFlag("ip", &config.NodeExtIP).
 			SetUsage(green("Optional, WAN IP address of the SuperNode, default - WAN IP address of the host")),
-		cli.NewFlag("port", &flagMasterNodePort).
-			SetUsage(green("Optional, Port for WAN IP address of the SuperNode, default - 9933 (19933 for Testnet)")).
-			SetValue(constants.MainnetPortList[constants.NodePort]),
+		cli.NewFlag("port", &config.MasterNodePort).
+			SetUsage(green("Optional, Port for WAN IP address of the SuperNode, default - 9933 (19933 for Testnet)")),
 		cli.NewFlag("reindex", &config.ReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
 	}
@@ -103,42 +82,42 @@ func setupInitSubCommand(config *configs.Config,
 	}
 
 	superNodeInitFlags := []*cli.Flag{
-		cli.NewFlag("name", &flagMasterNodeName).
+		cli.NewFlag("name", &config.MasterNodeName).
 			SetUsage(red("Required, name of the Masternode to create or update in the masternode.conf")).SetRequired(),
 
-		cli.NewFlag("new", &flagMasterNodeConfNew).
+		cli.NewFlag("new", &config.CreateNewMasterNodeConf).
 			SetUsage(red("Required (if --add is not used), if specified, will create new masternode.conf with new Masternode record in it.")),
-		cli.NewFlag("add", &flagMasterNodeConfAdd).
+		cli.NewFlag("add", &config.AddToMasterNodeConf).
 			SetUsage(red("Required (if --new is not used), if specified, will add new Masternode record to the existing masternode.conf.")),
 
-		cli.NewFlag("pkey", &flagMasterNodePrivateKey).
+		cli.NewFlag("pkey", &config.MasterNodePrivateKey).
 			SetUsage(yellow("Optional, Masternode private key, if omitted, new masternode private key will be created")),
 
-		cli.NewFlag("txid", &flagMasterNodeTxID).
+		cli.NewFlag("txid", &config.MasterNodeTxID).
 			SetUsage(yellow("Optional, collateral payment txid, transaction id of 5M collateral MN payment")),
-		cli.NewFlag("ind", &flagMasterNodeInd).
+		cli.NewFlag("ind", &config.MasterNodeTxInd).
 			SetUsage(yellow("Optional, collateral payment output index, output index in the transaction of 5M collateral MN payment")),
 
-		cli.NewFlag("skip-collateral-validation", &flagDontCheckCollateral).
+		cli.NewFlag("skip-collateral-validation", &config.DontCheckCollateral).
 			SetUsage(yellow("Optional (if both txid and ind specified), skip validation of collateral tx on this node")),
-		cli.NewFlag("noReindex", &flagDontReindex).
+		cli.NewFlag("noReindex", &config.DontUseReindex).
 			SetUsage(yellow("Optional, disable any default --reindex")),
 
-		cli.NewFlag("pastelid", &flagMasterNodePastelID).
+		cli.NewFlag("pastelid", &config.MasterNodePastelID).
 			SetUsage(yellow("Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered")),
-		cli.NewFlag("passphrase", &flagMasterNodePassPhrase).
+		cli.NewFlag("passphrase", &config.MasterNodePassPhrase).
 			SetUsage(yellow("Optional, passphrase to pastelid private key. If omitted, user will be asked interactively")),
 
-		cli.NewFlag("rpc-ip", &flagMasterNodeRPCIP).
+		cli.NewFlag("rpc-ip", &config.MasterNodeRPCIP).
 			SetUsage(yellow("Optional, SuperNode IP address. If omitted, value passed to --ip will be used")),
-		cli.NewFlag("rpc-port", &flagMasterNodeRPCPort).
-			SetUsage(yellow("Optional, SuperNode port, default - 4444 (14444 for Testnet")).SetValue(constants.MainnetPortList[constants.SNPort]),
-		cli.NewFlag("p2p-ip", &flagMasterNodeP2PIP).
+		cli.NewFlag("rpc-port", &config.MasterNodeRPCPort).
+			SetUsage(yellow("Optional, SuperNode port, default - 4444 (14444 for Testnet")),
+		cli.NewFlag("p2p-ip", &config.MasterNodeP2PIP).
 			SetUsage(yellow("Optional, Kademlia IP address, if omitted, value passed to --ip will be used")),
-		cli.NewFlag("p2p-port", &flagMasterNodeP2PPort).
-			SetUsage(yellow("Optional, Kademlia port, default - 4445 (14445 for Testnet)")).SetValue(constants.MainnetPortList[constants.P2PPort]),
+		cli.NewFlag("p2p-port", &config.MasterNodeP2PPort).
+			SetUsage(yellow("Optional, Kademlia port, default - 4445 (14445 for Testnet)")),
 
-		cli.NewFlag("activate", &flagMasterNodeIsActivate).
+		cli.NewFlag("activate", &config.ActivateMasterNode).
 			SetUsage(yellow("Optional, if specified, will try to enable node as Masternode (start-alias).")),
 	}
 
@@ -258,11 +237,11 @@ func setupInitCommand(config *configs.Config) *cli.Command {
 // Sub Command
 func runInitSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Initialising local supernode")
-	if !flagDontReindex {
+	if !config.DontUseReindex {
 		config.ReIndex = true // init means first start, reindex is required
 	}
 
-	if flagMasterNodeConfNew && flagMasterNodeName == "" {
+	if config.CreateNewMasterNodeConf && config.MasterNodeName == "" {
 		log.WithContext(ctx).Error("flag 'new' provided but name is missing")
 		return errors.New("flag 'new' provided but name is missing")
 	}
@@ -302,66 +281,66 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 
 	startOptions := ""
 
-	if len(flagMasterNodeName) > 0 {
-		startOptions = fmt.Sprintf("--name=%s", flagMasterNodeName)
+	if len(config.MasterNodeName) > 0 {
+		startOptions = fmt.Sprintf("--name=%s", config.MasterNodeName)
 	}
 
-	if flagMasterNodeIsActivate {
+	if config.ActivateMasterNode {
 		startOptions = fmt.Sprintf("%s --activate", startOptions)
 	}
 
-	if len(flagMasterNodePrivateKey) > 0 {
-		startOptions = fmt.Sprintf("%s --pkey=%s", startOptions, flagMasterNodePrivateKey)
+	if len(config.MasterNodePrivateKey) > 0 {
+		startOptions = fmt.Sprintf("%s --pkey=%s", startOptions, config.MasterNodePrivateKey)
 	}
 
-	if flagMasterNodeConfNew {
+	if config.CreateNewMasterNodeConf {
 		startOptions = fmt.Sprintf("%s --new", startOptions)
-	} else if flagMasterNodeConfAdd {
+	} else if config.AddToMasterNodeConf {
 		startOptions = fmt.Sprintf("%s --add", startOptions)
 	}
 
-	if len(flagMasterNodeTxID) > 0 {
-		startOptions = fmt.Sprintf("%s --txid=%s", startOptions, flagMasterNodeTxID)
+	if len(config.MasterNodeTxID) > 0 {
+		startOptions = fmt.Sprintf("%s --txid=%s", startOptions, config.MasterNodeTxID)
 	}
 
-	if len(flagMasterNodeInd) > 0 {
-		startOptions = fmt.Sprintf("%s --ind=%s", startOptions, flagMasterNodeInd)
+	if len(config.MasterNodeTxInd) > 0 {
+		startOptions = fmt.Sprintf("%s --ind=%s", startOptions, config.MasterNodeTxInd)
 	}
 
-	if flagDontCheckCollateral {
+	if config.DontCheckCollateral {
 		startOptions = fmt.Sprintf("%s --skip-collateral-validation", startOptions)
 	}
 
-	if len(flagMasterNodePastelID) > 0 {
-		startOptions = fmt.Sprintf("%s --pastelid=%s", startOptions, flagMasterNodePastelID)
+	if len(config.MasterNodePastelID) > 0 {
+		startOptions = fmt.Sprintf("%s --pastelid=%s", startOptions, config.MasterNodePastelID)
 	}
 
-	if len(flagMasterNodePassPhrase) > 0 {
-		startOptions = fmt.Sprintf("%s --passphrase=%s", startOptions, flagMasterNodePassPhrase)
+	if len(config.MasterNodePassPhrase) > 0 {
+		startOptions = fmt.Sprintf("%s --passphrase=%s", startOptions, config.MasterNodePassPhrase)
 	}
 
-	if flagMasterNodePort > 0 {
-		startOptions = fmt.Sprintf("%s --port=%d", startOptions, flagMasterNodePort)
+	if config.MasterNodePort > 0 {
+		startOptions = fmt.Sprintf("%s --port=%d", startOptions, config.MasterNodePort)
 	}
 
-	if len(flagMasterNodeRPCIP) > 0 {
-		startOptions = fmt.Sprintf("%s --rpc-ip=%s", startOptions, flagMasterNodeRPCIP)
+	if len(config.MasterNodeRPCIP) > 0 {
+		startOptions = fmt.Sprintf("%s --rpc-ip=%s", startOptions, config.MasterNodeRPCIP)
 	}
 
-	if flagMasterNodeRPCPort > 0 {
-		startOptions = fmt.Sprintf("%s --rpc-port=%d", startOptions, flagMasterNodeRPCPort)
+	if config.MasterNodeRPCPort > 0 {
+		startOptions = fmt.Sprintf("%s --rpc-port=%d", startOptions, config.MasterNodeRPCPort)
 	}
 
-	if len(flagMasterNodeP2PIP) > 0 {
-		startOptions = fmt.Sprintf("%s --p2p-ip=%s", startOptions, flagMasterNodeP2PIP)
+	if len(config.MasterNodeP2PIP) > 0 {
+		startOptions = fmt.Sprintf("%s --p2p-ip=%s", startOptions, config.MasterNodeP2PIP)
 	}
 
-	if flagMasterNodeP2PPort > 0 {
-		startOptions = fmt.Sprintf("%s --p2p-port=%d", startOptions, flagMasterNodeP2PPort)
+	if config.MasterNodeP2PPort > 0 {
+		startOptions = fmt.Sprintf("%s --p2p-port=%d", startOptions, config.MasterNodeP2PPort)
 	}
 
-	if len(flagNodeExtIP) > 0 {
-		startOptions = fmt.Sprintf("%s --ip=%s", startOptions, flagNodeExtIP)
+	if len(config.NodeExtIP) > 0 {
+		startOptions = fmt.Sprintf("%s --ip=%s", startOptions, config.NodeExtIP)
 	}
 
 	if config.ReIndex {
@@ -390,14 +369,14 @@ func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Confi
 func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) error {
 
 	// this function must only be called when --create or --update
-	if !flagMasterNodeConfNew && !flagMasterNodeConfAdd {
+	if !config.CreateNewMasterNodeConf && !config.AddToMasterNodeConf {
 		return nil
 	}
 
 	var err error
 	var conf map[string]masterNodeConf
 
-	if flagMasterNodeConfAdd {
+	if config.AddToMasterNodeConf {
 		conf, err = loadMasternodeConfFile(ctx, config)
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to load existing masternode.conf file")
@@ -406,16 +385,17 @@ func createOrUpdateMasternodeConf(ctx context.Context, config *configs.Config) e
 	} else {
 		conf = make(map[string]masterNodeConf)
 	}
+	log.WithContext(ctx).Infof("CONFIG: %+v", config)
 
-	conf[flagMasterNodeName] = masterNodeConf{
-		MnAddress:  flagNodeExtIP + ":" + fmt.Sprintf("%d", flagMasterNodePort),
-		MnPrivKey:  flagMasterNodePrivateKey,
-		Txid:       flagMasterNodeTxID,
-		OutIndex:   flagMasterNodeInd,
-		ExtAddress: flagNodeExtIP + ":" + fmt.Sprintf("%d", flagMasterNodeRPCPort),
-		ExtP2P:     flagMasterNodeP2PIP + ":" + fmt.Sprintf("%d", flagMasterNodeP2PPort),
+	conf[config.MasterNodeName] = masterNodeConf{
+		MnAddress:  config.NodeExtIP + ":" + fmt.Sprintf("%d", config.MasterNodePort),
+		MnPrivKey:  config.MasterNodePrivateKey,
+		Txid:       config.MasterNodeTxID,
+		OutIndex:   config.MasterNodeTxInd,
+		ExtAddress: config.NodeExtIP + ":" + fmt.Sprintf("%d", config.MasterNodeRPCPort),
+		ExtP2P:     config.MasterNodeP2PIP + ":" + fmt.Sprintf("%d", config.MasterNodeP2PPort),
 		ExtCfg:     "",
-		ExtKey:     flagMasterNodePastelID,
+		ExtKey:     config.MasterNodePastelID,
 	}
 
 	// Create masternode.conf file

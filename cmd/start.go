@@ -29,10 +29,6 @@ var (
 
 )
 */
-var (
-	// node flags
-	flagNodeExtIP string
-)
 
 type startCommand uint8
 
@@ -87,7 +83,7 @@ func setupStartSubCommand(config *configs.Config,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 	commonFlags := []*cli.Flag{
-		cli.NewFlag("ip", &flagNodeExtIP).
+		cli.NewFlag("ip", &config.NodeExtIP).
 			SetUsage(green("Optional, WAN address of the host")),
 		cli.NewFlag("reindex", &config.ReIndex).SetAliases("r").
 			SetUsage(green("Optional, Start with reindex")),
@@ -118,14 +114,14 @@ func setupStartSubCommand(config *configs.Config,
 	}
 
 	superNodeStartFlags := []*cli.Flag{
-		cli.NewFlag("name", &flagMasterNodeName).
+		cli.NewFlag("name", &config.MasterNodeName).
 			SetUsage(red("name of the Masternode to start")),
-		cli.NewFlag("activate", &flagMasterNodeIsActivate).
+		cli.NewFlag("activate", &config.ActivateMasterNode).
 			SetUsage(green("Optional, if specified, will try to enable node as Masternode (start-alias).")),
 	}
 
 	masternodeFlags := []*cli.Flag{
-		cli.NewFlag("name", &flagMasterNodeName).
+		cli.NewFlag("name", &config.MasterNodeName).
 			SetUsage(red("name of the Masternode to start")),
 	}
 
@@ -283,7 +279,7 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 
 // Sub Command
 func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
-	if err := runPastelNode(ctx, config, false, config.ReIndex, flagNodeExtIP, ""); err != nil {
+	if err := runPastelNode(ctx, config, false, config.ReIndex, config.NodeExtIP, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 		return err
 	}
@@ -293,7 +289,7 @@ func runStartNodeSubCommand(ctx context.Context, config *configs.Config) error {
 // Sub Command
 func runStartWalletNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	// *************  1. Start pastel node  *************
-	if err := runPastelNode(ctx, config, config.TxIndex == 1, config.ReIndex, flagNodeExtIP, ""); err != nil {
+	if err := runPastelNode(ctx, config, config.TxIndex == 1, config.ReIndex, config.NodeExtIP, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 		return err
 	}
@@ -365,12 +361,13 @@ func runStartSuperNode(ctx context.Context, config *configs.Config, justInit boo
 		pastelDIsRunning = true
 	}
 
-	if flagMasterNodeConfNew || flagMasterNodeConfAdd {
+	if config.CreateNewMasterNodeConf || config.AddToMasterNodeConf {
 		log.WithContext(ctx).Info("Prepare masternode parameters")
 		if err := prepareMasterNodeParameters(ctx, config, !pastelDIsRunning); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
 			return err
 		}
+		log.WithContext(ctx).Infof("CONFIG: %+v", config)
 		if err := createOrUpdateMasternodeConf(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
 			return err
@@ -402,10 +399,10 @@ func runStartSuperNode(ctx context.Context, config *configs.Config, justInit boo
 	}
 
 	// *************  5. Enable Masternode  ***************
-	if flagMasterNodeIsActivate {
-		log.WithContext(ctx).Infof("Starting MN alias - %s", flagMasterNodeName)
-		if err := runStartAliasMasternode(ctx, config, flagMasterNodeName); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to start alias - %s", flagMasterNodeName)
+	if config.ActivateMasterNode {
+		log.WithContext(ctx).Infof("Starting MN alias - %s", config.MasterNodeName)
+		if err := runStartAliasMasternode(ctx, config, config.MasterNodeName); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to start alias - %s", config.MasterNodeName)
 			return err
 		}
 	}
@@ -473,16 +470,16 @@ func runRemoteStart(ctx context.Context, config *configs.Config, tool string) er
 	// Start remote node
 	startOptions := tool
 
-	if len(flagMasterNodeName) > 0 {
-		startOptions = fmt.Sprintf("%s --name=%s", startOptions, flagMasterNodeName)
+	if len(config.MasterNodeName) > 0 {
+		startOptions = fmt.Sprintf("%s --name=%s", startOptions, config.MasterNodeName)
 	}
 
-	if flagMasterNodeIsActivate {
+	if config.ActivateMasterNode {
 		startOptions = fmt.Sprintf("%s --activate", startOptions)
 	}
 
-	if len(flagNodeExtIP) > 0 {
-		startOptions = fmt.Sprintf("%s --ip=%s", startOptions, flagNodeExtIP)
+	if len(config.NodeExtIP) > 0 {
+		startOptions = fmt.Sprintf("%s --ip=%s", startOptions, config.NodeExtIP)
 	}
 	if config.ReIndex {
 		startOptions = fmt.Sprintf("%s --reindex", startOptions)
@@ -538,13 +535,13 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("Finished Reading pastel.conf! Starting Supernode in %s mode", config.Network)
 
 	// Get conf data from masternode.conf File
-	privKey, extIP, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName, flagNodeExtIP)
+	privKey, extIP, _ /*extPort*/, err := getMasternodeConfData(ctx, config, config.MasterNodeName, config.NodeExtIP)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to get masternode details from masternode.conf")
 		return err
 	}
 
-	if len(flagNodeExtIP) == 0 {
+	if len(config.NodeExtIP) == 0 {
 		log.WithContext(ctx).Info("--ip flag is ommited, trying to get our WAN IP address")
 		externalIP, err := utils.GetExternalIPAddress()
 		if err != nil {
@@ -552,18 +549,18 @@ func runStartMasternode(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).WithError(err).Error("Missing parameter --ip")
 			return err
 		}
-		flagNodeExtIP = externalIP
-		log.WithContext(ctx).Infof("WAN IP address - %s", flagNodeExtIP)
+		config.NodeExtIP = externalIP
+		log.WithContext(ctx).Infof("WAN IP address - %s", config.NodeExtIP)
 	}
-	if extIP != flagNodeExtIP {
-		err := errors.Errorf("External IP address in masternode.conf MUST match WAN address of the node! IP in masternode.conf - %s, WAN IP passed or identified - %s", extIP, flagNodeExtIP)
+	if extIP != config.NodeExtIP {
+		err := errors.Errorf("External IP address in masternode.conf MUST match WAN address of the node! IP in masternode.conf - %s, WAN IP passed or identified - %s", extIP, config.NodeExtIP)
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 		return err
 	}
 
 	// *************  Start Node as Masternode  *************
-	log.WithContext(ctx).Infof("Starting pasteld as masternode: nodeName: %s; mnPrivKey: %s", flagMasterNodeName, privKey)
-	if err := runPastelNode(ctx, config, true, config.ReIndex, flagNodeExtIP, privKey); err != nil { //in masternode mode pasteld MUST be started with reindex flag
+	log.WithContext(ctx).Infof("Starting pasteld as masternode: nodeName: %s; mnPrivKey: %s", config.MasterNodeName, privKey)
+	if err := runPastelNode(ctx, config, true, config.ReIndex, config.NodeExtIP, privKey); err != nil { //in masternode mode pasteld MUST be started with reindex flag
 		log.WithContext(ctx).WithError(err).Error("pasteld failed to start as masternode")
 		return err
 	}
@@ -998,7 +995,7 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, coldHot bool) error {
 
 	// --ip WAN IP address of the node - Required, WAN address of the host
-	if len(flagNodeExtIP) == 0 && !coldHot { //coldHot will try to get WAN address in the step that is executed on remote host
+	if len(config.NodeExtIP) == 0 && !coldHot { //coldHot will try to get WAN address in the step that is executed on remote host
 
 		log.WithContext(ctx).Info("--ip flag is ommited, trying to get our WAN IP address")
 		externalIP, err := utils.GetExternalIPAddress()
@@ -1007,11 +1004,11 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 			log.WithContext(ctx).WithError(err).Error("Missing parameter --ip")
 			return err
 		}
-		flagNodeExtIP = externalIP
-		log.WithContext(ctx).Infof("WAN IP address - %s", flagNodeExtIP)
+		config.NodeExtIP = externalIP
+		log.WithContext(ctx).Infof("WAN IP address - %s", config.NodeExtIP)
 	}
 
-	if !flagMasterNodeConfNew { // if we don't create new masternode.conf - it must exist!
+	if !config.CreateNewMasterNodeConf { // if we don't create new masternode.conf - it must exist!
 		masternodeConfPath := getMasternodeConfPath(config, "", "masternode.conf")
 		if _, err := checkPastelFilePath(ctx, config.WorkingDir, masternodeConfPath); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Could not find masternode.conf - use --create flag")
@@ -1027,39 +1024,29 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 		}
 	}
 
-	flagMasterNodeRPCIP = func() string {
-		if len(flagMasterNodeRPCIP) == 0 {
-			return flagNodeExtIP
-		}
-		return flagMasterNodeRPCIP
-	}()
-	flagMasterNodeP2PIP = func() string {
-		if len(flagMasterNodeP2PIP) == 0 {
-			return flagNodeExtIP
-		}
-		return flagMasterNodeP2PIP
-	}()
+	if len(config.MasterNodeRPCIP) == 0 {
+		config.MasterNodeRPCIP = config.NodeExtIP
+	}
+
+	if len(config.MasterNodeP2PIP) == 0 {
+		config.MasterNodeP2PIP = config.NodeExtIP
+	}
 
 	portList := GetSNPortList(config)
+	log.WithContext(ctx).Infof("CONFIG: %+v", config)
 
-	flagMasterNodePort = func() int {
-		if flagMasterNodePort == 0 {
-			return portList[constants.NodePort]
-		}
-		return flagMasterNodePort
-	}()
-	flagMasterNodeRPCPort = func() int {
-		if flagMasterNodeRPCPort == 0 {
-			return portList[constants.SNPort]
-		}
-		return flagMasterNodeRPCPort
-	}()
-	flagMasterNodeP2PPort = func() int {
-		if flagMasterNodeP2PPort == 0 {
-			return portList[constants.P2PPort]
-		}
-		return flagMasterNodeP2PPort
-	}()
+	if config.MasterNodePort == 0 {
+		config.MasterNodePort = portList[constants.NodePort]
+	}
+
+	if config.MasterNodeRPCPort == 0 {
+		config.MasterNodeRPCPort = portList[constants.SNPort]
+	}
+
+	if config.MasterNodeP2PPort == 0 {
+		config.MasterNodeP2PPort = portList[constants.P2PPort]
+	}
+	log.WithContext(ctx).Infof("CONFIG: %+v", config)
 
 	return nil
 }
@@ -1068,14 +1055,14 @@ func checkStartMasterNodeParams(ctx context.Context, config *configs.Config, col
 func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, startPasteld bool) (err error) {
 
 	// this function must only be called when --create or --update
-	if !flagMasterNodeConfNew && !flagMasterNodeConfAdd {
+	if !config.CreateNewMasterNodeConf && !config.AddToMasterNodeConf {
 		return nil
 	}
 
 	if startPasteld {
 		log.WithContext(ctx).Infof("Starting pasteld")
 		// in masternode mode pasteld MUST be start with txIndex=1 flag
-		if err = runPastelNode(ctx, config, true, config.ReIndex, flagNodeExtIP, ""); err != nil {
+		if err = runPastelNode(ctx, config, true, config.ReIndex, config.NodeExtIP, ""); err != nil {
 			log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 			return err
 		}
@@ -1093,7 +1080,7 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, st
 	}
 
 	// sets Passphrase to flagMasterNodePassphrase
-	if err := checkPassphrase(ctx); err != nil {
+	if err := checkPassphrase(ctx, config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing passphrase")
 		return err
 	}
@@ -1103,7 +1090,7 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, st
 		return err
 	}
 
-	// sets PastelID to flagMasterNodePastelID
+	// sets PastelID to MasterNodePastelID
 	if err := checkPastelID(ctx, config, nil); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing masternode PastelID")
 		return err
@@ -1119,14 +1106,14 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, st
 }
 
 func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Client) (err error) {
-	if len(flagMasterNodePastelID) != 0 {
-		log.WithContext(ctx).Infof("Masternode pastelid already set = %s", flagMasterNodePastelID)
+	if len(config.MasterNodePastelID) != 0 {
+		log.WithContext(ctx).Infof("Masternode pastelid already set = %s", config.MasterNodePastelID)
 		return nil
 	}
 
 	log.WithContext(ctx).Info("Masternode PastelID is empty - will create new one")
 
-	if len(flagMasterNodePassPhrase) == 0 { //check one more time just because
+	if len(config.MasterNodePassPhrase) == 0 { //check one more time just because
 		err := fmt.Errorf("required parameter if --create or --update specified: --passphrase <passphrase to pastelid private key>")
 		log.WithContext(ctx).WithError(err).Error("Missing parameter --passphrase")
 		return err
@@ -1137,7 +1124,7 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 		var resp map[string]interface{}
 		err = pastelcore.NewClient(config).RunCommandWithArgs(
 			pastelcore.PastelIDCmd,
-			[]string{"newkey", flagMasterNodePassPhrase},
+			[]string{"newkey", config.MasterNodePassPhrase},
 			&resp,
 		)
 		if err != nil {
@@ -1149,7 +1136,7 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 	} else { //client is not nil when called from ColdHot Init
 		pastelcliPath := filepath.Join(config.RemoteHotPastelExecDir, constants.PastelCliName[utils.GetOS()])
 		out, err := client.Cmd(fmt.Sprintf("%s %s %s", pastelcliPath, "pastelid newkey",
-			flagMasterNodePassPhrase)).Output()
+			config.MasterNodePassPhrase)).Output()
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to generate new pastelid key on Hot node")
 			return err
@@ -1170,15 +1157,15 @@ func checkPastelID(ctx context.Context, config *configs.Config, client *utils.Cl
 
 		log.WithContext(ctx).WithField("pastelid", pastelid).Info("generated pastel key on hotnode")
 	}
-	flagMasterNodePastelID = pastelid
+	config.MasterNodePastelID = pastelid
 
-	log.WithContext(ctx).Infof("Masternode pastelid = %s", flagMasterNodePastelID)
+	log.WithContext(ctx).Infof("Masternode pastelid = %s", config.MasterNodePastelID)
 
 	return nil
 }
 
 func checkMasternodePrivKey(ctx context.Context, config *configs.Config, client *utils.Client) (err error) {
-	if len(flagMasterNodePrivateKey) == 0 {
+	if len(config.MasterNodePrivateKey) == 0 {
 		log.WithContext(ctx).Info("Masternode private key is empty - will create new one")
 
 		var mnPrivKey string
@@ -1207,27 +1194,27 @@ func checkMasternodePrivKey(ctx context.Context, config *configs.Config, client 
 			fmt.Println("generated priv key on hotnode: ", mnPrivKey)
 		}
 
-		flagMasterNodePrivateKey = strings.TrimSuffix(mnPrivKey, "\n")
+		config.MasterNodePrivateKey = strings.TrimSuffix(mnPrivKey, "\n")
 	}
-	log.WithContext(ctx).Infof("masternode private key = %s", flagMasterNodePrivateKey)
+	log.WithContext(ctx).Infof("masternode private key = %s", config.MasterNodePrivateKey)
 	return nil
 }
 
-func checkPassphrase(ctx context.Context) error {
-	if len(flagMasterNodePassPhrase) == 0 {
+func checkPassphrase(ctx context.Context, config *configs.Config) error {
+	if len(config.MasterNodePassPhrase) == 0 {
 
-		_, flagMasterNodePassPhrase = AskUserToContinue(ctx, "No --passphrase provided."+
+		_, config.MasterNodePassPhrase = AskUserToContinue(ctx, "No --passphrase provided."+
 			" Please type new passphrase and press Enter. Or N to exit")
-		if strings.EqualFold(flagMasterNodePassPhrase, "n") ||
-			len(flagMasterNodePassPhrase) == 0 {
+		if strings.EqualFold(config.MasterNodePassPhrase, "n") ||
+			len(config.MasterNodePassPhrase) == 0 {
 
-			flagMasterNodePassPhrase = ""
+			config.MasterNodePassPhrase = ""
 			err := fmt.Errorf("required parameter if --create or --update specified: --passphrase <passphrase to pastelid private key>")
 			log.WithContext(ctx).WithError(err).Error("User terminated - exiting")
 			return err
 		}
 	}
-	log.WithContext(ctx).Infof(red(fmt.Sprintf("passphrase - %s", flagMasterNodePassPhrase)))
+	log.WithContext(ctx).Infof(red(fmt.Sprintf("passphrase - %s", config.MasterNodePassPhrase)))
 	return nil
 }
 
@@ -1253,11 +1240,11 @@ func getMasternodeOutputs(ctx context.Context, config *configs.Config) (map[stri
 func checkCollateral(ctx context.Context, config *configs.Config) error {
 	var err error
 
-	if flagDontCheckCollateral && len(flagMasterNodeTxID) != 0 && len(flagMasterNodeInd) != 0 {
+	if config.DontCheckCollateral && len(config.MasterNodeTxID) != 0 && len(config.MasterNodeTxInd) != 0 {
 		return nil
 	}
 
-	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
+	if len(config.MasterNodeTxID) == 0 || len(config.MasterNodeTxInd) == 0 {
 
 		log.WithContext(ctx).Warn(red("No collateral --txid and/or --ind provided"))
 		yes, _ := AskUserToContinue(ctx, "Search existing masternode collateral ready transaction in the wallet? Y/N")
@@ -1287,15 +1274,15 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 					return err
 				}
 
-				flagMasterNodeTxID = arr[dNum]
-				flagMasterNodeInd = mnOutputs[flagMasterNodeTxID].(string)
+				config.MasterNodeTxID = arr[dNum]
+				config.MasterNodeTxInd = mnOutputs[config.MasterNodeTxID].(string)
 			} else {
 				log.WithContext(ctx).Warn(red("No existing collateral ready transactions"))
 			}
 		}
 	}
 
-	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
+	if len(config.MasterNodeTxID) == 0 || len(config.MasterNodeTxInd) == 0 {
 
 		collateralAmount := "5"
 		collateralCoins := "PSL"
@@ -1326,7 +1313,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 		log.WithContext(ctx).Warnf(red(fmt.Sprintf("Your new address for collateral payment is %s", address)))
 		log.WithContext(ctx).Warnf(red(fmt.Sprintf("Use another wallet to send exactly %sM %s to that address.", collateralAmount, collateralCoins)))
 		_, newTxid := AskUserToContinue(ctx, "Enter txid of the send and press Enter to continue when ready")
-		flagMasterNodeTxID = strings.Trim(newTxid, "\n")
+		config.MasterNodeTxID = strings.Trim(newTxid, "\n")
 	}
 
 	for i := 1; i <= 10; i++ {
@@ -1338,9 +1325,9 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 			return err
 		}
 
-		txind, ok := mnOutputs[flagMasterNodeTxID].(string)
+		txind, ok := mnOutputs[config.MasterNodeTxID].(string)
 		if ok {
-			flagMasterNodeInd = txind
+			config.MasterNodeTxInd = txind
 			break
 		}
 
@@ -1357,15 +1344,15 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 		}
 	}
 
-	if len(flagMasterNodeTxID) == 0 || len(flagMasterNodeInd) == 0 {
+	if len(config.MasterNodeTxID) == 0 || len(config.MasterNodeTxInd) == 0 {
 
-		err := errors.Errorf("Cannot find masternode outputs = %s:%s", flagMasterNodeTxID, flagMasterNodeInd)
+		err := errors.Errorf("Cannot find masternode outputs = %s:%s", config.MasterNodeTxID, config.MasterNodeTxInd)
 		log.WithContext(ctx).WithError(err).Error("Try again after some time")
 		return err
 	}
 
 	// if receives PSL go to next step
-	log.WithContext(ctx).Infof(red(fmt.Sprintf("masternode outputs = %s, %s", flagMasterNodeTxID, flagMasterNodeInd)))
+	log.WithContext(ctx).Infof(red(fmt.Sprintf("masternode outputs = %s, %s", config.MasterNodeTxID, config.MasterNodeTxInd)))
 	return nil
 }
 
@@ -1460,8 +1447,8 @@ func createOrUpdateSuperNodeConfig(ctx context.Context, config *configs.Config) 
 
 		node := snConf["node"].(map[interface{}]interface{})
 
-		node["pastel_id"] = flagMasterNodePastelID
-		node["pass_phrase"] = flagMasterNodePassPhrase
+		node["pastel_id"] = config.MasterNodePastelID
+		node["pass_phrase"] = config.MasterNodePassPhrase
 		node["storage_challenge_expired_duration"] = constants.StorageChallengeExpiredDuration
 		node["number_of_challenge_replicas"] = constants.NumberOfChallengeReplicas
 

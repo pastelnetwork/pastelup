@@ -72,13 +72,13 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 	log.WithContext(ctx).Info("hot and cold nodes are operating in same network mode")
 
 	// Get external IP
-	if flagNodeExtIP == "" {
+	if r.config.NodeExtIP == "" {
 		out, err := client.Cmd(fmt.Sprintf("curl %s", "http://ipinfo.io/ip")).Output()
 		if err != nil {
 			return fmt.Errorf("failure in getting ext ip of remote %s", err)
 		}
 
-		flagNodeExtIP = string(out)
+		r.config.NodeExtIP = string(out)
 	}
 
 	return nil
@@ -209,14 +209,14 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	}
 
 	// *************** 3. Prepare the remote node for coldhot mode (this is always - `init supernode coldhot` call) ***************
-	if flagMasterNodeConfNew || flagMasterNodeConfAdd {
+	if r.config.CreateNewMasterNodeConf || r.config.AddToMasterNodeConf {
 		log.WithContext(ctx).Info("Prepare mastenode parameters")
 		if err := r.handleCreateUpdateStartColdHot(ctx); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to validate and prepare masternode parameters")
 			return err
 		}
-		if flagMasterNodeP2PIP == "" {
-			flagMasterNodeP2PIP = flagNodeExtIP
+		if r.config.MasterNodeP2PIP == "" {
+			r.config.MasterNodeP2PIP = r.config.NodeExtIP
 		}
 		if err := createOrUpdateMasternodeConf(ctx, r.config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to create or update masternode.conf")
@@ -241,11 +241,11 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 
 	// *************** 4. Start remote node as masternode ***************
 	//Get conf data from masternode.conf File
-	privkey, _, _, err := getMasternodeConfData(ctx, r.config, flagMasterNodeName, flagNodeExtIP)
+	privkey, _, _, err := getMasternodeConfData(ctx, r.config, r.config.MasterNodeName, r.config.NodeExtIP)
 	if err != nil {
 		return err
 	}
-	flagMasterNodePrivateKey = privkey
+	r.config.MasterNodePrivateKey = privkey
 
 	if err := r.runRemoteNodeAsMasterNode(ctx, numOfSyncedBlocks); err != nil {
 		log.WithContext(ctx).WithError(err).Error("unable to run remote as masternode")
@@ -256,7 +256,7 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 	// ***************  5. Start/Stop local (if needed) ***************
 	// 5.A Restart local cold node pasteld - this is required if masternode.conf was created/modified, so local node can re-read it
 	// but only in case it was already running OR we need to activate remote (HOT) "masternode" (--activate is provided)
-	if (flagMasterNodeConfNew || flagMasterNodeConfAdd) && (isPasteldAlreadyRunning || flagMasterNodeIsActivate) {
+	if (r.config.CreateNewMasterNodeConf || r.config.AddToMasterNodeConf) && (isPasteldAlreadyRunning || r.config.ActivateMasterNode) {
 		log.WithContext(ctx).Infof("Stopping pasteld at local node")
 		if err = StopPastelDAndWait(ctx, r.config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("failed to stop pasteld")
@@ -269,7 +269,7 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		}
 	}
 	// 5.B activate HOT node
-	if flagMasterNodeIsActivate {
+	if r.config.ActivateMasterNode {
 		log.WithContext(ctx).Info("found --activate flag, checking local node sync..")
 		if _, err = CheckMasterNodeSync(ctx, r.config); err != nil {
 			log.WithError(err).Error("local Masternode sync failure")
@@ -277,12 +277,12 @@ func (r *ColdHotRunner) Run(ctx context.Context) (err error) {
 		}
 
 		log.WithContext(ctx).Info("now activating mn...")
-		if err = runStartAliasMasternode(ctx, r.config, flagMasterNodeName); err != nil {
+		if err = runStartAliasMasternode(ctx, r.config, r.config.MasterNodeName); err != nil {
 			log.WithError(err).Error("Masternode activation failure")
 			return fmt.Errorf("masternode activation failed: %s", err)
 		}
 
-		if flagMasterNodeConfNew {
+		if r.config.CreateNewMasterNodeConf {
 			log.WithContext(ctx).Info("registering pastelID ticket...")
 			if err := r.registerTicketPastelID(ctx); err != nil {
 				log.WithContext(ctx).WithError(err).Error("unable to register pastelID ticket")
@@ -349,12 +349,12 @@ func (r *ColdHotRunner) runRemoteNodeAsMasterNode(ctx context.Context, numOfSync
 	log.WithContext(ctx).Info("Running remote node as masternode ...")
 	go func() {
 		cmdLine := fmt.Sprintf("%s --masternode --txindex=1 --reindex --masternodeprivkey=%s --externalip=%s  --data-dir=%s %s --daemon ",
-			r.opts.remotePasteld, flagMasterNodePrivateKey, flagNodeExtIP, r.config.RemoteHotWorkingDir, r.opts.testnetOption)
+			r.opts.remotePasteld, r.config.MasterNodePrivateKey, r.config.NodeExtIP, r.config.RemoteHotWorkingDir, r.opts.testnetOption)
 
 		log.WithContext(ctx).Infof("start remote node as masternode - %s\n", cmdLine)
 
 		if err := r.sshClient.Cmd(cmdLine).Run(); err != nil {
-			fmt.Printf("pasteld run err: %s\n", err.Error())
+			log.WithContext(ctx).WithError(err).Errorf("pasteld run err: %s\n", err.Error())
 		}
 
 	}()
@@ -384,7 +384,7 @@ func (r *ColdHotRunner) handleCreateUpdateStartColdHot(ctx context.Context) erro
 		return err
 	}
 
-	if err = checkPassphrase(ctx); err != nil {
+	if err = checkPassphrase(ctx, r.config); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Missing passphrase")
 		return err
 	}
@@ -477,10 +477,10 @@ func stopRemoteNode(ctx context.Context, client *utils.Client, cliPath string) e
 func (r *ColdHotRunner) startAndSyncRemoteNode(ctx context.Context, numOfSyncedBlocks int) error {
 	startRemotePasteld := func() {
 		cmd := fmt.Sprintf("%s %s --externalip=%s --data-dir=%s --daemon %s",
-			r.opts.remotePasteld, r.opts.reIndex, flagNodeExtIP, r.config.RemoteHotWorkingDir, r.opts.testnetOption)
+			r.opts.remotePasteld, r.opts.reIndex, r.config.NodeExtIP, r.config.RemoteHotWorkingDir, r.opts.testnetOption)
 		log.WithContext(ctx).Infof("Remote::node starting pasteld - %s", cmd)
 		if err := r.sshClient.Cmd(cmd).Run(); err != nil {
-			fmt.Printf("pasteld run err: %s\n", err.Error())
+			log.WithContext(ctx).WithError(err).Errorf("pasteld run err: %s\n", err.Error())
 		}
 	}
 
@@ -626,8 +626,8 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context) 
 			DDServerPort:                    constants.DDServerDefaultPort,
 			NumberOfChallengeReplicas:       constants.NumberOfChallengeReplicas,
 			StorageChallengeExpiredDuration: constants.StorageChallengeExpiredDuration,
-			PasteID:                         flagMasterNodePastelID,
-			Passphrase:                      flagMasterNodePassPhrase,
+			PasteID:                         r.config.MasterNodePastelID,
+			Passphrase:                      r.config.MasterNodePassPhrase,
 		})
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to get supernode config")
@@ -654,8 +654,8 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context) 
 
 		node := snConf["node"].(map[interface{}]interface{})
 
-		node["pastel_id"] = flagMasterNodePastelID
-		node["pass_phrase"] = flagMasterNodePassPhrase
+		node["pastel_id"] = r.config.MasterNodePastelID
+		node["pass_phrase"] = r.config.MasterNodePassPhrase
 		node["storage_challenge_expired_duration"] = constants.StorageChallengeExpiredDuration
 		node["number_of_challenge_replicas"] = constants.NumberOfChallengeReplicas
 
@@ -700,15 +700,15 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context) 
 func (r *ColdHotRunner) copyMasterNodeConToRemote(ctx context.Context) error {
 	mnConf := make(map[string]masterNodeConf)
 
-	mnConf[flagMasterNodeName] = masterNodeConf{
-		MnAddress:  flagNodeExtIP + ":" + fmt.Sprintf("%d", flagMasterNodePort),
-		MnPrivKey:  flagMasterNodePrivateKey,
-		Txid:       flagMasterNodeTxID,
-		OutIndex:   flagMasterNodeInd,
-		ExtAddress: flagNodeExtIP + ":" + fmt.Sprintf("%d", flagMasterNodeRPCPort),
-		ExtP2P:     flagMasterNodeP2PIP + ":" + fmt.Sprintf("%d", flagMasterNodeP2PPort),
+	mnConf[r.config.MasterNodeName] = masterNodeConf{
+		MnAddress:  r.config.NodeExtIP + ":" + fmt.Sprintf("%d", r.config.MasterNodePort),
+		MnPrivKey:  r.config.MasterNodePrivateKey,
+		Txid:       r.config.MasterNodeTxID,
+		OutIndex:   r.config.MasterNodeTxInd,
+		ExtAddress: r.config.NodeExtIP + ":" + fmt.Sprintf("%d", r.config.MasterNodeRPCPort),
+		ExtP2P:     r.config.MasterNodeP2PIP + ":" + fmt.Sprintf("%d", r.config.MasterNodeP2PPort),
 		ExtCfg:     "",
-		ExtKey:     flagMasterNodePastelID,
+		ExtKey:     r.config.MasterNodePastelID,
 	}
 	confData, err := json.Marshal(mnConf)
 	if err != nil {
@@ -760,8 +760,8 @@ func (r *ColdHotRunner) createAndCopyRemoteHermesConfig(ctx context.Context) err
 			SNTempDir:      snTempDirPath,
 			SNWorkDir:      r.config.RemoteHotWorkingDir,
 			DDDir:          ddDirPath,
-			PastelID:       flagMasterNodePastelID,
-			Passphrase:     flagMasterNodePassPhrase,
+			PastelID:       r.config.MasterNodePastelID,
+			Passphrase:     r.config.MasterNodePassPhrase,
 			SNHost:         "localhost",
 			SNPort:         portList[constants.SNPort],
 		})
@@ -788,8 +788,8 @@ func (r *ColdHotRunner) createAndCopyRemoteHermesConfig(ctx context.Context) err
 			return err
 		}
 
-		hermesConf["pastel_id"] = flagMasterNodePastelID
-		hermesConf["pass_phrase"] = flagMasterNodePassPhrase
+		hermesConf["pastel_id"] = r.config.MasterNodePastelID
+		hermesConf["pass_phrase"] = r.config.MasterNodePassPhrase
 
 		var hermesConfFileUpdated []byte
 		if hermesConfFileUpdated, err = yaml.Marshal(&hermesConf); err != nil {

@@ -143,7 +143,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, config *confi
 		}
 		execCmd = execPath + " --datadir=" + config.WorkingDir + " --externalip=" + extIP // + " --reindex"
 		if isMn {
-			privKey, _ /*extIP*/, _ /*extPort*/, err := getMasternodeConfData(ctx, config, flagMasterNodeName, extIP)
+			privKey, _ /*extIP*/, _ /*extPort*/, err := getMasternodeConfData(ctx, config, config.MasterNodeName, extIP)
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Error("Failed to get masternode details from masternode.conf")
 				return err
@@ -154,7 +154,7 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, config *confi
 	case constants.RQService:
 		execPath = filepath.Join(config.PastelExecDir, constants.PastelRQServiceExecName[utils.GetOS()])
 		if exists := utils.CheckFileExist(execPath); !exists {
-			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Could not find %v executable file", app))
+			log.WithContext(ctx).WithError(err).Errorf("Could not find %v executable file", app)
 			return err
 		}
 		rqServiceArgs := fmt.Sprintf("--config-file=%s", config.Configurer.GetRQServiceConfFile(config.WorkingDir))
@@ -163,12 +163,12 @@ func (sm LinuxSystemdManager) RegisterService(ctx context.Context, config *confi
 	case constants.DDService:
 		execPath = filepath.Join(config.PastelExecDir, utils.GetDupeDetectionExecName())
 		if exists := utils.CheckFileExist(execPath); !exists {
-			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Could not find %v executable file", app))
+			log.WithContext(ctx).WithError(err).Errorf("Could not find %v executable file", app)
 			return err
 		}
 		envPythonPath := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, "/venv/bin/python3")
 		if exists := utils.CheckFileExist(envPythonPath); !exists {
-			log.WithContext(ctx).WithError(err).Error(fmt.Printf("Could not find venv python executable file at %s", envPythonPath))
+			log.WithContext(ctx).WithError(err).Errorf("Could not find venv python executable file at %s", envPythonPath)
 			return err
 		}
 		ddConfigFilePath := filepath.Join(sm.homeDir,

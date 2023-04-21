@@ -440,7 +440,7 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 
 	// install SuperNode, dd-service and their configs; open ports
 	if installCommand == constants.SuperNode {
-		if err := installSuperNodeService(ctx, config, withDependencies /*only open ports when full system install*/); err != nil {
+		if err := installSuperNodeService(ctx, config, config.OpMode == "install" /*only open ports when full system install*/); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install WalletNode service")
 			return err
 		}

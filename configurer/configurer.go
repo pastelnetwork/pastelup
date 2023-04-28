@@ -145,13 +145,6 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 		constants.GetVersionSubURL(version),
 		tool,
 		name)
-	// need special handling b/c not embedded within subdir
-	if tool == constants.Pastelup {
-		urlString = fmt.Sprintf("%v/%v/%v",
-			constants.DownloadBaseURL,
-			constants.GetVersionSubURL(version),
-			name)
-	}
 
 	url, err := url.Parse(urlString)
 	if err != nil {

@@ -59,7 +59,7 @@ func setupInitSubCommand(config *configs.Config,
 			SetUsage(green("Optional, WAN IP address of the SuperNode, default - WAN IP address of the host")),
 		cli.NewFlag("port", &config.MasterNodePort).
 			SetUsage(green("Optional, Port for WAN IP address of the SuperNode, default - 9933 (19933 for Testnet)")),
-		cli.NewFlag("reindex", &config.ReIndex).SetAliases("r").
+		cli.NewFlag("reindex", &config.ReIndex).
 			SetUsage(green("Optional, Start with reindex")),
 	}
 
@@ -78,6 +78,9 @@ func setupInitSubCommand(config *configs.Config,
 				SetUsage(green("Optional, Location of pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 				SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
+			cli.NewFlag("pastelup-release", &config.Version).
+				SetUsage(green("Optional, Version of pastelup to download to remote " +
+					"host if different local and remote OS's")),
 		}
 	}
 
@@ -145,7 +148,7 @@ func setupInitSubCommand(config *configs.Config,
 		cli.NewFlag("remote-work-dir", &config.RemoteHotWorkingDir).
 			SetUsage(yellow("Optional, Location of working directory on the remote computer (default: $HOME/.pastel)")),
 		cli.NewFlag("remote-home-dir", &config.RemoteHotHomeDir).
-			SetUsage(yellow("Optional, Location of working directory on the remote computer (default: $HOME)")),
+			SetUsage(yellow("Optional, Location of home directory on the remote computer (default: $HOME)")),
 	}
 
 	var commandName, commandMessage string
@@ -241,6 +244,10 @@ func runInitSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 		config.ReIndex = true // init means first start, reindex is required
 	}
 
+	if !config.CreateNewMasterNodeConf && !config.AddToMasterNodeConf {
+		log.WithContext(ctx).Error("Either 'new' or 'add' flag must be provided")
+		return errors.New("either 'new' or 'add' flag is missing")
+	}
 	if config.CreateNewMasterNodeConf && config.MasterNodeName == "" {
 		log.WithContext(ctx).Error("flag 'new' provided but name is missing")
 		return errors.New("flag 'new' provided but name is missing")
@@ -255,6 +262,16 @@ func runInitSuperNodeSubCommand(ctx context.Context, config *configs.Config) err
 }
 
 func runInitColdHotSuperNodeSubCommand(ctx context.Context, config *configs.Config) (err error) {
+
+	if !config.CreateNewMasterNodeConf && !config.AddToMasterNodeConf {
+		log.WithContext(ctx).Error("Either 'new' or 'add' flag must be provided")
+		return errors.New("either 'new' or 'add' flag is missing")
+	}
+	if config.CreateNewMasterNodeConf && config.MasterNodeName == "" {
+		log.WithContext(ctx).Error("flag 'new' provided but name is missing")
+		return errors.New("flag 'new' provided but name is missing")
+	}
+
 	runner := &ColdHotRunner{
 		config: config,
 		opts:   &ColdHotRunnerOpts{},
@@ -278,6 +295,15 @@ func runInitColdHotSuperNodeSubCommand(ctx context.Context, config *configs.Conf
 
 func runInitRemoteSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Infof("Initializing remote supernode")
+
+	if !config.CreateNewMasterNodeConf && !config.AddToMasterNodeConf {
+		log.WithContext(ctx).Error("Either 'new' or 'add' flag must be provided")
+		return errors.New("either 'new' or 'add' flag is missing")
+	}
+	if config.CreateNewMasterNodeConf && config.MasterNodeName == "" {
+		log.WithContext(ctx).Error("flag 'new' provided but name is missing")
+		return errors.New("flag 'new' provided but name is missing")
+	}
 
 	startOptions := ""
 

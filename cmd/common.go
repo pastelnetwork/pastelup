@@ -467,7 +467,7 @@ func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func copyPastelUpToRemote(ctx context.Context, client *utils.Client, version string, remotePastelUp string) error {
+func copyPastelUpToRemote(ctx context.Context, config *configs.Config, client *utils.Client, remotePastelUp string) error {
 	// Check if the current os is linux
 	if runtime.GOOS == "linux" {
 		log.WithContext(ctx).Infof("copying pastelup to remote")
@@ -492,22 +492,23 @@ func copyPastelUpToRemote(ctx context.Context, client *utils.Client, version str
 	} else {
 		log.WithContext(ctx).Infof("current OS is not linux, skipping pastelup copy")
 
-		if len(version) == 0 {
+		if len(config.Version) == 0 {
 			fmt.Print("What version of pastelup to download on the remote host? Ex: 'latest', 'beta', ...")
 			reader := bufio.NewReader(os.Stdin)
 			var err error
-			version, err = reader.ReadString('\n')
+			version, err := reader.ReadString('\n')
 			if err != nil {
 				return err
 			}
-			version = strings.TrimSuffix(version, "\n")
+			config.Version = strings.TrimSuffix(version, "\n")
 		}
 
 		// Download PastelUpExecName from remote and save to remotePastelUp
-		downloadURL := fmt.Sprintf("%s/%s/%s", constants.DownloadBaseURL, version, constants.PastelUpExecName["Linux"])
+		downloadURL := fmt.Sprintf("%s/%s/pastelup/%s", constants.DownloadBaseURL, config.Version, constants.PastelUpExecName["Linux"])
 		log.WithContext(ctx).Infof("downloading pastelup from %s", downloadURL)
 
-		if _, err := client.Cmd(fmt.Sprintf("wget %s -O %s", downloadURL, remotePastelUp)).Output(); err != nil {
+		cmd := fmt.Sprintf("wget %s -O %s", downloadURL, remotePastelUp)
+		if _, err := client.Cmd(cmd).Output(); err != nil {
 			return fmt.Errorf("failed to download pastelup from remote: %s", err.Error())
 		}
 		log.WithContext(ctx).Infof("pastelup downloaded from Pastel download portal")
@@ -630,7 +631,7 @@ func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.C
 
 	// Transfer pastelup to remote
 	log.WithContext(ctx).Info("installing pastelup to remote host...")
-	if err := copyPastelUpToRemote(ctx, client, config.Version, constants.RemotePastelupPath); err != nil {
+	if err := copyPastelUpToRemote(ctx, config, client, constants.RemotePastelupPath); err != nil {
 		log.WithContext(ctx).Errorf("Failed to copy pastelup to remote at %s - %v", constants.RemotePastelupPath, err)
 		client.Close()
 		return nil, fmt.Errorf("failed to install pastelup at %s - %v", constants.RemotePastelupPath, err)

@@ -103,22 +103,31 @@ func setupUpdateSubCommand(config *configs.Config,
 	}
 
 	var dirsFlags []*cli.Flag
+	var archDirsFlags []*cli.Flag
 
 	if !remote {
 		dirsFlags = []*cli.Flag{
 			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-				SetUsage(green("Optional, Location where to create pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
+				SetUsage(green("Optional, Location of the pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-				SetUsage(green("Optional, Location where to create working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
-			cli.NewFlag("archive-dir", &config.ArchiveDir).
-				SetUsage(green("Optional, Location where to store archived backup before update")).SetValue(config.Configurer.DefaultArchiveDir()),
+				SetUsage(green("Optional, Location of the working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
 		}
 	} else {
 		dirsFlags = []*cli.Flag{
 			cli.NewFlag("dir", &config.PastelExecDir).SetAliases("d").
-				SetUsage(green("Optional, Location where to create pastel node directory on the remote computer (default: $HOME/pastel)")),
+				SetUsage(green("Optional, Location of the pastel node directory on the remote computer (default: $HOME/pastel)")),
 			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
-				SetUsage(green("Optional, Location where to create working directory on the remote computer (default: $HOME/.pastel)")),
+				SetUsage(green("Optional, Location of the working directory on the remote computer (default: $HOME/.pastel)")),
+		}
+	}
+
+	if !remote {
+		archDirsFlags = []*cli.Flag{
+			cli.NewFlag("archive-dir", &config.ArchiveDir).
+				SetUsage(green("Optional, Location where to store archived backup before update")).SetValue(config.Configurer.DefaultArchiveDir()),
+		}
+	} else {
+		archDirsFlags = []*cli.Flag{
 			cli.NewFlag("archive-dir", &config.ArchiveDir).
 				SetUsage(green("Optional, Location where to store archived backup before update on the remote computer (default: $HOME/.pastel_archive)")),
 		}
@@ -153,6 +162,12 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Start service right away")),
 	}
 
+	systemServiceRemoteFlags := []*cli.Flag{
+		cli.NewFlag("pastelup-release", &config.Version).
+			SetUsage(green("Optional, Version of pastelup to download to remote " +
+				"host if different local and remote OS's")),
+	}
+
 	var commandName, commandMessage string
 	if !remote {
 		commandName = updateCommandName[updateCommand]
@@ -166,8 +181,12 @@ func setupUpdateSubCommand(config *configs.Config,
 
 	if updateCommand == installService || updateCommand == removeService {
 		commandFlags = append(systemServiceFlags, dirsFlags[:]...)
+		if remote {
+			commandFlags = append(commandFlags, systemServiceRemoteFlags[:]...)
+		}
 	} else {
-		commandFlags = append(dirsFlags, commonFlags[:]...)
+		commandFlags = append(dirsFlags, archDirsFlags[:]...)
+		commandFlags = append(commandFlags, commonFlags[:]...)
 	}
 	if updateCommand == updateNode ||
 		updateCommand == updateWalletNode ||
@@ -250,6 +269,7 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 	updateSNServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, updateSNService, true, runUpdateRemoteSNService))
 
 	installServiceSubCommand := setupUpdateSubCommand(config, installService, false, installSystemService)
+	installServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, installService, true, installSystemServiceRemote))
 	//removeServiceSubCommand := setupUpdateSubCommand(config, removeService, false, removeSystemService)
 
 	// Add update command
@@ -313,7 +333,7 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 	}
 
 	if len(config.UserPw) > 0 {
-		updateOptions = fmt.Sprintf("--user-pw %s", config.UserPw)
+		updateOptions = fmt.Sprintf("%s --user-pw %s", updateOptions, config.UserPw)
 	}
 
 	if len(config.Version) > 0 {
@@ -325,6 +345,55 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s on remote host", tool)
 	}
 	log.WithContext(ctx).Infof("Remote %s updated", tool)
+
+	return nil
+}
+
+func installSystemServiceRemote(ctx context.Context, config *configs.Config) (err error) {
+
+	//--tool value
+	//--solution value
+	//--autostart
+	//--start
+
+	serviceInstallOptions := "install-service"
+
+	if len(config.ServiceTool) > 0 {
+		serviceInstallOptions = fmt.Sprintf("%s --tool %s", serviceInstallOptions, config.ServiceTool)
+		log.WithContext(ctx).Infof("Installing %s as systemd services on remote host(s)", config.ServiceTool)
+	} else if len(config.ServiceSolution) > 0 {
+		serviceInstallOptions = fmt.Sprintf("%s --solution %s", serviceInstallOptions, config.ServiceSolution)
+		log.WithContext(ctx).Infof("Installing %s as systemd services on remote host(s)", config.ServiceSolution)
+	}
+
+	if config.EnableService {
+		serviceInstallOptions = fmt.Sprintf("%s --autostart", serviceInstallOptions)
+	}
+	if config.StartService {
+		serviceInstallOptions = fmt.Sprintf("%s --start", serviceInstallOptions)
+	}
+
+	if len(config.PastelExecDir) > 0 {
+		serviceInstallOptions = fmt.Sprintf("%s --dir %s", serviceInstallOptions, config.PastelExecDir)
+	}
+
+	if len(config.WorkingDir) > 0 {
+		serviceInstallOptions = fmt.Sprintf("%s --work-dir %s", serviceInstallOptions, config.WorkingDir)
+	}
+
+	if config.Force {
+		serviceInstallOptions = fmt.Sprintf("%s --force", serviceInstallOptions)
+	}
+
+	if len(config.UserPw) > 0 {
+		serviceInstallOptions = fmt.Sprintf("%s --user-pw %s", serviceInstallOptions, config.UserPw)
+	}
+
+	updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update %s", constants.RemotePastelupPath, serviceInstallOptions)
+	if _, err := executeRemoteCommandsWithInventory(ctx, config, []string{updateSuperNodeCmd}, false, false); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to set systemd services on remote host")
+	}
+	log.WithContext(ctx).Infof("Remote systemd services set")
 
 	return nil
 }

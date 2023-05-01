@@ -6,17 +6,17 @@
 
 ## Build
 
-#### 1. Install the latest version of golang (1.17 or higher)
+#### 1. Install the latest version of golang (1.19 or higher)
 
 First, remove existing versions of golang as follows:
-``` shell
+```shell
 sudo apt-get remove --auto-remove golang-go
 sudo rm -rvf /usr/local/go
 ```
 
 Then, download and install golang as follows:
 
-``` shell
+```shell
 wget https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
 sudo tar -xf go1.19.3.linux-amd64.tar.gz
 sudo mv go /usr/local
@@ -24,26 +24,26 @@ sudo mv go /usr/local
 
 Now, edit the following file:
 
-``` shell
+```shell
 nano  ~/.profile
 ```
 
 Add the following lines to the end and save with Ctrl-x:
 
-``` shell
+```shell
 export GOPATH=$HOME/go
 export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
 ```
 
 Make settings effective with:
 
-``` shell
+```shell
 source ~/.profile
 ```
 
 Check that everything is working by running:
 
-``` shell
+```shell
 go version
 ```
 This should return something similar to:
@@ -52,7 +52,7 @@ This should return something similar to:
 
 #### 2. Clone and build the pastelup repo as follows:
 
-``` shell
+```shell
 git clone https://github.com/pastelnetwork/pastelup.git
 cd pastelup
 make
@@ -60,8 +60,8 @@ make
 
 You may need to first run:
 
-``` shell
-go mod tidy -compat=1.17
+```shell
+go mod tidy
 ```
 
 
@@ -70,39 +70,72 @@ go mod tidy -compat=1.17
 ### Single node
 #### 1. Install node
 
-``` shell
-./pastelup install node -r latest -n=mainnet --enable-service
+
+```shell
+./pastelup install node -r latest
 ```
 Or for testnet:
-``` shell
-./pastelup install node -r latest -n=testnet --enable-service
+```shell
+./pastelup install node -r latest -n=testnet
 ```
+The above command will install the following applications:
+- pasteld
+- pastel-cli
 
 #### 2. Start node
 
-``` shell
+```shell
 ./pastelup start node
 ```
+The above command will start the following services:
+- pasteld
 
-#### 3. Update node
-
-``` shelll
-./pastelup stop node
-```
+#### 3. Stop node
 
 ```shell
+./pastelup stop node
+```
+The above command will stop the following services:
+- pasteld
+
+#### 4. Update node
+
+```shell
+./pastelup stop node
 ./pastelup update node -r latest -n=mainnet
 ```
 Or for testnet:
 ```shell
+./pastelup stop node
 ./pastelup update node -r latest -n=testnet
 ```
+The above command will update the following applications:
+- pasteld
+- pastel-cli
 
 ### Walletnode
 
 > `install walletnode` will ask about whether you want to install bridge service or not. It is **RECOMMENDED** to install bridge service.
 
-> If you opt-in for bridge install, then the first time you start walletnode with `start walletnode` command, it will guide you either to generate new address, new artist PastelID and try to register PastelID on the network or to select existing PastelID from the list of registered PastelIDs on THIS node. 
+#### 1. Install walletnode
+   
+```shell
+./pastelup install walletnode -r latest
+```
+Or for testnet:
+```shell
+./pastelup install walletnode -r latest -n=testnet
+```
+The above command will install the following applications:
+- pasteld
+- pastel-cli
+- rq-server
+- bridge
+- walletnode
+
+#### 2. Start walletnode
+
+> If you opt-in for bridge install, then the first time you start walletnode with `start walletnode` command, it will guide you either to generate new address, new artist PastelID and try to register PastelID on the network or to select existing PastelID from the list of registered PastelIDs on THIS node.
 > As alternative, in case you already have a registered PastelID on this NODE, you can add it and its passphrase into the bridge config file (`bridge.yml`) so that `start` command may not ask.
 > ```shell
 > download:
@@ -113,31 +146,41 @@ Or for testnet:
 > ...
 > ```
 
-#### 1. Install walletnode
-   
-``` shell
-./pastelup install walletnode -r latest
-```
-Or for testnet:
-``` shell
-./pastelup install walletnode -r latest -n=testnet
-```
-
-#### 2. Start walletnode
-
-``` shell
+```shell
 ./pastelup start walletnode
 ```
+The above command will start the following applications:
+- pasteld
+- rq-server
+- bridge
+- walletnode
 
-#### 3. Update walletnode
+#### 3. Stop walletnode
+
+```shell
+./pastelup stop walletnode
+```
+The above command will stop the following applications:
+- pasteld
+- rq-server
+- bridge
+- walletnode
+
+#### 4. Update walletnode
 
 ```shell
 ./pastelup update walletnode -r latest
 ```
 Or for testnet:
-``` shell
+```shell
 ./pastelup update walletnode -r latest -n=testnet
 ```
+The above command will update the following applications:
+- pasteld
+- pastel-cli
+- rq-server
+- bridge
+- walletnode
 
 ### Supernode
 
@@ -152,20 +195,27 @@ It is **RECOMMENDED** to use **Secure** mode. But this guide will explain instal
 #### A. Install supernode in **HOT** mode - on the single host
 
 ##### 1. Install supernode
-``` shell
+```shell
 ./pastelup install supernode -r latest
 ```
 Or for testnet:
-``` shell
+```shell
 ./pastelup install supernode -r latest -n=testnet
 ```
+The above command will install the following applications:
+- pasteld
+- pastel-cli
+- rq-server
+- dd-server
+- hermes
+- supernode
 
 ##### 2. Initialize **_newly_** installed supernode
 
 > You should only run this command after first installation of supernode.
 > If you already have initialized supernode, then you can skip this step.
 
-``` shell
+```shell
  ./pastelup init supernode --new --name=<SN-name> --activate
 ```
 
@@ -184,12 +234,12 @@ The above command will:
 - start rq-server, dd-server and hermes and supernode services
 
 Alternatively, if you already know collateral transaction `txid` and `vout` index, then you can initialize supernode with the following command:
-``` shell
+```shell
  ./pastelup init supernode --new --name=<SN-name> --txid=<txid> --ind=<vout index> --activate
 ```
 
 After initialization, you can check the status of your supernode with the following command:
-``` shell
+```shell
 pastel-cli masternode status
 ```
 
@@ -199,26 +249,174 @@ Verify it returns `masternode successfully started` message.
 
 > You don't need to start supernode right after initialization. You only need to start it if it was stopped before.
 
-``` shell
+```shell
 ./pastelup start supernode
 ```
 The above command will start following services:
+- pasteld
 - rq-server
 - dd-server
-- hermes (if you chose to install it during installation)
+- hermes
+- supernode
+
+##### 4. Stop supernode
+
+> You don't need to start supernode right after initialization. You only need to start it if it was stopped before.
+
+```shell
+./pastelup stop supernode
+```
+The above command will stop following services:
+- pasteld
+- rq-server
+- dd-server
+- hermes
 - supernode
 
 ##### 4. Update supernode
 
-``` shell
+```shell
 ./pastelup update supernode  --name=<SN-name> -r latest
 ```
+The above command will update the following applications:
+- pasteld
+- pastel-cli
+- rq-server
+- dd-server
+- hermes
+- supernode
 
 #### B. Install supernode in **HOT/COLD** mode - on the two hosts
 
-Please refer to the following guide to install supernode in **HOT/COLD** mode:
-[How cold-hot config works](https://docs.pastel.network/development-guide/supernode)
+Yuo would need two nodes for that setup
+- remote to run Supernode, called HOT node
+- local to run Pastel node and pastelup commands, called COLD node
+All following commands should be executed on the COLD node, except when specified otherwise.
 
+## Local node setup
+
+### 1. Download pasteup
+```shell
+wget https://download.pastel.network/beta/pastelup/pastelup-darwin-amd64
+```
+
+Make it executable
+```shell
+chmod +x pastelup-darwin-amd64
+```
+
+### 2. Install Pastel node
+```shell
+./pastelup install node -r latest
+```
+
+Or for testnet:
+```shell
+./pastelup install node -r latest -n testnet
+```
+
+### 3. Start local node and wait for it to fully sync
+```shell
+./pastelup start node
+```
+
+You can check status of sync with the following command:
+```shell
+~/Applications/PastelWallet/pastel-cli mnsync status
+```
+
+When sync is successful, you should see the similar result
+```json
+{
+  "AssetID": 999,
+  "AssetName": "Finished",
+  "IsBlockchainSynced": true,
+  "IsMasternodeListSynced": true,
+  "IsWinnersListSynced": true,
+  "IsSynced": true,
+  "IsFailed": false
+}
+```
+
+## Install and initialize SuperNode on remote host
+
+### 1. Install
+```shell
+./pastelup install supetnode remote -r latest --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
+```
+
+Or for testnet:
+```shell
+./pastelup install supetnode remote -r latest -n testnet --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
+```
+
+> Replace <IP_ADDRESS_OF_COLD_NODE>, <SSH_USER_OF_COLD_NODE> and <PATH_TO_SSH_PRIVATE_KEY_FILE> with your values.
+
+### 2. Init
+```shell
+./pastelup init supernode coldhot --new --name <SN_name> --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
+```
+> During initialization, `pastelup` will ask:
+> 	I.
+> 	* to either search for existing collateral transaction
+> 	* OR, will offer to create new address and send to it 5M PLS (mainnet) or 1M LSP (testnet)
+> 	* AND will wait until that transaction shows up
+>
+> 	II.
+> 	* Passphrase for new PasltelID
+
+
+### 3. Activate
+```shell
+./pastel-cli masternode start-alias <SN_name>
+```
+
+### 4. Register PastelID
+Following commands has to be executed on the remote - HOT - node
+
+```shell
+ssh <SSH_USER_OF_COLD_NODE>@<IP_ADDRESS_OF_COLD_NODE> -i <PATH_TO_SSH_PRIVATE_KEY_FILE>
+```
+
+#### a. Check masternode status and find PastelID
+```shell
+./pastel/pastel-cli masternode status
+./pastel/pastel-cli pastelid list mine
+```
+Remember PastelID returned by the last command 
+
+#### b. Check balance and if 0, create new address
+```shell
+./pastel/pastel-cli getbalance
+./pastel/pastel-cli getnewaddress
+```
+> Write down the address and send some coins to that it from another host with balance
+
+#### c. Register pastelid listed in the masternode.conf
+```shell
+./pastel/pastel-cli tickets register mnid <PasletID> <PasletID_Passphrase> <Address_generated_in_prev_step>
+```
+
+```shell
+./pastel/pastel-cli masternode status
+```
+
+### 5. Stop SN (required before setting UP as service)
+Following commands has to be executed on the local - COLD - node
+
+```shell
+./pastelup stop supernode remote --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
+```
+
+### 6. Set as service
+```shell
+./pastelup update install-service remote --solution supernode --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
+```
+
+### 7. Start SN as service
+```shell
+./pastelup start supernode remote --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
+```
 
 ## Default settings for all commands
 
@@ -252,25 +450,25 @@ https://docs.pastel.network/development-guide/types-of-pastel-installations
 ## Additional information
 ### Remote operations
 
-Some commands support remote operations (CURRENTLY ONLY `install`). It means that you can run them on the remote host. <br>
+Some commands support remote operations. It means that you can run them on the remote host. <br>
 To do that, you need to specify `remote`, and `--ssh-ip`, `--ssh-user` and either `--ssh-user-pw` or `--ssh-key` options.<br>
 You also in most cases must specify `--force` option to confirm any questions that may appear during the operation, as they will be asked on the remote host.<br> 
 Remote ssh-user must have sudo privileges on the remote host. <br>
 And if remote host is not configured to run sudo commands without password, then you must specify `--ssh-user-pw` option.
 
 #### Remote Install
-``` shell
+```shell
 ./pastelup install node remote -r latest -n mainnet -ssh-ip <remote-host-ip> --ssh-user <remote-host-ssh-user> --ssh-key <path-to-ssh-key> --force
 ```
 
-``` shell
+```shell
 ./pastelup install walletnode remote -r latest -n mainnet --ssh-ip <remote-host-ip> --ssh-user <remote-host-ssh-user> --ssh-key <path-to-ssh-key> --force
 ```
 
 
 ### Command line options
 #### Install
-``` shell
+```shell
 ./pastelup install node --help
 NAME:
    Pastel-Utility install node - Install node
@@ -296,7 +494,7 @@ OPTIONS:
    --help, -h                  show help (default: false)
 ```
 
-``` shell
+```shell
 ./pastelup install walletnode --help
 NAME:
    Pastel-Utility install walletnode - Install Walletnode
@@ -321,6 +519,7 @@ OPTIONS:
    --quiet, -q                 Disallows log output to stdout. (default: false)
    --help, -h                  show help (default: false)
 ```
+
 ```shell
 ./pastelup install supernode --help
 NAME:
@@ -350,7 +549,7 @@ OPTIONS:
 ```
 #### Init SuperNode
 ##### In the HOT mode
-``` shell
+```shell
 ./pastelup init supernode --help
 NAME:
    Pastel-Utility init supernode - Initialise local Supernode

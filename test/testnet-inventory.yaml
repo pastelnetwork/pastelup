@@ -1,79 +1,52 @@
-sns_old:
-  hosts:
-    MN01:
-      ansible_host: 3.16.22.178
-    MN02:
-      ansible_host: 18.219.79.194
-    MN03:
-      ansible_host: 3.141.36.234
-    MN04:
-      ansible_host: 3.133.97.1
-    MN05:
-      ansible_host: 18.116.112.159
-    MN06:
-      ansible_host: 18.191.214.151
-    MN07:
-      ansible_host: 52.15.244.16
-    MN08:
-      ansible_host: 3.137.140.98
-    MN09:
-      ansible_host: 18.191.71.196
-    MN10:
-      ansible_host: 3.15.232.55
-    MN11:
-      ansible_host: 3.144.203.168
-    MN12:
-      ansible_host: 3.15.158.164
-    MN13:
-      ansible_host: 3.16.188.166
-    MN14:
-      ansible_host: 3.16.131.168
-    MN15:
-      ansible_host: 18.188.80.47
-    MN16:
-      ansible_host: 52.14.5.156
-    MN17:
-      ansible_host: 3.23.130.188
-    MN19:
-      ansible_host: 3.19.246.86
-    MN20:
-      ansible_host: 52.14.200.95
-  vars:
-    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-testnet-new
-    ansible_user: testnet
 sns:
-  hosts:
-    MN21:
-      ansible_host: 18.217.157.24
-    MN22:
-      ansible_host: 13.59.216.207
-    MN23:
-      ansible_host: 3.14.81.221
-#    MN24:
-#      ansible_host: 18.223.0.63
-    MN25:
-      ansible_host: 18.118.159.169
+  hosts:    
+    SuperNode01:
+        ansible_host: 52.14.115.32
+    SuperNode02:
+        ansible_host: 18.189.200.234
+    SuperNode03:
+        ansible_host: 18.220.225.77
+    SuperNode04:
+        ansible_host: 3.23.248.13
+    SuperNode05:
+        ansible_host: 3.20.47.91
+    SuperNode06:
+        ansible_host: 18.189.249.142
+    SuperNode07:
+        ansible_host: 3.18.240.77
+    SuperNode08:
+        ansible_host: 3.134.210.186
+    SuperNode09:
+        ansible_host: 18.116.197.39
+    SuperNode10:
+        ansible_host: 18.189.251.53
+    SuperNode11:
+        ansible_host: 3.130.254.15
+    SuperNode12:
+        ansible_host: 3.131.211.254
+    SuperNode13:
+        ansible_host: 3.142.100.245
+    SuperNode14:
+        ansible_host: 3.140.13.108
+    SuperNode15:
+        ansible_host: 3.19.48.187
+    SuperNode16:
+        ansible_host: 18.221.202.58
+    SuperNode17:
+        ansible_host: 18.221.82.26
+    SuperNode18:
+        ansible_host: 3.139.250.69
+    SuperNode19:
+        ansible_host: 3.20.31.118
+    SuperNode20:
+        ansible_host: 3.141.163.103
   vars:
-    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /Users/alexey/OneDrive/Private/keys/pastel/psl-testnet-test.pem
     ansible_user: ubuntu
 wns:
   hosts:
-    WN01:
-      ansible_host: 18.188.203.138
-    WN02:
-      ansible_host: 18.224.138.196
-    WN03:
-      ansible_host: 3.145.150.53
-    WN04:
-      ansible_host: 3.12.111.107
-    WN05:
-      ansible_host: 3.140.210.241
-    WN06:
-      ansible_host: 13.59.4.109
-    WN07:
-      ansible_host: 3.143.215.182
   vars:
-    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /home/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
     ansible_user: ubuntu
 pools:
   hosts:
@@ -83,16 +56,16 @@ pools:
       ansible_host: 18.116.26.219
   vars:
     ansible_port: 2323
-    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /home/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
     ansible_user: ubuntu
 explorers:
   vars:
     ansible_use: ubuntu
-    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /home/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
 seeders:
   hosts:
     Seeder01:
       ansible_host: 3.141.8.87
   vars:
     ansible_user: ubuntu
-    ansible_private_key_file: /home/alexey/data/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem
+    ansible_private_key_file: /home/alexey/OneDrive/Private/keys/pastel/psl-aws-nodes-default.pem

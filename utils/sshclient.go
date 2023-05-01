@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"time"
 
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pkg/errors"
@@ -36,17 +37,14 @@ func DialWithPasswd(addr, user, passwd string) (*Client, error) {
 			ssh.Password(passwd),
 		},
 		Config: ssh.Config{
-			KeyExchanges: []string{"diffie-hellman-group-exchange-sha256",
-				"curve25519-sha256@libssh.org ecdh-sha2-nistp256",
-				"ecdh-sha2-nistp384 ecdh-sha2-nistp521",
+			KeyExchanges: []string{
+				"diffie-hellman-group-exchange-sha256",
+				"curve25519-sha256@libssh.org",
+				"ecdh-sha2-nistp256",
+				"ecdh-sha2-nistp384",
+				"ecdh-sha2-nistp521",
 				"diffie-hellman-group14-sha1",
 				"diffie-hellman-group1-sha1",
-				"aes128-ctr",
-				"aes192-ctr",
-				"aes256-ctr",
-				"arcfour256",
-				"arcfour128",
-				"arcfour",
 			},
 		},
 		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
@@ -142,7 +140,7 @@ func (c *Client) Script(script string) *RemoteScript {
 }
 
 // Scp implements scp command to copy local file to remote host
-func (c *Client) Scp(srcFile string, destFile string, perm string) error {
+func (c *Client) Scp(ctx context.Context, srcFile string, destFile string, perm string) error {
 	// Connect to the remote server
 	scpClient, err := scp.NewClientBySSH(c.client)
 	if err != nil {
@@ -162,13 +160,17 @@ func (c *Client) Scp(srcFile string, destFile string, perm string) error {
 	if err != nil {
 		return errors.Errorf("failed to read %s file: %v", srcFile, err)
 	}
-	defer f.Close()
 
 	// Close the file after it has been copied
+	defer f.Close()
+
+	// Add a timeout context
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Minute) // set the desired timeout duration
+	defer cancel()
 
 	// Finaly, copy the file over
 	// Usage: CopyFile(fileReader, remotePath, permission)
-	err = scpClient.CopyFile(f, destFile, perm)
+	err = scpClient.CopyFile(timeoutCtx, f, destFile, perm)
 
 	if err != nil {
 		return errors.Errorf("failed to transfer file: %v", err)
@@ -178,7 +180,7 @@ func (c *Client) Scp(srcFile string, destFile string, perm string) error {
 }
 
 // ScpFrom implements scp command to copy remote file to local host
-func (c *Client) ScpFrom(destFile string, srcFile string) error {
+func (c *Client) ScpFrom(ctx context.Context, destFile string, srcFile string) error {
 	// Connect to the remote server
 	scpClient, err := scp.NewClientBySSH(c.client)
 	if err != nil {
@@ -202,9 +204,13 @@ func (c *Client) ScpFrom(destFile string, srcFile string) error {
 	defer file.Close()
 	// Close the file after it has been copied
 
+	// Add a timeout context
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Minute) // set the desired timeout duration
+	defer cancel()
+
 	// Finally, copy the file from remote to local
 	// Usage: CopyFromRemote(file, remotePath)
-	err = scpClient.CopyFromRemote(file, destFile)
+	err = scpClient.CopyFromRemote(timeoutCtx, file, destFile)
 	if err != nil {
 		return errors.Errorf("failed to transfer file: %v", err)
 	}

@@ -485,7 +485,7 @@ func copyPastelUpToRemote(ctx context.Context, config *configs.Config, client *u
 		}
 
 		// Copy pastelup to remote
-		if err := client.Scp(localPastelupPath, remotePastelUp, "0777"); err != nil {
+		if err := client.Scp(ctx, localPastelupPath, remotePastelUp, "0777"); err != nil {
 			return fmt.Errorf("failed to copy pastelup to remote %s", err)
 		}
 
@@ -538,15 +538,15 @@ func checkHotAndColdNodesNetworkMode(ctx context.Context, client *utils.Client, 
 	// Copy pastel.conf from remote
 	log.WithContext(ctx).Info("copying pastel.conf from remote...")
 	remotePastelConfPath := filepath.Join(config.RemoteHotWorkingDir, constants.PastelConfName)
-	if err := client.ScpFrom(remotePastelConfPath, tempConfFilePath); err != nil {
-		return fmt.Errorf("failed to copy pastel.comf from remote %s", err)
+	if err := client.ScpFrom(ctx, remotePastelConfPath, tempConfFilePath); err != nil {
+		return fmt.Errorf("failed to copy pastel.conf from remote %s", err)
 	}
 	log.WithContext(ctx).Info("pastel.conf copied from remote...")
 
 	log.WithContext(ctx).Info("getting network mode from remote.conf...")
 	remoteNetwork, err := getNetworkModeFromRemote(ctx, tempConfFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to copy pastel.comf from remote %s", err)
+		return fmt.Errorf("failed to parse pastel.conf copied from remote %s", err)
 	}
 	log.WithContext(ctx).Info("network mode retrieved from remote.conf...")
 

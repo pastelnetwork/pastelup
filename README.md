@@ -293,9 +293,9 @@ Yuo would need two nodes for that setup
 - local to run Pastel node and pastelup commands, called COLD node
 All following commands should be executed on the COLD node, except when specified otherwise.
 
-## Local node setup
+##### Local node setup
 
-### 1. Download pasteup
+##### 1. Download pasteup
 ```shell
 wget https://download.pastel.network/beta/pastelup/pastelup-darwin-amd64
 ```
@@ -305,7 +305,7 @@ Make it executable
 chmod +x pastelup-darwin-amd64
 ```
 
-### 2. Install Pastel node
+##### 2. Install Pastel node
 ```shell
 ./pastelup install node -r latest
 ```
@@ -315,7 +315,7 @@ Or for testnet:
 ./pastelup install node -r latest -n testnet
 ```
 
-### 3. Start local node and wait for it to fully sync
+##### 3. Start local node and wait for it to fully sync
 ```shell
 ./pastelup start node
 ```
@@ -338,9 +338,9 @@ When sync is successful, you should see the similar result
 }
 ```
 
-## Install and initialize SuperNode on remote host
+##### Install and initialize SuperNode on remote host
 
-### 1. Install
+##### 1. Install
 ```shell
 ./pastelup install supetnode remote -r latest --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
 ```
@@ -352,7 +352,7 @@ Or for testnet:
 
 > Replace <IP_ADDRESS_OF_COLD_NODE>, <SSH_USER_OF_COLD_NODE> and <PATH_TO_SSH_PRIVATE_KEY_FILE> with your values.
 
-### 2. Init
+##### 2. Init
 ```shell
 ./pastelup init supernode coldhot --new --name <SN_name> --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
 ```
@@ -366,33 +366,33 @@ Or for testnet:
 > 	* Passphrase for new PasltelID
 
 
-### 3. Activate
+##### 3. Activate
 ```shell
 ./pastel-cli masternode start-alias <SN_name>
 ```
 
-### 4. Register PastelID
+##### 4. Register PastelID
 Following commands has to be executed on the remote - HOT - node
 
 ```shell
 ssh <SSH_USER_OF_COLD_NODE>@<IP_ADDRESS_OF_COLD_NODE> -i <PATH_TO_SSH_PRIVATE_KEY_FILE>
 ```
 
-#### a. Check masternode status and find PastelID
+###### Check masternode status and find PastelID
 ```shell
 ./pastel/pastel-cli masternode status
 ./pastel/pastel-cli pastelid list mine
 ```
 Remember PastelID returned by the last command 
 
-#### b. Check balance and if 0, create new address
+###### Check balance and if 0, create new address
 ```shell
 ./pastel/pastel-cli getbalance
 ./pastel/pastel-cli getnewaddress
 ```
 > Write down the address and send some coins to that it from another host with balance
 
-#### c. Register pastelid listed in the masternode.conf
+###### Register pastelid listed in the masternode.conf
 ```shell
 ./pastel/pastel-cli tickets register mnid <PasletID> <PasletID_Passphrase> <Address_generated_in_prev_step>
 ```
@@ -401,19 +401,19 @@ Remember PastelID returned by the last command
 ./pastel/pastel-cli masternode status
 ```
 
-### 5. Stop SN (required before setting UP as service)
+##### 5. Stop SN (required before setting UP as service)
 Following commands has to be executed on the local - COLD - node
 
 ```shell
 ./pastelup stop supernode remote --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
 ```
 
-### 6. Set as service
+##### 6. Set as service
 ```shell
 ./pastelup update install-service remote --solution supernode --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
 ```
 
-### 7. Start SN as service
+##### 7. Start SN as service
 ```shell
 ./pastelup start supernode remote --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
 ```

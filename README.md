@@ -2,7 +2,7 @@
 
 [![PastelNetwork](https://circleci.com/gh/pastelnetwork/pastelup.svg?style=shield)](https://app.circleci.com/pipelines/github/pastelnetwork/pastelup)
 
-`pastelup` is a utility that can install, initialize, start, updatr and monitor Pastel Network `node`, supernode` and `walletnode`.
+`pastelup` is a utility that can install, initialize, start, update, and monitor Pastel Network `node`, `supernode` and `walletnode`.
 
 ## Build
 

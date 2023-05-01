@@ -43,10 +43,7 @@ func setupPingCommand(config *configs.Config) *cli.Command {
 			return fmt.Errorf("failed to configure logging option - %v", err)
 		}
 
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		sys.RegisterInterruptHandler(cancel, func() {
+		sys.RegisterInterruptHandler(func() {
 			log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
 			os.Exit(0)
 		})

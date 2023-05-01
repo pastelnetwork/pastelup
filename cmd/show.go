@@ -46,10 +46,7 @@ func runShow(ctx context.Context, config *configs.Config) error {
 	}
 	log.WithContext(ctx).Infof("Config: %s", configJSON)
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	sys.RegisterInterruptHandler(cancel, func() {
+	sys.RegisterInterruptHandler(func() {
 		log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
 		os.Exit(0)
 	})

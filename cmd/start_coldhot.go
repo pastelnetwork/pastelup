@@ -57,12 +57,6 @@ func (r *ColdHotRunner) Init(ctx context.Context) error {
 		return fmt.Errorf("parse args: %s", err)
 	}
 
-	//get remote pastel.conf
-	//remotePastelConfPath := filepath.Join(r.config.RemoteHotWorkingDir, constants.PastelConfName)
-	//if err := client.ScpFrom(localPastelupPath, remotePastelUp); err != nil {
-	//	return fmt.Errorf("failed to copy pastel.comf from remote %s", err)
-	//}
-
 	log.WithContext(ctx).Info("checking network modes for remote and local nodes...")
 	if err := checkHotAndColdNodesNetworkMode(ctx, client, r.config); err != nil {
 		log.WithContext(ctx).Errorf("checkHotAndColdNodesNetworkMode error: %v", err)
@@ -679,7 +673,7 @@ func (r *ColdHotRunner) createAndCopyRemoteSuperNodeConfig(ctx context.Context) 
 	remoteSnConfigPath = strings.ReplaceAll(remoteSnConfigPath, "\\", "/")
 
 	log.WithContext(ctx).Info("copying supernode config..")
-	if err := r.sshClient.Scp(supernodeConfigPath, remoteSnConfigPath, "0644"); err != nil {
+	if err := r.sshClient.Scp(ctx, supernodeConfigPath, remoteSnConfigPath, "0644"); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to copy pastelup executable to remote host")
 		return err
 	}
@@ -723,7 +717,7 @@ func (r *ColdHotRunner) copyMasterNodeConToRemote(ctx context.Context) error {
 	}
 
 	hotMasternodeConfPath := getMasternodeConfPath(r.config, r.config.RemoteHotWorkingDir, "masternode.conf")
-	if err := r.sshClient.Scp(tmpMNConfPath, hotMasternodeConfPath, "0644"); err != nil {
+	if err := r.sshClient.Scp(ctx, tmpMNConfPath, hotMasternodeConfPath, "0644"); err != nil {
 		return fmt.Errorf("failed to copy masternode.conf to remote %s", err)
 	}
 	return nil
@@ -811,7 +805,7 @@ func (r *ColdHotRunner) createAndCopyRemoteHermesConfig(ctx context.Context) err
 	remoteHermesConfigPath = strings.ReplaceAll(remoteHermesConfigPath, "\\", "/")
 
 	log.WithContext(ctx).Info("copying hermes config..")
-	if err := r.sshClient.Scp(hermesConfigPath, remoteHermesConfigPath, "0644"); err != nil {
+	if err := r.sshClient.Scp(ctx, hermesConfigPath, remoteHermesConfigPath, "0644"); err != nil {
 		log.WithContext(ctx).WithError(err).Error("Failed to copy pastelup executable to remote host")
 		return err
 	}

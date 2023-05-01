@@ -14,7 +14,7 @@ import (
 )
 
 func TestCreateFolderWithForce(t *testing.T) {
-	var cxt context.Context
+	cxt := context.Background()
 	var path string
 	var force bool
 	path = "$HOME/test"
@@ -34,7 +34,7 @@ func TestCreateFolderWithForce(t *testing.T) {
 }
 
 func TestCreateFolderWithoutForce(t *testing.T) {
-	var cxt context.Context
+	cxt := context.Background()
 	var path string
 	var force bool
 	path = "$HOME/test"
@@ -56,7 +56,7 @@ func TestCreateFolderWithoutForce(t *testing.T) {
 }
 
 func TestCreateFileWithForce(t *testing.T) {
-	var cxt context.Context
+	cxt := context.Background()
 	var path string
 	var force bool
 	path = "$HOME/test/createfilewithforce.txt"
@@ -76,7 +76,7 @@ func TestCreateFileWithForce(t *testing.T) {
 }
 
 func TestCreateFileWithoutForce(t *testing.T) {
-	var cxt context.Context
+	cxt := context.Background()
 	var path string
 	var force bool
 	path = "$HOME/test/createfilewithoutforce.txt"
@@ -214,14 +214,14 @@ func TestContains(t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
-	var ctx context.Context
+	cxt := context.Background()
 
 	// normal case
 	var src = "$HOME/test/createfilewithforce.txt"
 	var dstFolder = "$HOME"
 	var dstFileName = "createfilewithforce.txt"
 
-	var err = CopyFile(ctx, src, dstFolder, dstFileName)
+	var err = CopyFile(cxt, src, dstFolder, dstFileName)
 	if err == nil {
 		t.Logf("CopyFile Function OK")
 	} else {
@@ -233,7 +233,7 @@ func TestCopyFile(t *testing.T) {
 	dstFolder = "$HOME/test/test1"
 	dstFileName = "createfilewithforce.txt"
 
-	err = CopyFile(ctx, src, dstFolder, dstFileName)
+	err = CopyFile(cxt, src, dstFolder, dstFileName)
 	if err == nil {
 		t.Fatalf(fmt.Sprintf("CopyFile Function Failed; src not availabe but function copies file ; src=%s, dst = %s , dstFile = %s", src, dstFolder, dstFileName))
 	} else {
@@ -246,7 +246,7 @@ func TestCopyFile(t *testing.T) {
 	dstFolder = "$HOME/test/test1"
 	dstFileName = "createfilewithforce.txt"
 
-	err = CopyFile(ctx, src, dstFolder, dstFileName)
+	err = CopyFile(cxt, src, dstFolder, dstFileName)
 	if err == nil {
 		t.Logf("CopyFile Function OK")
 	}
@@ -256,7 +256,7 @@ func TestCopyFile(t *testing.T) {
 	dstFolder = "$HOME/test/test1"
 	dstFileName = ""
 
-	err = CopyFile(ctx, src, dstFolder, dstFileName)
+	err = CopyFile(cxt, src, dstFolder, dstFileName)
 	if err == nil {
 		t.Fatalf(fmt.Sprintf("CopyFile Function Failed; dstFileName not availabe but function copies file ; src=%s, dst = %s , dstFile = %s", src, dstFolder, dstFileName))
 	} else {

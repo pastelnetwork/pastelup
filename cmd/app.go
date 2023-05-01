@@ -34,7 +34,7 @@ func NewApp(args []string) *cli.App {
 	/*
 	 * @todo we need to use different configs just b/c we set the Operation.
 	 * we should persist the cmd line input into the config so we can determine operation by args[1]
-	 * and remove the need to re-instatiate a new conffig for each operation.
+	 * and remove the need to re-instatiate a new config for each operation.
 	 */
 	app.AddCommands(
 		setupInstallCommand(configs.InitConfig(args)),

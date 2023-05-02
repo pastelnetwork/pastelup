@@ -381,7 +381,7 @@ ssh <SSH_USER_OF_COLD_NODE>@<IP_ADDRESS_OF_COLD_NODE> -i <PATH_TO_SSH_PRIVATE_KE
 ###### Check masternode status and find PastelID
 ```shell
 ./pastel/pastel-cli masternode status
-./pastel/pastel-cli pastelid list mine
+./pastel/pastel-cli pastelid list
 ```
 Remember PastelID returned by the last command 
 

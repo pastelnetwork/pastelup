@@ -496,7 +496,8 @@ func archiveWorkDir(ctx context.Context, config *configs.Config) error {
 		//pathToClean := path.Join(homeDir, workDir)
 		log.WithContext(ctx).Infof("Clean flag set, cleaning work dir (%v)", config.WorkingDir)
 		filesToPreserve := []string{"pastel.conf", "wallet.dat", "masternode.conf"}
-		if err := utils.ClearDir(ctx, config.WorkingDir, filesToPreserve); err != nil {
+		dirsToPreserve := []string{"pastelkeys"}
+		if err := utils.ClearDir(ctx, config.WorkingDir, filesToPreserve, dirsToPreserve, config.IsTestnet); err != nil {
 			log.WithContext(ctx).Error(fmt.Sprintf("Failed to clean directory:  %v", err))
 			return err
 		}
@@ -549,7 +550,7 @@ func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archi
 		for i < archivesToDelete {
 			fp := filepath.Join(archiveBaseDir, matchingArchives[i].Name())
 			log.WithContext(ctx).Info(fmt.Sprintf("Deleting old arvhive %v to avoid build up: created at %v", fp, matchingArchives[i].ModTime().Format(time.RFC3339)))
-			err = utils.ClearDir(ctx, fp, []string{})
+			err = utils.ClearDir(ctx, fp, []string{}, []string{}, config.IsTestnet)
 			if err != nil {
 				return err
 			}

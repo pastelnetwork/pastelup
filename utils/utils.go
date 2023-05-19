@@ -597,41 +597,43 @@ func GetExternalIPAddress() (externalIP string, err error) {
 
 // ClearDir removes all contents in the provided directory unless they are in the skipFiles array.
 // this recursively calls itself to clear out files in subdirs.
-func ClearDir(ctx context.Context, dir string, skipFiles []string, skipDirs []string, isTestnet bool) error {
+// returns true is ALL content is removed, false - otherwise
+func ClearDir(ctx context.Context, dir string, skipFiles []string, skipDirs []string, isTestnet bool) (bool, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		log.WithContext(ctx).Errorf("Failed to read directory files: %v", err)
-		return err
+		return false, err
 	}
 
-	// Modify the skipFiles and skipDirs if 'isTestnet' flag is true.
-	if isTestnet {
-		testnetDir := path.Join(dir, "testnet3")
-		for i, file := range skipFiles {
-			skipFiles[i] = path.Join(testnetDir, file)
-		}
-		for i, dir := range skipDirs {
-			skipDirs[i] = path.Join(testnetDir, dir)
-		}
-	}
-
+	removedItems := 0
 	for _, file := range files {
-		// Skip this file or directory if it is in the 'skipFiles' or 'skipDirs' lists.
-		if Contains(skipFiles, path.Join(dir, file.Name())) || Contains(skipDirs, path.Join(dir, file.Name())) {
-			continue
-		}
 		if file.IsDir() {
-			err = ClearDir(ctx, path.Join(dir, file.Name()), skipFiles, skipDirs, isTestnet)
+			if Contains(skipDirs, file.Name()) {
+				continue
+			}
+			empty, err := ClearDir(ctx, path.Join(dir, file.Name()), skipFiles, skipDirs, isTestnet)
 			if err != nil {
 				log.WithContext(ctx).Warn(fmt.Sprintf("Unable to delete %v during clean operation: %v", file.Name(), err))
-				return err
+				return false, err
+			}
+			if empty {
+				// remove directory
+				err = os.Remove(path.Join(dir, file.Name()))
+				if err != nil {
+					return false, err
+				}
+				removedItems++
 			}
 		} else {
+			if Contains(skipFiles, file.Name()) {
+				continue
+			}
 			err := os.Remove(path.Join(dir, file.Name()))
 			if err != nil {
 				log.WithContext(ctx).Warn(fmt.Sprintf("Unable to delete %v during clean operation: %v", file.Name(), err))
 			}
+			removedItems++
 		}
 	}
-	return nil
+	return len(files) == removedItems, nil
 }

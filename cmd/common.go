@@ -740,3 +740,20 @@ func getMasternodeConfPath(config *configs.Config, workDirPath string, fileName 
 	}
 	return masternodeConfPath
 }
+
+func ReserveSNPorts(ctx context.Context, config *configs.Config) {
+	portList := GetSNPortList(config)
+	cmd := fmt.Sprintf("net.ipv4.ip_local_reserved_ports=%d,%d,%d,%d,%d,%d",
+		portList[constants.NodeRPCPort],
+		portList[constants.SNPort],
+		portList[constants.NodePort],
+		portList[constants.P2PPort],
+		constants.RQServiceDefaultPort,
+		constants.DDServerDefaultPort)
+	log.WithContext(ctx).Infof("Running: sysctl -w %s", cmd)
+	out, err := RunSudoCMD(config, "sysctl", "-w", cmd)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to reserve ports for SuperNode")
+	}
+	log.WithContext(ctx).Info(out)
+}

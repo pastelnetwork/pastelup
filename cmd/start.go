@@ -587,7 +587,11 @@ func runRQService(ctx context.Context, config *configs.Config) error {
 			return err
 		}
 		if srvStarted {
-			return nil
+			log.WithContext(ctx).Infof("Check %s is running...", constants.RQService)
+			time.Sleep(10 * time.Second)
+			if CheckProcessRunning(constants.RQService) {
+				return nil
+			}
 		}
 	}
 	rqExecName := constants.PastelRQServiceExecName[utils.GetOS()]
@@ -610,36 +614,35 @@ func runDDService(ctx context.Context, config *configs.Config) (err error) {
 	} else {
 		serviceEnabled = true
 	}
+	srvStarted := false
 	if serviceEnabled {
 		// if the service isn't registered, this will be a noop
-		srvStarted, err := sm.StartService(ctx, config, constants.DDService)
+		srvStarted, err = sm.StartService(ctx, config, constants.DDService)
 		if err != nil {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.DDService, err)
 			return err
 		}
-		if srvStarted {
-			return nil
+	}
+	if !srvStarted {
+		var execPath string
+		if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, utils.GetDupeDetectionExecName()); err != nil {
+			log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
+			return err
 		}
-	}
 
-	var execPath string
-	if execPath, err = checkPastelFilePath(ctx, config.PastelExecDir, utils.GetDupeDetectionExecName()); err != nil {
-		log.WithContext(ctx).WithError(err).Error("Could not find dupe detection service script")
-		return err
-	}
+		ddConfigFilePath := filepath.Join(config.Configurer.DefaultHomeDir(),
+			constants.DupeDetectionServiceDir,
+			constants.DupeDetectionSupportFilePath,
+			constants.DupeDetectionConfigFilename)
 
-	ddConfigFilePath := filepath.Join(config.Configurer.DefaultHomeDir(),
-		constants.DupeDetectionServiceDir,
-		constants.DupeDetectionSupportFilePath,
-		constants.DupeDetectionConfigFilename)
-
-	python := "python3"
-	if utils.GetOS() == constants.Windows {
-		python = "python"
+		python := "python3"
+		if utils.GetOS() == constants.Windows {
+			python = "python"
+		}
+		venv := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, "venv")
+		cmd := fmt.Sprintf("source %v/bin/activate && %v %v %v", venv, python, execPath, ddConfigFilePath)
+		go RunCMD("bash", "-c", cmd)
 	}
-	venv := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, "venv")
-	cmd := fmt.Sprintf("source %v/bin/activate && %v %v %v", venv, python, execPath, ddConfigFilePath)
-	go RunCMD("bash", "-c", cmd)
 
 	time.Sleep(10 * time.Second)
 
@@ -689,7 +692,11 @@ func runWalletNodeService(ctx context.Context, config *configs.Config) error {
 			return err
 		}
 		if srvStarted {
-			return nil
+			log.WithContext(ctx).Infof("Check %s is running...", constants.WalletNode)
+			time.Sleep(10 * time.Second)
+			if CheckProcessRunning(constants.WalletNode) {
+				return nil
+			}
 		}
 	}
 	walletnodeExecName := constants.WalletNodeExecName[utils.GetOS()]
@@ -733,7 +740,11 @@ func runBridgeService(ctx context.Context, config *configs.Config) error {
 			return err
 		}
 		if srvStarted {
-			return nil
+			log.WithContext(ctx).Infof("Check %s is running...", constants.Bridge)
+			time.Sleep(10 * time.Second)
+			if CheckProcessRunning(constants.Bridge) {
+				return nil
+			}
 		}
 	}
 	bridgeExecName := constants.BridgeExecName[utils.GetOS()]
@@ -770,12 +781,15 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.SuperNode, err)
 		}
 		if srvStarted {
-			if err := runHermesService(ctx, config); err != nil {
-				log.WithContext(ctx).WithError(err).Error("sn-service started bu start hermes service failed")
-				return err
+			log.WithContext(ctx).Infof("Check %s is running...", constants.SuperNode)
+			time.Sleep(10 * time.Second)
+			if CheckProcessRunning(constants.SuperNode) {
+				if err := runHermesService(ctx, config); err != nil {
+					log.WithContext(ctx).WithError(err).Error("sn-service started bu start hermes service failed")
+					return err
+				}
+				return nil
 			}
-
-			return nil
 		}
 	}
 	supernodeConfigPath := config.Configurer.GetSuperNodeConfFile(config.WorkingDir)
@@ -821,7 +835,11 @@ func runHermesService(ctx context.Context, config *configs.Config) error {
 			log.WithContext(ctx).Errorf("Failed to start service for %v: %v", constants.Hermes, err)
 		}
 		if srvStarted {
-			return nil
+			log.WithContext(ctx).Infof("Check %s is running...", constants.Hermes)
+			time.Sleep(10 * time.Second)
+			if CheckProcessRunning(constants.Hermes) {
+				return nil
+			}
 		}
 	}
 	hermesConfigPath := config.Configurer.GetHermesConfFile(config.WorkingDir)
@@ -983,7 +1001,7 @@ func runPastelService(ctx context.Context, config *configs.Config, toolType cons
 	log.WithContext(ctx).Infof("Check %s is running...", toolType)
 	isServiceRunning := CheckProcessRunning(toolType)
 	if isServiceRunning {
-		log.WithContext(ctx).Infof("The %s started succesfully!", toolType)
+		log.WithContext(ctx).Infof("The %s started successfully!", toolType)
 	} else {
 		if output, err := RunCMD(execPath, args...); err != nil {
 			log.WithContext(ctx).Errorf("%s start failed! : %s", toolType, output)

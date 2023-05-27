@@ -255,6 +255,7 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 		log.WithContext(ctx).Error("Supernode can only be installed on Linux")
 		return fmt.Errorf("supernode can only be installed on Linux. You are on: %s", string(utils.GetOS()))
 	}
+	ReserveSNPorts(ctx, config)
 	return runServicesInstall(ctx, config, constants.SuperNode, true)
 }
 

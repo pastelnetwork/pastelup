@@ -741,6 +741,7 @@ func getMasternodeConfPath(config *configs.Config, workDirPath string, fileName 
 	return masternodeConfPath
 }
 
+// ReserveSNPorts reserves ports for supernode
 func ReserveSNPorts(ctx context.Context, config *configs.Config) {
 	portList := GetSNPortList(config)
 	cmd := fmt.Sprintf("net.ipv4.ip_local_reserved_ports=%d,%d,%d,%d,%d,%d",

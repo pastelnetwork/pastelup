@@ -362,6 +362,15 @@ func GetPastelInfo(ctx context.Context, config *configs.Config) (structure.RPCGe
 	return info, nil
 }
 
+func containsAny(str string, substrings []string) bool {
+	for _, substring := range substrings {
+		if strings.Contains(str, substring) {
+			return true
+		}
+	}
+	return false
+}
+
 // WaitingForPastelDToStart whether pasteld is running
 func WaitingForPastelDToStart(ctx context.Context, config *configs.Config) bool {
 	log.WithContext(ctx).Info("Waiting the pasteld to start...")
@@ -378,7 +387,8 @@ func WaitingForPastelDToStart(ctx context.Context, config *configs.Config) bool 
 			if ok {
 				//errorCode, _ := errorMap["code"].(int)
 				errorMessage, _ := errorMap["message"].(string)
-				if strings.Contains(errorMessage, "Rescanning...") {
+				subMessages := []string{"Rescanning", "Activating best chain", "Loading block index"}
+				if containsAny(errorMessage, subMessages) {
 					if attempts == maxAttempts-1 {
 						maxAttempts += 30
 					}

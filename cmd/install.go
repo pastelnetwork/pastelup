@@ -68,7 +68,7 @@ var appToServiceMap = map[constants.ToolType][]constants.ToolType{
 	constants.WalletNode: {
 		constants.PastelD,
 		constants.RQService,
-		constants.Bridge,
+		//constants.Bridge,
 		constants.WalletNode,
 	},
 	constants.SuperNode: {
@@ -647,7 +647,8 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 
 func installWalletNodeService(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing WalletNode service...")
-	installBridge, _ := AskUserToContinue(ctx, "Install Bridge Service? Y/N")
+	//installBridge, _ := AskUserToContinue(ctx, "Install Bridge Service? Y/N")
+	installBridge := false
 
 	wnPath := constants.WalletNodeExecName[utils.GetOS()]
 	bridgePath := constants.BridgeExecName[utils.GetOS()]
@@ -1182,6 +1183,8 @@ func updatePastelConfigFile(ctx context.Context, filePath string, config *config
 	cfgBuffer.WriteString("rpcuser=" + config.RPCUser + "\n")               // creates rpcuser line
 	cfgBuffer.WriteString("rpcpassword=" + config.RPCPwd + "\n")            // creates rpcpassword line
 	cfgBuffer.WriteString("rpcport=" + strconv.Itoa(config.RPCPort) + "\n") // creates rpcport line
+	cfgBuffer.WriteString("maxmempool=20000\n")
+	cfgBuffer.WriteString("rpcworkqueue=512\n")
 
 	if config.Network == constants.NetworkTestnet {
 		cfgBuffer.WriteString("testnet=1\n") // creates testnet line

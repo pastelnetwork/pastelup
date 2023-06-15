@@ -940,10 +940,7 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 		}
 	}
 
-	if config.OpMode == "update" &&
-		utils.GetOS() == constants.Linux &&
-		len(packagesToUpdate) != 0 {
-
+	if config.OpMode == "update" && utils.GetOS() == constants.Linux && len(packagesToUpdate) != 0 {
 		packagesUpdStr := strings.Join(packagesToUpdate, ",")
 		if !config.Force {
 			if yes, _ := AskUserToContinue(ctx, "Some system packages ["+packagesUpdStr+"] required for "+string(tool)+" need to be updated. Do you want to update them? Y/N"); !yes {
@@ -951,12 +948,15 @@ func checkInstalledPackages(ctx context.Context, config *configs.Config, tool co
 				return fmt.Errorf("user terminated installation")
 			}
 		}
-
-		if err := installOrUpgradePackagesLinux(ctx, config, "upgrade", packagesToUpdate); err != nil {
-			log.WithContext(ctx).WithField("packages-update", packagesToUpdate).
-				WithError(err).
-				Errorf("failed to update required packages - %s", packagesUpdStr)
-			return err
+		if config.SkipSystemUpdate {
+			log.WithContext(ctx).Info("Skipping system update")
+		} else {
+			if err := installOrUpgradePackagesLinux(ctx, config, "upgrade", packagesToUpdate); err != nil {
+				log.WithContext(ctx).WithField("packages-update", packagesToUpdate).
+					WithError(err).
+					Errorf("failed to update required packages - %s", packagesUpdStr)
+				return err
+			}
 		}
 	}
 
@@ -982,14 +982,10 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 		Infof("system will now %s packages", what)
 
 	// Update repo
-	if config.OpMode == "update" && config.SkipSystemUpdate {
-		log.WithContext(ctx).Info("Skipping system update")
-	} else {
-		_, err = RunSudoCMD(config, "apt", "update")
-		if err != nil {
-			log.WithContext(ctx).WithError(err).Error("Failed to update")
-			return err
-		}
+	_, err = RunSudoCMD(config, "apt", "update")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to update")
+		return err
 	}
 
 	for _, pkg := range packages {
@@ -1000,14 +996,10 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 				log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
 				return err
 			}
-			if config.OpMode == "update" && config.SkipSystemUpdate {
-				log.WithContext(ctx).Info("Skipping system update")
-			} else {
-				_, err = RunSudoCMD(config, "apt", "update")
-				if err != nil {
-					log.WithContext(ctx).WithError(err).Error("Failed to update")
-					return err
-				}
+			_, err = RunSudoCMD(config, "apt", "update")
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to update")
+				return err
 			}
 		}
 		out, err = RunSudoCMD(config, "apt", "-y", what, pkg) //"install" or "upgrade"

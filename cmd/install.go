@@ -553,28 +553,34 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
 		return err
 	}
-	pythonCmd := "python3"
-	if utils.GetOS() == constants.Windows {
-		pythonCmd = "python"
+
+	if config.OpMode == "update" && config.SkipDDPackagesUpdate {
+		log.WithContext(ctx).Info("Skipping dd-service packages update")
+	} else {
+		pythonCmd := "python3"
+		if utils.GetOS() == constants.Windows {
+			pythonCmd = "python"
+		}
+		venv := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, "venv")
+		if err := RunCMDWithInteractive(pythonCmd, "-m", "venv", venv); err != nil {
+			return err
+		}
+		cmd := fmt.Sprintf("source %v/bin/activate && %v -m pip install --upgrade pip", venv, pythonCmd)
+		if err := RunCMDWithInteractive("bash", "-c", cmd); err != nil {
+			return err
+		}
+
+		requirementsFile := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName)
+		// b/c the commands get run as forked sub processes, we need to run the venv and install in one command
+		cmd = fmt.Sprintf("source %v/bin/activate && pip install --upgrade -r %v", venv, requirementsFile)
+		if config.NoCache {
+			cmd += " --no-cache-dir"
+		}
+		if err := RunCMDWithInteractive("bash", "-c", cmd); err != nil {
+			return err
+		}
+		log.WithContext(ctx).Info("Pip install finished")
 	}
-	venv := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, "venv")
-	if err := RunCMDWithInteractive(pythonCmd, "-m", "venv", venv); err != nil {
-		return err
-	}
-	cmd := fmt.Sprintf("source %v/bin/activate && %v -m pip install --upgrade pip", venv, pythonCmd)
-	if err := RunCMDWithInteractive("bash", "-c", cmd); err != nil {
-		return err
-	}
-	requirementsFile := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, constants.PipRequirmentsFileName)
-	// b/c the commands get run as forked sub processes, we need to run the venv and install in one command
-	cmd = fmt.Sprintf("source %v/bin/activate && pip install --upgrade -r %v", venv, requirementsFile)
-	if config.NoCache {
-		cmd += " --no-cache-dir"
-	}
-	if err := RunCMDWithInteractive("bash", "-c", cmd); err != nil {
-		return err
-	}
-	log.WithContext(ctx).Info("Pip install finished")
 	appBaseDir := filepath.Join(config.Configurer.DefaultHomeDir(), constants.DupeDetectionServiceDir)
 	var pathList []interface{}
 	for _, configItem := range constants.DupeDetectionConfigs {
@@ -586,58 +592,73 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		pathList = append(pathList, dupeDetectionDirPath)
 	}
 
-	targetDir := filepath.Join(appBaseDir, constants.DupeDetectionSupportFilePath)
-	tmpDir := filepath.Join(targetDir, "temp.zip")
-	for _, url := range constants.DupeDetectionSupportDownloadURL {
-		// Get ddSupportContent and cal checksum
-		ddSupportContent := path.Base(url)
-		ddSupportPath := filepath.Join(targetDir, ddSupportContent)
-		fileInfo, err := os.Stat(ddSupportPath)
-		if err == nil {
-			log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support: %s", ddSupportContent)
-			var checksum string
-			if fileInfo.IsDir() {
-				checksum, err = utils.CalChecksumOfFolder(ctx, ddSupportPath)
-			} else {
-				checksum, err = utils.GetChecksum(ctx, ddSupportPath)
+	ddSupportFilesDir := filepath.Join(appBaseDir, constants.DupeDetectionSupportFilePath)
+	if config.OpMode == "update" && config.SkipDDSupportingDilesUpdate {
+		log.WithContext(ctx).Info("Skipping dd-service supporting files update")
+	} else {
+		tmpDir := filepath.Join(ddSupportFilesDir, "temp.zip")
+		for _, url := range constants.DupeDetectionSupportDownloadURL {
+			// Get ddSupportContent and cal checksum
+			ddSupportContent := path.Base(url)
+			ddSupportPath := filepath.Join(ddSupportFilesDir, ddSupportContent)
+			fileInfo, err := os.Stat(ddSupportPath)
+			if err == nil {
+				log.WithContext(ctx).Infof("Checking checksum of DupeDetection Support: %s", ddSupportContent)
+				var checksum string
+				if fileInfo.IsDir() {
+					checksum, err = utils.CalChecksumOfFolder(ctx, ddSupportPath)
+				} else {
+					checksum, err = utils.GetChecksum(ctx, ddSupportPath)
+				}
+				if err != nil {
+					log.WithContext(ctx).WithError(err).Errorf("Failed to get checksum: %s", ddSupportPath)
+					return err
+				}
+				log.WithContext(ctx).Infof("Checksum of DupeDetection Support: %s is %s", ddSupportContent, checksum)
+				if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
+					log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checksum matched, so skipping download.", ddSupportPath)
+					continue
+				}
 			}
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to get checksum: %s", ddSupportPath)
-				return err
-			}
-			log.WithContext(ctx).Infof("Checksum of DupeDetection Support: %s is %s", ddSupportContent, checksum)
-			if checksum == constants.DupeDetectionSupportChecksum[ddSupportContent] {
-				log.WithContext(ctx).Infof("DupeDetection Support file: %s is already exists and checksum matched, so skipping download.", ddSupportPath)
+			if !strings.Contains(url, ".zip") {
+				if err = utils.DownloadFile(ctx, filepath.Join(ddSupportFilesDir, path.Base(url)), url); err != nil {
+					log.WithContext(ctx).WithError(err).Errorf("Failed to download file: %s", url)
+					return err
+				}
 				continue
 			}
-		}
-		if !strings.Contains(url, ".zip") {
-			if err = utils.DownloadFile(ctx, filepath.Join(targetDir, path.Base(url)), url); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to download file: %s", url)
+			if err = utils.DownloadFile(ctx, tmpDir, url); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file: %s", url)
 				return err
 			}
-			continue
-		}
-		if err = utils.DownloadFile(ctx, tmpDir, url); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to download archive file: %s", url)
-			return err
-		}
 
-		log.WithContext(ctx).Infof("Extracting archive file : %s", tmpDir)
-		if err = processArchive(ctx, targetDir, tmpDir); err != nil {
-			log.WithContext(ctx).WithError(err).Errorf("Failed to extract archive file : %s", tmpDir)
-			return err
+			log.WithContext(ctx).Infof("Extracting archive file : %s", tmpDir)
+			if err = processArchive(ctx, ddSupportFilesDir, tmpDir); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to extract archive file : %s", tmpDir)
+				return err
+			}
 		}
 	}
 	if config.OpMode == "install" {
-		ddConfigPath := filepath.Join(targetDir, constants.DupeDetectionConfigFilename)
-		err = utils.CreateFile(ctx, ddConfigPath, config.Force)
-		if err != nil {
-			log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", ddConfigPath)
-			return err
-		}
-		if err = utils.WriteFile(ddConfigPath, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
-			return err
+		ddConfigPath := filepath.Join(ddSupportFilesDir, constants.DupeDetectionConfigFilename)
+		ddConfigSamplePath := filepath.Join(config.PastelExecDir, constants.DupeDetectionSubFolder, "config.ini.sample")
+		//check if config.ini.sample exists
+		if utils.CheckFileExist(ddConfigSamplePath) {
+			// if exists copy from sample
+			if err = utils.CopyFile(ctx, ddConfigSamplePath, ddSupportFilesDir, constants.DupeDetectionConfigFilename); err != nil {
+				log.WithContext(ctx).Errorf("Failed to copy config.ini.sample for dd-service : %s", ddConfigPath)
+				return err
+			}
+		} else {
+			// if not create from scratch
+			err = utils.CreateFile(ctx, ddConfigPath, config.Force)
+			if err != nil {
+				log.WithContext(ctx).Errorf("Failed to create config.ini for dd-service : %s", ddConfigPath)
+				return err
+			}
+			if err = utils.WriteFile(ddConfigPath, fmt.Sprintf(configs.DupeDetectionConfig, pathList...)); err != nil {
+				return err
+			}
 		}
 		_ = os.Setenv("DUPEDETECTIONCONFIGPATH", ddConfigPath)
 	}
@@ -961,7 +982,9 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 		Infof("system will now %s packages", what)
 
 	// Update repo
-	if !config.SkipSystemUpdate {
+	if config.OpMode == "update" && config.SkipSystemUpdate {
+		log.WithContext(ctx).Info("Skipping system update")
+	} else {
 		_, err = RunSudoCMD(config, "apt", "update")
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to update")
@@ -977,7 +1000,9 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 				log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
 				return err
 			}
-			if !config.SkipSystemUpdate {
+			if config.OpMode == "update" && config.SkipSystemUpdate {
+				log.WithContext(ctx).Info("Skipping system update")
+			} else {
 				_, err = RunSudoCMD(config, "apt", "update")
 				if err != nil {
 					log.WithContext(ctx).WithError(err).Error("Failed to update")

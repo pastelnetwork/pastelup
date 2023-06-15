@@ -85,9 +85,15 @@ func setupUpdateSubCommand(config *configs.Config,
 		cli.NewFlag("clean", &config.Clean).SetAliases("c").
 			SetUsage(green("Optional, Clean .pastel folder")),
 		cli.NewFlag("no-backup", &config.NoBackup).
-			SetUsage(green("Optional, skip backing up configuration files before updating workspace")),
+			SetUsage(green("Optional, skip backing up existing setup files before updating workspace")),
+		cli.NewFlag("backup-all", &config.BackupAll).
+			SetUsage(green("Optional, back up ALL existing files before updating workspace")),
 		cli.NewFlag("skip-system-update", &config.SkipSystemUpdate).
-			SetUsage(green("Optional, Skip System Update skips linux apt-update")),
+			SetUsage(green("Optional, Skip System Update skips linux apt-update")).SetValue(true),
+		cli.NewFlag("skip-dd-packages-update", &config.SkipDDPackagesUpdate).
+			SetUsage(green("Optional, Skip Update of python packages during dd-service update")).SetValue(true),
+		cli.NewFlag("skip-dd-supporting-files-update", &config.SkipDDSupportingDilesUpdate).
+			SetUsage(green("Optional, Skip Download and Update of dd-service supporting files")).SetValue(true),
 	}
 
 	pastelFlags := []*cli.Flag{
@@ -424,7 +430,12 @@ func runUpdateSNServiceSubCommand(ctx context.Context, config *configs.Config) (
 }
 
 func stopAndUpdateService(ctx context.Context, config *configs.Config, updateCommand constants.ToolType,
-	backUpWorkDir bool, backUpDDDir bool, withDependencies bool) error {
+	backUpPastelWorkDir bool, backUpDDWorkDir bool, withDependencies bool) error {
+
+	if config.NoBackup && config.BackupAll {
+		log.WithContext(ctx).Error("cannot use --no-backup and --backup-all together")
+		return fmt.Errorf("cannot use --no-backup and --backup-all together")
+	}
 
 	log.WithContext(ctx).Infof("Updating %s component ...", string(updateCommand))
 
@@ -440,14 +451,16 @@ func stopAndUpdateService(ctx context.Context, config *configs.Config, updateCom
 		log.WithContext(ctx).WithError(err).Error("Failed to stop dependent services")
 		return err
 	}
-	if backUpWorkDir && !config.NoBackup {
-		err = archiveWorkDir(ctx, config)
+	// backup work dir is only done for Node (pasteld), SuperNode and WalletNode updates
+	if backUpPastelWorkDir && !config.NoBackup {
+		err = backUpWorkDir(ctx, config)
 		if err != nil {
 			return err
 		}
 	}
-	if backUpDDDir && !config.NoBackup {
-		if err = archiveDDDir(ctx, config); err != nil {
+	// backup dd dir is only done for SuperNode and dd-service updates
+	if backUpDDWorkDir && config.BackupAll {
+		if err = backUpDDDir(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to run extra step")
 			return err
 		}
@@ -486,16 +499,24 @@ func updateSolution(ctx context.Context, config *configs.Config, installCommand 
 	return nil
 }
 
-// archiveWorkDir runs archive dir on the users work dir (i.e. ~/.pastel if on linux)
-func archiveWorkDir(ctx context.Context, config *configs.Config) error {
-	if err := archiveDir(ctx, config, config.WorkingDir, config.Configurer.WorkDir()); err != nil {
+// backUpWorkDir runs archive dir on the users work dir (i.e. ~/.pastel if on linux)
+func backUpWorkDir(ctx context.Context, config *configs.Config) error {
+	archivePrefix := config.Configurer.WorkDir()
+
+	var whatToBackUp []string
+	if !config.BackupAll {
+		whatToBackUp = []string{"pastel.conf", "supernode.yml", "hermes.yml", "walletnode.yml", "bridge.yml",
+			"wallet.dat", "masternode.conf", "mncache.dat", "mnpayments.dat", "blocks", "chainstate", "pastelkeys"}
+	}
+	if err := backUpDir(ctx, config, config.WorkingDir, archivePrefix, whatToBackUp); err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", config.WorkingDir, err))
 		return err
 	}
 	if config.Clean {
 		//pathToClean := path.Join(homeDir, workDir)
 		log.WithContext(ctx).Infof("Clean flag set, cleaning work dir (%v)", config.WorkingDir)
-		filesToPreserve := []string{"pastel.conf", "wallet.dat", "masternode.conf",
+		filesToPreserve := []string{
+			"pastel.conf", "wallet.dat", "masternode.conf",
 			"supernode.yml", "hermes.yml",
 			"walletnode.yml", "bridge.yml"}
 		dirsToPreserve := []string{"pastelkeys"}
@@ -508,8 +529,8 @@ func archiveWorkDir(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-// archiveDir is makes a copy of the specified dir to a new dir in ~/.pastel_archives dir
-func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archivePrefix string) error {
+// backUpDir is makes a copy of the specified dir to a new dir in ~/.pastel_archives dir
+func backUpDir(ctx context.Context, config *configs.Config, dirToArchive, archivePrefix string, whatToBackUp []string) error {
 	now := time.Now().Unix()
 	archiveBaseDir := config.ArchiveDir
 	archiveName := fmt.Sprintf("%s_archive_%v", archivePrefix, now)
@@ -518,18 +539,66 @@ func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archi
 	if exists := utils.CheckFileExist(archiveBaseDir); !exists {
 		err := os.Mkdir(archiveBaseDir, 0755)
 		if err != nil {
+			log.WithContext(ctx).Error(fmt.Sprintf("Failed to create %v directory: %v", archiveBaseDir, err))
 			return err
 		}
 	}
 
 	archivePath := filepath.Join(archiveBaseDir, archiveName)
-	err := cp.Copy(dirToArchive, archivePath)
+
+	if whatToBackUp == nil {
+		err := cp.Copy(dirToArchive, archivePath)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := os.Mkdir(archivePath, 0755)
+		if err != nil {
+			log.WithContext(ctx).Error(fmt.Sprintf("Failed to create %v directory: %v", archiveBaseDir, err))
+			return err
+		}
+
+		for _, name := range whatToBackUp {
+			srcPath := filepath.Join(dirToArchive, name)
+			dstPath := filepath.Join(archivePath, name)
+			if exists := utils.CheckFileExist(srcPath); exists {
+				err := cp.Copy(srcPath, dstPath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		if config.IsTestnet {
+			archivePathTestnetSubDir := filepath.Join(archivePath, "testnet3")
+			err := os.Mkdir(archivePathTestnetSubDir, 0755)
+			if err != nil {
+				log.WithContext(ctx).Error(fmt.Sprintf("Failed to create %v directory: %v", archivePathTestnetSubDir, err))
+				return err
+			}
+			for _, name := range whatToBackUp {
+				srcPath := filepath.Join(dirToArchive, "testnet3", name)
+				dstPath := filepath.Join(archivePathTestnetSubDir, name)
+				if exists := utils.CheckFileExist(srcPath); exists {
+					err := cp.Copy(srcPath, dstPath)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	err := deleteOldArchives(ctx, archiveBaseDir, archivePrefix)
 	if err != nil {
+		log.WithContext(ctx).Error(fmt.Sprintf("Failed to remove old archives:  %v", err))
 		return err
 	}
+	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", config.WorkingDir, archiveName))
+	return nil
+}
+
+func deleteOldArchives(ctx context.Context, archiveBaseDir string, archivePrefix string) error {
 	// if we have more than ARCHIVE_RETENTION amount of archives, delete old ones to avoid build up
 	var matchingArchives []fs.FileInfo
-	//files, err := ioutil.ReadDir(archiveBaseDir)
 	files, err := os.ReadDir(archiveBaseDir)
 	if err != nil {
 		return err
@@ -550,31 +619,22 @@ func archiveDir(ctx context.Context, config *configs.Config, dirToArchive, archi
 		archivesToDelete := len(matchingArchives) - archiveRetention
 		i := 0
 		for i < archivesToDelete {
-			fp := filepath.Join(archiveBaseDir, matchingArchives[i].Name())
-			log.WithContext(ctx).Info(fmt.Sprintf("Deleting old arvhive %v to avoid build up: created at %v", fp, matchingArchives[i].ModTime().Format(time.RFC3339)))
-			empty, err := utils.ClearDir(ctx, fp, []string{}, []string{}, config.IsTestnet)
+			directoryToRemove := filepath.Join(archiveBaseDir, matchingArchives[i].Name())
+			log.WithContext(ctx).Info(fmt.Sprintf("Deleting old arvhive %v to avoid build up: created at %v", directoryToRemove, matchingArchives[i].ModTime().Format(time.RFC3339)))
+			err = os.RemoveAll(directoryToRemove)
 			if err != nil {
 				return err
 			}
-			if !empty {
-				log.WithContext(ctx).Warnf(fmt.Sprintf("Failed to remove archive directory %v", archiveName))
-			} else {
-				err = os.Remove(fp)
-				if err != nil {
-					return err
-				}
-				i++
-			}
+			i++
 		}
 	}
-	log.WithContext(ctx).Info(fmt.Sprintf("Archived %v directory as %v", config.WorkingDir, archiveName))
 	return nil
 }
 
-func archiveDDDir(ctx context.Context, config *configs.Config) error {
+func backUpDDDir(ctx context.Context, config *configs.Config) error {
 	homeDir := config.Configurer.DefaultHomeDir()
 	dirToArchive := filepath.Join(homeDir, constants.DupeDetectionServiceDir)
-	if err := archiveDir(ctx, config, dirToArchive, constants.DupeDetectionServiceDir); err != nil {
+	if err := backUpDir(ctx, config, dirToArchive, constants.DupeDetectionServiceDir, []string{}); err != nil {
 		log.WithContext(ctx).Error(fmt.Sprintf("Failed to archive %v directory: %v", dirToArchive, err))
 		return err
 	}

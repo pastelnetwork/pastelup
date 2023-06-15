@@ -3,7 +3,6 @@ module github.com/pastelnetwork/pastelup
 go 1.19
 
 require (
-	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/bramvdbogaerde/go-scp v1.2.1
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/dustin/go-humanize v1.0.1
@@ -45,7 +44,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/stretchr/testify v1.7.2 // indirect
 	github.com/urfave/cli/v2 v2.25.3 // indirect

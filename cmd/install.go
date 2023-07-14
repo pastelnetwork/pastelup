@@ -862,6 +862,8 @@ func installSuperNodeService(ctx context.Context, config *configs.Config, tryOpe
 			log.WithContext(ctx).WithError(err).Error("Failed to open ports")
 			return err
 		}
+
+		increaseOpenFilesOnLinux(ctx, config)
 	}
 
 	return nil
@@ -1303,4 +1305,76 @@ func openPorts(ctx context.Context, config *configs.Config, portList []int) (err
 	}
 
 	return nil
+}
+
+func increaseOpenFilesOnLinux(ctx context.Context, config *configs.Config) {
+	log.WithContext(ctx).Info("Trying to increase number of open file in the system...")
+
+	systemWideLimit := "fs.file-max = 100000"
+	userLimit := "* soft nofile 4096\n* hard nofile 65535"
+	defaultLimit := "DefaultLimitNOFILE=65536"
+
+	// Increase system-wide file descriptor limit
+	err := writeToFile(config, "/etc/sysctl.conf", systemWideLimit)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("failed to write to sysctl.conf")
+	}
+
+	// Increase per-user limit for file descriptors
+	err = writeToFile(config, "/etc/security/limits.conf", userLimit)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("failed to write to limits.conf")
+	}
+
+	// Set default limit for the whole system
+	err = writeToFile(config, "/etc/systemd/system.conf", defaultLimit)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("failed to write to system.conf")
+	}
+	err = writeToFile(config, "/etc/systemd/user.conf", defaultLimit)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("failed to write to user.conf")
+	}
+
+	// Reload systemd and sysctl
+	_, err = RunSudoCMD(config, "systemctl", "daemon-reload")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("failed to reload systemd")
+	}
+	_, err = RunSudoCMD(config, "sysctl", "-p")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("failed to reload sysctl")
+	}
+}
+
+func writeToFile(config *configs.Config, filename, content string) error {
+	// Read the original file
+	origData, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	// Write to a temporary file first
+	tmpFilename := "/tmp/tempfile"
+	tmpFile, err := os.OpenFile(tmpFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	// Write original data to the temporary file
+	if _, err := tmpFile.Write(origData); err != nil {
+		tmpFile.Close()
+		return err
+	}
+
+	// Append new content to the temporary file
+	if _, err := tmpFile.WriteString(content + "\n"); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	tmpFile.Close()
+
+	// Move the temporary file to the intended location
+	_, err = RunSudoCMD(config, "mv", tmpFilename, filename)
+	return err
 }

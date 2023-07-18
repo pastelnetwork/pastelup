@@ -10,7 +10,7 @@ require (
 	github.com/go-errors/errors v1.4.2
 	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/mitchellh/go-ps v1.0.0
-	github.com/pastelnetwork/gonode/common v0.0.0-20230501125602-f10ece27b669
+	github.com/pastelnetwork/gonode/common v0.0.0-20230718063208-07ab70c4fdd4
 	github.com/pkg/errors v0.9.1
 	golang.org/x/net v0.9.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect

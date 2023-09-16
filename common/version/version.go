@@ -8,7 +8,7 @@ package version
 // For more info, see: http://stackoverflow.com/a/11355611/483528
 
 var (
-	version = "latest"
+	version = "Monet 2.0"
 )
 
 // Version composes a version of the package

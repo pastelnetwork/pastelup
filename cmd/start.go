@@ -87,8 +87,6 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(green("Optional, WAN address of the host")),
 		cli.NewFlag("reindex", &config.ReIndex).
 			SetUsage(green("Optional, Start with reindex")),
-		cli.NewFlag("legacy", &config.Legacy).
-			SetUsage(green("Optional, pasteld version is < 1.1")).SetValue(false),
 	}
 
 	var dirsFlags []*cli.Flag
@@ -136,9 +134,6 @@ func setupStartSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("inventory", &config.InventoryFile).
 			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
-		cli.NewFlag("pastelup-release", &config.Version).
-			SetUsage(green("Optional, Version of pastelup to download to remote " +
-				"host if different local and remote OS's")),
 	}
 
 	var commandName, commandMessage string
@@ -486,9 +481,6 @@ func runRemoteStart(ctx context.Context, config *configs.Config, tool string) er
 	}
 	if config.ReIndex {
 		startOptions = fmt.Sprintf("%s --reindex", startOptions)
-	}
-	if config.Legacy {
-		startOptions = fmt.Sprintf("%s --legacy", startOptions)
 	}
 	if config.DevMode {
 		startOptions = fmt.Sprintf("%s --development-mode", startOptions)

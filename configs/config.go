@@ -136,7 +136,7 @@ dd-server:
 	RQServiceDefaultConfig = `grpc-service = "{{.HostName}}:{{.Port}}"`
 
 	// ZksnarkParamsURL - url for zksnark params
-	ZksnarkParamsURL = "https://download.pastel.network/pastel-params/"
+	ZksnarkParamsURL = "https://download.pastel.network/other/pastel-params/"
 
 	//DupeDetectionConfig - default config for dupedecteion
 	DupeDetectionConfig = `

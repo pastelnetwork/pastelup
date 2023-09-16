@@ -313,13 +313,14 @@ var DupeDetectionSupportChecksum = map[string]string{
 var DupeDetectionSupportFilePath = "support_files"
 
 // GetVersionSubURL returns the sub url concerned with version info
-func GetVersionSubURL(version string) string {
-	switch version {
-	case "latest", "beta":
-		return version
-	default:
-		return fmt.Sprintf("history/%s", version)
+func GetVersionSubURL(network string, version string) string {
+	if version == "" {
+		if network == "" {
+			return "latest-release"
+		}
+		return fmt.Sprintf("latest-release/%s", network)
 	}
+	return fmt.Sprintf("other/archive/%s/%s", network, version)
 }
 
 // TODO: Add more dependencies for walletnode/supernode/pasteld in mac/win/linux os
@@ -373,22 +374,22 @@ var DependenciesPackagesRQService = map[OSType][]string{
 	Unknown: {},
 }
 
-// NetworkModes are valid network nmodes
+// NetworkModes are valid network modes
 var NetworkModes = []string{
 	NetworkMainnet,
 	NetworkTestnet,
 	NetworkRegTest,
 }
 
-// NoVersionSetErr is an error returned if a install or update command is initiated without
-// explicitly providing the requested version parameter
-type NoVersionSetErr struct{}
+// NoNetworkModesSetErr is an error returned if install or update command is initiated without
+// explicitly providing the requested network mode parameter
+type NoNetworkModesSetErr struct{}
 
-func (e NoVersionSetErr) Error() string {
+func (e NoNetworkModesSetErr) Error() string {
 	return `
---release or -r must be provided. Recommened to use 'beta' i.e.
+--network or -n must be provided. Can be either 'mainnet' or 'testnet'
 	
-	pastelup install <service> -r beta
+	pastelup install <service> -n mainnet
 	
 More information can be found: https://download.pastel.network/#"`
 }

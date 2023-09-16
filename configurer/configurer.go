@@ -111,7 +111,7 @@ func (c *configurer) DefaultArchiveDir() string {
 }
 
 // GetDownloadURL returns download url of the pastel executables.
-func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error) {
+func (c *configurer) GetDownloadURL(network string, version string, tool constants.ToolType) (*url.URL, string, error) {
 	var name string
 	switch tool {
 	case constants.WalletNode:
@@ -142,7 +142,7 @@ func (c *configurer) GetDownloadURL(version string, tool constants.ToolType) (*u
 
 	urlString := fmt.Sprintf(
 		templateDownloadURL,
-		constants.GetVersionSubURL(version),
+		constants.GetVersionSubURL(network, version),
 		tool,
 		name)
 

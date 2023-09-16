@@ -23,5 +23,5 @@ type IConfigurer interface {
 	GetBridgeConfFile(workingDir string) string
 	GetWalletNodeConfFile(workingDir string) string
 	GetRQServiceConfFile(workingDir string) string
-	GetDownloadURL(version string, tool constants.ToolType) (*url.URL, string, error)
+	GetDownloadURL(network string, version string, tool constants.ToolType) (*url.URL, string, error)
 }

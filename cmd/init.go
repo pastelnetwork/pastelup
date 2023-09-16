@@ -78,9 +78,6 @@ func setupInitSubCommand(config *configs.Config,
 				SetUsage(green("Optional, Location of pastel node directory")).SetValue(config.Configurer.DefaultPastelExecutableDir()),
 			cli.NewFlag("work-dir", &config.WorkingDir).SetAliases("w").
 				SetUsage(green("Optional, location of working directory")).SetValue(config.Configurer.DefaultWorkingDir()),
-			cli.NewFlag("pastelup-release", &config.Version).
-				SetUsage(green("Optional, Version of pastelup to download to remote " +
-					"host if different local and remote OS's")),
 		}
 	}
 

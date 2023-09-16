@@ -74,8 +74,8 @@ func setupUpdateSubCommand(config *configs.Config,
 ) *cli.Command {
 
 	commonFlags := []*cli.Flag{
-		cli.NewFlag("release", &config.Version).SetAliases("r").
-			SetUsage(green("Required, Pastel version to install")).SetRequired(),
+		cli.NewFlag("version", &config.Version).SetAliases("v").
+			SetUsage(green("Optional, Pastel version to install, default is latest release either mainnet or testnet, depending on the network flag")),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
 		cli.NewFlag("regen-rpc", &config.RegenRPC).
@@ -94,13 +94,6 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Skip Update of python packages during dd-service update")).SetValue(true),
 		cli.NewFlag("skip-dd-supporting-files-update", &config.SkipDDSupportingDilesUpdate).
 			SetUsage(green("Optional, Skip Download and Update of dd-service supporting files")).SetValue(true),
-	}
-
-	pastelFlags := []*cli.Flag{
-		cli.NewFlag("network", &config.Network).SetAliases("n").
-			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
-		cli.NewFlag("peers", &config.Peers).SetAliases("p").
-			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 	}
 
 	userFlags := []*cli.Flag{
@@ -141,7 +134,7 @@ func setupUpdateSubCommand(config *configs.Config,
 
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
-			SetUsage(red("Required (if inventory not used), SSH address of the remote host")).SetRequired(),
+			SetUsage(red("Required (if inventory not used), SSH address of the remote host")),
 		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).
@@ -168,12 +161,6 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Start service right away")),
 	}
 
-	systemServiceRemoteFlags := []*cli.Flag{
-		cli.NewFlag("pastelup-release", &config.Version).
-			SetUsage(green("Optional, Version of pastelup to download to remote " +
-				"host if different local and remote OS's")),
-	}
-
 	var commandName, commandMessage string
 	if !remote {
 		commandName = updateCommandName[updateCommand]
@@ -187,18 +174,11 @@ func setupUpdateSubCommand(config *configs.Config,
 
 	if updateCommand == installService || updateCommand == removeService {
 		commandFlags = append(systemServiceFlags, dirsFlags[:]...)
-		if remote {
-			commandFlags = append(commandFlags, systemServiceRemoteFlags[:]...)
-		}
 	} else {
 		commandFlags = append(dirsFlags, archDirsFlags[:]...)
 		commandFlags = append(commandFlags, commonFlags[:]...)
 	}
-	if updateCommand == updateNode ||
-		updateCommand == updateWalletNode ||
-		updateCommand == updateSuperNode {
-		commandFlags = append(commandFlags, pastelFlags[:]...)
-	}
+
 	if remote {
 		commandFlags = append(commandFlags, remoteFlags[:]...)
 	} else {
@@ -221,24 +201,15 @@ func setupUpdateSubCommand(config *configs.Config,
 				log.WithContext(ctx).Info("Interrupt signal received. Gracefully shutting down...")
 				os.Exit(0)
 			})
-			requiresVersion := true
-			if utils.Contains(config.Args, "install-service") || utils.Contains(config.Args, "remove-service") {
-				requiresVersion = false
-			}
-			if config.Version == "" && requiresVersion {
-				log.WithContext(ctx).
-					WithError(constants.NoVersionSetErr{}).
-					Error("Failed to process update command")
-				return err
-			}
+
 			if !remote {
 				if err = ParsePastelConf(ctx, config); err != nil {
 					return err
 				}
 			}
-			log.WithContext(ctx).Infof("Started update... ")
+			log.WithContext(ctx).Infof("Update started for network mode '%v'...", config.Network)
 			if config.Version != "" {
-				log.WithContext(ctx).Infof("Release version set to '%v", config.Version)
+				log.WithContext(ctx).Infof("Version set to '%v", config.Version)
 			}
 			if err = f(ctx, config); err != nil {
 				return err
@@ -319,6 +290,10 @@ func runUpdateRemoteSNService(ctx context.Context, config *configs.Config) (err 
 }
 
 func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (err error) {
+	if len(config.RemoteIP) == 0 {
+		log.WithContext(ctx).Fatal("remote IP is required")
+		return fmt.Errorf("remote IP is required")
+	}
 	log.WithContext(ctx).Infof("Updating remote %s", tool)
 
 	updateOptions := tool
@@ -340,7 +315,7 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 	}
 
 	if len(config.Version) > 0 {
-		updateOptions = fmt.Sprintf("%s --release=%s", updateOptions, config.Version)
+		updateOptions = fmt.Sprintf("%s --version=%s", updateOptions, config.Version)
 	}
 
 	updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update %s", constants.RemotePastelupPath, updateOptions)

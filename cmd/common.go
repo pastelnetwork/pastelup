@@ -502,19 +502,8 @@ func copyPastelUpToRemote(ctx context.Context, config *configs.Config, client *u
 	} else {
 		log.WithContext(ctx).Infof("current OS is not linux, skipping pastelup copy")
 
-		if len(config.Version) == 0 {
-			fmt.Print("What version of pastelup to download on the remote host? Ex: 'latest', 'beta', ...")
-			reader := bufio.NewReader(os.Stdin)
-			var err error
-			version, err := reader.ReadString('\n')
-			if err != nil {
-				return err
-			}
-			config.Version = strings.TrimSuffix(version, "\n")
-		}
-
 		// Download PastelUpExecName from remote and save to remotePastelUp
-		downloadURL := fmt.Sprintf("%s/%s/pastelup/%s", constants.DownloadBaseURL, config.Version, constants.PastelUpExecName["Linux"])
+		downloadURL := fmt.Sprintf("%s/%s/pastelup/%s", constants.DownloadBaseURL, constants.GetVersionSubURL("", ""), constants.PastelUpExecName["Linux"])
 		log.WithContext(ctx).Infof("downloading pastelup from %s", downloadURL)
 
 		cmd := fmt.Sprintf("wget %s -O %s", downloadURL, remotePastelUp)

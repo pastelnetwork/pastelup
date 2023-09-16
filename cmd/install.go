@@ -91,8 +91,8 @@ func setupSubCommand(config *configs.Config,
 	f func(context.Context, *configs.Config) error,
 ) *cli.Command {
 	commonFlags := []*cli.Flag{
-		cli.NewFlag("release", &config.Version).SetAliases("r").
-			SetUsage(green("Required, Pastel version to install")).SetRequired(),
+		cli.NewFlag("version", &config.Version).SetAliases("v").
+			SetUsage(green("Optional, Pastel version to install, default is latest release either mainnet or testnet, depending on the network flag")),
 		cli.NewFlag("force", &config.Force).SetAliases("f").
 			SetUsage(green("Optional, Force to overwrite config files and re-download ZKSnark parameters")),
 		cli.NewFlag("regen-rpc", &config.RegenRPC).
@@ -103,9 +103,11 @@ func setupSubCommand(config *configs.Config,
 
 	pastelFlags := []*cli.Flag{
 		cli.NewFlag("network", &config.Network).SetAliases("n").
-			SetUsage(green("Optional, network type, can be - \"mainnet\" or \"testnet\"")).SetValue("mainnet"),
+			SetUsage(red("Required, network type, can be - \"mainnet\" or \"testnet\"")),
 		cli.NewFlag("peers", &config.Peers).SetAliases("p").
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
+		cli.NewFlag("legacy", &config.Legacy).
+			SetUsage(green("Optional, Install legacy pastel parameters - including sprout proving and verifying keys")).SetValue(false),
 	}
 
 	userFlags := []*cli.Flag{
@@ -133,7 +135,7 @@ func setupSubCommand(config *configs.Config,
 
 	remoteFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
-			SetUsage(red("Required (if inventory not used), SSH address of the remote host")).SetRequired(),
+			SetUsage(red("Required (if inventory not used), SSH address of the remote host")),
 		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).
@@ -194,13 +196,10 @@ func setupSubCommand(config *configs.Config,
 				os.Exit(0)
 			})
 
-			if config.Version == "" {
-				log.WithContext(ctx).
-					WithError(constants.NoVersionSetErr{}).
-					Error("Failed to process install command")
-				return err
+			log.WithContext(ctx).Infof("Install started for network mode '%v'...", config.Network)
+			if config.Version != "" {
+				log.WithContext(ctx).Infof("Version set to '%v", config.Version)
 			}
-			log.WithContext(ctx).Infof("Started install...release set to '%v' ", config.Version)
 			if err = f(ctx, config); err != nil {
 				return err
 			}
@@ -311,6 +310,15 @@ func runRemoteInstallHermesService(ctx context.Context, config *configs.Config) 
 }
 
 func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) (err error) {
+	if config.Network != "testnet" && config.Network != "mainnet" {
+		log.WithContext(ctx).Fatal("--network or -n parameter is required")
+		return fmt.Errorf("--network or -n parameter is required")
+	}
+	if len(config.RemoteIP) == 0 {
+		log.WithContext(ctx).Fatal("remote IP is required")
+		return fmt.Errorf("remote IP is required")
+	}
+
 	log.WithContext(ctx).Infof("Installing remote %s", tool)
 
 	remoteOptions := tool
@@ -327,7 +335,7 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 	}
 
 	if len(config.Version) > 0 {
-		remoteOptions = fmt.Sprintf("%s --release=%s", remoteOptions, config.Version)
+		remoteOptions = fmt.Sprintf("%s --version=%s", remoteOptions, config.Version)
 	}
 
 	if len(config.Peers) > 0 {
@@ -354,6 +362,7 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 }
 
 func runServicesInstall(ctx context.Context, config *configs.Config, installCommand constants.ToolType, withDependencies bool) error {
+
 	if config.OpMode == "install" && !utils.ContainsToolType(nonNetworkDependentServices, installCommand) {
 		if !utils.IsValidNetworkOpt(config.Network) {
 			return fmt.Errorf("invalid --network provided. valid opts: %s", strings.Join(constants.NetworkModes, ","))
@@ -465,7 +474,7 @@ func installPastelUp(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Installing Pastelup tool ...")
 	pastelupExecName := constants.PastelUpExecName[utils.GetOS()]
 	pastelupName := constants.PastelupName[utils.GetOS()]
-	if err := downloadComponents(ctx, config, constants.Pastelup, config.Version, ""); err != nil {
+	if err := downloadComponents(ctx, config, constants.Pastelup, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.Pastelup)
 		return err
 	}
@@ -488,7 +497,7 @@ func installPastelCore(ctx context.Context, config *configs.Config) error {
 	pasteldName := constants.PasteldName[utils.GetOS()]
 	pastelCliName := constants.PastelCliName[utils.GetOS()]
 
-	if err := downloadComponents(ctx, config, constants.PastelD, config.Version, ""); err != nil {
+	if err := downloadComponents(ctx, config, constants.PastelD, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.PastelD)
 		return err
 	}
@@ -521,7 +530,7 @@ func installRaptorQService(ctx context.Context, config *configs.Config) error {
 		return errors.Errorf("failed to get rqservice config: %v", err)
 	}
 
-	if err = downloadComponents(ctx, config, constants.RQService, config.Version, ""); err != nil {
+	if err = downloadComponents(ctx, config, constants.RQService, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", toolPath)
 		return err
 	}
@@ -549,7 +558,7 @@ func installRaptorQService(ctx context.Context, config *configs.Config) error {
 func installDupeDetection(ctx context.Context, config *configs.Config) (err error) {
 	log.WithContext(ctx).Info("Installing dd-service...")
 	// Download dd-service
-	if err = downloadComponents(ctx, config, constants.DDService, config.Version, constants.DupeDetectionSubFolder); err != nil {
+	if err = downloadComponents(ctx, config, constants.DDService, constants.DupeDetectionSubFolder); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", constants.DDService)
 		return err
 	}
@@ -700,7 +709,7 @@ func installWalletNodeService(ctx context.Context, config *configs.Config) error
 		return errors.Errorf("failed to get walletnode config: %v", err)
 	}
 
-	if err = downloadComponents(ctx, config, constants.WalletNode, config.Version, ""); err != nil {
+	if err = downloadComponents(ctx, config, constants.WalletNode, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", wnPath)
 		return err
 	}
@@ -726,7 +735,7 @@ func installWalletNodeService(ctx context.Context, config *configs.Config) error
 			return errors.Errorf("failed to get bridge config: %v", err)
 		}
 
-		if err = downloadComponents(ctx, config, constants.Bridge, config.Version, ""); err != nil {
+		if err = downloadComponents(ctx, config, constants.Bridge, ""); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", bridgePath)
 			return err
 		}
@@ -767,7 +776,7 @@ func installHermes(ctx context.Context, config *configs.Config) error {
 
 	hermesPath := constants.HermesExecName[utils.GetOS()]
 
-	if err = downloadComponents(ctx, config, constants.Hermes, config.Version, ""); err != nil {
+	if err = downloadComponents(ctx, config, constants.Hermes, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", hermesPath)
 		return err
 	}
@@ -807,12 +816,12 @@ func installSuperNodeService(ctx context.Context, config *configs.Config, tryOpe
 	snPath := constants.SuperNodeExecName[utils.GetOS()]
 	hermesPath := constants.HermesExecName[utils.GetOS()]
 
-	if err = downloadComponents(ctx, config, constants.SuperNode, config.Version, ""); err != nil {
+	if err = downloadComponents(ctx, config, constants.SuperNode, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", snPath)
 		return err
 	}
 
-	if err = downloadComponents(ctx, config, constants.Hermes, config.Version, ""); err != nil {
+	if err = downloadComponents(ctx, config, constants.Hermes, ""); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download %s", hermesPath)
 		return err
 	}
@@ -1051,7 +1060,7 @@ func addGoogleRepo(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func downloadComponents(ctx context.Context, config *configs.Config, installCommand constants.ToolType, version string, dstFolder string) (err error) {
+func downloadComponents(ctx context.Context, config *configs.Config, installCommand constants.ToolType, dstFolder string) (err error) {
 	if _, err := os.Stat(config.PastelExecDir); os.IsNotExist(err) {
 		if err := utils.CreateFolder(ctx, config.PastelExecDir, config.Force); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("create folder: %s", config.PastelExecDir)
@@ -1062,7 +1071,14 @@ func downloadComponents(ctx context.Context, config *configs.Config, installComm
 	commandName := filepath.Base(string(installCommand))
 	log.WithContext(ctx).Infof("Downloading %s...", commandName)
 
-	downloadURL, archiveName, err := config.Configurer.GetDownloadURL(version, installCommand)
+	network := config.Network
+	version := config.Version
+	if installCommand == constants.Pastelup { // Pastelup is in the root of 'latest-release' folder
+		network = ""
+		version = ""
+	}
+
+	downloadURL, archiveName, err := config.Configurer.GetDownloadURL(network, version, installCommand)
 	if err != nil {
 		return errors.Errorf("failed to get download url: %v", err)
 	}
@@ -1171,7 +1187,7 @@ func setupBasePastelWorkingEnvironment(ctx context.Context, config *configs.Conf
 	}
 
 	// download zksnark params
-	if err := downloadZksnarkParams(ctx, config.Configurer.DefaultZksnarkDir(), config.Force, config.Version); err != nil &&
+	if err := downloadZksnarkParams(ctx, config.Configurer.DefaultZksnarkDir(), config.Force, config.Legacy); err != nil &&
 		!(os.IsExist(err) && !config.Force) {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to download Zksnark parameters into folder %s", config.Configurer.DefaultZksnarkDir())
 		return fmt.Errorf("failed to download Zksnark parameters into folder %s - %v", config.Configurer.DefaultZksnarkDir(), err)
@@ -1232,11 +1248,11 @@ func updatePastelConfigFile(ctx context.Context, filePath string, config *config
 	return nil
 }
 
-func downloadZksnarkParams(ctx context.Context, path string, force bool, version string) error {
+func downloadZksnarkParams(ctx context.Context, path string, force bool, legacy bool) error {
 	log.WithContext(ctx).Info("Downloading pastel-param files:")
 
 	zkParams := configs.ZksnarkParamsNamesV2
-	if version != "beta" { //@TODO remove after Cezanne release
+	if legacy {
 		zkParams = append(zkParams, configs.ZksnarkParamsNamesV1...)
 	}
 

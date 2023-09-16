@@ -71,12 +71,13 @@ go mod tidy
 #### 1. Install node
 
 
+On mainnet:
 ```shell
-./pastelup install node -r latest
+./pastelup install node -n=mainnet
 ```
 Or for testnet:
 ```shell
-./pastelup install node -r latest -n=testnet
+./pastelup install node -n=testnet
 ```
 The above command will install the following applications:
 - pasteld
@@ -102,12 +103,7 @@ The above command will stop the following services:
 
 ```shell
 ./pastelup stop node
-./pastelup update node -r latest -n=mainnet
-```
-Or for testnet:
-```shell
-./pastelup stop node
-./pastelup update node -r latest -n=testnet
+./pastelup update node
 ```
 The above command will update the following applications:
 - pasteld
@@ -119,12 +115,13 @@ The above command will update the following applications:
 
 #### 1. Install walletnode
    
+On mainnet:
 ```shell
-./pastelup install walletnode -r latest
+./pastelup install walletnode -n=mainnet
 ```
 Or for testnet:
 ```shell
-./pastelup install walletnode -r latest -n=testnet
+./pastelup install walletnode -n=testnet
 ```
 The above command will install the following applications:
 - pasteld
@@ -169,11 +166,7 @@ The above command will stop the following applications:
 #### 4. Update walletnode
 
 ```shell
-./pastelup update walletnode -r latest
-```
-Or for testnet:
-```shell
-./pastelup update walletnode -r latest -n=testnet
+./pastelup update walletnode
 ```
 The above command will update the following applications:
 - pasteld
@@ -195,12 +188,14 @@ It is **RECOMMENDED** to use **Secure** mode. But this guide will explain instal
 #### A. Install supernode in **HOT** mode - on the single host
 
 ##### 1. Install supernode
+
+On mainnet:
 ```shell
-./pastelup install supernode -r latest
+./pastelup install supernode -n=mainnet
 ```
 Or for testnet:
 ```shell
-./pastelup install supernode -r latest -n=testnet
+./pastelup install supernode -n=testnet
 ```
 The above command will install the following applications:
 - pasteld
@@ -276,7 +271,7 @@ The above command will stop following services:
 ##### 4. Update supernode
 
 ```shell
-./pastelup update supernode  --name=<SN-name> -r latest
+./pastelup update supernode
 ```
 The above command will update the following applications:
 - pasteld
@@ -306,13 +301,14 @@ chmod +x pastelup-darwin-amd64
 ```
 
 ##### 2. Install Pastel node
+On mainnet:
 ```shell
-./pastelup install node -r latest
+./pastelup install node -n mainnet
 ```
 
 Or for testnet:
 ```shell
-./pastelup install node -r latest -n testnet
+./pastelup install node -n testnet
 ```
 
 ##### 3. Start local node and wait for it to fully sync
@@ -341,13 +337,15 @@ When sync is successful, you should see the similar result
 ##### Install and initialize SuperNode on remote host
 
 ##### 1. Install
+
+On mainnet:
 ```shell
-./pastelup install supetnode remote -r latest --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
+./pastelup install supetnode remote -n mainnet --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
 ```
 
 Or for testnet:
 ```shell
-./pastelup install supetnode remote -r latest -n testnet --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
+./pastelup install supetnode remote -n testnet --ssh-ip <IP_ADDRESS_OF_COLD_NODE> --ssh-user <SSH_USER_OF_COLD_NODE> --ssh-key <PATH_TO_SSH_PRIVATE_KEY_FILE>
 ```
 
 > Replace <IP_ADDRESS_OF_COLD_NODE>, <SSH_USER_OF_COLD_NODE> and <PATH_TO_SSH_PRIVATE_KEY_FILE> with your values.
@@ -481,12 +479,12 @@ COMMANDS:
    help, h  Shows a list of commands or help for one command
 
 OPTIONS:
+   --network value, -n value   Required, network type, can be - "mainnet" or "testnet"
    --dir value, -d value       Optional, Location where to create pastel node directory
    --work-dir value, -w value  Optional, Location where to create working directory
-   --release value, -r value   Required, Pastel version to install
+   --release value, -r value   Optional, Historical Pastel version to install
    --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
    --regen-rpc                 Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file (default: false)
-   --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
    --peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"
    --log-level level           Set the log level. (default: "info")
    --log-file file             The log file to write to.
@@ -507,9 +505,10 @@ COMMANDS:
    help, h  Shows a list of commands or help for one command
 
 OPTIONS:
+   --network value, -n value   Required, network type, can be - "mainnet" or "testnet"
    --dir value, -d value       Optional, Location where to create pastel node directory
    --work-dir value, -w value  Optional, Location where to create working directory
-   --release value, -r value   Required, Pastel version to install
+   --release value, -r value   Optional, Historical Pastel version to install
    --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
    --regen-rpc                 Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file (default: false)
    --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
@@ -533,9 +532,10 @@ COMMANDS:
    help, h  Shows a list of commands or help for one command
 
 OPTIONS:
+   --network value, -n value   Required, network type, can be - "mainnet" or "testnet"
    --dir value, -d value       Optional, Location where to create pastel node directory
    --work-dir value, -w value  Optional, Location where to create working directory
-   --release value, -r value   Required, Pastel version to install
+   --release value, -r value   Optional, Historical Pastel version to install
    --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
    --regen-rpc                 Optional, regenerate the random rpc user, password and chosen port. This will happen automatically if not defined already in your pastel.conf file (default: false)
    --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
@@ -745,8 +745,7 @@ OPTIONS:
    --dir value, -d value       Optional, Location where to create pastel node directory
    --work-dir value, -w value  Optional, Location where to create working directory
    --archive-dir value         Optional, Location where to store archived backup before update
-   --release value, -r value   Required, Pastel version to install
-   --network value, -n value   Optional, network type, can be - "mainnet" or "testnet" (default: "mainnet")
+   --release value, -r value   Optional, Historical Pastel version to install
    --force, -f                 Optional, Force to overwrite config files and re-download ZKSnark parameters (default: false)
    --skip-system-update        Optional, Skip System Update skips linux apt-update (default: false)
    --peers value, -p value     Optional, List of peers to add into pastel.conf file, must be in the format - "ip" or "ip:port"

@@ -275,9 +275,8 @@ func (rs *RemoteScript) Run() error {
 		return rs.runScript()
 	} else if rs.scriptType == scriptFile {
 		return rs.runScriptFile()
-	} else {
-		return errors.New("not supported RemoteScript type")
 	}
+	return errors.New("not supported RemoteScript type")
 }
 
 // Output runs the script on the client and returns its standard output.

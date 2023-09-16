@@ -477,7 +477,7 @@ func CheckZksnarkParams(ctx context.Context, config *configs.Config) error {
 	return nil
 }
 
-func copyPastelUpToRemote(ctx context.Context, config *configs.Config, client *utils.Client, remotePastelUp string) error {
+func copyPastelUpToRemote(ctx context.Context, client *utils.Client, remotePastelUp string) error {
 	// Check if the current os is linux
 	if runtime.GOOS == "linux" {
 		log.WithContext(ctx).Infof("copying pastelup to remote")
@@ -630,7 +630,7 @@ func prepareRemoteSession(ctx context.Context, config *configs.Config) (*utils.C
 
 	// Transfer pastelup to remote
 	log.WithContext(ctx).Info("installing pastelup to remote host...")
-	if err := copyPastelUpToRemote(ctx, config, client, constants.RemotePastelupPath); err != nil {
+	if err := copyPastelUpToRemote(ctx, client, constants.RemotePastelupPath); err != nil {
 		log.WithContext(ctx).Errorf("Failed to copy pastelup to remote at %s - %v", constants.RemotePastelupPath, err)
 		client.Close()
 		return nil, fmt.Errorf("failed to install pastelup at %s - %v", constants.RemotePastelupPath, err)

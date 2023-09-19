@@ -28,9 +28,9 @@ func setupPingCommand(config *configs.Config) *cli.Command {
 
 	pingSuperCommandFlags := []*cli.Flag{
 		cli.NewFlag("ip", &superNodeIP).
-			SetUsage(red("Required, ip address of service")).SetRequired(),
+			SetUsage(red("Required, ip address of service")),
 		cli.NewFlag("port", &superNodePort).
-			SetUsage(red("Required, port of service")).SetRequired(),
+			SetUsage(red("Required, port of service")),
 	}
 
 	pingSuperCommand := cli.NewCommand("supernode")

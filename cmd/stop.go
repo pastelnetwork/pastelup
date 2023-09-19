@@ -92,7 +92,7 @@ func setupStopSubCommand(config *configs.Config,
 
 	remoteStopFlags := []*cli.Flag{
 		cli.NewFlag("ssh-ip", &config.RemoteIP).
-			SetUsage(red("Required, SSH address of the remote host")).SetRequired(),
+			SetUsage(red("Required, SSH address of the remote host")),
 		cli.NewFlag("ssh-port", &config.RemotePort).
 			SetUsage(yellow("Optional, SSH port of the remote host, default is 22")).SetValue(22),
 		cli.NewFlag("ssh-user", &config.RemoteUser).

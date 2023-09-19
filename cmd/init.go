@@ -83,7 +83,7 @@ func setupInitSubCommand(config *configs.Config,
 
 	superNodeInitFlags := []*cli.Flag{
 		cli.NewFlag("name", &config.MasterNodeName).
-			SetUsage(red("Required, name of the Masternode to create or update in the masternode.conf")).SetRequired(),
+			SetUsage(red("Required, name of the Masternode to create or update in the masternode.conf")),
 
 		cli.NewFlag("new", &config.CreateNewMasterNodeConf).
 			SetUsage(red("Required (if --add is not used), if specified, will create new masternode.conf with new Masternode record in it.")),

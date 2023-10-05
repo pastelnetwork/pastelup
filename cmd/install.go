@@ -39,7 +39,8 @@ var (
 	flagIgnoreDependencies bool
 )
 
-var nonNetworkDependentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
+// var nonNetworkDependentServices = []constants.ToolType{constants.DDImgService, constants.DDService, constants.RQService}
+var nonNetworkDependentServices []constants.ToolType
 
 var (
 	installCmdName = map[installCommand]string{
@@ -101,9 +102,12 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(green("Optional, ignore checking dependencies and continue installation even if dependencies are not met")),
 	}
 
-	pastelFlags := []*cli.Flag{
+	networkFlags := []*cli.Flag{
 		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(red("Required, network type, can be - \"mainnet\" or \"testnet\"")),
+	}
+
+	pastelFlags := []*cli.Flag{
 		cli.NewFlag("peers", &config.Peers).SetAliases("p").
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
 		cli.NewFlag("legacy", &config.Legacy).
@@ -162,7 +166,9 @@ func setupSubCommand(config *configs.Config,
 		commandMessage = installCmdMessage[remoteInstall]
 	}
 
-	commandFlags := append(dirsFlags, commonFlags[:]...)
+	commandFlags := append(networkFlags, dirsFlags[:]...)
+	commandFlags = append(commandFlags, commonFlags[:]...)
+
 	if installCommand == installNode ||
 		installCommand == installWalletNode ||
 		installCommand == installSuperNode {

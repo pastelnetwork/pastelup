@@ -295,10 +295,10 @@ var DupeDetectionConfigs = []string{
 
 // DupeDetectionSupportDownloadURL - The URL of dupe detection support files
 var DupeDetectionSupportDownloadURL = []string{
-	"https://download.pastel.network/machine-learning/pastel_image_dupe_detection_model_v_1_0.pth.tar",
-	"https://download.pastel.network/machine-learning/pca_byol_bw.vt",
-	"https://download.pastel.network/machine-learning/bayesian_ridge_model_3.joblib",
-	"https://download.pastel.network/machine-learning/nsfw_mobilenet_v2_140_224.zip",
+	"https://download.pastel.network/other/machine-learning/pastel_image_dupe_detection_model_v_1_0.pth.tar",
+	"https://download.pastel.network/other/machine-learning/pca_byol_bw.vt",
+	"https://download.pastel.network/other/machine-learning/bayesian_ridge_model_3.joblib",
+	"https://download.pastel.network/other/machine-learning/nsfw_mobilenet_v2_140_224.zip",
 }
 
 // DupeDetectionSupportChecksum - The checksum of dupe detection support files

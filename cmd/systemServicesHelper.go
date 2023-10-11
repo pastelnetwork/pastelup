@@ -43,7 +43,7 @@ var (
 			"node",
 			"walletnode",
 			"rq-service",
-			"bridge",
+			//"bridge",
 		},
 	}
 

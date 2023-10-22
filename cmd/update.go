@@ -290,9 +290,9 @@ func runUpdateRemoteSNService(ctx context.Context, config *configs.Config) (err 
 }
 
 func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (err error) {
-	if len(config.RemoteIP) == 0 {
-		log.WithContext(ctx).Fatal("remote IP is required")
-		return fmt.Errorf("remote IP is required")
+	if len(config.RemoteIP) == 0 && len(config.InventoryFile) == 0 {
+		log.WithContext(ctx).Fatal("either remote IP or inventory file is required")
+		return fmt.Errorf("remote IP  or inventory file is required")
 	}
 	log.WithContext(ctx).Infof("Updating remote %s", tool)
 

@@ -248,7 +248,7 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startSNServiceRemoteCommand := setupStartSubCommand(config, snService, true, runRemoteSNServiceStartSubCommand)
 	startSNServiceCommand.AddSubcommands(startSNServiceRemoteCommand)
 
-	startMasternodeRemoteCommand := setupStartSubCommand(config, masterNode, true, runRemoteSNServiceStartSubCommand)
+	startMasternodeRemoteCommand := setupStartSubCommand(config, masterNode, true, runRemoteMasterNodeStartSubCommand)
 	startMasternodeCommand.AddSubcommands(startMasternodeRemoteCommand)
 
 	startDDImgServerRemoteCommand := setupStartSubCommand(config, ddImgServer, true, runRemoteDDImgServerSubCommand)
@@ -433,6 +433,9 @@ func runStartSuperNode(ctx context.Context, config *configs.Config, justInit boo
 
 func runRemoteNodeStartSubCommand(ctx context.Context, config *configs.Config) error {
 	return runRemoteStart(ctx, config, "node")
+}
+func runRemoteMasterNodeStartSubCommand(ctx context.Context, config *configs.Config) error {
+	return runRemoteStart(ctx, config, "masternode")
 }
 func runRemoteSuperNodeStartSubCommand(ctx context.Context, config *configs.Config) error {
 	return runRemoteStart(ctx, config, "supernode")

@@ -24,4 +24,5 @@ type IConfigurer interface {
 	GetWalletNodeConfFile(workingDir string) string
 	GetRQServiceConfFile(workingDir string) string
 	GetDownloadURL(network string, version string, tool constants.ToolType) (*url.URL, string, error)
+	GetChromeDownloadURL(network string, version string) (*url.URL, string, error)
 }

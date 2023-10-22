@@ -1011,13 +1011,32 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 		log.WithContext(ctx).Infof("%sing package %s", what, pkg)
 
 		if pkg == "google-chrome-stable" {
-			if err := addGoogleRepo(ctx, config); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to update pkg %s", pkg)
+			// sudo apt-mark unhold google-chrome-stable
+			_, err = RunSudoCMD(config, "apt-mark", "unhold", "google-chrome-stable")
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to un-pin google-chrome-stable")
 				return err
 			}
-			_, err = RunSudoCMD(config, "apt", "update")
+			// wget https://download.pastel.network/#latest-release/mainnet/dd-service/google-chrome-stable.deb
+			downloadURL, chromeDebName, err := config.Configurer.GetChromeDownloadURL(config.Network, config.Version)
 			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to update")
+				return errors.Errorf("failed to get download url for google-chrome-stable.deb: %v", err)
+			}
+			localDebFile := filepath.Join(config.PastelExecDir, chromeDebName)
+			if err = utils.DownloadFile(ctx, localDebFile, downloadURL.String()); err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Failed to download google-chrome-stable.deb: %s", downloadURL)
+				return err
+			}
+			// sudo dpkg -i google-chrome-stable.deb
+			_, err = RunSudoCMD(config, "apt", "dpkg", "-i", localDebFile)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to install google-chrome-stable")
+				return err
+			}
+			// sudo apt-mark hold google-chrome-stable
+			_, err = RunSudoCMD(config, "apt-mark", "hold", "google-chrome-stable")
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Error("Failed to pin google-chrome-stable")
 				return err
 			}
 		}
@@ -1029,42 +1048,6 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 		}
 	}
 	log.WithContext(ctx).Infof("Packages %sed", what)
-	return nil
-}
-
-func addGoogleRepo(ctx context.Context, config *configs.Config) error {
-	var err error
-
-	log.WithContext(ctx).Info("Adding google ssl key ...")
-
-	_, err = RunCMD("bash", "-c", "wget -q -O - "+constants.GooglePubKeyURL+" > /tmp/google-key.pub")
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Write /tmp/google-key.pub failed")
-		return err
-	}
-
-	_, err = RunSudoCMD(config, "apt-key", "add", "/tmp/google-key.pub")
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to add google ssl key")
-		return err
-	}
-	log.WithContext(ctx).Info("Added google ssl key")
-
-	// Add google repo: /etc/apt/sources.list.d/google-chrome.list
-	log.WithContext(ctx).Info("Adding google ppa repo ...")
-	_, err = RunCMD("bash", "-c", "echo '"+constants.GooglePPASourceList+"' | tee /tmp/google-chrome.list")
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to create /tmp/google-chrome.list")
-		return err
-	}
-
-	_, err = RunSudoCMD(config, "mv", "/tmp/google-chrome.list", constants.UbuntuSourceListPath)
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to move /tmp/google-chrome.list to " + constants.UbuntuSourceListPath)
-		return err
-	}
-
-	log.WithContext(ctx).Info("Added google ppa repo")
 	return nil
 }
 

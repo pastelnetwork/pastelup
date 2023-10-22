@@ -110,6 +110,21 @@ func (c *configurer) DefaultArchiveDir() string {
 	return filepath.Join(c.DefaultHomeDir(), filepath.FromSlash(getAppDataDir()), c.archiveDir)
 }
 
+// GetChromeDownloadURL returns download url of the pastel executables.
+func (c *configurer) GetChromeDownloadURL(network string, version string) (*url.URL, string, error) {
+	chromeDebName := "google-chrome-stable.deb"
+	urlString := fmt.Sprintf(
+		templateDownloadURL,
+		constants.GetVersionSubURL(network, version),
+		constants.DDService,
+		chromeDebName)
+	downloadURL, err := url.Parse(urlString)
+	if err != nil {
+		return nil, "", errors.Errorf("failed to parse url: %v", err)
+	}
+	return downloadURL, chromeDebName, nil
+}
+
 // GetDownloadURL returns download url of the pastel executables.
 func (c *configurer) GetDownloadURL(network string, version string, tool constants.ToolType) (*url.URL, string, error) {
 	var name string
@@ -146,12 +161,12 @@ func (c *configurer) GetDownloadURL(network string, version string, tool constan
 		tool,
 		name)
 
-	url, err := url.Parse(urlString)
+	downloadURL, err := url.Parse(urlString)
 	if err != nil {
 		return nil, "", errors.Errorf("failed to parse url: %v", err)
 	}
 	tokens := strings.Split(urlString, "/")
-	return url, tokens[len(tokens)-1], nil
+	return downloadURL, tokens[len(tokens)-1], nil
 }
 
 func newLinuxConfigurer(homeDir string) IConfigurer {

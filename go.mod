@@ -1,8 +1,6 @@
 module github.com/pastelnetwork/pastelup
 
-go 1.21
-
-toolchain go1.21.2
+go 1.19
 
 require (
 	github.com/bramvdbogaerde/go-scp v1.2.1

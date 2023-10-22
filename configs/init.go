@@ -10,7 +10,7 @@ type Init struct {
 	Force                       bool   `json:"force,omitempty"`
 	SkipSystemUpdate            bool   `json:"skip-system-update,omitempty"`
 	SkipDDPackagesUpdate        bool   `json:"skip-dd-packages-update,omitempty"`
-	SkipDDSupportingDilesUpdate bool   `json:"skip-dd-supporting-files-update,omitempty"`
+	SkipDDSupportingFilesUpdate bool   `json:"skip-dd-supporting-files-update,omitempty"`
 	Clean                       bool   `json:"clean,omitempty"`
 	Peers                       string `json:"peers"`
 	PastelExecDir               string `json:"pastelexecdir,omitempty"`

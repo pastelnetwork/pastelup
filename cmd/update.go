@@ -92,7 +92,7 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Skip System Update skips linux apt-update")).SetValue(true),
 		cli.NewFlag("skip-dd-packages-update", &config.SkipDDPackagesUpdate).
 			SetUsage(green("Optional, Skip Update of python packages during dd-service update")).SetValue(true),
-		cli.NewFlag("skip-dd-supporting-files-update", &config.SkipDDSupportingDilesUpdate).
+		cli.NewFlag("skip-dd-supporting-files-update", &config.SkipDDSupportingFilesUpdate).
 			SetUsage(green("Optional, Skip Download and Update of dd-service supporting files")).SetValue(true),
 	}
 

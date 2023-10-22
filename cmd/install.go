@@ -571,6 +571,16 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 		return err
 	}
 
+	if config.OpMode == "update" && config.SkipSystemUpdate {
+		log.WithContext(ctx).Info("Skipping Chrome update")
+	} else {
+		err = installOrUpdateChrome(ctx, config)
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to %s Chrome", config.OpMode)
+			return err
+		}
+	}
+
 	if config.OpMode == "update" && config.SkipDDPackagesUpdate {
 		log.WithContext(ctx).Info("Skipping dd-service packages update")
 	} else {
@@ -610,7 +620,7 @@ func installDupeDetection(ctx context.Context, config *configs.Config) (err erro
 	}
 
 	ddSupportFilesDir := filepath.Join(appBaseDir, constants.DupeDetectionSupportFilePath)
-	if config.OpMode == "update" && config.SkipDDSupportingDilesUpdate {
+	if config.OpMode == "update" && config.SkipDDSupportingFilesUpdate {
 		log.WithContext(ctx).Info("Skipping dd-service supporting files update")
 	} else {
 		tmpDir := filepath.Join(ddSupportFilesDir, "temp.zip")
@@ -1010,36 +1020,6 @@ func installOrUpgradePackagesLinux(ctx context.Context, config *configs.Config, 
 	for _, pkg := range packages {
 		log.WithContext(ctx).Infof("%sing package %s", what, pkg)
 
-		if pkg == "google-chrome-stable" {
-			// sudo apt-mark unhold google-chrome-stable
-			_, err = RunSudoCMD(config, "apt-mark", "unhold", "google-chrome-stable")
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to un-pin google-chrome-stable")
-				return err
-			}
-			// wget https://download.pastel.network/#latest-release/mainnet/dd-service/google-chrome-stable.deb
-			downloadURL, chromeDebName, err := config.Configurer.GetChromeDownloadURL(config.Network, config.Version)
-			if err != nil {
-				return errors.Errorf("failed to get download url for google-chrome-stable.deb: %v", err)
-			}
-			localDebFile := filepath.Join(config.PastelExecDir, chromeDebName)
-			if err = utils.DownloadFile(ctx, localDebFile, downloadURL.String()); err != nil {
-				log.WithContext(ctx).WithError(err).Errorf("Failed to download google-chrome-stable.deb: %s", downloadURL)
-				return err
-			}
-			// sudo dpkg -i google-chrome-stable.deb
-			_, err = RunSudoCMD(config, "apt", "dpkg", "-i", localDebFile)
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to install google-chrome-stable")
-				return err
-			}
-			// sudo apt-mark hold google-chrome-stable
-			_, err = RunSudoCMD(config, "apt-mark", "hold", "google-chrome-stable")
-			if err != nil {
-				log.WithContext(ctx).WithError(err).Error("Failed to pin google-chrome-stable")
-				return err
-			}
-		}
 		out, err = RunSudoCMD(config, "apt", "-y", what, pkg) //"install" or "upgrade"
 		if err != nil {
 			log.WithContext(ctx).WithFields(log.Fields{"message": out, "package": pkg}).
@@ -1277,6 +1257,38 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool, legacy 
 		}
 	}
 	log.WithContext(ctx).Info("Pastel params downloaded.\n")
+	return nil
+}
+
+func installOrUpdateChrome(ctx context.Context, config *configs.Config) error {
+	// sudo apt-mark unhold google-chrome-stable
+	_, err := RunSudoCMD(config, "apt-mark", "unhold", "google-chrome-stable")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to un-pin google-chrome-stable")
+		return err
+	}
+	// wget https://download.pastel.network/#latest-release/mainnet/dd-service/google-chrome-stable.deb
+	downloadURL, chromeDebName, err := config.Configurer.GetChromeDownloadURL(config.Network, config.Version)
+	if err != nil {
+		return errors.Errorf("failed to get download url for google-chrome-stable.deb: %v", err)
+	}
+	localDebFile := filepath.Join(config.PastelExecDir, chromeDebName)
+	if err = utils.DownloadFile(ctx, localDebFile, downloadURL.String()); err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("Failed to download google-chrome-stable.deb: %s", downloadURL)
+		return err
+	}
+	// sudo dpkg -i google-chrome-stable.deb
+	_, err = RunSudoCMD(config, "dpkg", "-i", localDebFile)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to install google-chrome-stable")
+		return err
+	}
+	// sudo apt-mark hold google-chrome-stable
+	_, err = RunSudoCMD(config, "apt-mark", "hold", "google-chrome-stable")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to pin google-chrome-stable")
+		return err
+	}
 	return nil
 }
 

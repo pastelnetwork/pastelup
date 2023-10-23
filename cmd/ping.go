@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/pastelnetwork/gonode/common/cli"
-	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/sys"
+	"github.com/pastelnetwork/pastelup/common/cli"
+	"github.com/pastelnetwork/pastelup/common/log"
+	"github.com/pastelnetwork/pastelup/common/sys"
 	"github.com/pastelnetwork/pastelup/configs"
 
-	pb "github.com/pastelnetwork/gonode/proto/healthcheck"
+	pb "github.com/pastelnetwork/pastelup/proto/healthcheck"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

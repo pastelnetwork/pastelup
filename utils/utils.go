@@ -28,7 +28,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/dustin/go-humanize"
-	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/pastelup/common/log"
 	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pkg/errors"
 )

@@ -2,14 +2,15 @@ package cmd
 
 import (
 	"context"
-	"github.com/pastelnetwork/gonode/common/log"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/pastelnetwork/pastelup/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v2"
-	"os"
-	"strconv"
-	"strings"
 )
 
 // Inventory defines top level of Inventory file

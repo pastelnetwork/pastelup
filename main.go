@@ -3,10 +3,10 @@ package main
 import (
 	"os"
 
-	"github.com/pastelnetwork/gonode/common/errors"
-	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/sys"
 	"github.com/pastelnetwork/pastelup/cmd"
+	"github.com/pastelnetwork/pastelup/common/errors"
+	"github.com/pastelnetwork/pastelup/common/log"
+	"github.com/pastelnetwork/pastelup/common/sys"
 )
 
 const (

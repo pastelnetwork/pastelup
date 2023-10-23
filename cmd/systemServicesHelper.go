@@ -161,11 +161,31 @@ func removeSystemService(ctx context.Context, config *configs.Config) error {
 
 		tool := toolToToolType[app]
 
-		err = sm.StopService(ctx, config, tool)
-		if err != nil {
-			return fmt.Errorf("unable to stop %s as a system service: %v", app, err)
+		if isRegistered := sm.IsRegistered(ctx, config, tool); !isRegistered {
+			return nil // not even registered
 		}
-		log.WithContext(ctx).Infof("Stopped %s as a system service", app)
+
+		isRunning := sm.IsRunning(ctx, config, tool)
+		if isRunning {
+			err = sm.StopService(ctx, config, tool)
+			if err != nil {
+				return fmt.Errorf("unable to stop %s as a system service: %v", app, err)
+			}
+			log.WithContext(ctx).Infof("Stopped %s as a system service", app)
+		}
+
+		err = sm.DisableService(ctx, config, tool)
+		if err != nil {
+			log.WithContext(ctx).Warnf("unable to disable %s as a system service: %v", app, err)
+		} else {
+			log.WithContext(ctx).Infof("Disable %s as a system service", app)
+		}
+
+		err = sm.RemoveService(ctx, config, tool)
+		if err != nil {
+			log.WithContext(ctx).Warnf("unable to remove %s as a system service: %v", app, err)
+		}
+		log.WithContext(ctx).Infof("Remove %s as a system service", app)
 	}
 	return nil
 }

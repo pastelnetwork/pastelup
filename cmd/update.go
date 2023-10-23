@@ -244,7 +244,7 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 
 	installServiceSubCommand := setupUpdateSubCommand(config, installService, false, installSystemService)
 	installServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, installService, true, installSystemServiceRemote))
-	//removeServiceSubCommand := setupUpdateSubCommand(config, removeService, false, removeSystemService)
+	removeServiceSubCommand := setupUpdateSubCommand(config, removeService, false, removeSystemService)
 
 	// Add update command
 	updateCommand := cli.NewCommand("update")
@@ -258,7 +258,7 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 	updateCommand.AddSubcommands(updateWNServiceSubCommand)
 	updateCommand.AddSubcommands(updateSNServiceSubCommand)
 	updateCommand.AddSubcommands(installServiceSubCommand)
-	//updateCommand.AddSubcommands(removeServiceSubCommand)
+	updateCommand.AddSubcommands(removeServiceSubCommand)
 
 	return updateCommand
 }

@@ -360,7 +360,7 @@ var DependenciesPackagesSuperNode = map[OSType][]string{
 
 // DependenciesPackagesDDService defines some dependencies for walletnode
 var DependenciesPackagesDDService = map[OSType][]string{
-	Linux:   {"python3-pip", "google-chrome-stable", "libwebp-dev", "python3-venv"},
+	Linux:   {"python3-pip", "libwebp-dev", "python3-venv"},
 	Mac:     {},
 	Windows: {},
 	Unknown: {},

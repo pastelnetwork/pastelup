@@ -20,6 +20,7 @@ type ServiceManager interface {
 	StopService(context.Context, *configs.Config, constants.ToolType) error
 	EnableService(context.Context, *configs.Config, constants.ToolType) error
 	DisableService(context.Context, *configs.Config, constants.ToolType) error
+	RemoveService(context.Context, *configs.Config, constants.ToolType) error
 	IsRunning(context.Context, *configs.Config, constants.ToolType) bool
 	IsRegistered(context.Context, *configs.Config, constants.ToolType) bool
 	ServiceName(constants.ToolType) string
@@ -79,6 +80,11 @@ func (nm NoopManager) EnableService(context.Context, *configs.Config, constants.
 
 // DisableService checks to see if the service is running
 func (nm NoopManager) DisableService(context.Context, *configs.Config, constants.ToolType) error {
+	return nil
+}
+
+// RemoveService removes a service from the OS system manager
+func (nm NoopManager) RemoveService(context.Context, *configs.Config, constants.ToolType) error {
 	return nil
 }
 
@@ -310,6 +316,28 @@ func (sm LinuxSystemdManager) DisableService(ctx context.Context, config *config
 			WithError(err).Error("unable to disable " + appServiceFileName + " service")
 		return fmt.Errorf("err enabling "+appServiceFileName+" - err: %s", err)
 	}
+	return nil
+}
+
+// RemoveService removes a service from the OS system manager
+func (sm LinuxSystemdManager) RemoveService(ctx context.Context, config *configs.Config, app constants.ToolType) error {
+	appServiceFileName := sm.ServiceName(app)
+	log.WithContext(ctx).Info("Removing service", appServiceFileName)
+
+	appServiceFilePath := filepath.Join(constants.SystemdSystemDir, appServiceFileName)
+
+	if out, err := RunSudoCMD(config, "rm", appServiceFilePath); err != nil {
+		log.WithContext(ctx).WithFields(log.Fields{"message": out}).
+			WithError(err).Error("unable to remove " + appServiceFileName + " service")
+		return fmt.Errorf("err removing "+appServiceFileName+" - err: %s", err)
+	}
+
+	// reload systemctl daemon
+	_, err := RunSudoCMD(config, "systemctl", "daemon-reload")
+	if err != nil {
+		return fmt.Errorf("unable to reload systemctl daemon (%v): %v", app, err)
+	}
+
 	return nil
 }
 

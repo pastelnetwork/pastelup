@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"context"
+	"io"
+
 	"github.com/pastelnetwork/gonode/common/cli"
 	"github.com/pastelnetwork/gonode/common/log"
 	"github.com/pastelnetwork/gonode/common/log/hooks"
 	"github.com/pastelnetwork/pastelup/common/version"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pkg/errors"
-	"io"
 )
 
 const (
@@ -45,6 +46,7 @@ func NewApp(args []string) *cli.App {
 		setupShowCommand(configs.InitConfig(args)),
 		setupInfoCommand(configs.InitConfig(args)),
 		setupPingCommand(configs.InitConfig(args)),
+		setupUninstallCommand(configs.InitConfig(args)),
 	)
 	return app
 }

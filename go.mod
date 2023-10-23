@@ -1,6 +1,6 @@
 module github.com/pastelnetwork/pastelup
 
-go 1.21
+go 1.21.1
 
 require (
 	github.com/bramvdbogaerde/go-scp v1.2.1
@@ -13,7 +13,6 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/otiai10/copy v1.14.0
-	github.com/pastelnetwork/gonode/common v0.0.0-20231020210941-10c4770cd7ec
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4

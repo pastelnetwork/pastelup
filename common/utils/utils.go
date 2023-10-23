@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pastelnetwork/gonode/common/errors"
+	"github.com/pastelnetwork/pastelup/common/errors"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/klauspost/compress/zstd"

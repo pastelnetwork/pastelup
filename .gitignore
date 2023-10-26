@@ -7,3 +7,4 @@ pastel
 dist/
 .vscode/
 test/state/*.json
+vendor/

@@ -245,6 +245,7 @@ func setupUpdateCommand(config *configs.Config) *cli.Command {
 	installServiceSubCommand := setupUpdateSubCommand(config, installService, false, installSystemService)
 	installServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, installService, true, installSystemServiceRemote))
 	removeServiceSubCommand := setupUpdateSubCommand(config, removeService, false, removeSystemService)
+	removeServiceSubCommand.AddSubcommands(setupUpdateSubCommand(config, removeService, true, removeSystemServiceRemote))
 
 	// Add update command
 	updateCommand := cli.NewCommand("update")
@@ -318,6 +319,19 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 		updateOptions = fmt.Sprintf("%s --version=%s", updateOptions, config.Version)
 	}
 
+	if config.NoBackup {
+		updateOptions = fmt.Sprintf("%s --no-backup", updateOptions)
+	}
+	if config.SkipSystemUpdate {
+		updateOptions = fmt.Sprintf("%s --skip-system-update", updateOptions)
+	}
+	if config.SkipDDPackagesUpdate {
+		updateOptions = fmt.Sprintf("%s --skip-dd-packages-update", updateOptions)
+	}
+	if config.SkipDDSupportingFilesUpdate {
+		updateOptions = fmt.Sprintf("%s --skip-dd-supporting-files-update", updateOptions)
+	}
+
 	updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update %s", constants.RemotePastelupPath, updateOptions)
 	if _, err := executeRemoteCommandsWithInventory(ctx, config, []string{updateSuperNodeCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to update %s on remote host", tool)
@@ -327,21 +341,37 @@ func runRemoteUpdate(ctx context.Context, config *configs.Config, tool string) (
 	return nil
 }
 
-func installSystemServiceRemote(ctx context.Context, config *configs.Config) (err error) {
+func installSystemServiceRemote(ctx context.Context, config *configs.Config) error {
+	return installOrRemoveSystemServiceRemote(ctx, config, true)
+}
+
+func removeSystemServiceRemote(ctx context.Context, config *configs.Config) error {
+	return installOrRemoveSystemServiceRemote(ctx, config, false)
+}
+
+func installOrRemoveSystemServiceRemote(ctx context.Context, config *configs.Config, install bool) (err error) {
 
 	//--tool value
 	//--solution value
-	//--autostart
-	//--start
+	//--autostart (install only)
+	//--start (install only)
 
-	serviceInstallOptions := "install-service"
+	var serviceInstallOptions string
+	var whatToDo string
+	if install {
+		serviceInstallOptions = "install-service"
+		whatToDo = "Install"
+	} else {
+		serviceInstallOptions = "remove-service"
+		whatToDo = "Remove"
+	}
 
 	if len(config.ServiceTool) > 0 {
 		serviceInstallOptions = fmt.Sprintf("%s --tool %s", serviceInstallOptions, config.ServiceTool)
-		log.WithContext(ctx).Infof("Installing %s as systemd services on remote host(s)", config.ServiceTool)
+		log.WithContext(ctx).Infof("%sing %s as systemd services on remote host(s)", whatToDo, config.ServiceTool)
 	} else if len(config.ServiceSolution) > 0 {
 		serviceInstallOptions = fmt.Sprintf("%s --solution %s", serviceInstallOptions, config.ServiceSolution)
-		log.WithContext(ctx).Infof("Installing %s as systemd services on remote host(s)", config.ServiceSolution)
+		log.WithContext(ctx).Infof("%sing %s as systemd services on remote host(s)", whatToDo, config.ServiceSolution)
 	}
 
 	if config.EnableService {
@@ -369,9 +399,9 @@ func installSystemServiceRemote(ctx context.Context, config *configs.Config) (er
 
 	updateSuperNodeCmd := fmt.Sprintf("yes Y | %s update %s", constants.RemotePastelupPath, serviceInstallOptions)
 	if _, err := executeRemoteCommandsWithInventory(ctx, config, []string{updateSuperNodeCmd}, false, false); err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("Failed to set systemd services on remote host")
+		log.WithContext(ctx).WithError(err).Errorf("Failed to %s systemd services on remote host", whatToDo)
 	}
-	log.WithContext(ctx).Infof("Remote systemd services set")
+	log.WithContext(ctx).Infof("Remote systemd services %sed", whatToDo)
 
 	return nil
 }

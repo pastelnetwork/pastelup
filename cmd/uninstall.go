@@ -525,7 +525,7 @@ func runRemoteUninstall(ctx context.Context, config *configs.Config, tool string
 		uninstallOptions = fmt.Sprintf("%s --work-dir=%s", uninstallOptions, config.WorkingDir)
 	}
 
-	uninstallCmd := fmt.Sprintf("%s start %s", constants.RemotePastelupPath, uninstallOptions)
+	uninstallCmd := fmt.Sprintf("%s uninstall %s", constants.RemotePastelupPath, uninstallOptions)
 	if _, err := executeRemoteCommandsWithInventory(ctx, config, []string{uninstallCmd}, false, false); err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("Failed to uninstall %s on remote host", tool)
 	}

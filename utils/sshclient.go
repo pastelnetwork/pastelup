@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/pastelup/common/log"
 	"github.com/pkg/errors"
 
 	scp "github.com/bramvdbogaerde/go-scp"

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/pastelup/common/log"
 )
 
 const (

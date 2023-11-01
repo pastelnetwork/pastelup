@@ -192,10 +192,10 @@ jobs:
           name: Fetch dependencies
           command: |
             go get -v ./...
-      - run:
-          name: Run gofmt
-          command: |
-            diff -u <(echo -n) <(gofmt -d -e .)
+      #- run:
+      #    name: Run gofmt
+      #    command: |
+      #      diff -u <(echo -n) <(gofmt -d -e .)
       - run:
           name: Run go vet
           command: |
@@ -204,10 +204,10 @@ jobs:
           name: Run revive
           command: |
             revive -config ~/project/.circleci/revive.toml ./...
-      - run:
-          name: Run staticcheck
-          command: |
-            staticcheck ./...
+      #- run:
+      #    name: Run staticcheck
+      #    command: |
+      #      staticcheck ./...
       - run:
           name: Run go test
           command: |

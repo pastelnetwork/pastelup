@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pastelnetwork/gonode/common/errors"
-	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/pastelup/common/errors"
+	"github.com/pastelnetwork/pastelup/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pastelnetwork/pastelup/structure"

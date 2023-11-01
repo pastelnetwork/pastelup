@@ -11,8 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/pastelnetwork/gonode/common/cli"
-	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/pastelup/common/cli"
+	"github.com/pastelnetwork/pastelup/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
 )

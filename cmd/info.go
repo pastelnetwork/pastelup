@@ -16,9 +16,9 @@ import (
 	sigar "github.com/cloudfoundry/gosigar"
 	"github.com/olekukonko/tablewriter"
 
-	"github.com/pastelnetwork/gonode/common/cli"
-	"github.com/pastelnetwork/gonode/common/log"
-	"github.com/pastelnetwork/gonode/common/sys"
+	"github.com/pastelnetwork/pastelup/common/cli"
+	"github.com/pastelnetwork/pastelup/common/log"
+	"github.com/pastelnetwork/pastelup/common/sys"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pastelnetwork/pastelup/services/pastelcore"

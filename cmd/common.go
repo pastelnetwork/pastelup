@@ -18,7 +18,7 @@ import (
 	ps "github.com/mitchellh/go-ps"
 	errors2 "github.com/pkg/errors"
 
-	"github.com/pastelnetwork/gonode/common/log"
+	"github.com/pastelnetwork/pastelup/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
 	"github.com/pastelnetwork/pastelup/constants"
 	"github.com/pastelnetwork/pastelup/services/pastelcore"

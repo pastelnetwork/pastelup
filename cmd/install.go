@@ -1263,6 +1263,25 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool, legacy 
 }
 
 func installOrUpdateChrome(ctx context.Context, config *configs.Config) error {
+	if config.OpMode == "install" {
+		pkg := "google-chrome-stable"
+		if err := addGoogleRepo(ctx, config); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("Failed to install %s", pkg)
+			return err
+		}
+		_, err := RunSudoCMD(config, "apt", "update")
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error("Failed to update packages list")
+			return err
+		}
+		out, err := RunSudoCMD(config, "apt", "-y", "install", pkg)
+		if err != nil {
+			log.WithContext(ctx).WithFields(log.Fields{"message": out, "package": pkg}).
+				WithError(err).Errorf("unable to install %s", pkg)
+			return err
+		}
+	}
+
 	// sudo apt-mark unhold google-chrome-stable
 	_, err := RunSudoCMD(config, "apt-mark", "unhold", "google-chrome-stable")
 	if err != nil {
@@ -1290,6 +1309,41 @@ func installOrUpdateChrome(ctx context.Context, config *configs.Config) error {
 		log.WithContext(ctx).WithError(err).Error("Failed to pin google-chrome-stable")
 		return err
 	}
+	return nil
+}
+func addGoogleRepo(ctx context.Context, config *configs.Config) error {
+	var err error
+
+	log.WithContext(ctx).Info("Adding google ssl key ...")
+
+	_, err = RunCMD("bash", "-c", "wget -q -O - "+constants.GooglePubKeyURL+" > /tmp/google-key.pub")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Write /tmp/google-key.pub failed")
+		return err
+	}
+
+	_, err = RunSudoCMD(config, "apt-key", "add", "/tmp/google-key.pub")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to add google ssl key")
+		return err
+	}
+	log.WithContext(ctx).Info("Added google ssl key")
+
+	// Add google repo: /etc/apt/sources.list.d/google-chrome.list
+	log.WithContext(ctx).Info("Adding google ppa repo ...")
+	_, err = RunCMD("bash", "-c", "echo '"+constants.GooglePPASourceList+"' | tee /tmp/google-chrome.list")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to create /tmp/google-chrome.list")
+		return err
+	}
+
+	_, err = RunSudoCMD(config, "mv", "/tmp/google-chrome.list", constants.UbuntuSourceListPath)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to move /tmp/google-chrome.list to " + constants.UbuntuSourceListPath)
+		return err
+	}
+
+	log.WithContext(ctx).Info("Added google ppa repo")
 	return nil
 }
 

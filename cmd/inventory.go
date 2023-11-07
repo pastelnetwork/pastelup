@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/pastelnetwork/pastelup/common/log"
 	"github.com/pastelnetwork/pastelup/configs"
@@ -183,5 +184,86 @@ func (i *Inventory) ExecuteCommands(ctx context.Context, config *configs.Config,
 			outs = append(outs, out)
 		}
 	}
+	return outs, nil
+}
+
+// ExecuteCommandsAsync executes commands on all hosts from inventory in parallel
+func (i *Inventory) ExecuteCommandsAsync(ctx context.Context, config *configs.Config, commands []string, needOutput bool) ([][]byte, error) {
+	var filters []string
+	if config.InventoryFilter != "" {
+		filters = strings.Split(config.InventoryFilter, ",")
+	}
+
+	var outs [][]byte
+	var mu sync.Mutex     // For thread-safe slice append
+	var wg sync.WaitGroup // WaitGroup to ensure all goroutines complete
+
+	outChan := make(chan []byte, len(i.ServerGroups)) // Channel for concurrent read/write
+
+	for _, sg := range i.ServerGroups {
+		if len(filters) > 0 {
+			if !slices.Contains(filters, sg.Name) {
+				continue
+			}
+		}
+
+		log.WithContext(ctx).Infof(green("\n********** Accessing host group %s **********\n"), sg.Name)
+
+		config.RemoteUser, config.RemoteIP, config.RemotePort, config.RemoteSSHKey = "", "", 0, ""
+
+		if len(sg.Common.User) > 0 {
+			config.RemoteUser = sg.Common.User
+		}
+		if sg.Common.Port != 0 {
+			config.RemotePort = sg.Common.Port
+		}
+		if len(sg.Common.IdentityFile) > 0 {
+			config.RemoteSSHKey = sg.Common.IdentityFile
+		}
+
+		for _, srv := range sg.Servers {
+			wg.Add(1)                                              // Increment the WaitGroup counter
+			go func(srv InventoryServer, config *configs.Config) { // Start a new goroutine
+				defer wg.Done() // Decrement counter when goroutine completes
+
+				log.WithContext(ctx).Infof(green("\n********** Executing command on %s **********\n"), srv.Name)
+
+				// Your logic here, similar to original code but tailored for goroutine
+				if len(srv.User) > 0 {
+					config.RemoteUser = srv.User
+				}
+				if srv.Port != 0 {
+					config.RemotePort = srv.Port
+				}
+				if len(srv.IdentityFile) > 0 {
+					config.RemoteSSHKey = srv.IdentityFile
+				}
+				config.RemoteIP = srv.Host
+				if config.RemotePort == 0 {
+					config.RemotePort = 22
+				}
+
+				out, err := executeRemoteCommands(ctx, config, commands, false, needOutput)
+				if err != nil {
+					log.WithContext(ctx).WithError(err).Errorf("Failed to execute command on remote host %s"+
+						" [IP:%s; Port:%d; User:%s; KeyFile:%s; ]",
+						srv.Name, config.RemoteIP, config.RemotePort, config.RemoteUser, config.RemoteSSHKey)
+				}
+				outChan <- out
+			}(srv, config)
+		}
+	}
+
+	go func() {
+		wg.Wait()      // Wait for all goroutines to complete
+		close(outChan) // Close the channel
+	}()
+
+	for out := range outChan { // Read from channel and append to slice
+		mu.Lock()
+		outs = append(outs, out)
+		mu.Unlock()
+	}
+
 	return outs, nil
 }

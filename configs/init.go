@@ -62,6 +62,7 @@ type Init struct {
 	RemoteSSHKey           string `json:"remote-ssh-key,omitempty"`
 	InventoryFile          string `json:"inventory-file,omitempty"`
 	InventoryFilter        string `json:"inventory-filter,omitempty"`
+	AsyncRemote            bool   `json:"async_remote,omitempty"`
 }
 
 /*

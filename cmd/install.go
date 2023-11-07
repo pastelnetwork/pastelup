@@ -150,6 +150,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("inventory", &config.InventoryFile).
 			SetUsage(yellow("Required (if ssh-ip not used), Path to the file with configuration of the remote hosts")),
+		cli.NewFlag("in-parallel", &config.AsyncRemote).
+			SetUsage(green("Optional, When using inventory file run remote tasks in parallel")),
 	}
 
 	ddServiceFlags := []*cli.Flag{
@@ -1264,8 +1266,7 @@ func installOrUpdateChrome(ctx context.Context, config *configs.Config) error {
 	// sudo apt-mark unhold google-chrome-stable
 	_, err := RunSudoCMD(config, "apt-mark", "unhold", "google-chrome-stable")
 	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to un-pin google-chrome-stable")
-		return err
+		log.WithContext(ctx).WithError(err).Error("Failed to un-pin google-chrome-stable. Will still try to install/update it.")
 	}
 	// wget https://download.pastel.network/#latest-release/mainnet/dd-service/google-chrome-stable.deb
 	downloadURL, chromeDebName, err := config.Configurer.GetChromeDownloadURL(config.Network, config.Version)

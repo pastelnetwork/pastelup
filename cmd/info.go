@@ -152,6 +152,8 @@ func setupInfoSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
 		cli.NewFlag("inventory", &config.InventoryFile).
 			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
+		cli.NewFlag("in-parallel", &config.AsyncRemote).
+			SetUsage(green("Optional, When using inventory file run remote tasks in parallel")),
 		cli.NewFlag("filter", &config.InventoryFilter).
 			SetUsage(green("Optional, use only specified host groups from the inventory file, comma separated list")),
 	}

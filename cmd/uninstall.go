@@ -114,6 +114,8 @@ func setupUninstallSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key")),
 		cli.NewFlag("inventory", &config.InventoryFile).
 			SetUsage(red("Optional, Path to the file with configuration of the remote hosts")),
+		cli.NewFlag("in-parallel", &config.AsyncRemote).
+			SetUsage(green("Optional, When using inventory file run remote tasks in parallel")),
 	}
 
 	var commandName, commandMessage string
@@ -230,21 +232,17 @@ func setupUninstallCommand(config *configs.Config) *cli.Command {
 }
 
 // /// Top level start commands
-func removeFile(ctx context.Context, dir string, fileName string) error {
+func removeFile(ctx context.Context, dir string, fileName string) {
 	err := os.Remove(path.Join(dir, fileName))
 	if err != nil {
 		log.WithContext(ctx).Warn(fmt.Sprintf("Unable to delete %s: %v", fileName, err))
-		return fmt.Errorf("err removing %s - err: %s", fileName, err)
 	}
-	return nil
 }
-func removeDir(ctx context.Context, parentDir string, dir string) error {
+func removeDir(ctx context.Context, parentDir string, dir string) {
 	err := os.RemoveAll(path.Join(parentDir, dir))
 	if err != nil {
 		log.WithContext(ctx).Warn(fmt.Sprintf("Unable to delete %s: %v", dir, err))
-		return fmt.Errorf("err removing %s - err: %s", dir, err)
 	}
-	return nil
 }
 
 func askToContinue(ctx context.Context, config *configs.Config, what string) bool {

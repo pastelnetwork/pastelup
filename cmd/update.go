@@ -145,6 +145,8 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(yellow("Optional, Path to SSH private key for SSH Key Authentication")),
 		cli.NewFlag("inventory", &config.InventoryFile).
 			SetUsage(yellow("Required (if ssh-ip not used), Path to the file with configuration of the remote hosts")),
+		cli.NewFlag("in-parallel", &config.AsyncRemote).
+			SetUsage(green("Optional, When using inventory file run remote tasks in parallel")),
 	}
 
 	systemServiceFlags := []*cli.Flag{

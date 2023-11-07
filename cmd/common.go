@@ -648,7 +648,12 @@ func executeRemoteCommandsWithInventory(ctx context.Context, config *configs.Con
 			log.WithContext(ctx).WithError(err).Error("Failed to load inventory file")
 			return nil, err
 		}
-		outs, err := inv.ExecuteCommands(ctx, config, commands, needOutput)
+		var outs [][]byte
+		if config.AsyncRemote {
+			outs, err = inv.ExecuteCommandsAsync(ctx, config, commands, needOutput)
+		} else {
+			outs, err = inv.ExecuteCommands(ctx, config, commands, needOutput)
+		}
 		if err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to execute command on remote host from inventory")
 			return nil, err

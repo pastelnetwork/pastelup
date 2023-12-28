@@ -64,7 +64,7 @@ You may need to first run:
 go mod tidy
 ```
 
-## Testing 
+## Test
 All tests are contained in the `test/` directory. You can invoke the tests by running
 ```
 make build-test-img

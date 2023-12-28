@@ -74,7 +74,8 @@ This will run the associated script found in `test/scripts/` inside a docker con
 
 ## More information
 
-https://docs.pastel.network/development-guide/types-of-pastel-installations
+[Pastel Network Docs](https://docs.pastel.network/introduction/pastel-overview)
+[Pastel Network Docs - Types of Pastel installations](https://docs.pastel.network/development-guide/types-of-pastel-installations)
 
 
 ## Command line options

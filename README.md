@@ -77,6 +77,6 @@ This will run the associated script found in `test/scripts/` inside a docker con
 https://docs.pastel.network/development-guide/types-of-pastel-installations
 
 
-### Command line options
+## Command line options
 
 [see here](https://github.com/pastelnetwork/pastelup/blob/master/pastelup-help.md)

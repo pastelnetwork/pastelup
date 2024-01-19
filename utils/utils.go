@@ -589,10 +589,22 @@ func GetExternalIPAddress() (externalIP string, err error) {
 	if err != nil {
 		return "", err
 	}
-	if net.ParseIP(string(body)) == nil {
+
+	ipString := normalizeString(string(body))
+
+	if net.ParseIP(ipString) == nil {
 		return "", errors.Errorf("invalid IP response from %s", constants.IPCheckURL)
 	}
-	return string(body), nil
+
+	return ipString, nil
+}
+
+func normalizeString(s string) string {
+	stringWithoutEscapes := strings.Replace(s, "\n", "", -1)
+	stringWithoutEscapes = strings.Replace(stringWithoutEscapes, "\t", "", -1)
+	stringWithoutEscapes = strings.Replace(stringWithoutEscapes, "\r", "", -1)
+
+	return stringWithoutEscapes
 }
 
 // ClearDir removes all contents in the provided directory unless they are in the skipFiles array.

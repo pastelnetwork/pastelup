@@ -77,8 +77,12 @@ const (
 	NetworkRegTest = "regtest"
 	// NetworkTestnet defines testnet network mode
 	NetworkTestnet = "testnet"
+	// NetworkDevnet defines devnet network mode
+	NetworkDevnet = "devnet"
 	// NetworkMainnet defines mainnet network mode
 	NetworkMainnet = "mainnet"
+	// BurnAddressDevnet defines devnet burn address
+	BurnAddressDevnet = "44oUgmZSL997veFEQDq569wv5tsT6KXf9QY7"
 	// BurnAddressTestnet defines testnet burn address
 	BurnAddressTestnet = "tPpasteLBurnAddressXXXXXXXXXXX3wy7u"
 	// BurnAddressMainnet defines mainnet burn address
@@ -261,6 +265,9 @@ var MainnetPortList = []int{9933, 9932, 4444, 4445, 4446, 4447}
 // TestnetPortList - PortList of supernode
 var TestnetPortList = []int{19933, 19932, 14444, 14445, 14446, 14447}
 
+// DevnetPortList - PortList of supernode
+var DevnetPortList = []int{29933, 29932, 24444, 24445, 24446, 24447}
+
 // RegTestPortList - PortList of supernode
 var RegTestPortList = []int{18344, 18343, 14444, 14445, 14446, 14447}
 
@@ -378,6 +385,7 @@ var DependenciesPackagesRQService = map[OSType][]string{
 var NetworkModes = []string{
 	NetworkMainnet,
 	NetworkTestnet,
+	NetworkDevnet,
 	NetworkRegTest,
 }
 
@@ -387,7 +395,7 @@ type NoNetworkModesSetErr struct{}
 
 func (e NoNetworkModesSetErr) Error() string {
 	return `
---network or -n must be provided. Can be either 'mainnet' or 'testnet'
+--network or -n must be provided. Can be either 'mainnet', 'testnet' or 'devnet'
 	
 	pastelup install <service> -n mainnet
 	

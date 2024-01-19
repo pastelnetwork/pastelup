@@ -27,6 +27,7 @@ type Init struct {
 	BackupAll                   bool   `json:"backupall,omitempty"`
 	RegenRPC                    bool   `json:"regen-rpc,omitempty"`
 	IsTestnet                   bool   `json:"isTestnet,omitempty"` // if true, pastel.conf had testnet=1 when cmd was invoked
+	IsDevnet                    bool   `json:"isDevnet,omitempty"`  // if true, pastel.conf had devnet=1 when cmd was invoked
 	EnableService               bool   `json:"enable,omitempty"`
 	StartService                bool   `json:"start,omitempty"`
 	ServiceTool                 string `json:"tool,omitempty"`

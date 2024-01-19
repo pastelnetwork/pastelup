@@ -104,7 +104,7 @@ func setupSubCommand(config *configs.Config,
 
 	networkFlags := []*cli.Flag{
 		cli.NewFlag("network", &config.Network).SetAliases("n").
-			SetUsage(red("Required, network type, can be - \"mainnet\" or \"testnet\"")),
+			SetUsage(red("Required, network type, can be - \"mainnet\", \"testnet\" or \"devnet\"")),
 	}
 
 	pastelFlags := []*cli.Flag{
@@ -318,7 +318,7 @@ func runRemoteInstallHermesService(ctx context.Context, config *configs.Config) 
 }
 
 func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) (err error) {
-	if config.Network != "testnet" && config.Network != "mainnet" {
+	if config.Network != "testnet" && config.Network != "mainnet" && config.Network != "devnet" {
 		log.WithContext(ctx).Fatal("--network or -n parameter is required")
 		return fmt.Errorf("--network or -n parameter is required")
 	}
@@ -356,6 +356,8 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 		remoteOptions = fmt.Sprintf("%s -n=mainnet", remoteOptions)
 	} else if config.Network == constants.NetworkRegTest {
 		remoteOptions = fmt.Sprintf("%s -n=regtest", remoteOptions)
+	} else if config.Network == constants.NetworkDevnet {
+		remoteOptions = fmt.Sprintf("%s -n=devnet", remoteOptions)
 	}
 
 	if len(config.UserPw) > 0 {
@@ -705,6 +707,8 @@ func installWalletNodeService(ctx context.Context, config *configs.Config) error
 	burnAddress := constants.BurnAddressMainnet
 	if config.Network == constants.NetworkTestnet {
 		burnAddress = constants.BurnAddressTestnet
+	} else if config.Network == constants.NetworkDevnet {
+		burnAddress = constants.BurnAddressDevnet
 	} else if config.Network == constants.NetworkRegTest {
 		burnAddress = constants.BurnAddressTestnet
 	}
@@ -1198,8 +1202,12 @@ func updatePastelConfigFile(ctx context.Context, filePath string, config *config
 		cfgBuffer.WriteString("testnet=1\n") // creates testnet line
 	}
 
+	if config.Network == constants.NetworkDevnet {
+		cfgBuffer.WriteString("devnet=1\n") // creates devnet line
+	}
+
 	if config.Network == constants.NetworkRegTest {
-		cfgBuffer.WriteString("regtest=1\n") // creates testnet line
+		cfgBuffer.WriteString("regtest=1\n") // creates regtest line
 	}
 
 	if config.Peers != "" {
@@ -1263,6 +1271,13 @@ func downloadZksnarkParams(ctx context.Context, path string, force bool, legacy 
 }
 
 func installOrUpdateChrome(ctx context.Context, config *configs.Config) error {
+
+	// sudo apt-mark unhold google-chrome-stable
+	_, err := RunSudoCMD(config, "apt-mark", "unhold", "google-chrome-stable")
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to un-pin google-chrome-stable. Will still try to install/update it.")
+	}
+
 	if config.OpMode == "install" {
 		pkg := "google-chrome-stable"
 		if err := addGoogleRepo(ctx, config); err != nil {
@@ -1282,11 +1297,6 @@ func installOrUpdateChrome(ctx context.Context, config *configs.Config) error {
 		}
 	}
 
-	// sudo apt-mark unhold google-chrome-stable
-	_, err := RunSudoCMD(config, "apt-mark", "unhold", "google-chrome-stable")
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Error("Failed to un-pin google-chrome-stable. Will still try to install/update it.")
-	}
 	// wget https://download.pastel.network/#latest-release/mainnet/dd-service/google-chrome-stable.deb
 	downloadURL, chromeDebName, err := config.Configurer.GetChromeDownloadURL(config.Network, config.Version)
 	if err != nil {

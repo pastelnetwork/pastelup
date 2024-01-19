@@ -374,8 +374,6 @@ func runStartSuperNode(ctx context.Context, config *configs.Config, justInit boo
 			log.WithContext(ctx).WithError(err).Error("Failed to update supernode.yml")
 			return err
 		}
-		config.ReIndex = false // prepareMasterNodeParameters already run paslted with txindex and reindex
-		// so no need to use reindex again
 	}
 
 	if pastelDIsRunning {
@@ -1082,6 +1080,9 @@ func prepareMasterNodeParameters(ctx context.Context, config *configs.Config, st
 			log.WithContext(ctx).WithError(err).Error("pasteld failed to start")
 			return err
 		}
+		config.ReIndex = false // no need to use reindex again
+	} else {
+		log.WithContext(ctx).Infof("pasteld is already running - checking parameters without restarting")
 	}
 
 	// Check masternode status
@@ -1302,7 +1303,7 @@ func checkCollateral(ctx context.Context, config *configs.Config) error {
 
 		collateralAmount := "5"
 		collateralCoins := "PSL"
-		if config.Network == constants.NetworkTestnet {
+		if config.Network == constants.NetworkTestnet || config.Network == constants.NetworkDevnet {
 			collateralAmount = "1"
 			collateralCoins = "LSP"
 		} else if config.Network == constants.NetworkRegTest {

@@ -80,9 +80,16 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 				config.Network = constants.NetworkTestnet
 			}
 		}
+		if strings.HasPrefix(line, "devnet=") {
+			isDevnet, _ := strconv.ParseBool(strings.TrimPrefix(line, "devnet="))
+			config.IsDevnet = isDevnet
+			if isDevnet {
+				config.Network = constants.NetworkDevnet
+			}
+		}
 		if strings.HasPrefix(line, "regtest=") {
-			isRegTestnet, _ := strconv.ParseBool(strings.TrimPrefix(line, "regtest="))
-			if isRegTestnet {
+			isRegTest, _ := strconv.ParseBool(strings.TrimPrefix(line, "regtest="))
+			if isRegTest {
 				config.Network = constants.NetworkRegTest
 			}
 		}
@@ -90,7 +97,7 @@ func ParsePastelConf(ctx context.Context, config *configs.Config) error {
 			config.TxIndex, _ = strconv.Atoi(strings.TrimPrefix(line, "txindex="))
 		}
 	}
-	// if both testnet=1 and regtest=1 are not set in pastel.conf -- mainnet mode is on
+	// if neither of testnet=1, devnet=1 or regtest=1 are set in pastel.conf -- mainnet mode is on
 	if config.Network == "" {
 		config.Network = constants.NetworkMainnet
 	}
@@ -327,6 +334,8 @@ func GetSNPortList(config *configs.Config) []int {
 		return constants.TestnetPortList
 	} else if config.Network == constants.NetworkRegTest {
 		return constants.RegTestPortList
+	} else if config.Network == constants.NetworkDevnet {
+		return constants.DevnetPortList
 	}
 	return constants.MainnetPortList
 }
@@ -585,14 +594,26 @@ func getNetworkModeFromRemote(ctx context.Context, confFilePath string) (remoteN
 				return constants.NetworkTestnet, nil
 			}
 		}
+		if strings.HasPrefix(line, "devnet=") {
+			isDevnet, err := strconv.ParseBool(strings.TrimPrefix(line, "devnet="))
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("Could not parse devnet= bool from file: - %s", confFilePath)
+				return remoteNetwork, err
+			}
+
+			if isDevnet {
+				log.WithContext(ctx).Infof("remote node is operating in devnet")
+				return constants.NetworkDevnet, nil
+			}
+		}
 		if strings.HasPrefix(line, "regtest=") {
-			isRegTestnet, err := strconv.ParseBool(strings.TrimPrefix(line, "regtest="))
+			isRegTest, err := strconv.ParseBool(strings.TrimPrefix(line, "regtest="))
 			if err != nil {
 				log.WithContext(ctx).WithError(err).Errorf("Could not parse regtest= bool from file: - %s", confFilePath)
 				return remoteNetwork, err
 			}
 
-			if isRegTestnet {
+			if isRegTest {
 				log.WithContext(ctx).Infof("remote node is operating in regtest")
 				return constants.NetworkRegTest, nil
 			}
@@ -739,6 +760,8 @@ func getMasternodeConfPath(config *configs.Config, workDirPath string, fileName 
 		masternodeConfPath = filepath.Join(workDirPath, "testnet3", fileName)
 	} else if config.Network == constants.NetworkRegTest {
 		masternodeConfPath = filepath.Join(workDirPath, "regtest", fileName)
+	} else if config.Network == constants.NetworkDevnet {
+		masternodeConfPath = filepath.Join(workDirPath, "devnet", fileName)
 	} else {
 		masternodeConfPath = filepath.Join(workDirPath, fileName)
 	}

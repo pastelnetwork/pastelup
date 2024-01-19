@@ -23,8 +23,8 @@ import (
 
 // ColdHotRunnerOpts defines opts for ColdHotRunner
 type ColdHotRunnerOpts struct {
-	testnetOption string
-	reIndex       string
+	chainTypeOption string
+	reIndex         string
 
 	// remote paths
 	remotePastelUp  string
@@ -120,10 +120,13 @@ func (r *ColdHotRunner) handleConfigs(ctx context.Context) error {
 		r.opts.reIndex = " --reindex"
 	}
 	if r.config.Network == constants.NetworkTestnet {
-		r.opts.testnetOption = " --testnet"
+		r.opts.chainTypeOption = " --testnet"
+	}
+	if r.config.Network == constants.NetworkDevnet {
+		r.opts.chainTypeOption = " --devnet"
 	}
 	if r.config.Network == constants.NetworkRegTest {
-		r.opts.testnetOption = " --regtest"
+		r.opts.chainTypeOption = " --regtest"
 	}
 	log.WithContext(ctx).Infof("Finished Reading pastel.conf! Starting node in %s mode", r.config.Network)
 
@@ -343,7 +346,7 @@ func (r *ColdHotRunner) runRemoteNodeAsMasterNode(ctx context.Context, numOfSync
 	log.WithContext(ctx).Info("Running remote node as masternode ...")
 	go func() {
 		cmdLine := fmt.Sprintf("%s --masternode --txindex=1 --reindex --masternodeprivkey=%s --externalip=%s  --data-dir=%s %s --daemon ",
-			r.opts.remotePasteld, r.config.MasterNodePrivateKey, r.config.NodeExtIP, r.config.RemoteHotWorkingDir, r.opts.testnetOption)
+			r.opts.remotePasteld, r.config.MasterNodePrivateKey, r.config.NodeExtIP, r.config.RemoteHotWorkingDir, r.opts.chainTypeOption)
 
 		log.WithContext(ctx).Infof("start remote node as masternode - %s\n", cmdLine)
 
@@ -471,7 +474,7 @@ func stopRemoteNode(ctx context.Context, client *utils.Client, cliPath string) e
 func (r *ColdHotRunner) startAndSyncRemoteNode(ctx context.Context, numOfSyncedBlocks int) error {
 	startRemotePasteld := func() {
 		cmd := fmt.Sprintf("%s %s --externalip=%s --data-dir=%s --daemon %s",
-			r.opts.remotePasteld, r.opts.reIndex, r.config.NodeExtIP, r.config.RemoteHotWorkingDir, r.opts.testnetOption)
+			r.opts.remotePasteld, r.opts.reIndex, r.config.NodeExtIP, r.config.RemoteHotWorkingDir, r.opts.chainTypeOption)
 		log.WithContext(ctx).Infof("Remote::node starting pasteld - %s", cmd)
 		if err := r.sshClient.Cmd(cmd).Run(); err != nil {
 			log.WithContext(ctx).WithError(err).Errorf("pasteld run err: %s\n", err.Error())

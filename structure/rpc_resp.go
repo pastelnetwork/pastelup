@@ -85,7 +85,7 @@ type GetInfoResult struct {
 	Connections     int     `json:"connections"`
 	Proxy           string  `json:"proxy"`
 	Difficulty      float64 `json:"difficulty"`
-	Testnet         bool    `json:"testnet"`
+	Chain           string  `json:"chain"`
 	Keypoololdest   int     `json:"keypoololdest"`
 	Keypoolsize     int     `json:"keypoolsize"`
 	Paytxfee        float64 `json:"paytxfee"`

@@ -58,7 +58,7 @@ func setupInitSubCommand(config *configs.Config,
 		cli.NewFlag("ip", &config.NodeExtIP).
 			SetUsage(green("Optional, WAN IP address of the SuperNode, default - WAN IP address of the host")),
 		cli.NewFlag("port", &config.MasterNodePort).
-			SetUsage(green("Optional, Port for WAN IP address of the SuperNode, default - 9933 (19933 for Testnet)")),
+			SetUsage(green("Optional, Port for WAN IP address of the SuperNode, default - 9933 (19933 for Testnet, 29933 for Devnet)")),
 		cli.NewFlag("reindex", &config.ReIndex).
 			SetUsage(green("Optional, Start with reindex")),
 	}
@@ -111,11 +111,11 @@ func setupInitSubCommand(config *configs.Config,
 		cli.NewFlag("rpc-ip", &config.MasterNodeRPCIP).
 			SetUsage(yellow("Optional, SuperNode IP address. If omitted, value passed to --ip will be used")),
 		cli.NewFlag("rpc-port", &config.MasterNodeRPCPort).
-			SetUsage(yellow("Optional, SuperNode port, default - 4444 (14444 for Testnet")),
+			SetUsage(yellow("Optional, SuperNode port, default - 4444 (14444 for Testnet and 24444 for Devnet")),
 		cli.NewFlag("p2p-ip", &config.MasterNodeP2PIP).
 			SetUsage(yellow("Optional, Kademlia IP address, if omitted, value passed to --ip will be used")),
 		cli.NewFlag("p2p-port", &config.MasterNodeP2PPort).
-			SetUsage(yellow("Optional, Kademlia port, default - 4445 (14445 for Testnet)")),
+			SetUsage(yellow("Optional, Kademlia port, default - 4445 (14445 for Testnet and 24445 for Devnet)")),
 
 		cli.NewFlag("activate", &config.ActivateMasterNode).
 			SetUsage(yellow("Optional, if specified, will try to enable node as Masternode (start-alias).")),
@@ -237,9 +237,12 @@ func setupInitCommand(config *configs.Config) *cli.Command {
 // Sub Command
 func runInitSuperNodeSubCommand(ctx context.Context, config *configs.Config) error {
 	log.WithContext(ctx).Info("Initialising local supernode")
+
 	if !config.DontUseReindex {
 		config.ReIndex = true // init means first start, reindex is required
 	}
+	log.WithContext(ctx).Infof("DontUseReindex: %v", config.DontUseReindex)
+	log.WithContext(ctx).Infof("ReIndex: %v", config.ReIndex)
 
 	if !config.CreateNewMasterNodeConf && !config.AddToMasterNodeConf {
 		log.WithContext(ctx).Error("Either 'new' or 'add' flag must be provided")

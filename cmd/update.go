@@ -527,7 +527,7 @@ func backUpWorkDir(ctx context.Context, config *configs.Config) error {
 			"supernode.yml", "hermes.yml",
 			"walletnode.yml", "bridge.yml"}
 		dirsToPreserve := []string{"pastelkeys"}
-		if _, err := utils.ClearDir(ctx, config.WorkingDir, filesToPreserve, dirsToPreserve, config.IsTestnet); err != nil {
+		if _, err := utils.ClearDir(ctx, config.WorkingDir, filesToPreserve, dirsToPreserve, config.IsTestnet, config.IsDevnet); err != nil {
 			log.WithContext(ctx).Error(fmt.Sprintf("Failed to clean directory:  %v", err))
 			return err
 		}
@@ -585,6 +585,24 @@ func backUpDir(ctx context.Context, config *configs.Config, dirToArchive, archiv
 			for _, name := range whatToBackUp {
 				srcPath := filepath.Join(dirToArchive, "testnet3", name)
 				dstPath := filepath.Join(archivePathTestnetSubDir, name)
+				if exists := utils.CheckFileExist(srcPath); exists {
+					err := cp.Copy(srcPath, dstPath)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+		if config.IsDevnet {
+			archivePathDevnetSubDir := filepath.Join(archivePath, "devnet")
+			err := os.Mkdir(archivePathDevnetSubDir, 0755)
+			if err != nil {
+				log.WithContext(ctx).Error(fmt.Sprintf("Failed to create %v directory: %v", archivePathDevnetSubDir, err))
+				return err
+			}
+			for _, name := range whatToBackUp {
+				srcPath := filepath.Join(dirToArchive, "devnet", name)
+				dstPath := filepath.Join(archivePathDevnetSubDir, name)
 				if exists := utils.CheckFileExist(srcPath); exists {
 					err := cp.Copy(srcPath, dstPath)
 					if err != nil {

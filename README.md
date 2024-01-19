@@ -577,11 +577,11 @@ OPTIONS:
    --noReindex                   Optional, disable any default --reindex (default: false)
    --pastelid value              Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered
    --passphrase value            Optional, passphrase to pastelid private key. If omitted, user will be asked interactively
-   --port value                  Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet) (default: 0)
+   --port value                  Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet, 29933 for Devnet)
    --rpc-ip value                Optional, supernode IP address. If omitted, value passed to --ip will be used
-   --rpc-port value              Optional, supernode port, default - 4444 (14444 for Testnet (default: 0)
+   --rpc-port value              Optional, supernode port, default - 4444 (14444 for Testnet and Devnet)
    --p2p-ip value                Optional, Kademlia IP address, if omitted, value passed to --ip will be used
-   --p2p-port value              Optional, Kademlia port, default - 4445 (14445 for Testnet) (default: 0)
+   --p2p-port value              Optional, Kademlia port, default - 4445 (14445 for Testnet and Devnet)
    --activate                    Optional, if specified, will try to enable node as Masternode (start-alias). (default: false)
    --log-level level             Set the log level. (default: "info")
    --log-file file               The log file to write to.
@@ -612,11 +612,11 @@ OPTIONS:
    --noReindex                   Optional, disable any default --reindex (default: false)
    --pastelid value              Optional, pastelid of the Masternode. If omitted, new pastelid will be created and registered
    --passphrase value            Optional, passphrase to pastelid private key. If omitted, user will be asked interactively
-   --port value                  Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet) (default: 0)
+   --port value                  Optional, Port for WAN IP address of the node , default - 9933 (19933 for Testnet and Devnet)
    --rpc-ip value                Optional, supernode IP address. If omitted, value passed to --ip will be used
-   --rpc-port value              Optional, supernode port, default - 4444 (14444 for Testnet (default: 0)
+   --rpc-port value              Optional, supernode port, default - 4444 (14444 for Testnet and Devnet)
    --p2p-ip value                Optional, Kademlia IP address, if omitted, value passed to --ip will be used
-   --p2p-port value              Optional, Kademlia port, default - 4445 (14445 for Testnet) (default: 0)
+   --p2p-port value              Optional, Kademlia port, default - 4445 (14445 for Testnet and Devnet)
    --activate                    Optional, if specified, will try to enable node as Masternode (start-alias). (default: false)
    --ssh-ip value                Required, SSH address of the remote HOT node
    --ssh-port value              Optional, SSH port of the remote HOT node (default: 22)

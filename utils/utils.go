@@ -598,7 +598,7 @@ func GetExternalIPAddress() (externalIP string, err error) {
 // ClearDir removes all contents in the provided directory unless they are in the skipFiles array.
 // this recursively calls itself to clear out files in subdirs.
 // returns true is ALL content is removed, false - otherwise
-func ClearDir(ctx context.Context, dir string, skipFiles []string, skipDirs []string, isTestnet bool) (bool, error) {
+func ClearDir(ctx context.Context, dir string, skipFiles []string, skipDirs []string, isTestnet bool, isDevnet bool) (bool, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		log.WithContext(ctx).Errorf("Failed to read directory files: %v", err)
@@ -611,7 +611,7 @@ func ClearDir(ctx context.Context, dir string, skipFiles []string, skipDirs []st
 			if Contains(skipDirs, file.Name()) {
 				continue
 			}
-			empty, err := ClearDir(ctx, path.Join(dir, file.Name()), skipFiles, skipDirs, isTestnet)
+			empty, err := ClearDir(ctx, path.Join(dir, file.Name()), skipFiles, skipDirs, isTestnet, isDevnet)
 			if err != nil {
 				log.WithContext(ctx).Warn(fmt.Sprintf("Unable to delete %v during clean operation: %v", file.Name(), err))
 				return false, err

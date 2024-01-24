@@ -792,6 +792,8 @@ func runSuperNodeService(ctx context.Context, config *configs.Config) error {
 	var snServiceArgs []string
 	snServiceArgs = append(snServiceArgs,
 		fmt.Sprintf("--config-file=%s", supernodeConfigPath))
+	snServiceArgs = append(snServiceArgs,
+		fmt.Sprintf("--pastel-config-file=%s/pastel.conf", config.WorkingDir))
 
 	log.WithContext(ctx).Infof("Options : %s", snServiceArgs)
 	if err := runPastelService(ctx, config, constants.SuperNode, supernodeExecName, snServiceArgs...); err != nil {
@@ -842,6 +844,8 @@ func runHermesService(ctx context.Context, config *configs.Config) error {
 	var hermesServiceArgs []string
 	hermesServiceArgs = append(hermesServiceArgs,
 		fmt.Sprintf("--config-file=%s", hermesConfigPath))
+	hermesServiceArgs = append(hermesServiceArgs,
+		fmt.Sprintf("--pastel-config-file=%s/pastel.conf", config.WorkingDir))
 
 	log.WithContext(ctx).Infof("Options : %s", hermesServiceArgs)
 	if err := runPastelService(ctx, config, constants.Hermes, hermesExecName, hermesServiceArgs...); err != nil {

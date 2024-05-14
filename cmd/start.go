@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -45,36 +46,42 @@ const (
 	remoteStart
 	bridgeService
 	hermesService
+	inferenceServer
+	inferenceClient
 )
 
 var (
 	startCmdName = map[startCommand]string{
-		nodeStart:      "node",
-		walletStart:    "walletnode",
-		superNodeStart: "supernode",
-		ddService:      "dd-service",
-		rqService:      "rq-service",
-		ddImgServer:    "imgserver",
-		wnService:      "walletnode-service",
-		snService:      "supernode-service",
-		masterNode:     "masternode",
-		remoteStart:    "remote",
-		bridgeService:  "bridge-service",
-		hermesService:  "hermes-service",
+		nodeStart:       "node",
+		walletStart:     "walletnode",
+		superNodeStart:  "supernode",
+		ddService:       "dd-service",
+		rqService:       "rq-service",
+		ddImgServer:     "imgserver",
+		wnService:       "walletnode-service",
+		snService:       "supernode-service",
+		masterNode:      "masternode",
+		remoteStart:     "remote",
+		bridgeService:   "bridge-service",
+		hermesService:   "hermes-service",
+		inferenceServer: "inference-server",
+		inferenceClient: "inference-client",
 	}
 	startCmdMessage = map[startCommand]string{
-		nodeStart:      "Start node",
-		walletStart:    "Start Walletnode",
-		superNodeStart: "Start Supernode",
-		ddService:      "Start Dupe Detection service only",
-		rqService:      "Start RaptorQ service only",
-		ddImgServer:    "Start dd image server",
-		wnService:      "Start Walletnode service only",
-		snService:      "Start Supernode service only",
-		masterNode:     "Start only pasteld node as Masternode",
-		remoteStart:    "Start on Remote host",
-		bridgeService:  "Start bridge-service only",
-		hermesService:  "Start hermes-service only",
+		nodeStart:       "Start node",
+		walletStart:     "Start Walletnode",
+		superNodeStart:  "Start Supernode",
+		ddService:       "Start Dupe Detection service only",
+		rqService:       "Start RaptorQ service only",
+		ddImgServer:     "Start dd image server",
+		wnService:       "Start Walletnode service only",
+		snService:       "Start Supernode service only",
+		masterNode:      "Start only pasteld node as Masternode",
+		remoteStart:     "Start on Remote host",
+		bridgeService:   "Start bridge-service only",
+		hermesService:   "Start hermes-service only",
+		inferenceServer: "Start inference-server",
+		inferenceClient: "Start inference-client",
 	}
 )
 
@@ -164,7 +171,7 @@ func setupStartSubCommand(config *configs.Config,
 	addLogFlags(subCommand, config)
 
 	if f != nil {
-		subCommand.SetActionFunc(func(ctx context.Context, args []string) error {
+		subCommand.SetActionFunc(func(ctx context.Context, _ []string) error {
 			ctx, err := configureLogging(ctx, commandMessage, config)
 			if err != nil {
 				return err
@@ -254,6 +261,9 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startDDImgServerRemoteCommand := setupStartSubCommand(config, ddImgServer, true, runRemoteDDImgServerSubCommand)
 	startDDImgServerCommand.AddSubcommands(startDDImgServerRemoteCommand)
 
+	startInferenceServerCommand := setupStartSubCommand(config, inferenceServer, false, runInferenceServerStartSubCommand)
+	startInferenceClientCommand := setupStartSubCommand(config, inferenceClient, false, runInferenceClientStartSubCommand)
+
 	startCommand := cli.NewCommand("start")
 	startCommand.SetUsage(blue("Performs start of the system for both WalletNode and SuperNodes"))
 	startCommand.AddSubcommands(startNodeSubCommand)
@@ -268,6 +278,8 @@ func setupStartCommand(config *configs.Config) *cli.Command {
 	startCommand.AddSubcommands(startMasternodeCommand)
 	startCommand.AddSubcommands(startHermesServiceCommand)
 	startCommand.AddSubcommands(startBridgeServiceCommand)
+	startCommand.AddSubcommands(startInferenceServerCommand)
+	startCommand.AddSubcommands(startInferenceClientCommand)
 
 	return startCommand
 
@@ -425,6 +437,120 @@ func runStartSuperNode(ctx context.Context, config *configs.Config, justInit boo
 		log.WithContext(ctx).WithError(err).Error("Failed to start supernode service")
 		return err
 	}
+
+	return nil
+}
+
+// getDefaultShell tries to find zsh as the preferred shell, falls back to bash if not found
+func getDefaultShell() (string, error) {
+	if _, err := exec.LookPath("/bin/zsh"); err == nil {
+		return "/bin/zsh", nil
+	}
+
+	if _, err := exec.LookPath("/bin/bash"); err == nil {
+		return "/bin/bash", nil
+	}
+	return "", fmt.Errorf("neither zsh nor bash is available on the system")
+}
+
+func runInferenceClientStartSubCommand(ctx context.Context, _ *configs.Config) error {
+	tempDir := "/tmp"
+
+	repoURL := "https://github.com/pastelnetwork/pastel_inference_js_client.git"
+	repoName := filepath.Base(repoURL)
+	repoPath := filepath.Join(tempDir, repoName)
+
+	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
+		log.Println("Directory does not exist. Cloning repository...")
+		if err := os.Chdir(tempDir); err != nil {
+			return err
+		}
+
+		gitCmd := exec.Command("git", "clone", repoURL, repoPath)
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error cloning the repo")
+			return err
+		}
+	} else {
+		log.Println("Directory exists. Stashing and pulling latest code...")
+		if err := os.Chdir(repoPath); err != nil {
+			return err
+		}
+		gitCmd := exec.Command("git", "stash")
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error stashing the repo")
+			return err
+		}
+
+		gitCmd = exec.Command("git", "pull")
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error pulling the repo")
+			return err
+		}
+	}
+	log.WithContext(ctx).Info("repo has been cloned")
+
+	scriptPath := filepath.Join(repoPath, "initial_inference_js_client_setup_script.sh")
+	scriptCmd := exec.Command("/bin/bash", scriptPath)
+
+	scriptCmd.Stderr = os.Stderr
+	scriptCmd.Stdout = os.Stdout
+	if err := scriptCmd.Run(); err != nil {
+		log.WithContext(ctx).WithError(err).Error("error executing the script")
+		return err
+	}
+	log.WithContext(ctx).Info("script to start the inference client has been executed")
+
+	return nil
+}
+
+func runInferenceServerStartSubCommand(ctx context.Context, _ *configs.Config) error {
+	tempDir := "/tmp"
+
+	repoURL := "https://github.com/pastelnetwork/python_inference_layer_server.git"
+	repoName := filepath.Base(repoURL)
+	repoPath := filepath.Join(tempDir, repoName)
+
+	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
+		log.Println("Directory does not exist. Cloning repository...")
+		if err := os.Chdir(tempDir); err != nil {
+			return err
+		}
+
+		gitCmd := exec.Command("git", "clone", repoURL, repoPath)
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error cloning the repo")
+			return err
+		}
+	} else {
+		log.Println("Directory exists. Stashing and pulling latest code...")
+		if err := os.Chdir(repoPath); err != nil {
+			return err
+		}
+		gitCmd := exec.Command("git", "stash")
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error stashing the repo")
+			return err
+		}
+
+		gitCmd = exec.Command("git", "pull")
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error pulling the repo")
+			return err
+		}
+	}
+	log.WithContext(ctx).Info("repo has been cloned")
+
+	scriptPath := filepath.Join(repoPath, "initial_inference_server_setup_script.sh")
+	scriptCmd := exec.Command("/bin/bash", scriptPath)
+
+	scriptCmd.Stderr = os.Stderr
+	scriptCmd.Stdout = os.Stdout
+	if err := scriptCmd.Run(); err != nil {
+		log.WithContext(ctx).WithError(err).Error("error executing the script")
+		return err
+	}
+	log.WithContext(ctx).Info("script to start the inference-server has been executed")
 
 	return nil
 }

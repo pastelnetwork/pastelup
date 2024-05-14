@@ -32,7 +32,7 @@ func (app *App) AddFlags(flags ...*Flag) {
 // SetBeforeFunc sets the Before function for the cli.App
 // An action to execute before any subcommands are run, but after the context is ready.
 func (app *App) SetBeforeFunc(beforeFn func() error) {
-	app.Before = func(c *cli.Context) error {
+	app.Before = func(_ *cli.Context) error {
 		return beforeFn()
 	}
 }
@@ -76,7 +76,7 @@ func NewApp(name string) *App {
 	app := cli.NewApp()
 	app.Name = name
 	app.Authors = []*cli.Author{&cli.Author{Name: defaultAuthor}}
-	app.OnUsageError = func(c *cli.Context, err error, isSubcommand bool) error {
+	app.OnUsageError = func(_ *cli.Context, err error, _ bool) error {
 		return err
 	}
 
@@ -86,7 +86,7 @@ func NewApp(name string) *App {
 }
 
 func init() {
-	cli.OsExiter = func(exitCode int) {
+	cli.OsExiter = func(_ int) {
 		// Do nothing. We just need to override this function, as the default value calls os.Exit, which
 		// kills the app (or any automated test) dead in its tracks.
 	}

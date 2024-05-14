@@ -25,7 +25,7 @@ func (cmd *Command) AddFlags(flags ...*Flag) {
 
 // SetBeforeFunc sets the Before function for the cli.Command
 func (cmd *Command) SetBeforeFunc(before func() error) {
-	cmd.Before = func(c *cli.Context) error {
+	cmd.Before = func(_ *cli.Context) error {
 		return before()
 	}
 }

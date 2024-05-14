@@ -121,7 +121,7 @@ func setupStopSubCommand(config *configs.Config,
 	addLogFlags(subCommand, config)
 
 	if f != nil {
-		subCommand.SetActionFunc(func(ctx context.Context, args []string) error {
+		subCommand.SetActionFunc(func(ctx context.Context, _ []string) error {
 			ctx, err := configureLogging(ctx, commandMessage, config)
 			if err != nil {
 				return err

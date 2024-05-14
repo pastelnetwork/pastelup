@@ -47,7 +47,7 @@ func DialWithPasswd(addr, user, passwd string) (*Client, error) {
 				"diffie-hellman-group1-sha1",
 			},
 		},
-		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
+		HostKeyCallback: ssh.HostKeyCallback(func(_ string, _ net.Addr, _ ssh.PublicKey) error { return nil }),
 	}
 
 	return Dial("tcp", addr, config)
@@ -70,7 +70,7 @@ func DialWithKey(addr, user, keyfile string) (*Client, error) {
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
+		HostKeyCallback: ssh.HostKeyCallback(func(_ string, _ net.Addr, _ ssh.PublicKey) error { return nil }),
 	}
 
 	return Dial("tcp", addr, config)
@@ -93,7 +93,7 @@ func DialWithKeyWithPassphrase(addr, user, keyfile string, passphrase string) (*
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
+		HostKeyCallback: ssh.HostKeyCallback(func(_ string, _ net.Addr, _ ssh.PublicKey) error { return nil }),
 	}
 
 	return Dial("tcp", addr, config)

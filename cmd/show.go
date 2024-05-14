@@ -23,7 +23,7 @@ func setupShowCommand(config *configs.Config) *cli.Command {
 	showCommand.AddFlags(showCommandFlags...)
 	addLogFlags(showCommand, config)
 
-	showCommand.SetActionFunc(func(ctx context.Context, args []string) error {
+	showCommand.SetActionFunc(func(ctx context.Context, _ []string) error {
 		ctx, err := configureLogging(ctx, "showcommand", config)
 		if err != nil {
 			return err

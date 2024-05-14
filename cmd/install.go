@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -32,6 +33,8 @@ const (
 	installSNService
 	installHermesService
 	remoteInstall
+	installInferenceServer
+	installInferenceClient
 )
 
 var (
@@ -44,24 +47,28 @@ var nonNetworkDependentServices []constants.ToolType
 
 var (
 	installCmdName = map[installCommand]string{
-		installNode:          "node",
-		installWalletNode:    "walletnode",
-		installSuperNode:     "supernode",
-		installRQService:     "rq-service",
-		installDDService:     "dd-service",
-		installDDImgServer:   "imgserver",
-		installHermesService: "hermes-service",
-		remoteInstall:        "remote",
+		installNode:            "node",
+		installWalletNode:      "walletnode",
+		installSuperNode:       "supernode",
+		installRQService:       "rq-service",
+		installDDService:       "dd-service",
+		installDDImgServer:     "imgserver",
+		installHermesService:   "hermes-service",
+		remoteInstall:          "remote",
+		installInferenceServer: "inference-server",
+		installInferenceClient: "inference-client",
 	}
 	installCmdMessage = map[installCommand]string{
-		installNode:          "Install node",
-		installWalletNode:    "Install Walletnode",
-		installSuperNode:     "Install Supernode",
-		installRQService:     "Install RaptorQ service",
-		installDDService:     "Install Dupe Detection service only",
-		installDDImgServer:   "Install Dupe Detection Image Server only",
-		installHermesService: "Install hermes-service only",
-		remoteInstall:        "Install on Remote host",
+		installNode:            "Install node",
+		installWalletNode:      "Install Walletnode",
+		installSuperNode:       "Install Supernode",
+		installRQService:       "Install RaptorQ service",
+		installDDService:       "Install Dupe Detection service only",
+		installDDImgServer:     "Install Dupe Detection Image Server only",
+		installHermesService:   "Install hermes-service only",
+		remoteInstall:          "Install on Remote host",
+		installInferenceServer: "Install inference-server",
+		installInferenceClient: "Install inference-client",
 	}
 )
 var appToServiceMap = map[constants.ToolType][]constants.ToolType{
@@ -228,6 +235,8 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	installDDSubCommand := setupSubCommand(config, installDDService, false, runInstallDupeDetectionSubCommand)
 	installDDImgServerSubCommand := setupSubCommand(config, installDDImgServer, false, runInstallDupeDetectionImgServerSubCommand)
 	installHermesServiceSubCommand := setupSubCommand(config, installHermesService, false, runInstallHermesServiceSubCommand)
+	installInferenceServerCommand := setupSubCommand(config, installInferenceServer, false, runInferenceServerInstallSubCommand)
+	installInferenceClientCommand := setupSubCommand(config, installInferenceClient, false, runInferenceClientInstallSubCommand)
 
 	installNodeSubCommand.AddSubcommands(setupSubCommand(config, installNode, true, runRemoteInstallNode))
 	installWalletNodeSubCommand.AddSubcommands(setupSubCommand(config, installWalletNode, true, runRemoteInstallWalletNode))
@@ -246,6 +255,8 @@ func setupInstallCommand(config *configs.Config) *cli.Command {
 	installCommand.AddSubcommands(installDDSubCommand)
 	installCommand.AddSubcommands(installHermesServiceSubCommand)
 	installCommand.AddSubcommands(installDDImgServerSubCommand)
+	installCommand.AddSubcommands(installInferenceClientCommand)
+	installCommand.AddSubcommands(installInferenceServerCommand)
 	return installCommand
 }
 
@@ -293,6 +304,108 @@ func runInstallDupeDetectionImgServerSubCommand(ctx context.Context, config *con
 	}
 	config.ServiceTool = "dd-img-service"
 	return installSystemService(ctx, config)
+}
+
+func runInferenceClientInstallSubCommand(ctx context.Context, _ *configs.Config) error {
+	tempDir := "/tmp"
+
+	repoURL := "https://github.com/pastelnetwork/pastel_inference_js_client.git"
+	repoName := filepath.Base(repoURL)
+	repoPath := filepath.Join(tempDir, repoName)
+
+	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
+		log.WithContext(ctx).Debug("Directory does not exist. Cloning repository...")
+		if err := os.Chdir(tempDir); err != nil {
+			return err
+		}
+
+		gitCmd := exec.Command("git", "clone", repoURL, repoPath)
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error cloning the repo")
+			return err
+		}
+	} else {
+		log.WithContext(ctx).Debug("Directory exists. Stashing and pulling latest code...")
+		if err := os.Chdir(repoPath); err != nil {
+			return err
+		}
+		gitCmd := exec.Command("git", "stash")
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error stashing the repo")
+			return err
+		}
+
+		gitCmd = exec.Command("git", "pull")
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error pulling the repo")
+			return err
+		}
+	}
+	log.WithContext(ctx).Debug("repo has been cloned")
+
+	scriptPath := filepath.Join(repoPath, "initial_inference_js_client_setup_script.sh")
+	scriptCmd := exec.Command("/bin/bash", scriptPath)
+
+	scriptCmd.Stderr = os.Stderr
+	scriptCmd.Stdout = os.Stdout
+	if err := scriptCmd.Run(); err != nil {
+		log.WithContext(ctx).WithError(err).Error("error executing the script")
+		return err
+	}
+	log.WithContext(ctx).Info("inference-client has been installed")
+
+	return nil
+}
+
+func runInferenceServerInstallSubCommand(ctx context.Context, _ *configs.Config) error {
+	tempDir := "/tmp"
+
+	repoURL := "https://github.com/pastelnetwork/python_inference_layer_server.git"
+	repoName := filepath.Base(repoURL)
+	repoPath := filepath.Join(tempDir, repoName)
+
+	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
+		log.WithContext(ctx).Debug("Directory does not exist. Cloning repository...")
+		if err := os.Chdir(tempDir); err != nil {
+			return err
+		}
+
+		gitCmd := exec.Command("git", "clone", repoURL, repoPath)
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error cloning the repo")
+			return err
+		}
+	} else {
+		log.WithContext(ctx).Debug("Directory exists. Stashing and pulling latest code...")
+		if err := os.Chdir(repoPath); err != nil {
+			return err
+		}
+		gitCmd := exec.Command("git", "stash")
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error stashing the repo")
+			return err
+		}
+
+		gitCmd = exec.Command("git", "pull")
+		if err := gitCmd.Run(); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error pulling the repo")
+			return err
+		}
+	}
+	log.WithContext(ctx).Debug("repo has been cloned")
+
+	scriptPath := filepath.Join(repoPath, "initial_inference_server_setup_script.sh")
+	scriptCmd := exec.Command("/bin/bash", scriptPath)
+
+	scriptCmd.Stderr = os.Stderr
+	scriptCmd.Stdout = os.Stdout
+	if err := scriptCmd.Run(); err != nil {
+		log.WithContext(ctx).WithError(err).Error("error executing the script")
+		return err
+	}
+	log.WithContext(ctx).Info("inference-server has been installed")
+
+	return nil
 }
 
 func runRemoteInstallNode(ctx context.Context, config *configs.Config) error {

@@ -81,8 +81,7 @@ commands:
             export MACOS_ARTIFACT=<< parameters.binaryName >>-darwin-10.14-amd64
             export WINDOWS_ARTIFACT=<< parameters.binaryName >>-windows-4.0-amd64.exe
             export LINUX_ARTIFACT=<< parameters.binaryName >>-linux-amd64
-            echo gh release create ${CIRCLE_TAG} --title \"<< parameters.release_title >>\" --notes \"<< parameters.release_notes >>\"
-            gh release create ${CIRCLE_TAG} --title "<< parameters.release_title >>" --notes "<< parameters.release_notes >>"
+          
             if [[ "<< parameters.targets >>" == *"linux/amd64,"* ]]; then
               echo "Check existence of linux/amd64 build and upload to GitHub"
               test -f $LINUX_ARTIFACT

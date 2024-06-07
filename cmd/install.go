@@ -1,16 +1,24 @@
 package cmd
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/PuerkitoBio/goquery"
+	"github.com/chromedp/chromedp"
 	"github.com/pastelnetwork/pastelup/common/cli"
 	"github.com/pastelnetwork/pastelup/common/errors"
 	"github.com/pastelnetwork/pastelup/common/log"
@@ -35,6 +43,10 @@ const (
 	remoteInstall
 	installInferenceServer
 	installInferenceClient
+)
+
+const (
+	snapshotsBaseURL = "https://download.pastel.network/#snapshots/"
 )
 
 var (
@@ -112,6 +124,8 @@ func setupSubCommand(config *configs.Config,
 	networkFlags := []*cli.Flag{
 		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(red("Required, network type, can be - \"mainnet\", \"testnet\" or \"devnet\"")),
+		cli.NewFlag("no-snapshot", &config.NoSnapshot).SetAliases("ns").
+			SetUsage(green("Optional", "Set to true if want to install without latest snapshot, default is false")),
 	}
 
 	pastelFlags := []*cli.Flag{
@@ -551,6 +565,13 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		if err := installPastelCore(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install Pastel Node")
 			return err
+		}
+
+		if !config.NoSnapshot {
+			log.WithContext(ctx).Info("using latest snapshot..")
+			if err := downloadLatestSnapshot(ctx, *config); err != nil {
+				log.WithContext(ctx).WithError(err).Error("error configuring network with latest snapshot, proceeding without snapshot")
+			}
 		}
 	}
 	// install rqservice and its config
@@ -1574,4 +1595,179 @@ func writeToFile(config *configs.Config, filename, content string) error {
 	// Move the temporary file to the intended location
 	_, err = RunSudoCMD(config, "mv", tmpFilename, filename)
 	return err
+}
+
+func downloadLatestSnapshot(ctx context.Context, config configs.Config) error {
+	url := snapshotsBaseURL + config.Network + "/"
+
+	// Fetch the latest file URL
+	latestFileURL, err := getLatestFileURL(url)
+	if err != nil {
+		return fmt.Errorf("failed to get latest file URL: %w", err)
+	}
+	log.WithContext(ctx).WithField("url", latestFileURL).Info("downloading snapshot...")
+
+	tmpDir := os.TempDir()
+	tmpFilePath := filepath.Join(tmpDir, "latest_snapshot.tar.gz")
+
+	err = utils.DownloadFile(ctx, tmpFilePath, latestFileURL)
+	if err != nil {
+		return fmt.Errorf("error downloading file: %w", err)
+	}
+	defer os.Remove(tmpFilePath)
+	log.WithContext(ctx).Info(fmt.Sprintf("snapshot downloaded successfully to %s", tmpFilePath))
+
+	// Clean up the working directory
+	err = cleanWorkingDir(config.WorkingDir)
+	if err != nil {
+		return fmt.Errorf("failed to clean working directory: %w", err)
+	}
+	log.WithContext(ctx).Info(fmt.Sprintf("existing content has been cleared from wor-dir:%s", config.WorkingDir))
+
+	// Extract the downloaded file
+	err = extractTarGz(tmpFilePath, config.WorkingDir)
+	if err != nil {
+		return fmt.Errorf("failed to extract file: %w", err)
+	}
+	log.WithContext(ctx).Info(fmt.Sprintf("snapshot has been extracted to wor-dir: %s", config.WorkingDir))
+
+	return nil
+}
+
+func getLatestFileURL(baseURL string) (string, error) {
+	// Create context
+	ctx, cancel := chromedp.NewContext(context.Background())
+	defer cancel()
+
+	// Navigate to the page and get the full HTML content
+	var htmlContent string
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(baseURL),
+		chromedp.WaitVisible(`a[href]`, chromedp.ByQuery),
+		chromedp.OuterHTML("html", &htmlContent),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse the HTML
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return "", err
+	}
+
+	type fileInfo struct {
+		url  string
+		date time.Time
+	}
+
+	var files []fileInfo
+	re := regexp.MustCompile(`snapshot-(\d+).*\.tar\.gz`)
+
+	// Iterate over each row in the table
+	doc.Find("table.table tbody tr").Each(func(_ int, s *goquery.Selection) {
+		log.WithContext(ctx).Debug("Processing a row...")
+
+		aTag := s.Find("a")
+		if href, exists := aTag.Attr("href"); exists {
+			log.WithContext(ctx).Debug("Found href:", href)
+			matches := re.FindStringSubmatch(href)
+			if matches != nil {
+				log.WithContext(ctx).Debug("Matches found:", matches)
+				dateText := s.Find("div.tooltip-content").Text()
+				parsedDate, err := parseDate(dateText)
+				if err == nil {
+					files = append(files, fileInfo{url: href, date: parsedDate})
+				} else {
+					log.WithContext(ctx).Debug(fmt.Sprintf("Failed to parse date: %s", err.Error()))
+				}
+			}
+		}
+	})
+
+	if len(files) == 0 {
+		return "", fmt.Errorf("no snapshot files found at: %s", baseURL)
+	}
+
+	// Sort files by date, latest first
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].date.After(files[j].date)
+	})
+
+	return files[0].url, nil
+}
+
+func removeOrdinalSuffix(dateStr string) string {
+	re := regexp.MustCompile(`(\d+)(st|nd|rd|th)`)
+	return re.ReplaceAllString(dateStr, "$1")
+}
+
+func parseDate(dateStr string) (time.Time, error) {
+	// Remove the "•" bullet character if it exists
+	dateStr = strings.Replace(dateStr, "•", "", -1)
+	// Remove ordinal suffix from day
+	dateStr = removeOrdinalSuffix(dateStr)
+	// Trim any extra whitespace
+	dateStr = strings.TrimSpace(dateStr)
+	// Define the date layout according to the date format in the HTML
+	layout := "Monday, January 2, 2006 15:04:05"
+	return time.Parse(layout, dateStr)
+}
+
+func cleanWorkingDir(dir string) error {
+	files := []string{"blocks", "chainstate", "db.log", "debug.log", "fee_estimates.dat", "messages.dat", "mncache.dat", "mnpayments.dat", "netfulfilled.dat", "peers.dat", "tickets"}
+	for _, file := range files {
+		path := filepath.Join(dir, file)
+		if err := os.RemoveAll(path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func extractTarGz(gzipPath, dest string) error {
+	file, err := os.Open(gzipPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	gzr, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+	defer gzr.Close()
+
+	tarReader := tar.NewReader(gzr)
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		path := filepath.Join(dest, header.Name)
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(path, 0755); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			outFile, err := os.Create(path)
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(outFile, tarReader); err != nil {
+				outFile.Close()
+				return err
+			}
+			outFile.Close()
+		default:
+			return fmt.Errorf("unsupported file type %v in tar archive", header.Typeflag)
+		}
+	}
+	return nil
 }

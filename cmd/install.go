@@ -124,8 +124,8 @@ func setupSubCommand(config *configs.Config,
 	networkFlags := []*cli.Flag{
 		cli.NewFlag("network", &config.Network).SetAliases("n").
 			SetUsage(red("Required, network type, can be - \"mainnet\", \"testnet\" or \"devnet\"")),
-		cli.NewFlag("no-snapshot", &config.NoSnapshot).SetAliases("ns").
-			SetUsage(green("Optional", "Set to true if want to install without latest snapshot, default is false")),
+		cli.NewFlag("use-snapshot", &config.UseSnapshot).SetAliases("us").
+			SetUsage(green("Optional, Set to true if want to install with latest snapshot")),
 	}
 
 	pastelFlags := []*cli.Flag{
@@ -567,7 +567,7 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 			return err
 		}
 
-		if !config.NoSnapshot {
+		if config.UseSnapshot {
 			log.WithContext(ctx).Info("using latest snapshot..")
 			if err := downloadLatestSnapshot(ctx, *config); err != nil {
 				log.WithContext(ctx).WithError(err).Error("error configuring network with latest snapshot, proceeding without snapshot")

@@ -94,6 +94,8 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Skip Update of python packages during dd-service update")).SetValue(true),
 		cli.NewFlag("skip-dd-supporting-files-update", &config.SkipDDSupportingFilesUpdate).
 			SetUsage(green("Optional, Skip Download and Update of dd-service supporting files")).SetValue(true),
+		cli.NewFlag("use-snapshot", &config.UseSnapshot).SetAliases("us").
+			SetUsage(green("Optional, Set to true if want to update with latest snapshot")),
 	}
 
 	userFlags := []*cli.Flag{

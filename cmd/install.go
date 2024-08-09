@@ -291,6 +291,66 @@ func runInstallSuperNodeSubCommand(ctx context.Context, config *configs.Config) 
 	return runServicesInstall(ctx, config, constants.SuperNode, true)
 }
 
+func installRcloneLinux(ctx context.Context) error {
+	// Improved distribution detection with trimming quotes
+	distroBytes, err := exec.Command("sh", "-c", `grep ^ID= /etc/os-release | cut -d= -f2 | tr -d '"'`).Output()
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("error detecting Linux distribution")
+		return fmt.Errorf("failed to detect Linux distribution: %w", err)
+	}
+	distro := strings.TrimSpace(string(distroBytes))
+
+	switch distro {
+	case "ubuntu", "debian":
+		if err := updateAndInstall(ctx, "apt-get", "rclone-current-linux-amd64.deb"); err != nil {
+			return err
+		}
+	case "centos", "fedora":
+		if err := updateAndInstall(ctx, "yum", "rclone-current-linux-amd64.rpm"); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsupported Linux distribution: %s", distro)
+	}
+
+	log.WithContext(ctx).Info("rclone installed successfully")
+	return nil
+}
+
+func updateAndInstall(ctx context.Context, pkgManager, rclonePackage string) error {
+	updateCmd := []string{"sudo", pkgManager, "update"}
+	if pkgManager == "apt-get" {
+		updateCmd = append(updateCmd, "-y")
+	}
+	if output, err := exec.CommandContext(ctx, updateCmd[0], updateCmd[1:]...).CombinedOutput(); err != nil {
+		log.WithContext(ctx).WithError(err).Error("error updating package list")
+		return fmt.Errorf("failed to update package list: %v, output: %s", err, output)
+	}
+
+	installCmd := []string{"sudo", pkgManager, "install", "-y", "curl"}
+	if output, err := exec.CommandContext(ctx, installCmd[0], installCmd[1:]...).CombinedOutput(); err != nil {
+		log.WithContext(ctx).WithError(err).Error("error installing curl")
+		return fmt.Errorf("failed to install curl: %v, output: %s", err, output)
+	}
+
+	downloadCmd := []string{"curl", "-O", fmt.Sprintf("https://downloads.rclone.org/%s", rclonePackage)}
+	if output, err := exec.CommandContext(ctx, downloadCmd[0], downloadCmd[1:]...).CombinedOutput(); err != nil {
+		log.WithContext(ctx).WithError(err).Error("error downloading rclone")
+		return fmt.Errorf("failed to download rclone: %v, output: %s", err, output)
+	}
+
+	installRcloneCmd := []string{"sudo", "dpkg", "-i", rclonePackage}
+	if pkgManager == "yum" {
+		installRcloneCmd = []string{"sudo", "rpm", "-i", rclonePackage}
+	}
+	if output, err := exec.CommandContext(ctx, installRcloneCmd[0], installRcloneCmd[1:]...).CombinedOutput(); err != nil {
+		log.WithContext(ctx).WithError(err).Error("error installing rclone")
+		return fmt.Errorf("failed to install rclone: %v, output: %s", err, output)
+	}
+
+	return nil
+}
+
 func runInstallRaptorQSubCommand(ctx context.Context, config *configs.Config) error {
 	return runServicesInstall(ctx, config, constants.RQService, false)
 }
@@ -596,6 +656,10 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		if err := installSuperNodeService(ctx, config, config.OpMode == "install" /*only open ports when full system install*/); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install WalletNode service")
 			return err
+		}
+
+		if err := installRcloneLinux(ctx); err != nil {
+			log.WithContext(ctx).Error("Failed to install rclone service")
 		}
 	}
 

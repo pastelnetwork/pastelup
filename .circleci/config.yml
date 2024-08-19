@@ -183,10 +183,10 @@ jobs:
           name: Install revive
           command: |
             go install github.com/mgechev/revive@latest
-      - run:
-          name: Install staticcheck
-          command: |
-            go install honnef.co/go/tools/cmd/staticcheck@latest
+#      - run:
+#          name: Install staticcheck
+#          command: |
+#            go install honnef.co/go/tools/cmd/staticcheck@latest
       - run:
           name: Fetch dependencies
           command: |

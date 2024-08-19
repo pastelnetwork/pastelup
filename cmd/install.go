@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -588,6 +589,10 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 		if err := installWalletNodeService(ctx, config); err != nil {
 			log.WithContext(ctx).WithError(err).Error("Failed to install WalletNode service")
 			return err
+		}
+
+		if err := install7z(ctx); err != nil {
+			log.WithContext(ctx).WithError(err).Error("error installing 7z...")
 		}
 	}
 
@@ -1632,6 +1637,141 @@ func downloadLatestSnapshot(ctx context.Context, config configs.Config) error {
 	log.WithContext(ctx).Info(fmt.Sprintf("snapshot has been extracted to wor-dir: %s", config.WorkingDir))
 
 	return nil
+}
+
+func install7z(ctx context.Context) error {
+	output, err := exec.CommandContext(ctx, "7z", "i").CombinedOutput()
+	if err == nil && strings.Contains(string(output), "p7zip Version") {
+		log.WithContext(ctx).Info("7z is already installed")
+		return nil
+	}
+
+	switch runtime.GOOS {
+	case "linux":
+		return install7zLinux(ctx)
+	case "darwin":
+		return install7zMacOS(ctx)
+	case "windows":
+		return install7zWindows(ctx)
+	default:
+		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
+}
+
+func install7zLinux(ctx context.Context) error {
+	distro, err := exec.Command("sh", "-c", "grep ^ID= /etc/os-release | cut -d= -f2").Output()
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Error("error detecting linux distribution")
+
+		return fmt.Errorf("failed to detect linux distribution: %v", err)
+	}
+
+	switch strings.TrimSpace(string(distro)) {
+	case "ubuntu", "debian":
+		output, err := exec.CommandContext(ctx, "sudo", "apt-get", "update").CombinedOutput()
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Error(fmt.Sprintf("error installing 7zip: %s, output: %s", err.Error(), output))
+			return fmt.Errorf("failed to update package list: %v, output: %s", err, output)
+		}
+
+		output, err = exec.CommandContext(ctx, "sudo", "apt-get", "install", "-y", "p7zip-full").CombinedOutput()
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("error installing 7zip: %s", output)
+			return fmt.Errorf("failed to install 7z: %v, output: %s", err, output)
+		}
+	case "centos", "fedora":
+		output, err := exec.CommandContext(ctx, "sudo", "yum", "install", "-y", "p7zip").CombinedOutput()
+		if err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("error installing 7zip: %s", output)
+			return fmt.Errorf("failed to install 7z: %v, output: %s", err, output)
+		}
+	default:
+		return fmt.Errorf("unsupported linux distribution: %s", distro)
+	}
+
+	log.WithContext(ctx).Info("7z installed successfully")
+	return nil
+}
+
+func install7zMacOS(ctx context.Context) error {
+	output, err := exec.Command("uname", "-m").CombinedOutput()
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("error checking architecture: %s\n", output)
+		return err
+	}
+	arch := strings.TrimSpace(string(output))
+
+	log.WithContext(ctx).Debugf("system architecture detected: %s", arch)
+
+	// Adjust Homebrew path and installation command based on architecture
+	if arch == "arm64" {
+		log.WithContext(ctx).Debug("detected ARM architecture")
+
+		os.Setenv("PATH", "/opt/homebrew/bin:"+os.Getenv("PATH"))
+
+		if output, err := exec.Command("arch", "-arm64", "brew", "install", "p7zip").CombinedOutput(); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("error installing p7zip on ARM: %s\n", output)
+			return err
+		}
+	} else if arch == "x86_64" {
+		log.WithContext(ctx).Debug("detected Intel architecture")
+
+		os.Setenv("PATH", "/usr/local/bin:"+os.Getenv("PATH"))
+
+		if output, err := exec.Command("brew", "install", "p7zip").CombinedOutput(); err != nil {
+			log.WithContext(ctx).WithError(err).Errorf("error installing p7zip on Intel: %s\n", output)
+			return err
+		}
+	} else {
+		log.WithContext(ctx).Infof("Unsupported architecture: %s", arch)
+		return fmt.Errorf("unsupported architecture: %s", arch)
+	}
+
+	log.Println("p7zip installed successfully")
+	return nil
+}
+
+func install7zWindows(ctx context.Context) error {
+	// Check if Chocolatey is installed
+	if _, err := exec.LookPath("choco"); err != nil {
+		log.WithContext(ctx).Info("chocolatey is not installed. Installing Chocolatey...")
+		installChocolatey(ctx)
+	}
+
+	// Verify Chocolatey installation
+	if _, err := exec.LookPath("choco"); err != nil {
+		return fmt.Errorf("chocolatey installation failed")
+	}
+
+	// Install 7z using Chocolatey
+	log.WithContext(ctx).Info("Installing 7z using Chocolatey...")
+	output, err := exec.CommandContext(ctx, "choco", "install", "7zip", "-y").CombinedOutput()
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("error installing 7zip: %s", output)
+		return fmt.Errorf("failed to install 7z: %v, output: %s", err, output)
+	}
+
+	log.WithContext(ctx).Info("7z installed successfully")
+	return nil
+}
+
+func installChocolatey(ctx context.Context) {
+	powershellCmd := `Set-ExecutionPolicy Bypass -Scope Process -Force; ` +
+		`[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; ` +
+		`iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))`
+
+	for i := 0; i < 3; i++ { // Retry up to 3 times
+		cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-InputFormat", "None", "-ExecutionPolicy", "Bypass", "-Command", powershellCmd)
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			log.WithContext(ctx).Info("chocolatey installed successfully")
+			os.Setenv("PATH", os.Getenv("PATH")+";C:\\ProgramData\\chocolatey\\bin")
+			return
+		}
+
+		log.WithContext(ctx).Debugf("chocolatey installation attempt %d failed: %v, output: %s\n retrying...", i+1, err, output)
+		time.Sleep(5 * time.Second) // Wait before retrying
+	}
 }
 
 func getLatestFileURL(baseURL string) (string, error) {

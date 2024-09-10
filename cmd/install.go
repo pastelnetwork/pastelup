@@ -20,6 +20,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/chromedp"
+	"github.com/klauspost/compress/zstd"
 	"github.com/pastelnetwork/pastelup/common/cli"
 	"github.com/pastelnetwork/pastelup/common/errors"
 	"github.com/pastelnetwork/pastelup/common/log"
@@ -1630,7 +1631,7 @@ func downloadLatestSnapshot(ctx context.Context, config configs.Config) error {
 	log.WithContext(ctx).Info(fmt.Sprintf("existing content has been cleared from wor-dir:%s", config.WorkingDir))
 
 	// Extract the downloaded file
-	err = extractTarGz(tmpFilePath, config.WorkingDir)
+	err = extractTar(tmpFilePath, config.WorkingDir)
 	if err != nil {
 		return fmt.Errorf("failed to extract file: %w", err)
 	}
@@ -1783,7 +1784,8 @@ func getLatestFileURL(baseURL string) (string, error) {
 	var htmlContent string
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(baseURL),
-		chromedp.WaitVisible(`a[href]`, chromedp.ByQuery),
+		chromedp.WaitVisible(`a[href*="snapshot"]`, chromedp.ByQuery),
+		chromedp.Sleep(4*time.Second),
 		chromedp.OuterHTML("html", &htmlContent),
 	)
 	if err != nil {
@@ -1802,7 +1804,7 @@ func getLatestFileURL(baseURL string) (string, error) {
 	}
 
 	var files []fileInfo
-	re := regexp.MustCompile(`snapshot-(\d+).*\.tar\.gz`)
+	re := regexp.MustCompile(`.*\.tar\.(gz|zst)$`)
 
 	// Iterate over each row in the table
 	doc.Find("table.table tbody tr").Each(func(_ int, s *goquery.Selection) {
@@ -1865,20 +1867,35 @@ func cleanWorkingDir(dir string) error {
 	return nil
 }
 
-func extractTarGz(gzipPath, dest string) error {
-	file, err := os.Open(gzipPath)
+func extractTar(archivePath, dest string) error {
+	file, err := os.Open(archivePath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	gzr, err := gzip.NewReader(file)
-	if err != nil {
-		return err
+	var reader io.Reader
+	if strings.HasSuffix(archivePath, ".tar.gz") {
+		// Gzip decompression
+		gzr, err := gzip.NewReader(file)
+		if err != nil {
+			return err
+		}
+		defer gzr.Close()
+		reader = gzr
+	} else if strings.HasSuffix(archivePath, ".tar.zst") {
+		// Zstandard decompression
+		zr, err := zstd.NewReader(file)
+		if err != nil {
+			return err
+		}
+		defer zr.Close()
+		reader = zr
+	} else {
+		return fmt.Errorf("unsupported archive format: %s", archivePath)
 	}
-	defer gzr.Close()
 
-	tarReader := tar.NewReader(gzr)
+	tarReader := tar.NewReader(reader)
 
 	for {
 		header, err := tarReader.Next()

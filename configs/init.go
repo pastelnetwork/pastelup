@@ -34,6 +34,7 @@ type Init struct {
 	ServiceSolution             string `json:"solution,omitempty"`
 	DevMode                     bool   `json:"devmode,omitempty"`
 	UseSnapshot                 bool   `json:"use-snapshot,omitempty"`
+	SnapshotName                string `json:"snapshot-name,omitempty"`
 
 	NodeExtIP string `json:"nodeextip,omitempty"`
 

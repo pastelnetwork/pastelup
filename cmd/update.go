@@ -96,6 +96,8 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Skip Download and Update of dd-service supporting files")).SetValue(true),
 		cli.NewFlag("use-snapshot", &config.UseSnapshot).SetAliases("us").
 			SetUsage(green("Optional, Set to true if want to update with latest snapshot")),
+		cli.NewFlag("snapshot-name", &config.SnapshotName).SetAliases("sn").
+			SetUsage(green("Optional, Set the specific snapshot name to install with")),
 	}
 
 	userFlags := []*cli.Flag{

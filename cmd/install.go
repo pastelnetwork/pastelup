@@ -128,6 +128,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(red("Required, network type, can be - \"mainnet\", \"testnet\" or \"devnet\"")),
 		cli.NewFlag("use-snapshot", &config.UseSnapshot).SetAliases("us").
 			SetUsage(green("Optional, Set to true if want to install with latest snapshot")),
+		cli.NewFlag("snapshot-name", &config.SnapshotName).SetAliases("sn").
+			SetUsage(green("Optional, Set the specific snapshot name to install with")),
 	}
 
 	pastelFlags := []*cli.Flag{
@@ -1607,7 +1609,7 @@ func downloadLatestSnapshot(ctx context.Context, config configs.Config) error {
 	url := snapshotsBaseURL + config.Network + "/"
 
 	// Fetch the latest file URL
-	latestFileURL, err := getLatestFileURL(url)
+	latestFileURL, err := getLatestFileURL(url, config.SnapshotName)
 	if err != nil {
 		return fmt.Errorf("failed to get latest file URL: %w", err)
 	}
@@ -1775,7 +1777,7 @@ func installChocolatey(ctx context.Context) {
 	}
 }
 
-func getLatestFileURL(baseURL string) (string, error) {
+func getLatestFileURL(baseURL string, fileName string) (string, error) {
 	// Create context
 	ctx, cancel := chromedp.NewContext(context.Background())
 	defer cancel()
@@ -1804,7 +1806,7 @@ func getLatestFileURL(baseURL string) (string, error) {
 	}
 
 	var files []fileInfo
-	re := regexp.MustCompile(`.*\.tar\.(gz|zst)$`)
+	re := regexp.MustCompile(`.*\.(tar\.(gz|zst)|7z)$`)
 
 	// Iterate over each row in the table
 	doc.Find("table.table tbody tr").Each(func(_ int, s *goquery.Selection) {
@@ -1829,6 +1831,15 @@ func getLatestFileURL(baseURL string) (string, error) {
 
 	if len(files) == 0 {
 		return "", fmt.Errorf("no snapshot files found at: %s", baseURL)
+	}
+
+	if fileName != "" {
+		for _, f := range files {
+			if strings.Contains(f.url, fileName) {
+				log.WithContext(ctx).Info("found snapshot with given name:", fileName)
+				return f.url, nil
+			}
+		}
 	}
 
 	// Sort files by date, latest first

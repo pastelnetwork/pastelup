@@ -1805,7 +1805,10 @@ func getLatestFileURL(baseURL string, fileName string) (string, error) {
 		date time.Time
 	}
 
-	var files []fileInfo
+	var (
+		files       []fileInfo
+		latestFiles []fileInfo
+	)
 	re := regexp.MustCompile(`.*\.(tar\.(gz|zst)|7z)$`)
 
 	// Iterate over each row in the table
@@ -1840,6 +1843,18 @@ func getLatestFileURL(baseURL string, fileName string) (string, error) {
 				return f.url, nil
 			}
 		}
+	} else {
+		for _, f := range files {
+			if strings.Contains(f.url, "latest") {
+				log.WithContext(ctx).WithField("url", f.url).Debug("found a snapshot with latest keyword")
+				latestFiles = append(latestFiles, fileInfo{url: f.url, date: f.date})
+			}
+		}
+	}
+
+	if len(latestFiles) != 0 {
+		files = make([]fileInfo, len(latestFiles))
+		copy(files, latestFiles)
 	}
 
 	// Sort files by date, latest first

@@ -1615,8 +1615,17 @@ func downloadLatestSnapshot(ctx context.Context, config configs.Config) error {
 	}
 	log.WithContext(ctx).WithField("url", latestFileURL).Info("downloading snapshot...")
 
+	var extension string
+	if strings.HasSuffix(latestFileURL, ".zst") {
+		extension = ".tar.zst"
+	} else if strings.HasSuffix(latestFileURL, ".gz") {
+		extension = ".tar.gz"
+	} else {
+		return errors.Errorf("extension is not supported")
+	}
+
 	tmpDir := os.TempDir()
-	tmpFilePath := filepath.Join(tmpDir, "latest_snapshot.tar.gz")
+	tmpFilePath := filepath.Join(tmpDir, "latest_snapshot"+extension)
 
 	err = utils.DownloadFile(ctx, tmpFilePath, latestFileURL)
 	if err != nil {

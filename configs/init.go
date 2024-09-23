@@ -20,6 +20,7 @@ type Init struct {
 	OpMode                      string `json:"opmode,omitempty"`
 	ArchiveDir                  string `json:"archivedir,omitempty"`
 	Legacy                      bool   `json:"legacy,omitempty"`
+	ExtraFlags                  string `json:"extraflags,omitempty"`
 	ReIndex                     bool   `json:"reindex,omitempty"`
 	TxIndex                     int    `json:"txindex,omitempty"`
 	NoCache                     bool   `json:"nocache,omitempty"`
@@ -35,6 +36,7 @@ type Init struct {
 	DevMode                     bool   `json:"devmode,omitempty"`
 	UseSnapshot                 bool   `json:"use-snapshot,omitempty"`
 	SnapshotName                string `json:"snapshot-name,omitempty"`
+	SnapshotType                string `json:"snapshot-type,omitempty"`
 
 	NodeExtIP string `json:"nodeextip,omitempty"`
 

@@ -96,6 +96,8 @@ func setupUpdateSubCommand(config *configs.Config,
 			SetUsage(green("Optional, Skip Download and Update of dd-service supporting files")).SetValue(true),
 		cli.NewFlag("use-snapshot", &config.UseSnapshot).SetAliases("us").
 			SetUsage(green("Optional, Set to true if want to update with latest snapshot")),
+		cli.NewFlag("snapshot-archive-type", &config.SnapshotType).SetAliases("st").
+			SetUsage(green("Optional, type of snapshot archive - can be \"tar.zst\" or \"tar.gz\"")).SetValue("tar.zst"),
 		cli.NewFlag("snapshot-name", &config.SnapshotName).SetAliases("sn").
 			SetUsage(green("Optional, Set the specific snapshot name to install with")),
 	}

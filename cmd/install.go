@@ -11,15 +11,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"regexp"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
-	"github.com/chromedp/chromedp"
 	"github.com/klauspost/compress/zstd"
 	"github.com/pastelnetwork/pastelup/common/cli"
 	"github.com/pastelnetwork/pastelup/common/errors"
@@ -48,7 +44,7 @@ const (
 )
 
 const (
-	snapshotsBaseURL = "https://download.pastel.network/#snapshots/"
+	snapshotsBaseURL = "https://download.pastel.network/snapshots/"
 )
 
 var (
@@ -128,6 +124,8 @@ func setupSubCommand(config *configs.Config,
 			SetUsage(red("Required, network type, can be - \"mainnet\", \"testnet\" or \"devnet\"")),
 		cli.NewFlag("use-snapshot", &config.UseSnapshot).SetAliases("us").
 			SetUsage(green("Optional, Set to true if want to install with latest snapshot")),
+		cli.NewFlag("snapshot-archive-type", &config.SnapshotType).SetAliases("st").
+			SetUsage(green("Optional, type of snapshot archive - can be \"tar.zst\" or \"tar.gz\". Ignored if \"snapshot-name\" is specified")).SetValue("tar.zst"),
 		cli.NewFlag("snapshot-name", &config.SnapshotName).SetAliases("sn").
 			SetUsage(green("Optional, Set the specific snapshot name to install with")),
 	}
@@ -135,6 +133,8 @@ func setupSubCommand(config *configs.Config,
 	pastelFlags := []*cli.Flag{
 		cli.NewFlag("peers", &config.Peers).SetAliases("p").
 			SetUsage(green("Optional, List of peers to add into pastel.conf file, must be in the format - \"ip\" or \"ip:port\"")),
+		cli.NewFlag("extra-flags", &config.ExtraFlags).
+			SetUsage(green("Optional, Add extra flags to pastel.conf - comma separated list of flags (Example: \"txindex=1,insightexplorer=1\")")),
 		cli.NewFlag("legacy", &config.Legacy).
 			SetUsage(green("Optional, Install legacy pastel parameters - including sprout proving and verifying keys")).SetValue(false),
 	}
@@ -481,6 +481,20 @@ func runRemoteInstall(ctx context.Context, config *configs.Config, tool string) 
 		remoteOptions = fmt.Sprintf("%s --peers=%s", remoteOptions, config.Peers)
 	}
 
+	if config.ExtraFlags != "" {
+		remoteOptions = fmt.Sprintf("%s --extra-flags=%s", remoteOptions, config.ExtraFlags)
+	}
+
+	if config.UseSnapshot {
+		remoteOptions = fmt.Sprintf("%s --use-snapshot", remoteOptions)
+	}
+	if len(config.SnapshotName) > 0 {
+		remoteOptions = fmt.Sprintf("%s --snapshot-name=%s", remoteOptions, config.SnapshotName)
+	}
+	if len(config.SnapshotType) > 0 {
+		remoteOptions = fmt.Sprintf("%s --snapshot-archive-type=%s", remoteOptions, config.SnapshotType)
+	}
+
 	if config.Network == constants.NetworkTestnet {
 		remoteOptions = fmt.Sprintf("%s -n=testnet", remoteOptions)
 	} else if config.Network == constants.NetworkMainnet {
@@ -573,7 +587,7 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 
 		if config.UseSnapshot {
 			log.WithContext(ctx).Info("using latest snapshot..")
-			if err := downloadLatestSnapshot(ctx, *config); err != nil {
+			if err := downloadLatestSnapshot(ctx, *config, installCommand); err != nil {
 				log.WithContext(ctx).WithError(err).Error("error configuring network with latest snapshot, proceeding without snapshot")
 			}
 		}
@@ -1359,6 +1373,13 @@ func updatePastelConfigFile(ctx context.Context, filePath string, config *config
 		}
 	}
 
+	if config.ExtraFlags != "" {
+		extraFlags := strings.Split(config.ExtraFlags, ",")
+		for _, flag := range extraFlags {
+			cfgBuffer.WriteString(flag + "\n")
+		}
+	}
+
 	// Save file changes.
 	err := os.WriteFile(filePath, cfgBuffer.Bytes(), 0644)
 	if err != nil {
@@ -1605,29 +1626,44 @@ func writeToFile(config *configs.Config, filename, content string) error {
 	return err
 }
 
-func downloadLatestSnapshot(ctx context.Context, config configs.Config) error {
+func downloadLatestSnapshot(ctx context.Context, config configs.Config, installCommand constants.ToolType) error {
+
 	url := snapshotsBaseURL + config.Network + "/"
 
-	// Fetch the latest file URL
-	latestFileURL, err := getLatestFileURL(url, config.SnapshotName)
-	if err != nil {
-		return fmt.Errorf("failed to get latest file URL: %w", err)
-	}
-	log.WithContext(ctx).WithField("url", latestFileURL).Info("downloading snapshot...")
+	snapshotName := config.SnapshotName
+	var extension, snapshotURL string
 
-	var extension string
-	if strings.HasSuffix(latestFileURL, ".zst") {
-		extension = ".tar.zst"
-	} else if strings.HasSuffix(latestFileURL, ".gz") {
-		extension = ".tar.gz"
+	if snapshotName == "" {
+		switch installCommand {
+		case constants.PastelD:
+			snapshotName = "snapshot-latest-mainnet"
+		case constants.WalletNode:
+			snapshotName = "snapshot-latest-mainnet-txind"
+		case constants.SuperNode:
+			snapshotName = "snapshot-latest-mainnet-explorer"
+		default:
+			return fmt.Errorf("unknown installation type: %s", installCommand)
+		}
+
+		extension = "." + config.SnapshotType
+		snapshotURL = url + snapshotName + extension
 	} else {
-		return errors.Errorf("extension is not supported")
+		if strings.HasSuffix(snapshotName, ".zst") {
+			extension = ".tar.zst"
+		} else if strings.HasSuffix(snapshotName, ".gz") {
+			extension = ".tar.gz"
+		} else {
+			return errors.Errorf("extension is not supported")
+		}
+		snapshotURL = url + snapshotName
 	}
+
+	log.WithContext(ctx).WithField("url", snapshotURL).Info("Downloading snapshot for " + installCommand)
 
 	tmpDir := os.TempDir()
 	tmpFilePath := filepath.Join(tmpDir, "latest_snapshot"+extension)
 
-	err = utils.DownloadFile(ctx, tmpFilePath, latestFileURL)
+	err := utils.DownloadFile(ctx, tmpFilePath, snapshotURL)
 	if err != nil {
 		return fmt.Errorf("error downloading file: %w", err)
 	}
@@ -1784,96 +1820,6 @@ func installChocolatey(ctx context.Context) {
 		log.WithContext(ctx).Debugf("chocolatey installation attempt %d failed: %v, output: %s\n retrying...", i+1, err, output)
 		time.Sleep(5 * time.Second) // Wait before retrying
 	}
-}
-
-func getLatestFileURL(baseURL string, fileName string) (string, error) {
-	// Create context
-	ctx, cancel := chromedp.NewContext(context.Background())
-	defer cancel()
-
-	// Navigate to the page and get the full HTML content
-	var htmlContent string
-	err := chromedp.Run(ctx,
-		chromedp.Navigate(baseURL),
-		chromedp.WaitVisible(`a[href*="snapshot"]`, chromedp.ByQuery),
-		chromedp.Sleep(4*time.Second),
-		chromedp.OuterHTML("html", &htmlContent),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	// Parse the HTML
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
-	if err != nil {
-		return "", err
-	}
-
-	type fileInfo struct {
-		url  string
-		date time.Time
-	}
-
-	var files []fileInfo
-	re := regexp.MustCompile(`.*\.(tar\.(gz|zst)|7z)$`)
-
-	// Iterate over each row in the table
-	doc.Find("table.table tbody tr").Each(func(_ int, s *goquery.Selection) {
-		log.WithContext(ctx).Debug("Processing a row...")
-
-		aTag := s.Find("a")
-		if href, exists := aTag.Attr("href"); exists {
-			log.WithContext(ctx).Debug("Found href:", href)
-			matches := re.FindStringSubmatch(href)
-			if matches != nil {
-				log.WithContext(ctx).Debug("Matches found:", matches)
-				dateText := s.Find("div.tooltip-content").Text()
-				parsedDate, err := parseDate(dateText)
-				if err == nil {
-					files = append(files, fileInfo{url: href, date: parsedDate})
-				} else {
-					log.WithContext(ctx).Debug(fmt.Sprintf("Failed to parse date: %s", err.Error()))
-				}
-			}
-		}
-	})
-
-	if len(files) == 0 {
-		return "", fmt.Errorf("no snapshot files found at: %s", baseURL)
-	}
-
-	if fileName != "" {
-		for _, f := range files {
-			if strings.Contains(f.url, fileName) {
-				log.WithContext(ctx).Info("found snapshot with given name:", fileName)
-				return f.url, nil
-			}
-		}
-	}
-
-	// Sort files by date, latest first
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].date.After(files[j].date)
-	})
-
-	return files[0].url, nil
-}
-
-func removeOrdinalSuffix(dateStr string) string {
-	re := regexp.MustCompile(`(\d+)(st|nd|rd|th)`)
-	return re.ReplaceAllString(dateStr, "$1")
-}
-
-func parseDate(dateStr string) (time.Time, error) {
-	// Remove the "•" bullet character if it exists
-	dateStr = strings.Replace(dateStr, "•", "", -1)
-	// Remove ordinal suffix from day
-	dateStr = removeOrdinalSuffix(dateStr)
-	// Trim any extra whitespace
-	dateStr = strings.TrimSpace(dateStr)
-	// Define the date layout according to the date format in the HTML
-	layout := "Monday, January 2, 2006 15:04:05"
-	return time.Parse(layout, dateStr)
 }
 
 func cleanWorkingDir(dir string) error {

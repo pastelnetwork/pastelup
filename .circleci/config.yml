@@ -31,7 +31,7 @@ commands:
             export APP_LDFLAGS="-X github.com/pastelnetwork/pastelup/common/version.version=$CIRCLE_TAG" 
 
             ls -R
-            xgo -go go-1.20.3 --targets=<< parameters.targets >> -ldflags "$APP_LDFLAGS"  ./
+            xgo -go go-1.23.1 --targets=<< parameters.targets >> -ldflags "$APP_LDFLAGS"  ./
 
             cd ./github.com/pastelnetwork
             ls -R 
@@ -166,9 +166,9 @@ jobs:
           name: Install Go
           command: |
             cd ..
-            wget https://golang.org/dl/go1.20.3.linux-amd64.tar.gz
+            wget https://golang.org/dl/go1.23.1.linux-amd64.tar.gz
             sudo rm -r /usr/local/go
-            sudo tar -C /usr/local -xzf go1.20.3.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz
             echo 'export PATH=$PATH:/usr/local/go/bin:~/go/bin' >> ~/.bashrc
             echo 'export CGO_ENABLED=1' >> ~/.bashrc
             echo "export GOPATH=\"$HOME/go\"" >> ~/.bashrc
@@ -221,9 +221,9 @@ jobs:
           name: Install Go
           command: |
             cd ..
-            wget https://golang.org/dl/go1.20.3.linux-amd64.tar.gz
+            wget https://golang.org/dl/go1.23.1.linux-amd64.tar.gz
             sudo rm -r /usr/local/go
-            sudo tar -C /usr/local -xzf go1.20.3.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf go1.23.1.linux-amd64.tar.gz
             echo 'export PATH=$PATH:/usr/local/go/bin:~/go/bin' >> ~/.bashrc
             echo 'export CGO_ENABLED=1' >> ~/.bashrc
             echo "export GOPATH=\"$HOME/go\"" >> ~/.bashrc

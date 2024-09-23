@@ -351,13 +351,13 @@ func Decompress(data []byte) ([]byte, error) {
 }
 
 // RandomDuration returns a random duration between min and max
-func RandomDuration(min, max int) time.Duration {
-	if min > max {
-		min, max = max, min
+func RandomDuration(minVal, maxVal int) time.Duration {
+	if minVal > maxVal {
+		minVal, maxVal = maxVal, minVal
 	}
 	var n uint64
 	binary.Read(rand.Reader, binary.LittleEndian, &n) // read a random uint64
-	randomMillisecond := min + int(n%(uint64(max-min+1)))
+	randomMillisecond := minVal + int(n%(uint64(maxVal-minVal+1)))
 	return time.Duration(randomMillisecond) * time.Millisecond
 }
 

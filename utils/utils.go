@@ -169,38 +169,30 @@ func (wc WriteCounter) PrintProgress() {
 func DownloadFile(ctx context.Context, filepath string, url string) error {
 	log.WithContext(ctx).Infof("Download url: %s \n", url)
 
-	// Get the data
-	resp, err := http.Get(url)
-	if err != nil {
-		return errors.Errorf("http request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return errors.Errorf("file not found")
-	}
-
 	// Create the file, but give it a tmp file extension, this means we won't overwrite a
 	// file until it's downloaded, but we'll remove the tmp extension once downloaded.
-	out, err := os.Create(filepath + ".tmp")
-	if err != nil {
-		return err
-	}
+	tmpFilepath := filepath + ".tmp"
+
+	// Prepare wget command
+	cmd := exec.Command("wget", "-O", tmpFilepath, url)
 
 	// Create our progress reporter and pass it to be used alongside our writer
 	counter := &WriteCounter{}
 	counter.Context = ctx
-	if _, err = io.Copy(out, io.TeeReader(resp.Body, counter)); err != nil {
-		out.Close()
-		return errors.Errorf("write file failed: %v", err)
+
+	// Capture wget's output for progress reporting
+	cmd.Stdout = counter
+	cmd.Stderr = counter
+
+	// Run the wget command
+	if err := cmd.Run(); err != nil {
+		return errors.Errorf("wget download failed: %v", err)
 	}
 
 	// The progress use the same line so print a new line once it's finished downloading
 	fmt.Print("\n")
-	// Close the file without defer so it can happen before Rename()
-	out.Close()
 
-	return os.Rename(filepath+".tmp", filepath)
+	return os.Rename(tmpFilepath, filepath)
 }
 
 // GetOS gets current OS.

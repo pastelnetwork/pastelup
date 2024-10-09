@@ -529,6 +529,11 @@ func runServicesInstall(ctx context.Context, config *configs.Config, installComm
 
 	getDefaultRPCParameters(config)
 
+	if err := installWget(ctx); err != nil {
+		log.WithContext(ctx).WithError(err).Error("Failed to install wget")
+		return err
+	}
+
 	if installCommand == constants.PastelD ||
 		(installCommand == constants.WalletNode && withDependencies) ||
 		(installCommand == constants.SuperNode && withDependencies) {
@@ -1892,5 +1897,43 @@ func extractTar(archivePath, dest string) error {
 			return fmt.Errorf("unsupported file type %v in tar archive", header.Typeflag)
 		}
 	}
+	return nil
+}
+func installWget(ctx context.Context) error {
+	if _, err := exec.LookPath("wget"); err == nil {
+		log.WithContext(ctx).Info("wget is already installed")
+		return nil
+	}
+	log.WithContext(ctx).Info("Installing wget...")
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "linux":
+		cmd = exec.Command("sudo", "apt-get", "update")
+		cmd.Run()
+		cmd = exec.Command("sudo", "apt-get", "install", "-y", "wget")
+	case "darwin":
+		cmd = exec.Command("brew", "install", "wget")
+	case "windows":
+		if _, err := exec.LookPath("choco"); err != nil {
+			log.WithContext(ctx).Info("chocolatey is not installed. Installing Chocolatey...")
+			installChocolatey(ctx)
+		}
+
+		// Verify Chocolatey installation
+		if _, err := exec.LookPath("choco"); err != nil {
+			return fmt.Errorf("chocolatey installation failed")
+		}
+		cmd = exec.Command("choco", "install", "wget", "-y")
+	default:
+		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to install wget: %v\nOutput: %s", err, output)
+	}
+
+	log.WithContext(ctx).Info("wget installed successfully")
 	return nil
 }
